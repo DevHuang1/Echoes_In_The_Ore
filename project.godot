@@ -10,9 +10,13 @@ config_version=5
 
 [application]
 
-config/name="Echoes in the Ore — Web Foundation"
-run/main_scene="res://scenes/boot.tscn"
+config/name="Echoes in the Ore"
+run/main_scene="res://scenes/ui/landing_screen.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
+
+[autoload]
+
+InputBindings="*res://scripts/ship/input_bindings.gd"
 
 [display]
 

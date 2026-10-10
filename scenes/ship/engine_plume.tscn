@@ -1,0 +1,9 @@
+[gd_scene format=3 uid="uid://b8lq0lk6k2n0l"]
+
+[ext_resource type="Script" uid="uid://cdnt7nd26t0jf" path="res://scripts/ship/engine_plume.gd" id="1_plume"]
+
+[node name="EnginePlume" type="AnimatedSprite2D" unique_id=505532081]
+z_index = -2
+texture_filter = 2
+position = Vector2(360, -337)
+script = ExtResource("1_plume")

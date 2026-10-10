@@ -1,0 +1,69 @@
+[gd_scene load_steps=7 format=3]
+
+[ext_resource type="Texture2D" path="res://art/overview/floor_modules/rooms/r03_center_recess_floor.png" id="1_texture"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_top"]
+size = Vector2(197, 14)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_diagonal"]
+size = Vector2(32, 14)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_side"]
+size = Vector2(14, 42)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_lower_diagonal"]
+size = Vector2(22, 14)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_bottom"]
+size = Vector2(78, 14)
+
+[node name="CenterRecessRoom" type="Node2D"]
+
+[node name="FloorVisual" type="Sprite2D" parent="."]
+z_index = -2
+centered = false
+texture = ExtResource("1_texture")
+
+[node name="WallCollision" type="StaticBody2D" parent="."]
+collision_layer = 1
+collision_mask = 0
+
+[node name="TopWall" type="CollisionShape2D" parent="WallCollision"]
+position = Vector2(179, 18)
+shape = SubResource("RectangleShape2D_top")
+
+[node name="UpperLeftCorner" type="CollisionShape2D" parent="WallCollision"]
+position = Vector2(71, 31)
+rotation = -0.97
+shape = SubResource("RectangleShape2D_diagonal")
+
+[node name="LeftWall" type="CollisionShape2D" parent="WallCollision"]
+position = Vector2(62, 64)
+shape = SubResource("RectangleShape2D_side")
+
+[node name="LowerLeftCorner" type="CollisionShape2D" parent="WallCollision"]
+position = Vector2(71, 91)
+rotation = 0.63
+shape = SubResource("RectangleShape2D_lower_diagonal")
+
+[node name="BottomLeftWall" type="CollisionShape2D" parent="WallCollision"]
+position = Vector2(119, 98)
+shape = SubResource("RectangleShape2D_bottom")
+
+[node name="BottomRightWall" type="CollisionShape2D" parent="WallCollision"]
+position = Vector2(239, 98)
+shape = SubResource("RectangleShape2D_bottom")
+
+[node name="LowerRightCorner" type="CollisionShape2D" parent="WallCollision"]
+position = Vector2(287, 91)
+rotation = -0.63
+shape = SubResource("RectangleShape2D_lower_diagonal")
+
+[node name="RightWall" type="CollisionShape2D" parent="WallCollision"]
+position = Vector2(297, 64)
+shape = SubResource("RectangleShape2D_side")
+
+[node name="UpperRightCorner" type="CollisionShape2D" parent="WallCollision"]
+position = Vector2(287, 31)
+rotation = 0.97
+shape = SubResource("RectangleShape2D_diagonal")

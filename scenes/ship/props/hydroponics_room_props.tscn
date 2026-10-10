@@ -1,0 +1,183 @@
+[gd_scene load_steps=27 format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/ship/props/hydroponic_animated_prop.tscn" id="1_prop"]
+[ext_resource type="Texture2D" path="res://art/concepts/hydroponics_animation_frames/grow_tray_power_sway_frames/grow_tray_power_sway_frame_01.png" id="2_tray_01"]
+[ext_resource type="Texture2D" path="res://art/concepts/hydroponics_animation_frames/grow_tray_power_sway_frames/grow_tray_power_sway_frame_02.png" id="3_tray_02"]
+[ext_resource type="Texture2D" path="res://art/concepts/hydroponics_animation_frames/grow_tray_power_sway_frames/grow_tray_power_sway_frame_03.png" id="4_tray_03"]
+[ext_resource type="Texture2D" path="res://art/concepts/hydroponics_animation_frames/grow_tray_power_sway_frames/grow_tray_power_sway_frame_04.png" id="5_tray_04"]
+[ext_resource type="Texture2D" path="res://art/concepts/hydroponics_animation_frames/seedling_rack_sway_frames/seedling_rack_sway_frame_01.png" id="6_rack_01"]
+[ext_resource type="Texture2D" path="res://art/concepts/hydroponics_animation_frames/seedling_rack_sway_frames/seedling_rack_sway_frame_02.png" id="7_rack_02"]
+[ext_resource type="Texture2D" path="res://art/concepts/hydroponics_animation_frames/seedling_rack_sway_frames/seedling_rack_sway_frame_03.png" id="8_rack_03"]
+[ext_resource type="Texture2D" path="res://art/concepts/hydroponics_animation_frames/seedling_rack_sway_frames/seedling_rack_sway_frame_04.png" id="9_rack_04"]
+[ext_resource type="Texture2D" path="res://art/concepts/hydroponics_animation_frames/nutrient_pump_bubbles_frames/nutrient_pump_bubbles_frame_01.png" id="10_pump_01"]
+[ext_resource type="Texture2D" path="res://art/concepts/hydroponics_animation_frames/nutrient_pump_bubbles_frames/nutrient_pump_bubbles_frame_02.png" id="11_pump_02"]
+[ext_resource type="Texture2D" path="res://art/concepts/hydroponics_animation_frames/nutrient_pump_bubbles_frames/nutrient_pump_bubbles_frame_03.png" id="12_pump_03"]
+[ext_resource type="Texture2D" path="res://art/concepts/hydroponics_animation_frames/nutrient_pump_bubbles_frames/nutrient_pump_bubbles_frame_04.png" id="13_pump_04"]
+[ext_resource type="Texture2D" path="res://art/concepts/hydroponics_animation_frames/control_console_display_frames/control_console_display_frame_01.png" id="14_console_01"]
+[ext_resource type="Texture2D" path="res://art/concepts/hydroponics_animation_frames/control_console_display_frames/control_console_display_frame_02.png" id="15_console_02"]
+[ext_resource type="Texture2D" path="res://art/concepts/hydroponics_animation_frames/control_console_display_frames/control_console_display_frame_03.png" id="16_console_03"]
+[ext_resource type="Texture2D" path="res://art/concepts/hydroponics_animation_frames/control_console_display_frames/control_console_display_frame_04.png" id="17_console_04"]
+[ext_resource type="Texture2D" path="res://art/concepts/hydroponics_animation_frames/potted_herb_sway_frames/potted_herb_sway_frame_01.png" id="18_pot_01"]
+[ext_resource type="Texture2D" path="res://art/concepts/hydroponics_animation_frames/potted_herb_sway_frames/potted_herb_sway_frame_02.png" id="19_pot_02"]
+[ext_resource type="Texture2D" path="res://art/concepts/hydroponics_animation_frames/potted_herb_sway_frames/potted_herb_sway_frame_03.png" id="20_pot_03"]
+[ext_resource type="Texture2D" path="res://art/concepts/hydroponics_animation_frames/potted_herb_sway_frames/potted_herb_sway_frame_04.png" id="21_pot_04"]
+[ext_resource type="Texture2D" path="res://art/concepts/hydroponics_animation_frames/wall_herb_shelf_sway_frames/wall_herb_shelf_sway_frame_01.png" id="22_shelf_01"]
+[ext_resource type="Texture2D" path="res://art/concepts/hydroponics_animation_frames/wall_herb_shelf_sway_frames/wall_herb_shelf_sway_frame_02.png" id="23_shelf_02"]
+[ext_resource type="Texture2D" path="res://art/concepts/hydroponics_animation_frames/wall_herb_shelf_sway_frames/wall_herb_shelf_sway_frame_03.png" id="24_shelf_03"]
+[ext_resource type="Texture2D" path="res://art/concepts/hydroponics_animation_frames/wall_herb_shelf_sway_frames/wall_herb_shelf_sway_frame_04.png" id="25_shelf_04"]
+[ext_resource type="PackedScene" path="res://scenes/ship/props/warm_ship_light.tscn" id="26_warm_light"]
+
+[node name="HydroponicsRoomProps" type="Node2D"]
+
+[node name="HydroponicsLighting" type="Node2D" parent="."]
+
+[node name="RoomWarmth" parent="HydroponicsLighting" instance=ExtResource("26_warm_light")]
+position = Vector2(285, 740)
+energy = 0.3
+
+[node name="NorthGrowLight" parent="HydroponicsLighting" instance=ExtResource("26_warm_light")]
+position = Vector2(165, 697)
+energy = 0.58
+texture_scale = 0.48
+
+[node name="SouthGrowLight" parent="HydroponicsLighting" instance=ExtResource("26_warm_light")]
+position = Vector2(165, 750)
+energy = 0.58
+texture_scale = 0.48
+
+[node name="SeedlingRackLight" parent="HydroponicsLighting" instance=ExtResource("26_warm_light")]
+position = Vector2(236, 736)
+energy = 0.42
+texture_scale = 0.4
+
+[node name="UpperHerbShelfLight" parent="HydroponicsLighting" instance=ExtResource("26_warm_light")]
+position = Vector2(410, 677)
+energy = 0.34
+texture_scale = 0.34
+
+[node name="LowerHerbShelfLight" parent="HydroponicsLighting" instance=ExtResource("26_warm_light")]
+position = Vector2(410, 824)
+energy = 0.3
+texture_scale = 0.34
+
+[node name="WallHerbShelf" parent="." instance=ExtResource("1_prop")]
+position = Vector2(436, 677)
+scale = Vector2(0.082, 0.068)
+animation_frames = Array[Texture2D]([ExtResource("22_shelf_01"), ExtResource("23_shelf_02"), ExtResource("24_shelf_03"), ExtResource("25_shelf_04")])
+frames_per_second = 3.0
+frame_offset_corrections = Array[Vector2]([Vector2(0, 0), Vector2(13, 0), Vector2(6, 0), Vector2(16, 0)])
+
+[node name="GrowTrayNorth" parent="." instance=ExtResource("1_prop")]
+position = Vector2(165, 697)
+scale = Vector2(0.112, 0.127)
+animation_frames = Array[Texture2D]([ExtResource("2_tray_01"), ExtResource("3_tray_02"), ExtResource("4_tray_03"), ExtResource("5_tray_04")])
+frames_per_second = 4.0
+frame_offset_corrections = Array[Vector2]([Vector2(0, 0), Vector2(0, 0), Vector2(0, 42), Vector2(0, 42)])
+
+[node name="GrowTraySouth" parent="." instance=ExtResource("1_prop")]
+position = Vector2(165, 750)
+scale = Vector2(0.112, 0.127)
+animation_frames = Array[Texture2D]([ExtResource("2_tray_01"), ExtResource("3_tray_02"), ExtResource("4_tray_03"), ExtResource("5_tray_04")])
+frames_per_second = 4.0
+frame_offset_corrections = Array[Vector2]([Vector2(0, 0), Vector2(0, 0), Vector2(0, 42), Vector2(0, 42)])
+
+[node name="SeedlingRack" parent="." instance=ExtResource("1_prop")]
+position = Vector2(236, 736)
+scale = Vector2(0.20, 0.20)
+animation_frames = Array[Texture2D]([ExtResource("6_rack_01"), ExtResource("7_rack_02"), ExtResource("8_rack_03"), ExtResource("9_rack_04")])
+frames_per_second = 3.5
+frame_offset_corrections = Array[Vector2]([Vector2(0, 0), Vector2(101, -3), Vector2(96, 3), Vector2(102, 4)])
+frame_scale_corrections = Array[Vector2]([Vector2(1, 1), Vector2(0.652, 1), Vector2(0.635, 1), Vector2(0.654, 1)])
+
+[node name="ControlConsole" parent="." instance=ExtResource("1_prop")]
+position = Vector2(81, 748)
+scale = Vector2(0.12, 0.09)
+animation_frames = Array[Texture2D]([ExtResource("14_console_01"), ExtResource("15_console_02"), ExtResource("16_console_03"), ExtResource("17_console_04")])
+frames_per_second = 3.0
+frame_offset_corrections = Array[Vector2]([Vector2(0, 0), Vector2(40, 9), Vector2(-7, 5), Vector2(21, 4)])
+
+[node name="NutrientPump" parent="." instance=ExtResource("1_prop")]
+position = Vector2(118, 802)
+scale = Vector2(0.12, 0.12)
+animation_frames = Array[Texture2D]([ExtResource("10_pump_01"), ExtResource("11_pump_02"), ExtResource("12_pump_03"), ExtResource("13_pump_04")])
+frames_per_second = 3.5
+phase_offset = 1
+frame_offset_corrections = Array[Vector2]([Vector2(0, 0), Vector2(37, 0), Vector2(51, 24), Vector2(38, 21)])
+
+[node name="NorthHerbA" parent="." instance=ExtResource("1_prop")]
+position = Vector2(348, 676)
+scale = Vector2(0.05, 0.05)
+animation_frames = Array[Texture2D]([ExtResource("18_pot_01"), ExtResource("19_pot_02"), ExtResource("20_pot_03"), ExtResource("21_pot_04")])
+frames_per_second = 3.0
+frame_offset_corrections = Array[Vector2]([Vector2(0, 0), Vector2(10, 0), Vector2(0, 0), Vector2(7, 0)])
+
+[node name="NorthHerbB" parent="." instance=ExtResource("1_prop")]
+position = Vector2(367, 676)
+scale = Vector2(0.05, 0.05)
+animation_frames = Array[Texture2D]([ExtResource("18_pot_01"), ExtResource("19_pot_02"), ExtResource("20_pot_03"), ExtResource("21_pot_04")])
+frames_per_second = 3.0
+phase_offset = 1
+frame_offset_corrections = Array[Vector2]([Vector2(0, 0), Vector2(10, 0), Vector2(0, 0), Vector2(7, 0)])
+
+[node name="NorthHerbC" parent="." instance=ExtResource("1_prop")]
+position = Vector2(390, 676)
+scale = Vector2(0.05, 0.05)
+animation_frames = Array[Texture2D]([ExtResource("18_pot_01"), ExtResource("19_pot_02"), ExtResource("20_pot_03"), ExtResource("21_pot_04")])
+frames_per_second = 3.0
+phase_offset = 2
+frame_offset_corrections = Array[Vector2]([Vector2(0, 0), Vector2(10, 0), Vector2(0, 0), Vector2(7, 0)])
+
+[node name="NorthHerbD" parent="." instance=ExtResource("1_prop")]
+position = Vector2(466, 676)
+scale = Vector2(0.05, 0.05)
+animation_frames = Array[Texture2D]([ExtResource("18_pot_01"), ExtResource("19_pot_02"), ExtResource("20_pot_03"), ExtResource("21_pot_04")])
+frames_per_second = 3.0
+phase_offset = 1
+frame_offset_corrections = Array[Vector2]([Vector2(0, 0), Vector2(10, 0), Vector2(0, 0), Vector2(7, 0)])
+
+[node name="NorthHerbE" parent="." instance=ExtResource("1_prop")]
+position = Vector2(482, 676)
+scale = Vector2(0.05, 0.05)
+animation_frames = Array[Texture2D]([ExtResource("18_pot_01"), ExtResource("19_pot_02"), ExtResource("20_pot_03"), ExtResource("21_pot_04")])
+frames_per_second = 3.0
+phase_offset = 3
+frame_offset_corrections = Array[Vector2]([Vector2(0, 0), Vector2(10, 0), Vector2(0, 0), Vector2(7, 0)])
+
+[node name="SouthHerbA" parent="." instance=ExtResource("1_prop")]
+position = Vector2(348, 824)
+scale = Vector2(0.05, 0.05)
+animation_frames = Array[Texture2D]([ExtResource("18_pot_01"), ExtResource("19_pot_02"), ExtResource("20_pot_03"), ExtResource("21_pot_04")])
+frames_per_second = 3.0
+phase_offset = 2
+frame_offset_corrections = Array[Vector2]([Vector2(0, 0), Vector2(10, 0), Vector2(0, 0), Vector2(7, 0)])
+
+[node name="SouthHerbB" parent="." instance=ExtResource("1_prop")]
+position = Vector2(370, 825)
+scale = Vector2(0.05, 0.05)
+animation_frames = Array[Texture2D]([ExtResource("18_pot_01"), ExtResource("19_pot_02"), ExtResource("20_pot_03"), ExtResource("21_pot_04")])
+frames_per_second = 3.0
+phase_offset = 3
+frame_offset_corrections = Array[Vector2]([Vector2(0, 0), Vector2(10, 0), Vector2(0, 0), Vector2(7, 0)])
+
+[node name="SouthHerbC" parent="." instance=ExtResource("1_prop")]
+position = Vector2(393, 825)
+scale = Vector2(0.05, 0.05)
+animation_frames = Array[Texture2D]([ExtResource("18_pot_01"), ExtResource("19_pot_02"), ExtResource("20_pot_03"), ExtResource("21_pot_04")])
+frames_per_second = 3.0
+frame_offset_corrections = Array[Vector2]([Vector2(0, 0), Vector2(10, 0), Vector2(0, 0), Vector2(7, 0)])
+
+[node name="EastHerbA" parent="." instance=ExtResource("1_prop")]
+position = Vector2(484, 808)
+scale = Vector2(0.05, 0.05)
+animation_frames = Array[Texture2D]([ExtResource("18_pot_01"), ExtResource("19_pot_02"), ExtResource("20_pot_03"), ExtResource("21_pot_04")])
+frames_per_second = 3.0
+phase_offset = 1
+frame_offset_corrections = Array[Vector2]([Vector2(0, 0), Vector2(10, 0), Vector2(0, 0), Vector2(7, 0)])
+
+[node name="EastHerbB" parent="." instance=ExtResource("1_prop")]
+position = Vector2(484, 823)
+scale = Vector2(0.05, 0.05)
+animation_frames = Array[Texture2D]([ExtResource("18_pot_01"), ExtResource("19_pot_02"), ExtResource("20_pot_03"), ExtResource("21_pot_04")])
+frames_per_second = 3.0
+phase_offset = 3
+frame_offset_corrections = Array[Vector2]([Vector2(0, 0), Vector2(10, 0), Vector2(0, 0), Vector2(7, 0)])

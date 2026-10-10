@@ -1,0 +1,1331 @@
+{
+  "source": "art/overview/asteria_overview_floor.png",
+  "canvas_size": [
+    1774,
+    887
+  ],
+  "room_module_count": 10,
+  "connector_support_module_count": 17,
+  "tile_patch_count": 10,
+  "reconstruction": "Alpha-composite room and connector/support modules at each origin on a transparent canvas. Those 30 modules reconstruct the floor-only source exactly. Tile patches are additional reusable crops and can overlap the reconstructed modules.",
+  "modules": [
+    {
+      "id": "R01",
+      "label": "Bridge",
+      "kind": "room_floor",
+      "polygon": [
+        [
+          0,
+          278
+        ],
+        [
+          34,
+          246
+        ],
+        [
+          78,
+          220
+        ],
+        [
+          158,
+          204
+        ],
+        [
+          247,
+          205
+        ],
+        [
+          318,
+          229
+        ],
+        [
+          355,
+          269
+        ],
+        [
+          357,
+          393
+        ],
+        [
+          326,
+          433
+        ],
+        [
+          276,
+          472
+        ],
+        [
+          194,
+          484
+        ],
+        [
+          111,
+          455
+        ],
+        [
+          55,
+          427
+        ],
+        [
+          0,
+          381
+        ]
+      ],
+      "origin": [
+        80,
+        209
+      ],
+      "size": [
+        278,
+        275
+      ],
+      "pixel_area": 51726,
+      "file": "art/overview/floor_modules/rooms/r01_bridge_floor.png",
+      "scene": "scenes/ship/floor_modules/rooms/r01_bridge_floor.tscn"
+    },
+    {
+      "id": "R02",
+      "label": "Upper main room",
+      "kind": "room_floor",
+      "polygon": [
+        [
+          575,
+          72
+        ],
+        [
+          625,
+          42
+        ],
+        [
+          742,
+          28
+        ],
+        [
+          1064,
+          34
+        ],
+        [
+          1138,
+          64
+        ],
+        [
+          1152,
+          115
+        ],
+        [
+          1150,
+          222
+        ],
+        [
+          1125,
+          268
+        ],
+        [
+          612,
+          268
+        ],
+        [
+          576,
+          238
+        ]
+      ],
+      "origin": [
+        594,
+        53
+      ],
+      "size": [
+        541,
+        216
+      ],
+      "pixel_area": 91216,
+      "file": "art/overview/floor_modules/rooms/r02_upper_main_room_floor.png",
+      "scene": "scenes/ship/floor_modules/rooms/r02_upper_main_room_floor.tscn"
+    },
+    {
+      "id": "R03",
+      "label": "Center recess",
+      "kind": "room_floor",
+      "polygon": [
+        [
+          682,
+          267
+        ],
+        [
+          1037,
+          267
+        ],
+        [
+          1040,
+          344
+        ],
+        [
+          1022,
+          378
+        ],
+        [
+          997,
+          389
+        ],
+        [
+          718,
+          389
+        ],
+        [
+          684,
+          370
+        ]
+      ],
+      "origin": [
+        682,
+        269
+      ],
+      "size": [
+        359,
+        121
+      ],
+      "pixel_area": 29236,
+      "file": "art/overview/floor_modules/rooms/r03_center_recess_floor.png",
+      "scene": "scenes/ship/floor_modules/rooms/r03_center_recess_floor.tscn"
+    },
+    {
+      "id": "R04",
+      "label": "Upper service room",
+      "kind": "room_floor",
+      "polygon": [
+        [
+          1063,
+          265
+        ],
+        [
+          1206,
+          263
+        ],
+        [
+          1205,
+          358
+        ],
+        [
+          1187,
+          384
+        ],
+        [
+          1070,
+          384
+        ],
+        [
+          1058,
+          361
+        ]
+      ],
+      "origin": [
+        1058,
+        263
+      ],
+      "size": [
+        149,
+        122
+      ],
+      "pixel_area": 15404,
+      "file": "art/overview/floor_modules/rooms/r04_upper_service_room_floor.png",
+      "scene": "scenes/ship/floor_modules/rooms/r04_upper_service_room_floor.tscn"
+    },
+    {
+      "id": "R05",
+      "label": "Upper right room",
+      "kind": "room_floor",
+      "polygon": [
+        [
+          1224,
+          198
+        ],
+        [
+          1302,
+          199
+        ],
+        [
+          1369,
+          222
+        ],
+        [
+          1367,
+          377
+        ],
+        [
+          1343,
+          397
+        ],
+        [
+          1244,
+          387
+        ],
+        [
+          1221,
+          363
+        ]
+      ],
+      "origin": [
+        1221,
+        198
+      ],
+      "size": [
+        149,
+        200
+      ],
+      "pixel_area": 19870,
+      "file": "art/overview/floor_modules/rooms/r05_upper_right_room_floor.png",
+      "scene": "scenes/ship/floor_modules/rooms/r05_upper_right_room_floor.tscn"
+    },
+    {
+      "id": "R06",
+      "label": "Starboard aft room",
+      "kind": "room_floor",
+      "polygon": [
+        [
+          1341,
+          206
+        ],
+        [
+          1443,
+          207
+        ],
+        [
+          1538,
+          218
+        ],
+        [
+          1608,
+          251
+        ],
+        [
+          1624,
+          311
+        ],
+        [
+          1618,
+          479
+        ],
+        [
+          1596,
+          526
+        ],
+        [
+          1551,
+          551
+        ],
+        [
+          1380,
+          554
+        ],
+        [
+          1351,
+          523
+        ]
+      ],
+      "origin": [
+        1347,
+        224
+      ],
+      "size": [
+        278,
+        330
+      ],
+      "pixel_area": 75135,
+      "file": "art/overview/floor_modules/rooms/r06_starboard_aft_room_floor.png",
+      "scene": "scenes/ship/floor_modules/rooms/r06_starboard_aft_room_floor.tscn"
+    },
+    {
+      "id": "R07",
+      "label": "Mid-left room",
+      "kind": "room_floor",
+      "polygon": [
+        [
+          268,
+          397
+        ],
+        [
+          337,
+          393
+        ],
+        [
+          476,
+          393
+        ],
+        [
+          506,
+          405
+        ],
+        [
+          529,
+          410
+        ],
+        [
+          630,
+          404
+        ],
+        [
+          661,
+          427
+        ],
+        [
+          661,
+          500
+        ],
+        [
+          690,
+          527
+        ],
+        [
+          697,
+          610
+        ],
+        [
+          675,
+          652
+        ],
+        [
+          624,
+          669
+        ],
+        [
+          343,
+          665
+        ],
+        [
+          292,
+          651
+        ],
+        [
+          267,
+          623
+        ]
+      ],
+      "origin": [
+        269,
+        393
+      ],
+      "size": [
+        423,
+        277
+      ],
+      "pixel_area": 90927,
+      "file": "art/overview/floor_modules/rooms/r07_mid_left_room_floor.png",
+      "scene": "scenes/ship/floor_modules/rooms/r07_mid_left_room_floor.tscn"
+    },
+    {
+      "id": "R08",
+      "label": "Center lower room",
+      "kind": "room_floor",
+      "polygon": [
+        [
+          697,
+          410
+        ],
+        [
+          821,
+          405
+        ],
+        [
+          1192,
+          405
+        ],
+        [
+          1220,
+          436
+        ],
+        [
+          1218,
+          602
+        ],
+        [
+          1201,
+          649
+        ],
+        [
+          1153,
+          667
+        ],
+        [
+          867,
+          663
+        ],
+        [
+          801,
+          644
+        ],
+        [
+          753,
+          626
+        ],
+        [
+          730,
+          599
+        ],
+        [
+          729,
+          510
+        ],
+        [
+          698,
+          489
+        ]
+      ],
+      "origin": [
+        697,
+        405
+      ],
+      "size": [
+        523,
+        260
+      ],
+      "pixel_area": 111192,
+      "file": "art/overview/floor_modules/rooms/r08_center_lower_room_floor.png",
+      "scene": "scenes/ship/floor_modules/rooms/r08_center_lower_room_floor.tscn"
+    },
+    {
+      "id": "R09",
+      "label": "Shuttle bay",
+      "kind": "room_floor",
+      "polygon": [
+        [
+          1191,
+          524
+        ],
+        [
+          1228,
+          503
+        ],
+        [
+          1306,
+          503
+        ],
+        [
+          1368,
+          515
+        ],
+        [
+          1401,
+          550
+        ],
+        [
+          1399,
+          661
+        ],
+        [
+          1378,
+          698
+        ],
+        [
+          1260,
+          705
+        ],
+        [
+          1209,
+          682
+        ],
+        [
+          1192,
+          645
+        ]
+      ],
+      "origin": [
+        1199,
+        503
+      ],
+      "size": [
+        193,
+        203
+      ],
+      "pixel_area": 29112,
+      "file": "art/overview/floor_modules/rooms/r09_shuttle_bay_floor.png",
+      "scene": "scenes/ship/floor_modules/rooms/r09_shuttle_bay_floor.tscn"
+    },
+    {
+      "id": "R10",
+      "label": "Lower deck",
+      "kind": "room_floor",
+      "polygon": [
+        [
+          0,
+          679
+        ],
+        [
+          43,
+          650
+        ],
+        [
+          176,
+          642
+        ],
+        [
+          342,
+          648
+        ],
+        [
+          481,
+          649
+        ],
+        [
+          557,
+          649
+        ],
+        [
+          668,
+          663
+        ],
+        [
+          757,
+          667
+        ],
+        [
+          837,
+          670
+        ],
+        [
+          926,
+          681
+        ],
+        [
+          1009,
+          700
+        ],
+        [
+          1056,
+          742
+        ],
+        [
+          1065,
+          804
+        ],
+        [
+          1042,
+          839
+        ],
+        [
+          1002,
+          860
+        ],
+        [
+          177,
+          871
+        ],
+        [
+          68,
+          859
+        ],
+        [
+          17,
+          832
+        ],
+        [
+          0,
+          794
+        ]
+      ],
+      "origin": [
+        63,
+        642
+      ],
+      "size": [
+        1003,
+        221
+      ],
+      "pixel_area": 161521,
+      "file": "art/overview/floor_modules/rooms/r10_lower_deck_floor.png",
+      "scene": "scenes/ship/floor_modules/rooms/r10_lower_deck_floor.tscn"
+    },
+    {
+      "id": "F0101",
+      "label": "Forward upper starfield, antenna, and hull",
+      "kind": "connector_or_support_floor",
+      "grid_cell": [
+        1,
+        1
+      ],
+      "grid_bounds": [
+        0,
+        0,
+        354,
+        221
+      ],
+      "origin": [
+        71,
+        106
+      ],
+      "size": [
+        280,
+        114
+      ],
+      "pixel_area": 107,
+      "file": "art/overview/floor_modules/non_rooms/f0101_r01_c01_floor.png",
+      "scene": "scenes/ship/floor_modules/non_rooms/f0101_r01_c01_floor.tscn"
+    },
+    {
+      "id": "F0102",
+      "label": "Upper-left hull and room frame",
+      "kind": "connector_or_support_floor",
+      "grid_cell": [
+        1,
+        2
+      ],
+      "grid_bounds": [
+        354,
+        0,
+        709,
+        221
+      ],
+      "origin": [
+        354,
+        53
+      ],
+      "size": [
+        231,
+        120
+      ],
+      "pixel_area": 30,
+      "file": "art/overview/floor_modules/non_rooms/f0102_r01_c02_floor.png",
+      "scene": "scenes/ship/floor_modules/non_rooms/f0102_r01_c02_floor.tscn"
+    },
+    {
+      "id": "F0104",
+      "label": "Upper-right hull and service structure",
+      "kind": "connector_or_support_floor",
+      "grid_cell": [
+        1,
+        4
+      ],
+      "grid_bounds": [
+        1064,
+        0,
+        1419,
+        221
+      ],
+      "origin": [
+        1160,
+        24
+      ],
+      "size": [
+        259,
+        197
+      ],
+      "pixel_area": 11993,
+      "file": "art/overview/floor_modules/non_rooms/f0104_r01_c04_floor.png",
+      "scene": "scenes/ship/floor_modules/non_rooms/f0104_r01_c04_floor.tscn"
+    },
+    {
+      "id": "F0105",
+      "label": "Aft engine pod and surrounding starfield",
+      "kind": "connector_or_support_floor",
+      "grid_cell": [
+        1,
+        5
+      ],
+      "grid_bounds": [
+        1419,
+        0,
+        1774,
+        221
+      ],
+      "origin": [
+        1493,
+        102
+      ],
+      "size": [
+        192,
+        90
+      ],
+      "pixel_area": 57,
+      "file": "art/overview/floor_modules/non_rooms/f0105_r01_c05_floor.png",
+      "scene": "scenes/ship/floor_modules/non_rooms/f0105_r01_c05_floor.tscn"
+    },
+    {
+      "id": "F0201",
+      "label": "Bow glazing and outer frame",
+      "kind": "connector_or_support_floor",
+      "grid_cell": [
+        2,
+        1
+      ],
+      "grid_bounds": [
+        0,
+        221,
+        354,
+        443
+      ],
+      "origin": [
+        315,
+        221
+      ],
+      "size": [
+        6,
+        5
+      ],
+      "pixel_area": 6,
+      "file": "art/overview/floor_modules/non_rooms/f0201_r02_c01_floor.png",
+      "scene": "scenes/ship/floor_modules/non_rooms/f0201_r02_c01_floor.tscn"
+    },
+    {
+      "id": "F0202",
+      "label": "Upper-left corridor and bulkhead sections",
+      "kind": "connector_or_support_floor",
+      "grid_cell": [
+        2,
+        2
+      ],
+      "grid_bounds": [
+        354,
+        221,
+        709,
+        443
+      ],
+      "origin": [
+        354,
+        234
+      ],
+      "size": [
+        355,
+        209
+      ],
+      "pixel_area": 40069,
+      "file": "art/overview/floor_modules/non_rooms/f0202_r02_c02_floor.png",
+      "scene": "scenes/ship/floor_modules/non_rooms/f0202_r02_c02_floor.tscn"
+    },
+    {
+      "id": "F0203",
+      "label": "Central corridor and service connectors",
+      "kind": "connector_or_support_floor",
+      "grid_cell": [
+        2,
+        3
+      ],
+      "grid_bounds": [
+        709,
+        221,
+        1064,
+        443
+      ],
+      "origin": [
+        709,
+        269
+      ],
+      "size": [
+        355,
+        141
+      ],
+      "pixel_area": 8856,
+      "file": "art/overview/floor_modules/non_rooms/f0203_r02_c03_floor.png",
+      "scene": "scenes/ship/floor_modules/non_rooms/f0203_r02_c03_floor.tscn"
+    },
+    {
+      "id": "F0204",
+      "label": "Right-side corridor and structural frame",
+      "kind": "connector_or_support_floor",
+      "grid_cell": [
+        2,
+        4
+      ],
+      "grid_bounds": [
+        1064,
+        221,
+        1419,
+        443
+      ],
+      "origin": [
+        1064,
+        221
+      ],
+      "size": [
+        284,
+        222
+      ],
+      "pixel_area": 13587,
+      "file": "art/overview/floor_modules/non_rooms/f0204_r02_c04_floor.png",
+      "scene": "scenes/ship/floor_modules/non_rooms/f0204_r02_c04_floor.tscn"
+    },
+    {
+      "id": "F0205",
+      "label": "Aft hull and upper engine structure",
+      "kind": "connector_or_support_floor",
+      "grid_cell": [
+        2,
+        5
+      ],
+      "grid_bounds": [
+        1419,
+        221,
+        1774,
+        443
+      ],
+      "origin": [
+        1620,
+        226
+      ],
+      "size": [
+        84,
+        217
+      ],
+      "pixel_area": 975,
+      "file": "art/overview/floor_modules/non_rooms/f0205_r02_c05_floor.png",
+      "scene": "scenes/ship/floor_modules/non_rooms/f0205_r02_c05_floor.tscn"
+    },
+    {
+      "id": "F0301",
+      "label": "Port-side hull and exterior frame",
+      "kind": "connector_or_support_floor",
+      "grid_cell": [
+        3,
+        1
+      ],
+      "grid_bounds": [
+        0,
+        443,
+        354,
+        665
+      ],
+      "origin": [
+        71,
+        476
+      ],
+      "size": [
+        216,
+        170
+      ],
+      "pixel_area": 2445,
+      "file": "art/overview/floor_modules/non_rooms/f0301_r03_c01_floor.png",
+      "scene": "scenes/ship/floor_modules/non_rooms/f0301_r03_c01_floor.tscn"
+    },
+    {
+      "id": "F0302",
+      "label": "West connector corridor and bulkheads",
+      "kind": "connector_or_support_floor",
+      "grid_cell": [
+        3,
+        2
+      ],
+      "grid_bounds": [
+        354,
+        443,
+        709,
+        665
+      ],
+      "origin": [
+        652,
+        443
+      ],
+      "size": [
+        57,
+        222
+      ],
+      "pixel_area": 3557,
+      "file": "art/overview/floor_modules/non_rooms/f0302_r03_c02_floor.png",
+      "scene": "scenes/ship/floor_modules/non_rooms/f0302_r03_c02_floor.tscn"
+    },
+    {
+      "id": "F0303",
+      "label": "Central connector and cargo-bay walls",
+      "kind": "connector_or_support_floor",
+      "grid_cell": [
+        3,
+        3
+      ],
+      "grid_bounds": [
+        709,
+        443,
+        1064,
+        665
+      ],
+      "origin": [
+        709,
+        497
+      ],
+      "size": [
+        230,
+        168
+      ],
+      "pixel_area": 3103,
+      "file": "art/overview/floor_modules/non_rooms/f0303_r03_c03_floor.png",
+      "scene": "scenes/ship/floor_modules/non_rooms/f0303_r03_c03_floor.tscn"
+    },
+    {
+      "id": "F0304",
+      "label": "Right connector and hangar approach",
+      "kind": "connector_or_support_floor",
+      "grid_cell": [
+        3,
+        4
+      ],
+      "grid_bounds": [
+        1064,
+        443,
+        1419,
+        665
+      ],
+      "origin": [
+        1239,
+        443
+      ],
+      "size": [
+        111,
+        60
+      ],
+      "pixel_area": 3681,
+      "file": "art/overview/floor_modules/non_rooms/f0304_r03_c04_floor.png",
+      "scene": "scenes/ship/floor_modules/non_rooms/f0304_r03_c04_floor.tscn"
+    },
+    {
+      "id": "F0305",
+      "label": "Aft lower hull and thruster structure",
+      "kind": "connector_or_support_floor",
+      "grid_cell": [
+        3,
+        5
+      ],
+      "grid_bounds": [
+        1419,
+        443,
+        1774,
+        665
+      ],
+      "origin": [
+        1434,
+        443
+      ],
+      "size": [
+        255,
+        208
+      ],
+      "pixel_area": 1977,
+      "file": "art/overview/floor_modules/non_rooms/f0305_r03_c05_floor.png",
+      "scene": "scenes/ship/floor_modules/non_rooms/f0305_r03_c05_floor.tscn"
+    },
+    {
+      "id": "F0403",
+      "label": "Lower-central passage and structural sections",
+      "kind": "connector_or_support_floor",
+      "grid_cell": [
+        4,
+        3
+      ],
+      "grid_bounds": [
+        709,
+        665,
+        1064,
+        887
+      ],
+      "origin": [
+        713,
+        665
+      ],
+      "size": [
+        351,
+        190
+      ],
+      "pixel_area": 2613,
+      "file": "art/overview/floor_modules/non_rooms/f0403_r04_c03_floor.png",
+      "scene": "scenes/ship/floor_modules/non_rooms/f0403_r04_c03_floor.tscn"
+    },
+    {
+      "id": "F0404",
+      "label": "Lower-right wing and support structure",
+      "kind": "connector_or_support_floor",
+      "grid_cell": [
+        4,
+        4
+      ],
+      "grid_bounds": [
+        1064,
+        665,
+        1419,
+        887
+      ],
+      "origin": [
+        1064,
+        674
+      ],
+      "size": [
+        355,
+        163
+      ],
+      "pixel_area": 16352,
+      "file": "art/overview/floor_modules/non_rooms/f0404_r04_c04_floor.png",
+      "scene": "scenes/ship/floor_modules/non_rooms/f0404_r04_c04_floor.tscn"
+    },
+    {
+      "id": "F0405",
+      "label": "Aft exhausts and surrounding starfield",
+      "kind": "connector_or_support_floor",
+      "grid_cell": [
+        4,
+        5
+      ],
+      "grid_bounds": [
+        1419,
+        665,
+        1774,
+        887
+      ],
+      "origin": [
+        1419,
+        676
+      ],
+      "size": [
+        285,
+        187
+      ],
+      "pixel_area": 13633,
+      "file": "art/overview/floor_modules/non_rooms/f0405_r04_c05_floor.png",
+      "scene": "scenes/ship/floor_modules/non_rooms/f0405_r04_c05_floor.tscn"
+    }
+  ],
+  "tile_patches": [
+    {
+      "id": "floor_tile_upper_plate",
+      "label": "Upper deck panel",
+      "kind": "panel",
+      "box": [
+        782,
+        113,
+        910,
+        241
+      ],
+      "source_rectangle": [
+        782,
+        113,
+        910,
+        241
+      ],
+      "size": [
+        128,
+        128
+      ],
+      "file": "art/overview/floor_modules/tiles/floor_tile_upper_plate.png",
+      "scene": "scenes/ship/floor_modules/tiles/floor_tile_upper_plate.tscn",
+      "origin": "top_left",
+      "note": "Reusable visual floor patch; may overlap the room/non-room reconstruction modules."
+    },
+    {
+      "id": "floor_tile_lower_plate",
+      "label": "Lower bay panel",
+      "kind": "panel",
+      "box": [
+        908,
+        466,
+        1036,
+        594
+      ],
+      "source_rectangle": [
+        908,
+        466,
+        1036,
+        594
+      ],
+      "size": [
+        128,
+        128
+      ],
+      "file": "art/overview/floor_modules/tiles/floor_tile_lower_plate.png",
+      "scene": "scenes/ship/floor_modules/tiles/floor_tile_lower_plate.tscn",
+      "origin": "top_left",
+      "note": "Reusable visual floor patch; may overlap the room/non-room reconstruction modules."
+    },
+    {
+      "id": "floor_tile_small_grate",
+      "label": "Small inset grate",
+      "kind": "grate",
+      "box": [
+        810,
+        190,
+        906,
+        286
+      ],
+      "source_rectangle": [
+        810,
+        190,
+        906,
+        286
+      ],
+      "size": [
+        96,
+        96
+      ],
+      "file": "art/overview/floor_modules/tiles/floor_tile_small_grate.png",
+      "scene": "scenes/ship/floor_modules/tiles/floor_tile_small_grate.tscn",
+      "origin": "top_left",
+      "note": "Reusable visual floor patch; may overlap the room/non-room reconstruction modules."
+    },
+    {
+      "id": "floor_tile_cargo_grate",
+      "label": "Cargo bay grate",
+      "kind": "grate",
+      "box": [
+        814,
+        510,
+        910,
+        606
+      ],
+      "source_rectangle": [
+        814,
+        510,
+        910,
+        606
+      ],
+      "size": [
+        96,
+        96
+      ],
+      "file": "art/overview/floor_modules/tiles/floor_tile_cargo_grate.png",
+      "scene": "scenes/ship/floor_modules/tiles/floor_tile_cargo_grate.tscn",
+      "origin": "top_left",
+      "note": "Reusable visual floor patch; may overlap the room/non-room reconstruction modules."
+    },
+    {
+      "id": "floor_tile_hazard_zone",
+      "label": "Hazard inset",
+      "kind": "marking",
+      "box": [
+        1464,
+        317,
+        1592,
+        465
+      ],
+      "source_rectangle": [
+        1464,
+        317,
+        1592,
+        465
+      ],
+      "size": [
+        128,
+        148
+      ],
+      "file": "art/overview/floor_modules/tiles/floor_tile_hazard_zone.png",
+      "scene": "scenes/ship/floor_modules/tiles/floor_tile_hazard_zone.tscn",
+      "origin": "top_left",
+      "note": "Reusable visual floor patch; may overlap the room/non-room reconstruction modules."
+    },
+    {
+      "id": "floor_tile_hangar_bay",
+      "label": "Hangar floor marking",
+      "kind": "marking",
+      "box": [
+        1204,
+        521,
+        1392,
+        691
+      ],
+      "source_rectangle": [
+        1204,
+        521,
+        1392,
+        691
+      ],
+      "size": [
+        188,
+        170
+      ],
+      "file": "art/overview/floor_modules/tiles/floor_tile_hangar_bay.png",
+      "scene": "scenes/ship/floor_modules/tiles/floor_tile_hangar_bay.tscn",
+      "origin": "top_left",
+      "note": "Reusable visual floor patch; may overlap the room/non-room reconstruction modules."
+    },
+    {
+      "id": "floor_tile_corridor_horizontal",
+      "label": "Horizontal corridor",
+      "kind": "corridor",
+      "box": [
+        718,
+        374,
+        968,
+        423
+      ],
+      "source_rectangle": [
+        718,
+        374,
+        968,
+        423
+      ],
+      "size": [
+        250,
+        49
+      ],
+      "file": "art/overview/floor_modules/tiles/floor_tile_corridor_horizontal.png",
+      "scene": "scenes/ship/floor_modules/tiles/floor_tile_corridor_horizontal.tscn",
+      "origin": "top_left",
+      "note": "Reusable visual floor patch; may overlap the room/non-room reconstruction modules."
+    },
+    {
+      "id": "floor_tile_corridor_vertical",
+      "label": "Vertical corridor",
+      "kind": "corridor",
+      "box": [
+        636,
+        258,
+        716,
+        416
+      ],
+      "source_rectangle": [
+        636,
+        258,
+        716,
+        416
+      ],
+      "size": [
+        80,
+        158
+      ],
+      "file": "art/overview/floor_modules/tiles/floor_tile_corridor_vertical.png",
+      "scene": "scenes/ship/floor_modules/tiles/floor_tile_corridor_vertical.tscn",
+      "origin": "top_left",
+      "note": "Reusable visual floor patch; may overlap the room/non-room reconstruction modules."
+    },
+    {
+      "id": "floor_tile_bridge_marking",
+      "label": "Bridge floor marking",
+      "kind": "marking",
+      "box": [
+        99,
+        283,
+        277,
+        425
+      ],
+      "source_rectangle": [
+        99,
+        283,
+        277,
+        425
+      ],
+      "size": [
+        178,
+        142
+      ],
+      "file": "art/overview/floor_modules/tiles/floor_tile_bridge_marking.png",
+      "scene": "scenes/ship/floor_modules/tiles/floor_tile_bridge_marking.tscn",
+      "origin": "top_left",
+      "note": "Reusable visual floor patch; may overlap the room/non-room reconstruction modules."
+    },
+    {
+      "id": "floor_tile_lower_panel",
+      "label": "Lower deck panel",
+      "kind": "panel",
+      "box": [
+        635,
+        698,
+        863,
+        828
+      ],
+      "source_rectangle": [
+        635,
+        698,
+        863,
+        828
+      ],
+      "size": [
+        228,
+        130
+      ],
+      "file": "art/overview/floor_modules/tiles/floor_tile_lower_panel.png",
+      "scene": "scenes/ship/floor_modules/tiles/floor_tile_lower_panel.tscn",
+      "origin": "top_left",
+      "note": "Reusable visual floor patch; may overlap the room/non-room reconstruction modules."
+    }
+  ]
+}

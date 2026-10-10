@@ -1,0 +1,7 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Texture2D" path="res://art/overview/floor_modules/tiles/floor_tile_bridge_marking.png" id="1_texture"]
+
+[node name="FloorTileBridgeMarking" type="Sprite2D"]
+centered = false
+texture = ExtResource("1_texture")

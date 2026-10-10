@@ -1,0 +1,10 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/ship/space_backdrop.gd" id="1_backdrop"]
+
+[node name="SpaceBackdrop" type="AnimatedSprite2D"]
+centered = true
+scale = Vector2(1, 1)
+texture_filter = 2
+z_index = -3
+script = ExtResource("1_backdrop")

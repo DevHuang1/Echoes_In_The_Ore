@@ -1,0 +1,71 @@
+[gd_scene format=3 uid="uid://b4pl2altiig6p"]
+
+[ext_resource type="PackedScene" path="res://scenes/ship/doors/pressure_door.tscn" id="1_pressure_door"]
+
+[node name="ShipDoorLayout" type="Node2D" unique_id=2023822314]
+
+[node name="UpperServiceSouthEntry" parent="." unique_id=1541303878 instance=ExtResource("1_pressure_door")]
+position = Vector2(1049, 361)
+door_id = &"upper_service_south_entry"
+opening_width = 40.0
+wall_depth = 30.0
+
+[node name="SpineSouthEntry" parent="." unique_id=1511397371 instance=ExtResource("1_pressure_door")]
+position = Vector2(1205, 360)
+door_id = &"spine_south_entry"
+opening_width = 38.0
+wall_depth = 32.0
+
+[node name="CentralBayNorthEntry" parent="." unique_id=1591144145 instance=ExtResource("1_pressure_door")]
+position = Vector2(681, 435)
+door_id = &"central_bay_north_entry"
+opening_width = 42.0
+wall_depth = 26.0
+
+[node name="LowerDeckWestEntry" parent="." unique_id=1855780363 instance=ExtResource("1_pressure_door")]
+position = Vector2(527, 660)
+door_id = &"lower_deck_west_entry"
+opening_width = 30.0
+wall_depth = 28.0
+
+[node name="LowerDeckWestEntry2" parent="." unique_id=1367663020 instance=ExtResource("1_pressure_door")]
+position = Vector2(332, 651)
+door_id = &"lower_deck_west_entry"
+opening_width = 30.0
+wall_depth = 28.0
+
+[node name="LowerDeckWestEntry3" parent="." unique_id=1129433667 instance=ExtResource("1_pressure_door")]
+position = Vector2(526, 425)
+door_id = &"lower_deck_west_entry"
+opening_width = 30.0
+wall_depth = 28.0
+
+[node name="LowerDeckWestEntry4" parent="." unique_id=1367614625 instance=ExtResource("1_pressure_door")]
+position = Vector2(670, 271)
+door_id = &"lower_deck_west_entry"
+opening_width = 30.0
+wall_depth = 28.0
+
+[node name="LowerDeckCenterEntry" parent="." unique_id=564439540 instance=ExtResource("1_pressure_door")]
+position = Vector2(867, 664.5)
+door_id = &"lower_deck_center_entry"
+opening_width = 34.0
+wall_depth = 30.0
+
+[node name="LowerDeckCenterEntry2" parent="." unique_id=560271767 instance=ExtResource("1_pressure_door")]
+position = Vector2(861, 441)
+door_id = &"lower_deck_center_entry"
+opening_width = 34.0
+wall_depth = 30.0
+
+[node name="LowerDeckCenterEntry3" parent="." unique_id=1410419336 instance=ExtResource("1_pressure_door")]
+position = Vector2(1116, 440)
+door_id = &"lower_deck_center_entry"
+opening_width = 34.0
+wall_depth = 30.0
+
+[node name="ShuttleBayNorthEntry" parent="." unique_id=1144494600 instance=ExtResource("1_pressure_door")]
+position = Vector2(1260, 532)
+door_id = &"shuttle_bay_north_entry"
+opening_width = 24.0
+wall_depth = 30.0

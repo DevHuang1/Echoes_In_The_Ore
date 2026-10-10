@@ -1,0 +1,575 @@
+{
+  "source": "art/overview/asteria_overview_walls_2x.png",
+  "canvas_size": [
+    3548,
+    1774
+  ],
+  "world_canvas_size": [
+    1774,
+    887
+  ],
+  "pixels_per_world_unit": 2,
+  "component_count": 16,
+  "components": [
+    {
+      "id": "wall_straight_h_long",
+      "label": "Straight wall \u2014 long",
+      "kind": "straight",
+      "box": [
+        775,
+        248,
+        965,
+        286
+      ],
+      "rotate": true,
+      "source_rectangle": [
+        1550,
+        496,
+        1930,
+        572
+      ],
+      "size": [
+        190,
+        38
+      ],
+      "texture_size": [
+        380,
+        76
+      ],
+      "scene_scale": [
+        0.5,
+        0.5
+      ],
+      "texture": "art/overview/wall_components/wall_straight_h_long.png",
+      "scene": "scenes/ship/wall_components/wall_straight_h_long.tscn",
+      "origin": "center",
+      "rotation_recommended": true,
+      "collision": "visual-only Sprite2D scene; add level-specific collision separately"
+    },
+    {
+      "id": "wall_straight_h_short",
+      "label": "Straight wall \u2014 short",
+      "kind": "straight",
+      "box": [
+        884,
+        412,
+        1010,
+        463
+      ],
+      "rotate": true,
+      "source_rectangle": [
+        1768,
+        824,
+        2020,
+        926
+      ],
+      "size": [
+        126,
+        51
+      ],
+      "texture_size": [
+        252,
+        102
+      ],
+      "scene_scale": [
+        0.5,
+        0.5
+      ],
+      "texture": "art/overview/wall_components/wall_straight_h_short.png",
+      "scene": "scenes/ship/wall_components/wall_straight_h_short.tscn",
+      "origin": "center",
+      "rotation_recommended": true,
+      "collision": "visual-only Sprite2D scene; add level-specific collision separately"
+    },
+    {
+      "id": "wall_straight_v",
+      "label": "Straight wall \u2014 vertical",
+      "kind": "straight",
+      "box": [
+        689,
+        282,
+        742,
+        374
+      ],
+      "rotate": true,
+      "source_rectangle": [
+        1378,
+        564,
+        1484,
+        748
+      ],
+      "size": [
+        53,
+        92
+      ],
+      "texture_size": [
+        106,
+        184
+      ],
+      "scene_scale": [
+        0.5,
+        0.5
+      ],
+      "texture": "art/overview/wall_components/wall_straight_v.png",
+      "scene": "scenes/ship/wall_components/wall_straight_v.tscn",
+      "origin": "center",
+      "rotation_recommended": true,
+      "collision": "visual-only Sprite2D scene; add level-specific collision separately"
+    },
+    {
+      "id": "wall_vertical_service_panel",
+      "label": "Vertical service panel",
+      "kind": "straight_detail",
+      "box": [
+        1177,
+        410,
+        1255,
+        522
+      ],
+      "rotate": true,
+      "source_rectangle": [
+        2354,
+        820,
+        2510,
+        1044
+      ],
+      "size": [
+        78,
+        112
+      ],
+      "texture_size": [
+        156,
+        224
+      ],
+      "scene_scale": [
+        0.5,
+        0.5
+      ],
+      "texture": "art/overview/wall_components/wall_vertical_service_panel.png",
+      "scene": "scenes/ship/wall_components/wall_vertical_service_panel.tscn",
+      "origin": "center",
+      "rotation_recommended": true,
+      "collision": "visual-only Sprite2D scene; add level-specific collision separately"
+    },
+    {
+      "id": "wall_corner_inner",
+      "label": "Inner corner",
+      "kind": "corner",
+      "box": [
+        683,
+        405,
+        782,
+        502
+      ],
+      "rotate": true,
+      "source_rectangle": [
+        1366,
+        810,
+        1564,
+        1004
+      ],
+      "size": [
+        99,
+        97
+      ],
+      "texture_size": [
+        198,
+        194
+      ],
+      "scene_scale": [
+        0.5,
+        0.5
+      ],
+      "texture": "art/overview/wall_components/wall_corner_inner.png",
+      "scene": "scenes/ship/wall_components/wall_corner_inner.tscn",
+      "origin": "center",
+      "rotation_recommended": true,
+      "collision": "visual-only Sprite2D scene; add level-specific collision separately"
+    },
+    {
+      "id": "wall_corner_outer",
+      "label": "Outer corner",
+      "kind": "corner",
+      "box": [
+        252,
+        390,
+        360,
+        494
+      ],
+      "rotate": true,
+      "source_rectangle": [
+        504,
+        780,
+        720,
+        988
+      ],
+      "size": [
+        108,
+        104
+      ],
+      "texture_size": [
+        216,
+        208
+      ],
+      "scene_scale": [
+        0.5,
+        0.5
+      ],
+      "texture": "art/overview/wall_components/wall_corner_outer.png",
+      "scene": "scenes/ship/wall_components/wall_corner_outer.tscn",
+      "origin": "center",
+      "rotation_recommended": true,
+      "collision": "visual-only Sprite2D scene; add level-specific collision separately"
+    },
+    {
+      "id": "wall_hull_bend_upper_port",
+      "label": "Upper port hull bend",
+      "kind": "hull_curve",
+      "box": [
+        270,
+        105,
+        653,
+        337
+      ],
+      "rotate": true,
+      "source_rectangle": [
+        540,
+        210,
+        1306,
+        674
+      ],
+      "size": [
+        383,
+        232
+      ],
+      "texture_size": [
+        766,
+        464
+      ],
+      "scene_scale": [
+        0.5,
+        0.5
+      ],
+      "texture": "art/overview/wall_components/wall_hull_bend_upper_port.png",
+      "scene": "scenes/ship/wall_components/wall_hull_bend_upper_port.tscn",
+      "origin": "center",
+      "rotation_recommended": true,
+      "collision": "visual-only Sprite2D scene; add level-specific collision separately"
+    },
+    {
+      "id": "wall_windowed_bow",
+      "label": "Windowed bow wall",
+      "kind": "hull_window",
+      "box": [
+        0,
+        275,
+        100,
+        430
+      ],
+      "rotate": true,
+      "source_rectangle": [
+        0,
+        550,
+        200,
+        860
+      ],
+      "size": [
+        100,
+        155
+      ],
+      "texture_size": [
+        200,
+        310
+      ],
+      "scene_scale": [
+        0.5,
+        0.5
+      ],
+      "texture": "art/overview/wall_components/wall_windowed_bow.png",
+      "scene": "scenes/ship/wall_components/wall_windowed_bow.tscn",
+      "origin": "center",
+      "rotation_recommended": true,
+      "collision": "visual-only Sprite2D scene; add level-specific collision separately"
+    },
+    {
+      "id": "wall_lower_partition_pair",
+      "label": "Lower partition pair",
+      "kind": "partition",
+      "box": [
+        468,
+        625,
+        571,
+        734
+      ],
+      "rotate": true,
+      "source_rectangle": [
+        936,
+        1250,
+        1142,
+        1468
+      ],
+      "size": [
+        103,
+        109
+      ],
+      "texture_size": [
+        206,
+        218
+      ],
+      "scene_scale": [
+        0.5,
+        0.5
+      ],
+      "texture": "art/overview/wall_components/wall_lower_partition_pair.png",
+      "scene": "scenes/ship/wall_components/wall_lower_partition_pair.tscn",
+      "origin": "center",
+      "rotation_recommended": true,
+      "collision": "visual-only Sprite2D scene; add level-specific collision separately"
+    },
+    {
+      "id": "wall_t_junction",
+      "label": "T-junction",
+      "kind": "junction",
+      "box": [
+        636,
+        488,
+        782,
+        663
+      ],
+      "rotate": true,
+      "source_rectangle": [
+        1272,
+        976,
+        1564,
+        1326
+      ],
+      "size": [
+        146,
+        175
+      ],
+      "texture_size": [
+        292,
+        350
+      ],
+      "scene_scale": [
+        0.5,
+        0.5
+      ],
+      "texture": "art/overview/wall_components/wall_t_junction.png",
+      "scene": "scenes/ship/wall_components/wall_t_junction.tscn",
+      "origin": "center",
+      "rotation_recommended": true,
+      "collision": "visual-only Sprite2D scene; add level-specific collision separately"
+    },
+    {
+      "id": "wall_diagonal_aft_hull",
+      "label": "Angled aft hull",
+      "kind": "hull_curve",
+      "box": [
+        1125,
+        627,
+        1445,
+        812
+      ],
+      "rotate": true,
+      "source_rectangle": [
+        2250,
+        1254,
+        2890,
+        1624
+      ],
+      "size": [
+        320,
+        185
+      ],
+      "texture_size": [
+        640,
+        370
+      ],
+      "scene_scale": [
+        0.5,
+        0.5
+      ],
+      "texture": "art/overview/wall_components/wall_diagonal_aft_hull.png",
+      "scene": "scenes/ship/wall_components/wall_diagonal_aft_hull.tscn",
+      "origin": "center",
+      "rotation_recommended": true,
+      "collision": "visual-only Sprite2D scene; add level-specific collision separately"
+    },
+    {
+      "id": "wall_aft_hull_cluster",
+      "label": "Aft hull cluster",
+      "kind": "hull_module",
+      "box": [
+        1490,
+        270,
+        1774,
+        677
+      ],
+      "rotate": true,
+      "source_rectangle": [
+        2980,
+        540,
+        3548,
+        1354
+      ],
+      "size": [
+        284,
+        407
+      ],
+      "texture_size": [
+        568,
+        814
+      ],
+      "scene_scale": [
+        0.5,
+        0.5
+      ],
+      "texture": "art/overview/wall_components/wall_aft_hull_cluster.png",
+      "scene": "scenes/ship/wall_components/wall_aft_hull_cluster.tscn",
+      "origin": "center",
+      "rotation_recommended": true,
+      "collision": "visual-only Sprite2D scene; add level-specific collision separately"
+    },
+    {
+      "id": "wall_service_turn",
+      "label": "Service turn",
+      "kind": "junction",
+      "box": [
+        1125,
+        482,
+        1268,
+        585
+      ],
+      "rotate": true,
+      "source_rectangle": [
+        2250,
+        964,
+        2536,
+        1170
+      ],
+      "size": [
+        143,
+        103
+      ],
+      "texture_size": [
+        286,
+        206
+      ],
+      "scene_scale": [
+        0.5,
+        0.5
+      ],
+      "texture": "art/overview/wall_components/wall_service_turn.png",
+      "scene": "scenes/ship/wall_components/wall_service_turn.tscn",
+      "origin": "center",
+      "rotation_recommended": true,
+      "collision": "visual-only Sprite2D scene; add level-specific collision separately"
+    },
+    {
+      "id": "wall_open_passage_pair",
+      "label": "Open passage wall pair",
+      "kind": "doorway",
+      "box": [
+        492,
+        390,
+        693,
+        490
+      ],
+      "rotate": true,
+      "source_rectangle": [
+        984,
+        780,
+        1386,
+        980
+      ],
+      "size": [
+        201,
+        100
+      ],
+      "texture_size": [
+        402,
+        200
+      ],
+      "scene_scale": [
+        0.5,
+        0.5
+      ],
+      "texture": "art/overview/wall_components/wall_open_passage_pair.png",
+      "scene": "scenes/ship/wall_components/wall_open_passage_pair.tscn",
+      "origin": "center",
+      "rotation_recommended": true,
+      "collision": "visual-only Sprite2D scene; add level-specific collision separately"
+    },
+    {
+      "id": "wall_lower_hull_curve",
+      "label": "Lower hull curve",
+      "kind": "hull_curve",
+      "box": [
+        0,
+        625,
+        346,
+        887
+      ],
+      "rotate": true,
+      "source_rectangle": [
+        0,
+        1250,
+        692,
+        1774
+      ],
+      "size": [
+        346,
+        262
+      ],
+      "texture_size": [
+        692,
+        524
+      ],
+      "scene_scale": [
+        0.5,
+        0.5
+      ],
+      "texture": "art/overview/wall_components/wall_lower_hull_curve.png",
+      "scene": "scenes/ship/wall_components/wall_lower_hull_curve.tscn",
+      "origin": "center",
+      "rotation_recommended": true,
+      "collision": "visual-only Sprite2D scene; add level-specific collision separately"
+    },
+    {
+      "id": "wall_vertical_spine",
+      "label": "Vertical service spine",
+      "kind": "junction",
+      "box": [
+        1080,
+        25,
+        1208,
+        298
+      ],
+      "rotate": true,
+      "source_rectangle": [
+        2160,
+        50,
+        2416,
+        596
+      ],
+      "size": [
+        128,
+        273
+      ],
+      "texture_size": [
+        256,
+        546
+      ],
+      "scene_scale": [
+        0.5,
+        0.5
+      ],
+      "texture": "art/overview/wall_components/wall_vertical_spine.png",
+      "scene": "scenes/ship/wall_components/wall_vertical_spine.tscn",
+      "origin": "center",
+      "rotation_recommended": true,
+      "collision": "visual-only Sprite2D scene; add level-specific collision separately"
+    }
+  ]
+}

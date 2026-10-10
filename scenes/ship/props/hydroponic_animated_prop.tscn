@@ -1,0 +1,7 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/ship/hydroponic_animated_prop.gd" id="1_script"]
+
+[node name="HydroponicAnimatedProp" type="AnimatedSprite2D"]
+texture_filter = 2
+script = ExtResource("1_script")

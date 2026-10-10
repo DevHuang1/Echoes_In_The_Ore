@@ -1,0 +1,13 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/ship/pressure_door.gd" id="1_door_script"]
+[ext_resource type="Texture2D" path="res://art/overview/door_components/pressure_door_wallmatched.png" id="2_door_texture"]
+
+[node name="PressureDoor" type="Node2D" groups=["ship_door"]]
+z_index = -1
+script = ExtResource("1_door_script")
+
+[node name="DoorPanel" type="Sprite2D" parent="."]
+texture = ExtResource("2_door_texture")
+centered = true
+texture_filter = 2

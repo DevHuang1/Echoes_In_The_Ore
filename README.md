@@ -1,42 +1,33 @@
-# Echoes in the Ore — Web foundation
+# Echoes in the Ore — landing screen and Earth-years intro
 
-Minimal Godot 4.7 project setup for opening the project and checking the Web export path. This is only a boot screen; gameplay, rooms, characters, and input systems have not been started.
+The project opens on a landing screen. **Start** plays a 14-frame Earth-years prologue for Thura with slow image movement, fades, and typewriter subtitles; **Skip Intro** jumps directly to the existing ship walkthrough. At the end of the prologue, **Board Asteria-1** opens the walkthrough and presents Thura's Asteria-1 arrival briefing before movement begins. The walkthrough combines the transparent floor and wall layers with Thura's four-direction walking sprite. Movement is constrained to the visible deck by the floor layer's alpha mask.
 
-## Open in Godot
+## Run
 
-Use Godot **4.7.2 stable** for the shared project. Give your teammate the whole `Echoes_In_The_Ore` project folder (or a ZIP of it), including `project.godot`, `export_presets.cfg`, `scenes/`, `scripts/`, and `art/`. They can import `project.godot` from Godot's Project Manager, or open the project folder directly. The main scene is `scenes/boot.tscn`; press **F6** to run that scene or **F5** to run the project.
+Open `project.godot` in Godot 4.7.2 and press **F5**, or run from the project directory:
 
-## Web target
+```sh
+godot --path .
+```
 
-- Renderer: Compatibility (Godot Web targets WebGL 2.0)
-- Export preset: `Web`
-- Thread support: disabled for the single-threaded browser export
-- Export path: `build/web/index.html`
+## Controls
 
-Exporting requires the matching Godot 4.7.2 Web export templates to be installed in the editor. The project files configure the target; they do not include the engine templates.
+- **Start** — begin Thura's prologue.
+- **Space**, **Enter**, or **Next** — reveal the current subtitle, then advance to the next frame.
+- **Enter the Ship**, **Space**, or **Enter** — dismiss the arrival briefing and begin moving.
+- **Skip Intro** — open the ship walkthrough.
+- **WASD** or **arrow keys** — walk in the ship walkthrough.
 
-## Teammate setup: preview it in a browser
+## Reusable ship art
 
-1. Install Godot **4.7.2 stable** and open/import this project.
-2. In Godot, install the matching export templates using **Editor → Manage Export Templates → Download and Install**. The editor version and template version must match. The Web export preset is already in `export_presets.cfg`.
-3. From the project folder, create the export directory if needed:
+- `art/overview/asteria_overview_floor.png` and `art/overview/asteria_overview_walls_2x.png` are the aligned full-layout layers used by the walkthrough. The 2× wall texture keeps the same world footprint and uses lossless import so its baked highlights and shadows stay crisp when the camera follows the astronaut.
+- `art/overview/space_frames/` contains the forty looping, double-resolution starfield frames drawn behind the ship. The background covers the ship with overscan and drifts gently while the floor and hull stay fixed.
+- `scenes/ship/floor_modules/` contains drop-in floor Sprite2D scenes; their source images and manifest are in `art/overview/floor_modules/`.
+- `scenes/ship/wall_components/` contains drop-in wall Sprite2D scenes; their source images and notes are in `art/overview/wall_components/`.
+- The original overview pieces remain in `art/overview/pieces/` with a manifest and layout guide.
 
-   ```sh
-   mkdir -p build/web
-   ```
+Regenerate the assets with `tools/split_floor_into_modules.py`, `tools/prepare_wall_layer_hires.gd`, `tools/build_wall_component_kit.py`, `tools/build_space_backdrop_frames.gd`, and `tools/split_ship_overview.py`.
 
-4. Export in Godot using **Project → Export**, select **Web**, then export to `build/web/index.html`. Or, if the Godot command-line executable is on PATH, run this from the project folder:
+## Web export
 
-   ```sh
-   godot --headless --path . --export-release Web build/web/index.html
-   ```
-
-5. Serve the export over HTTP from the project folder. Keep this terminal running:
-
-   ```sh
-   python3 -m http.server 8765 --bind 127.0.0.1 --directory build/web
-   ```
-
-6. Open <http://127.0.0.1:8765/> in a browser.
-
-The browser address above works on the teammate's own computer only. To share it with others, upload the entire contents of `build/web/` to an HTTPS web host; keep the generated HTML, JavaScript, WebAssembly, and PCK files together. The current project is only a startup screen, not the game campaign.
+The project uses the Compatibility renderer. A Web build can be exported with the `Web` preset after installing the matching Godot 4.7.2 export templates.

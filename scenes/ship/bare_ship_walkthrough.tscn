@@ -1,0 +1,49 @@
+[gd_scene format=3 uid="uid://ddl36jsnqn5f8"]
+
+[ext_resource type="Script" uid="uid://mxdrvpc6q3b3" path="res://scripts/ship/bare_ship_walkthrough.gd" id="1_walkthrough"]
+[ext_resource type="Texture2D" uid="uid://chi8e3l3w8vc5" path="res://art/overview/asteria_overview_floor.png" id="2_floor"]
+[ext_resource type="Texture2D" uid="uid://ru8r0ka7sokn" path="res://art/overview/asteria_overview_walls_2x.png" id="3_walls"]
+[ext_resource type="PackedScene" path="res://scenes/player/player.tscn" id="4_player"]
+[ext_resource type="PackedScene" path="res://scenes/ship/space_backdrop.tscn" id="5_space"]
+[ext_resource type="PackedScene" uid="uid://b8lq0lk6k2n0l" path="res://scenes/ship/engine_plume.tscn" id="6_plume"]
+[ext_resource type="PackedScene" uid="uid://b4pl2altiig6p" path="res://scenes/ship/doors/ship_door_layout.tscn" id="7_doors"]
+[ext_resource type="PackedScene" path="res://scenes/ship/floor_modules/rooms/r03_center_recess_floor.tscn" id="8_center_recess"]
+[ext_resource type="PackedScene" path="res://scenes/ship/props/hydroponics_room_props.tscn" id="9_hydroponics_props"]
+
+[node name="BareShipWalkthrough" type="Node2D" unique_id=1816551452]
+script = ExtResource("1_walkthrough")
+
+[node name="SpaceBackdrop" parent="." unique_id=1690483491 instance=ExtResource("5_space")]
+position = Vector2(887, 443.5)
+
+[node name="FloorLayer" type="Sprite2D" parent="." unique_id=1971097640]
+z_index = -2
+texture = ExtResource("2_floor")
+centered = false
+
+[node name="WallLayer" type="Sprite2D" parent="." unique_id=257802278]
+z_index = -1
+texture_filter = 2
+scale = Vector2(0.5, 0.5)
+texture = ExtResource("3_walls")
+centered = false
+
+[node name="CenterRecessRoom" parent="." unique_id=688448454 instance=ExtResource("8_center_recess")]
+position = Vector2(682, 269)
+
+[node name="HydroponicsRoomProps" parent="." unique_id=1740298104 instance=ExtResource("9_hydroponics_props")]
+
+[node name="ShipDoors" parent="." unique_id=1388646547 instance=ExtResource("7_doors")]
+position = Vector2(3, -4)
+rotation = 0.00050925
+
+[node name="UpperAftEnginePlume" parent="." unique_id=1590277352 instance=ExtResource("6_plume")]
+position = Vector2(1689, 226)
+scale = Vector2(0.7, 0.4)
+
+[node name="LowerAftEnginePlume" parent="." unique_id=922350946 instance=ExtResource("6_plume")]
+position = Vector2(1693, 575)
+scale = Vector2(0.62, 0.35)
+
+[node name="Player" parent="." unique_id=184995048 instance=ExtResource("4_player")]
+position = Vector2(900, 500)
