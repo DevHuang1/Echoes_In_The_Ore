@@ -1,0 +1,10 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/ship/ship_fog_halo.gd" id="1_fog"]
+[ext_resource type="Texture2D" path="res://scenes/ship/props/soft_mist_gradient.tres" id="2_mist"]
+
+[node name="ShipFogHalo" type="Node2D"]
+z_index = -2
+texture_filter = 2
+script = ExtResource("1_fog")
+cloud_texture = ExtResource("2_mist")

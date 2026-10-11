@@ -1,0 +1,10 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/ship/ambient_gas_mist.gd" id="1_gas"]
+[ext_resource type="Texture2D" path="res://scenes/ship/props/soft_mist_gradient.tres" id="2_mist"]
+
+[node name="AmbientGasMist" type="Node2D"]
+z_index = 0
+texture_filter = 2
+script = ExtResource("1_gas")
+cloud_texture = ExtResource("2_mist")

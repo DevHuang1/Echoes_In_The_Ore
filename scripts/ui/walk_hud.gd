@@ -20,13 +20,46 @@ const EDGE := Color(0.34, 0.51, 0.55)
 const EDGE_SOFT := Color(0.24, 0.39, 0.43)
 
 const ITEM_DATA := {
-	&"field_scanner": {"name": "Field Scanner", "short": "SCANNER", "color": CYAN, "equip_slot": &"tool", "icon": &"field_scanner"},
-	&"multitool": {"name": "Multitool", "short": "MULTI", "color": GOLD, "equip_slot": &"tool", "icon": &"multitool"},
-	&"sample_canister": {"name": "Sample Canister", "short": "SAMPLE", "color": GREEN, "equip_slot": &"", "icon": &"sample_canister"},
-	&"repair_kit": {"name": "Repair Kit", "short": "REPAIR", "color": ORANGE, "equip_slot": &"", "icon": &"repair_kit"},
-	&"filter_cartridge": {"name": "Spare Filter", "short": "FILTER", "color": CYAN, "equip_slot": &"", "icon": &"filter_cartridge"},
-	&"eva_suit": {"name": "Asteria EVA Suit", "short": "EVA SUIT", "color": PALE, "equip_slot": &"suit", "icon": &"eva_suit"},
-	&"utility_pack": {"name": "Utility Pack", "short": "PACK", "color": GOLD, "equip_slot": &"pack", "icon": &"utility_pack"},
+	&"captains_revolver": {
+		"name": "Captain's Revolver", "short": "REVOLVER", "color": ORANGE, "equip_slot": &"tool",
+		"texture": preload("res://art/tools/captains_revolver.png"), "icon_region": Rect2(35.0, 292.0, 960.0, 880.0),
+	},
+	&"industrial_plasma_cutter": {
+		"name": "Industrial Plasma Cutter", "short": "PLASMA", "color": GOLD, "equip_slot": &"tool",
+		"texture": preload("res://art/tools/industrial_plasma_cutter.png"), "icon_region": Rect2(95.0, 340.0, 840.0, 650.0),
+	},
+	&"suit_flashlight": {
+		"name": "Suit Flashlight", "short": "LIGHT", "color": PALE, "equip_slot": &"suit",
+		"texture": preload("res://art/tools/suit_flashlight.png"), "icon_region": Rect2(65.0, 360.0, 900.0, 620.0),
+	},
+	&"mineral_survey_scanner": {
+		"name": "Mineral Survey Scanner", "short": "SCANNER", "color": CYAN, "equip_slot": &"tool",
+		"texture": preload("res://art/tools/mineral_survey_scanner.png"), "icon_region": Rect2(90.0, 232.0, 850.0, 940.0),
+	},
+	&"engineering_multitool": {
+		"name": "Engineering Multitool", "short": "MULTI", "color": GOLD, "equip_slot": &"tool",
+		"texture": preload("res://art/tools/engineering_multitool.png"), "icon_region": Rect2(45.0, 335.0, 930.0, 790.0),
+	},
+	&"survey_beacon": {
+		"name": "Survey Beacon", "short": "BEACON", "color": GOLD, "equip_slot": &"tool",
+		"texture": preload("res://art/tools/survey_beacon.png"), "icon_region": Rect2(100.0, 350.0, 830.0, 780.0),
+	},
+	&"emergency_flare": {
+		"name": "Emergency Flare", "short": "FLARE", "color": ORANGE, "equip_slot": &"tool",
+		"texture": preload("res://art/tools/emergency_flare.png"), "icon_region": Rect2(220.0, 225.0, 740.0, 940.0),
+	},
+	&"pressure_sealant": {
+		"name": "Pressure Sealant", "short": "SEALANT", "color": CYAN, "equip_slot": &"tool",
+		"texture": preload("res://art/tools/pressure_sealant.png"), "icon_region": Rect2(150.0, 390.0, 740.0, 780.0),
+	},
+	&"medical_injector": {
+		"name": "Medical Injector", "short": "MEDICAL", "color": GREEN, "equip_slot": &"tool",
+		"texture": preload("res://art/tools/medical_injector.png"), "icon_region": Rect2(180.0, 250.0, 760.0, 925.0),
+	},
+	&"electrical_discharge_tool": {
+		"name": "Electrical Discharge Tool", "short": "DISCHARGE", "color": CYAN, "equip_slot": &"tool",
+		"texture": preload("res://art/tools/electrical_discharge_tool.png"), "icon_region": Rect2(100.0, 410.0, 860.0, 710.0),
+	},
 }
 
 const EQUIPMENT_SLOTS: Array[StringName] = [&"head", &"suit", &"pack", &"tool"]
@@ -35,10 +68,7 @@ const HOTBAR_KEY_CODES: Array[int] = [KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6, 
 
 
 class PixelIcon extends Control:
-	const ICON_GOLD := Color(1.0, 0.78, 0.38)
 	const ICON_PALE := Color(0.96, 0.985, 1.0)
-	const ICON_GREEN := Color(0.48, 0.93, 0.64)
-	const ICON_ORANGE := Color(1.0, 0.68, 0.32)
 	var icon_kind: StringName = &""
 	var tint := Color(0.36, 0.9, 1.0)
 
@@ -71,54 +101,79 @@ class PixelIcon extends Control:
 				_block(origin, unit, 15, 15, 4, 4, tint)
 				_block(origin, unit, 8, 8, 8, 8, ICON_PALE, false)
 				_block(origin, unit, 10, 10, 4, 4, tint.darkened(0.3))
-			&"field_scanner":
-				_block(origin, unit, 6, 4, 12, 13, tint.darkened(0.35), false)
-				_block(origin, unit, 8, 6, 8, 7, tint)
-				_block(origin, unit, 10, 8, 4, 3, Color(0.03, 0.1, 0.12))
-				_block(origin, unit, 10, 17, 4, 5, ICON_GOLD)
-				_block(origin, unit, 4, 2, 3, 2, ICON_PALE)
-				_block(origin, unit, 17, 2, 3, 2, ICON_PALE)
-			&"multitool":
-				_block(origin, unit, 10, 3, 4, 18, tint.darkened(0.36), false)
-				_block(origin, unit, 11, 5, 2, 12, tint)
-				_block(origin, unit, 4, 7, 7, 3, ICON_GOLD)
-				_block(origin, unit, 13, 7, 7, 3, ICON_PALE)
-				_block(origin, unit, 8, 17, 8, 3, ICON_ORANGE)
-			&"sample_canister":
-				_block(origin, unit, 9, 3, 6, 3, ICON_PALE)
-				_block(origin, unit, 7, 6, 10, 14, tint.darkened(0.35), false)
-				_block(origin, unit, 9, 9, 6, 8, tint)
-				_block(origin, unit, 10, 12, 4, 3, ICON_GREEN.darkened(0.25))
-			&"repair_kit":
-				_block(origin, unit, 4, 7, 16, 12, tint.darkened(0.4), false)
-				_block(origin, unit, 6, 9, 12, 8, tint)
-				_block(origin, unit, 10, 10, 4, 6, ICON_PALE)
-				_block(origin, unit, 9, 11, 6, 4, ICON_PALE)
-				_block(origin, unit, 8, 4, 8, 3, ICON_GOLD)
-			&"filter_cartridge":
-				_block(origin, unit, 6, 3, 12, 18, tint.darkened(0.42), false)
-				_block(origin, unit, 8, 5, 8, 14, tint.darkened(0.1))
-				for line_index in range(3):
-					_block(origin, unit, 9 + line_index * 3, 6, 1, 12, Color(0.07, 0.16, 0.17))
-			&"eva_suit":
-				_block(origin, unit, 8, 4, 8, 5, ICON_PALE, false)
-				_block(origin, unit, 6, 10, 12, 9, ICON_PALE, false)
-				_block(origin, unit, 3, 10, 4, 8, tint)
-				_block(origin, unit, 17, 10, 4, 8, tint)
-				_block(origin, unit, 8, 19, 3, 3, ICON_GOLD)
-				_block(origin, unit, 13, 19, 3, 3, ICON_GOLD)
-			&"utility_pack":
-				_block(origin, unit, 6, 5, 12, 15, tint.darkened(0.35), false)
-				_block(origin, unit, 8, 7, 8, 10, tint)
-				_block(origin, unit, 10, 3, 4, 3, ICON_PALE)
-				_block(origin, unit, 10, 11, 4, 3, ICON_ORANGE)
-
 	func _block(origin: Vector2, unit: float, x: int, y: int, width: int, height: int, color: Color, filled := true) -> void:
 		var rect := Rect2(origin + Vector2(float(x), float(y)) * unit, Vector2(float(width), float(height)) * unit)
 		if filled:
 			draw_rect(rect, color, true)
 		else:
 			draw_rect(rect, color, false, 1.0, false)
+
+
+class MapDot extends Control:
+	var dot_color := Color(1.0, 0.78, 0.38)
+
+	func _draw() -> void:
+		var center := size * 0.5
+		draw_circle(center, 6.0, Color(0.015, 0.035, 0.045, 0.96))
+		draw_circle(center, 4.0, dot_color)
+		draw_arc(center, 4.8, 0.0, TAU, 20, Color(0.94, 0.97, 0.96), 1.0, false)
+
+
+class MapPin extends Control:
+	var pin_color := Color(1.0, 0.68, 0.32)
+
+	func _draw() -> void:
+		var outline := PackedVector2Array([
+			Vector2(10.0, 27.0), Vector2(4.0, 18.0), Vector2(1.0, 13.0),
+			Vector2(1.0, 9.0), Vector2(2.0, 5.0), Vector2(6.0, 1.0),
+			Vector2(10.0, 0.0), Vector2(14.0, 1.0), Vector2(18.0, 5.0),
+			Vector2(19.0, 9.0), Vector2(19.0, 13.0), Vector2(16.0, 18.0),
+		])
+		draw_colored_polygon(outline, Color(0.012, 0.032, 0.042, 1.0))
+		var fill := PackedVector2Array([
+			Vector2(10.0, 23.0), Vector2(6.0, 16.0), Vector2(3.0, 12.0),
+			Vector2(3.0, 9.0), Vector2(4.0, 6.0), Vector2(7.0, 3.0),
+			Vector2(10.0, 2.0), Vector2(13.0, 3.0), Vector2(16.0, 6.0),
+			Vector2(17.0, 9.0), Vector2(17.0, 12.0), Vector2(14.0, 16.0),
+		])
+		draw_colored_polygon(fill, pin_color)
+		draw_circle(Vector2(10.0, 9.0), 3.1, Color(0.012, 0.032, 0.042, 1.0))
+		draw_circle(Vector2(10.0, 9.0), 1.5, Color(0.94, 0.97, 0.96))
+
+
+class TaskLocationMarker extends Control:
+	const MARKER_SIZE := Vector2(40.0, 54.0)
+	const DARK := Color(0.012, 0.032, 0.042, 1.0)
+	const ACCENT := Color(1.0, 0.68, 0.32, 1.0)
+	const PALE := Color(0.96, 0.985, 1.0, 1.0)
+	var _pulse_phase := 0.0
+
+	func _ready() -> void:
+		custom_minimum_size = MARKER_SIZE
+		size = MARKER_SIZE
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+		set_process(true)
+
+	func _process(delta: float) -> void:
+		_pulse_phase = fposmod(_pulse_phase + delta * 2.2, TAU)
+		queue_redraw()
+
+	func _draw() -> void:
+		var center := Vector2(MARKER_SIZE.x * 0.5, 18.0)
+		var pulse := (sin(_pulse_phase) + 1.0) * 0.5
+		draw_arc(center, 13.0 + pulse * 4.0, 0.0, TAU, 28, Color(ACCENT, 0.16 + (1.0 - pulse) * 0.16), 1.5, false)
+		var outline := PackedVector2Array([
+			Vector2(20.0, 52.0), Vector2(14.0, 42.0), Vector2(7.0, 33.0),
+			Vector2(4.0, 27.0), Vector2(4.0, 20.0), Vector2(6.0, 14.0),
+			Vector2(11.0, 8.0), Vector2(17.0, 5.0), Vector2(20.0, 4.0),
+			Vector2(23.0, 5.0), Vector2(29.0, 8.0), Vector2(34.0, 14.0),
+			Vector2(36.0, 20.0), Vector2(36.0, 27.0), Vector2(33.0, 33.0),
+			Vector2(26.0, 42.0),
+		])
+		draw_colored_polygon(outline, DARK)
+		draw_circle(center, 11.0, ACCENT)
+		draw_circle(center, 7.5, DARK)
+		draw_string(ThemeDB.fallback_font, Vector2(18.0, 23.0), "!", HORIZONTAL_ALIGNMENT_LEFT, -1.0, 14, PALE)
 
 
 class InventoryCell extends PanelContainer:
@@ -137,11 +192,13 @@ class InventoryCell extends PanelContainer:
 	var slot_label := ""
 	var icon_color := Color(0.36, 0.9, 1.0)
 	var is_selected := false
+	var item_texture: Texture2D
+	var icon_size := 27.0
 	var _badge: Label
-	var _icon: PixelIcon
+	var _icon: TextureRect
 	var _name: Label
 
-	func configure(kind: StringName, index: int, item: StringName, item_short: String, tint: Color, selected: bool, label_override := "") -> void:
+	func configure(kind: StringName, index: int, item: StringName, item_short: String, tint: Color, selected: bool, label_override := "", texture: Texture2D = null) -> void:
 		slot_kind = kind
 		slot_index = index
 		item_id = item
@@ -149,6 +206,10 @@ class InventoryCell extends PanelContainer:
 		icon_color = tint
 		is_selected = selected
 		slot_label = label_override
+		item_texture = texture
+		var available_width := maxf(custom_minimum_size.x - 12.0, 20.0)
+		var available_height := maxf(custom_minimum_size.y - 25.0, 20.0)
+		icon_size = minf(42.0, minf(available_width, available_height))
 
 	func _ready() -> void:
 		mouse_filter = Control.MOUSE_FILTER_STOP
@@ -165,8 +226,11 @@ class InventoryCell extends PanelContainer:
 		var icon_center := CenterContainer.new()
 		icon_center.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		icon_center.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		_icon = PixelIcon.new()
-		_icon.custom_minimum_size = Vector2(27.0, 27.0)
+		_icon = TextureRect.new()
+		_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		_icon.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+		_icon.custom_minimum_size = Vector2.ONE * icon_size
 		_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		icon_center.add_child(_icon)
 		stack.add_child(icon_center)
@@ -178,11 +242,12 @@ class InventoryCell extends PanelContainer:
 		stack.add_child(_name)
 		_refresh()
 
-	func set_item(item: StringName, item_short: String, tint: Color, selected: bool) -> void:
+	func set_item(item: StringName, item_short: String, tint: Color, selected: bool, texture: Texture2D = null) -> void:
 		item_id = item
 		short_label = item_short
 		icon_color = tint
 		is_selected = selected
+		item_texture = texture
 		_refresh()
 
 	func _refresh() -> void:
@@ -202,9 +267,7 @@ class InventoryCell extends PanelContainer:
 		_badge.add_theme_color_override("font_color", CELL_GOLD if is_selected else CELL_MUTED)
 		var has_item := item_id != &""
 		_icon.visible = has_item
-		_icon.icon_kind = item_id if has_item else &""
-		_icon.tint = icon_color
-		_icon.queue_redraw()
+		_icon.texture = item_texture if has_item else null
 		_name.text = short_label if has_item else ("EMPTY" if slot_kind == &"equipment" else "")
 		_name.add_theme_color_override("font_color", icon_color if has_item else CELL_MUTED)
 		tooltip_text = item_id.replace("_", " ").capitalize() if has_item else "Empty slot"
@@ -250,6 +313,9 @@ var _map_world_origin := Vector2.ZERO
 var _map_world_size := Vector2(1774.0, 887.0)
 
 var _root: Control
+var _world_task_marker_layer: Control
+var _mission_panel: PanelContainer
+var _mission_stack: VBoxContainer
 var _mission_progress_label: Label
 var _mission_progress_bar: ProgressBar
 var _mission_rows: Dictionary = {}
@@ -258,7 +324,8 @@ var _context_prompt: PanelContainer
 var _context_label: Label
 var _hotbar_items: Array[StringName] = [&"", &"", &"", &"", &"", &"", &"", &"", &""]
 var _storage_items: Array[StringName] = []
-var _equipment_items: Dictionary = {&"head": &"", &"suit": &"eva_suit", &"pack": &"utility_pack", &"tool": &""}
+var _equipment_items: Dictionary = {&"head": &"", &"suit": &"suit_flashlight", &"pack": &"", &"tool": &"mineral_survey_scanner"}
+var _item_icon_cache: Dictionary = {}
 var _selected_hotbar_index := 0
 var _hotbar_slots: Array = []
 var _storage_cells: Array = []
@@ -267,8 +334,9 @@ var _inventory_hotbar_cells: Array = []
 var _active_overlay: StringName = &""
 var _overlay_nodes: Dictionary = {}
 var _map_surface: Control
-var _map_player_marker: ColorRect
+var _map_player_marker: Control
 var _map_task_markers: Dictionary = {}
+var _world_task_markers: Dictionary = {}
 var _volume_slider: HSlider
 var _volume_label: Label
 var _walking_visible := true
@@ -284,11 +352,15 @@ func setup(player: ShipPlayer, task_entries: Array[Dictionary], map_world_origin
 		_task_entries.append(entry.duplicate(true))
 		_task_completed[entry["id"]] = false
 	_storage_items.resize(27)
-	_storage_items[0] = &"field_scanner"
-	_storage_items[1] = &"multitool"
-	_storage_items[2] = &"sample_canister"
-	_storage_items[3] = &"repair_kit"
-	_storage_items[4] = &"filter_cartridge"
+	_storage_items.fill(&"")
+	_storage_items[0] = &"captains_revolver"
+	_storage_items[1] = &"industrial_plasma_cutter"
+	_storage_items[2] = &"engineering_multitool"
+	_storage_items[3] = &"survey_beacon"
+	_storage_items[4] = &"emergency_flare"
+	_storage_items[5] = &"pressure_sealant"
+	_storage_items[6] = &"medical_injector"
+	_storage_items[7] = &"electrical_discharge_tool"
 
 
 func _ready() -> void:
@@ -299,6 +371,7 @@ func _ready() -> void:
 
 
 func _process(_delta: float) -> void:
+	_update_world_task_markers()
 	if _active_overlay == &"map":
 		_update_map_markers()
 
@@ -308,11 +381,18 @@ func _build_ui() -> void:
 	_root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_root.mouse_filter = Control.MOUSE_FILTER_PASS
 	add_child(_root)
+	_world_task_marker_layer = Control.new()
+	_world_task_marker_layer.name = "WorldTaskMarkers"
+	_world_task_marker_layer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_world_task_marker_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_root.add_child(_world_task_marker_layer)
 	_build_mission_panel()
 	_build_top_controls()
 	_build_context_prompt()
 	_build_hotbar()
 	_create_map_overlay()
+	for entry in _task_entries:
+		_add_world_task_marker(entry)
 	_create_inventory_overlay()
 	_create_settings_overlay()
 	_refresh_mission_panel()
@@ -322,6 +402,7 @@ func _build_ui() -> void:
 
 func _build_mission_panel() -> void:
 	var panel := PanelContainer.new()
+	_mission_panel = panel
 	panel.name = "MissionTracker"
 	panel.anchor_left = 0.0
 	panel.anchor_right = 0.0
@@ -330,12 +411,13 @@ func _build_mission_panel() -> void:
 	panel.offset_left = 18.0
 	panel.offset_top = 18.0
 	panel.offset_right = 360.0
-	panel.offset_bottom = 198.0
+	panel.offset_bottom = 198.0 + maxi(_task_entries.size() - 3, 0) * 32.0
 	var mission_style := _panel_style(SURFACE, Color(1.0, 0.78, 0.38, 0.94), 13.0)
 	mission_style.border_width_left = 3
 	panel.add_theme_stylebox_override("panel", mission_style)
 	_root.add_child(panel)
 	var stack := VBoxContainer.new()
+	_mission_stack = stack
 	stack.add_theme_constant_override("separation", 7)
 	panel.add_child(stack)
 	var heading := HBoxContainer.new()
@@ -354,16 +436,38 @@ func _build_mission_panel() -> void:
 	_mission_progress_bar.add_theme_stylebox_override("fill", _panel_style(GOLD, GOLD, 0.0))
 	stack.add_child(_mission_progress_bar)
 	for entry in _task_entries:
-		var row := HBoxContainer.new()
-		row.add_theme_constant_override("separation", 7)
-		var mark := _label("□", 14, MUTED)
-		mark.custom_minimum_size.x = 18.0
-		row.add_child(mark)
-		var objective := _label(str(entry.get("title", "Ship work order")), 12, PALE)
-		objective.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		row.add_child(objective)
-		stack.add_child(row)
-		_mission_rows[entry["id"]] = {"mark": mark, "label": objective}
+		_add_mission_row(entry)
+
+
+func _add_mission_row(entry: Dictionary) -> void:
+	if not is_instance_valid(_mission_stack):
+		return
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 7)
+	var mark := _label("□", 14, MUTED)
+	mark.custom_minimum_size.x = 18.0
+	row.add_child(mark)
+	var objective := _label(str(entry.get("title", "Ship work order")), 12, PALE)
+	objective.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(objective)
+	_mission_stack.add_child(row)
+	_mission_rows[entry["id"]] = {"mark": mark, "label": objective}
+
+
+func add_task_entry(entry: Dictionary) -> void:
+	var task_id := StringName(entry.get("id", &""))
+	if task_id == &"" or _task_completed.has(task_id):
+		return
+	var task_copy := entry.duplicate(true)
+	task_copy["id"] = task_id
+	_task_entries.append(task_copy)
+	_task_completed[task_id] = false
+	_add_mission_row(task_copy)
+	if is_instance_valid(_mission_panel):
+		_mission_panel.offset_bottom = 198.0 + maxi(_task_entries.size() - 3, 0) * 32.0
+	_add_map_task_marker(task_copy)
+	_add_world_task_marker(task_copy)
+	_refresh_mission_panel()
 
 
 func _build_top_controls() -> void:
@@ -427,7 +531,7 @@ func _build_hotbar() -> void:
 	for index in range(9):
 		var cell := InventoryCell.new()
 		cell.custom_minimum_size = Vector2(54.0, 54.0)
-		cell.configure(&"hotbar", index, _hotbar_items[index], _short_item_name(_hotbar_items[index]), _item_color(_hotbar_items[index]), index == _selected_hotbar_index)
+		cell.configure(&"hotbar", index, _hotbar_items[index], _short_item_name(_hotbar_items[index]), _item_color(_hotbar_items[index]), index == _selected_hotbar_index, "", _item_icon_texture(_hotbar_items[index]))
 		cell.activated.connect(_on_inventory_cell_activated)
 		cell.drop_requested.connect(_on_inventory_drop_requested)
 		bar.add_child(cell)
@@ -456,29 +560,47 @@ func _create_map_overlay() -> void:
 	_map_surface.add_child(image)
 	_map_player_marker = _map_marker(GOLD, true)
 	_map_surface.add_child(_map_player_marker)
-	for index in range(_task_entries.size()):
-		var entry: Dictionary = _task_entries[index]
-		var marker := _map_marker(ORANGE, false)
-		var tag := PanelContainer.new()
-		tag.custom_minimum_size = Vector2(108.0, 24.0)
-		tag.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		tag.add_theme_stylebox_override("panel", _map_tag_style(ORANGE))
-		var marker_label := _label(str(entry.get("marker_label", entry.get("title", "WORK ORDER"))), 9, PALE)
-		marker_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		marker_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		marker_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		tag.add_child(marker_label)
-		_map_surface.add_child(marker)
-		_map_surface.add_child(tag)
-		_map_task_markers[entry["id"]] = {"marker": marker, "tag": tag, "label": marker_label, "index": index}
+	for entry in _task_entries:
+		_add_map_task_marker(entry)
 	var map_legend := HBoxContainer.new()
-	map_legend.add_theme_constant_override("separation", 18)
+	map_legend.add_theme_constant_override("separation", 14)
 	map_legend.add_child(_label("THURA  /  CURRENT POSITION", 10, GOLD))
-	map_legend.add_child(_label("OPEN WORK ORDER", 10, ORANGE))
+	map_legend.add_child(_label("OPEN TASK", 10, ORANGE))
+	map_legend.add_child(_label("COMPLETE", 10, GREEN))
+	map_legend.add_child(_label("HOVER PINS FOR DETAILS", 9, MUTED))
 	map_legend.add_spacer(false)
 	map_legend.add_child(_label("M OR ESC  /  CLOSE", 10, MUTED))
 	content.add_child(map_legend)
 	_update_map_markers()
+
+
+func _add_map_task_marker(entry: Dictionary) -> void:
+	if not is_instance_valid(_map_surface):
+		return
+	var task_id: StringName = entry["id"]
+	if _map_task_markers.has(task_id):
+		return
+	var marker := MapPin.new()
+	marker.custom_minimum_size = Vector2(20.0, 28.0)
+	marker.pin_color = ORANGE
+	marker.tooltip_text = str(entry.get("title", "Ship task"))
+	marker.mouse_filter = Control.MOUSE_FILTER_STOP
+	marker.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	_map_surface.add_child(marker)
+	_map_task_markers[task_id] = {"marker": marker}
+
+
+func _add_world_task_marker(entry: Dictionary) -> void:
+	if not is_instance_valid(_world_task_marker_layer):
+		return
+	var task_id := StringName(entry.get("id", &""))
+	if task_id == &"" or _world_task_markers.has(task_id):
+		return
+	var marker := TaskLocationMarker.new()
+	marker.name = "Task_%s" % String(task_id)
+	marker.tooltip_text = str(entry.get("title", "Open ship task"))
+	_world_task_marker_layer.add_child(marker)
+	_world_task_markers[task_id] = marker
 
 
 func _create_inventory_overlay() -> void:
@@ -522,7 +644,7 @@ func _create_inventory_overlay() -> void:
 		cell.custom_minimum_size = Vector2(146.0, 48.0)
 		var slot_id: StringName = EQUIPMENT_SLOTS[index]
 		var item_id: StringName = _equipment_items[slot_id]
-		cell.configure(&"equipment", index, item_id, _short_item_name(item_id), _item_color(item_id), false, String(EQUIPMENT_LABELS[index]))
+		cell.configure(&"equipment", index, item_id, _short_item_name(item_id), _item_color(item_id), false, String(EQUIPMENT_LABELS[index]), _item_icon_texture(item_id))
 		cell.drop_requested.connect(_on_inventory_drop_requested)
 		equipment_stack.add_child(cell)
 		_equipment_cells.append(cell)
@@ -537,7 +659,7 @@ func _create_inventory_overlay() -> void:
 	var cargo_heading := HBoxContainer.new()
 	cargo_heading.add_child(_label("CARGO HOLD", 11, GOLD))
 	cargo_heading.add_spacer(false)
-	_cargo_count_label = _label("05 / 27 USED", 9, CYAN)
+	_cargo_count_label = _label("08 / 27 USED", 9, CYAN)
 	cargo_heading.add_child(_cargo_count_label)
 	inventory_stack.add_child(cargo_heading)
 	inventory_stack.add_child(_label("DRAG ITEMS TO QUICK ACCESS OR A COMPATIBLE SLOT", 9, MUTED))
@@ -548,8 +670,8 @@ func _create_inventory_overlay() -> void:
 	inventory_stack.add_child(cargo_grid)
 	for index in range(27):
 		var cell := InventoryCell.new()
-		cell.custom_minimum_size = Vector2(58.0, 54.0)
-		cell.configure(&"storage", index, _storage_items[index], _short_item_name(_storage_items[index]), _item_color(_storage_items[index]), false)
+		cell.custom_minimum_size = Vector2(72.0, 72.0)
+		cell.configure(&"storage", index, _storage_items[index], _short_item_name(_storage_items[index]), _item_color(_storage_items[index]), false, "", _item_icon_texture(_storage_items[index]))
 		cell.activated.connect(_on_inventory_cell_activated)
 		cell.drop_requested.connect(_on_inventory_drop_requested)
 		cargo_grid.add_child(cell)
@@ -561,13 +683,13 @@ func _create_inventory_overlay() -> void:
 	inventory_stack.add_child(quick_grid)
 	for index in range(9):
 		var cell := InventoryCell.new()
-		cell.custom_minimum_size = Vector2(58.0, 54.0)
-		cell.configure(&"hotbar", index, _hotbar_items[index], _short_item_name(_hotbar_items[index]), _item_color(_hotbar_items[index]), index == _selected_hotbar_index)
+		cell.custom_minimum_size = Vector2(72.0, 72.0)
+		cell.configure(&"hotbar", index, _hotbar_items[index], _short_item_name(_hotbar_items[index]), _item_color(_hotbar_items[index]), index == _selected_hotbar_index, "", _item_icon_texture(_hotbar_items[index]))
 		cell.activated.connect(_on_inventory_cell_activated)
 		cell.drop_requested.connect(_on_inventory_drop_requested)
 		quick_grid.add_child(cell)
 		_inventory_hotbar_cells.append(cell)
-	content.add_child(_label("Items last for this walkthrough session. Scanner and Multitool fit the TOOL slot.", 10, MUTED))
+	content.add_child(_label("Equipment is session-only. Suit Flashlight fits SUIT; handheld gear fits TOOL.", 10, MUTED))
 	_refresh_inventory_cells()
 
 
@@ -669,12 +791,12 @@ func _create_modal_shell(title: String, minimum_size: Vector2) -> Dictionary:
 	return {"root": overlay, "content": content}
 
 
-func _map_marker(color: Color, is_player: bool) -> ColorRect:
-	var marker := ColorRect.new()
-	marker.color = color
-	marker.custom_minimum_size = Vector2(12.0, 12.0) if is_player else Vector2(10.0, 10.0)
+func _map_marker(color: Color, _is_player: bool) -> Control:
+	var marker := MapDot.new()
+	marker.dot_color = color
+	marker.custom_minimum_size = Vector2(16.0, 16.0)
 	marker.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	marker.tooltip_text = "Thura" if is_player else "Work order"
+	marker.tooltip_text = "Thura / current position"
 	return marker
 
 
@@ -690,13 +812,34 @@ func _update_map_markers() -> void:
 		var marker_data: Dictionary = _map_task_markers[task_id]
 		var task_position: Vector2 = entry["position"]
 		var normalized: Vector2 = (task_position - _map_world_origin) / _map_world_size
-		_set_marker_position(marker_data["marker"], normalized)
+		var marker := marker_data["marker"] as MapPin
+		_set_map_pin_position(marker, normalized)
 		var is_complete: bool = bool(_task_completed.get(task_id, false))
-		marker_data["marker"].color = GREEN if is_complete else ORANGE
-		marker_data["label"].add_theme_color_override("font_color", GREEN if is_complete else PALE)
-		marker_data["label"].text = "DONE" if is_complete else str(entry.get("marker_label", "WORK ORDER"))
-		marker_data["tag"].add_theme_stylebox_override("panel", _map_tag_style(GREEN if is_complete else ORANGE))
-		_set_marker_label_position(marker_data["tag"], normalized, int(marker_data["index"]))
+		marker.pin_color = GREEN if is_complete else ORANGE
+		marker.tooltip_text = ("COMPLETE  /  " if is_complete else "OPEN TASK  /  ") + str(entry.get("title", "Ship task"))
+		marker.queue_redraw()
+
+
+func _update_world_task_markers() -> void:
+	if not is_instance_valid(_world_task_marker_layer):
+		return
+	var canvas_transform := get_viewport().get_canvas_transform()
+	var visible_rect := get_viewport().get_visible_rect()
+	for entry in _task_entries:
+		var task_id: StringName = entry["id"]
+		if not _world_task_markers.has(task_id):
+			continue
+		var marker := _world_task_markers[task_id] as TaskLocationMarker
+		if not is_instance_valid(marker):
+			continue
+		if bool(_task_completed.get(task_id, false)) or not _walking_visible or _active_overlay != &"":
+			marker.visible = false
+			continue
+		var target_world_position: Vector2 = entry.get("marker_position", entry.get("position", Vector2.ZERO))
+		var target_screen_position := canvas_transform * target_world_position
+		var marker_size := marker.custom_minimum_size
+		marker.position = target_screen_position - Vector2(marker_size.x * 0.5, marker_size.y)
+		marker.visible = visible_rect.grow(12.0).has_point(target_screen_position)
 
 
 func _set_marker_position(marker: Control, normalized: Vector2) -> void:
@@ -714,28 +857,19 @@ func _set_marker_position(marker: Control, normalized: Vector2) -> void:
 	marker.size = marker.custom_minimum_size
 
 
-func _set_marker_label_position(tag: Control, normalized: Vector2, task_index: int) -> void:
-	var label_size := tag.custom_minimum_size
-	var safe_position := Vector2(clampf(normalized.x, 0.10, 0.90), clampf(normalized.y, 0.08, 0.92))
-	var label_offset := Vector2(-label_size.x - 10.0, -label_size.y - 5.0) if task_index % 2 == 0 else Vector2(10.0, 8.0)
-	tag.anchor_left = safe_position.x
-	tag.anchor_right = safe_position.x
-	tag.anchor_top = safe_position.y
-	tag.anchor_bottom = safe_position.y
-	tag.offset_left = label_offset.x
-	tag.offset_right = label_offset.x + label_size.x
-	tag.offset_top = label_offset.y
-	tag.offset_bottom = label_offset.y + label_size.y
-	tag.size = label_size
-
-
-func _map_tag_style(accent: Color) -> StyleBoxFlat:
-	var style := _panel_style(Color(0.025, 0.055, 0.074, 0.98), accent, 3.0)
-	style.content_margin_left = 6.0
-	style.content_margin_right = 6.0
-	style.content_margin_top = 2.0
-	style.content_margin_bottom = 2.0
-	return style
+func _set_map_pin_position(marker: Control, normalized: Vector2) -> void:
+	if not is_instance_valid(marker):
+		return
+	var safe_position := Vector2(clampf(normalized.x, 0.01, 0.99), clampf(normalized.y, 0.02, 0.98))
+	marker.anchor_left = safe_position.x
+	marker.anchor_right = safe_position.x
+	marker.anchor_top = safe_position.y
+	marker.anchor_bottom = safe_position.y
+	marker.offset_left = -10.0
+	marker.offset_right = 10.0
+	marker.offset_top = -27.0
+	marker.offset_bottom = 1.0
+	marker.size = marker.custom_minimum_size
 
 
 func _refresh_mission_panel() -> void:
@@ -764,6 +898,7 @@ func set_task_completed(task_id: StringName) -> void:
 		return
 	_task_completed[task_id] = true
 	_refresh_mission_panel()
+	_update_world_task_markers()
 
 
 func set_interaction_prompt(text: String, is_visible: bool) -> void:
@@ -841,20 +976,20 @@ func _item_fits_equipment_slot(item_id: StringName, slot_index: int) -> bool:
 func _refresh_hotbar() -> void:
 	for index in range(_hotbar_slots.size()):
 		var item_id: StringName = _hotbar_items[index]
-		_hotbar_slots[index].set_item(item_id, _short_item_name(item_id), _item_color(item_id), index == _selected_hotbar_index)
+		_hotbar_slots[index].set_item(item_id, _short_item_name(item_id), _item_color(item_id), index == _selected_hotbar_index, _item_icon_texture(item_id))
 
 
 func _refresh_inventory_cells() -> void:
 	for index in range(_storage_cells.size()):
 		var item_id: StringName = _storage_items[index]
-		_storage_cells[index].set_item(item_id, _short_item_name(item_id), _item_color(item_id), false)
+		_storage_cells[index].set_item(item_id, _short_item_name(item_id), _item_color(item_id), false, _item_icon_texture(item_id))
 	for index in range(_inventory_hotbar_cells.size()):
 		var item_id: StringName = _hotbar_items[index]
-		_inventory_hotbar_cells[index].set_item(item_id, _short_item_name(item_id), _item_color(item_id), index == _selected_hotbar_index)
+		_inventory_hotbar_cells[index].set_item(item_id, _short_item_name(item_id), _item_color(item_id), index == _selected_hotbar_index, _item_icon_texture(item_id))
 	for index in range(_equipment_cells.size()):
 		var slot_id: StringName = EQUIPMENT_SLOTS[index]
 		var item_id: StringName = StringName(_equipment_items.get(slot_id, &""))
-		_equipment_cells[index].set_item(item_id, _short_item_name(item_id), _item_color(item_id), false)
+		_equipment_cells[index].set_item(item_id, _short_item_name(item_id), _item_color(item_id), false, _item_icon_texture(item_id))
 	if is_instance_valid(_cargo_count_label):
 		var used_slots := 0
 		for item_id in _storage_items:
@@ -1019,6 +1154,19 @@ func _item_color(item_id: StringName) -> Color:
 	if item_id == &"" or not ITEM_DATA.has(item_id):
 		return MUTED
 	return ITEM_DATA[item_id]["color"]
+
+
+func _item_icon_texture(item_id: StringName) -> Texture2D:
+	if item_id == &"" or not ITEM_DATA.has(item_id):
+		return null
+	if _item_icon_cache.has(item_id):
+		return _item_icon_cache[item_id]
+	var item: Dictionary = ITEM_DATA[item_id]
+	var icon := AtlasTexture.new()
+	icon.atlas = item["texture"]
+	icon.region = item["icon_region"]
+	_item_icon_cache[item_id] = icon
+	return icon
 
 
 func _unhandled_input(event: InputEvent) -> void:

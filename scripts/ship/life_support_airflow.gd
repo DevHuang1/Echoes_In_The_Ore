@@ -11,9 +11,12 @@ const AUDIO_SAMPLE_RATE := 22050.0
 const AUDIO_BUFFER_LENGTH := 0.35
 const AIR_SOUND_GAIN := 0.5
 const AIR_SOUND_BREATHING_HZ := 0.22
-const GLOW_BASE_ENERGY := 0.44
-const GLOW_PULSE_AMOUNT := 0.08
+const GLOW_BASE_ENERGY := 0.5
+const GLOW_PULSE_AMOUNT := 0.07
 const GLOW_PULSE_SPEED := 0.58
+const SPILL_GLOW_BASE_ENERGY := 0.22
+const SPILL_GLOW_PULSE_AMOUNT := 0.035
+const SPILL_GLOW_PHASE_LAG := 0.7
 
 var _flow_distance := 0.0
 var _glow_phase := 0.0
@@ -24,12 +27,15 @@ var _air_rng := RandomNumberGenerator.new()
 var _air_playback: AudioStreamGeneratorPlayback
 
 @onready var _vent_glow: PointLight2D = $VentGlow
+@onready var _airflow_spill_glow: PointLight2D = $AirflowSpillGlow
 
 
 func _process(delta: float) -> void:
 	_flow_distance = fposmod(_flow_distance + delta * FLOW_SPEED, FLOW_DASH_SPACING)
 	_glow_phase += delta * GLOW_PULSE_SPEED
 	_vent_glow.energy = GLOW_BASE_ENERGY + sin(_glow_phase) * GLOW_PULSE_AMOUNT
+	var spill_pulse := sin(_glow_phase - SPILL_GLOW_PHASE_LAG)
+	_airflow_spill_glow.energy = SPILL_GLOW_BASE_ENERGY + spill_pulse * SPILL_GLOW_PULSE_AMOUNT
 	queue_redraw()
 	_fill_air_sound_buffer()
 

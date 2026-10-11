@@ -11,12 +11,17 @@
 [ext_resource type="PackedScene" path="res://scenes/ship/props/hydroponics_room_props.tscn" id="9_hydroponics_props"]
 [ext_resource type="PackedScene" path="res://scenes/ship/props/power_maintenance_room_props.tscn" id="10_power_maintenance_props"]
 [ext_resource type="PackedScene" path="res://scenes/ship/props/life_support_room_props.tscn" id="11_life_support_props"]
+[ext_resource type="PackedScene" path="res://scenes/ship/crew/amara_okoye.tscn" id="12_amara"]
+[ext_resource type="PackedScene" path="res://scenes/ship/props/ship_vent_network.tscn" id="13_vent_network"]
+[ext_resource type="PackedScene" path="res://scenes/ship/props/ship_fog_halo.tscn" id="14_fog"]
 
 [node name="BareShipWalkthrough" type="Node2D" unique_id=1816551452]
 script = ExtResource("1_walkthrough")
 
 [node name="SpaceBackdrop" parent="." unique_id=1690483491 instance=ExtResource("5_space")]
 position = Vector2(887, 443.5)
+
+[node name="ShipFogHalo" parent="." unique_id=1917046849 instance=ExtResource("14_fog")]
 
 [node name="FloorLayer" type="Sprite2D" parent="." unique_id=1971097640]
 z_index = -2
@@ -32,6 +37,8 @@ centered = false
 
 [node name="CenterRecessRoom" parent="." unique_id=688448454 instance=ExtResource("8_center_recess")]
 position = Vector2(682, 269)
+
+[node name="ShipVentNetwork" parent="." unique_id=429064525 instance=ExtResource("13_vent_network")]
 
 [node name="HydroponicsRoomProps" parent="." unique_id=1740298104 instance=ExtResource("9_hydroponics_props")]
 
@@ -55,3 +62,6 @@ scale = Vector2(0.62, 0.35)
 
 [node name="Player" parent="." unique_id=184995048 instance=ExtResource("4_player")]
 position = Vector2(900, 500)
+
+[node name="AmaraOkoye" parent="." unique_id=136724281 instance=ExtResource("12_amara")]
+position = Vector2(320, 746)
