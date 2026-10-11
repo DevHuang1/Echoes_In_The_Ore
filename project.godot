@@ -17,6 +17,7 @@ config/features=PackedStringArray("4.7", "GL Compatibility")
 [autoload]
 
 InputBindings="*res://scripts/ship/input_bindings.gd"
+BackgroundMusic="*res://scripts/audio/background_music.gd"
 
 [display]
 

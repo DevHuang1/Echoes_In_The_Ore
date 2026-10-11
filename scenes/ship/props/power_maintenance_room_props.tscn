@@ -1,0 +1,66 @@
+[gd_scene load_steps=7 format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/ship/props/hydroponic_animated_prop.tscn" id="1_animated_prop"]
+[ext_resource type="Texture2D" path="res://art/concepts/ship_room_props/power_maintenance_animation_sheet.png" id="2_animation_sheet"]
+[ext_resource type="PackedScene" path="res://scenes/ship/props/warm_ship_light.tscn" id="3_warm_light"]
+[ext_resource type="Texture2D" path="res://art/concepts/ship_room_props/power_converter.png" id="4_power_converter"]
+
+[sub_resource type="AtlasTexture" id="BreakerFrame01"]
+atlas = ExtResource("2_animation_sheet")
+region = Rect2(56, 31, 220, 420)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="PowerCellFrame01"]
+atlas = ExtResource("2_animation_sheet")
+region = Rect2(337, 422, 177, 200)
+filter_clip = true
+
+[node name="PowerMaintenanceRoomProps" type="Node2D"]
+
+[node name="BreakerWorklight" parent="." instance=ExtResource("3_warm_light")]
+position = Vector2(43, 39)
+energy = 0.82
+texture_scale = 0.32
+
+[node name="ConverterWorklight" parent="." instance=ExtResource("3_warm_light")]
+position = Vector2(92.7, 30)
+energy = 0.62
+texture_scale = 0.3
+
+[node name="BreakerCabinet" parent="." instance=ExtResource("1_animated_prop")]
+position = Vector2(54.8, 43.6)
+scale = Vector2(0.156, 0.156)
+animation_frames = Array[Texture2D]([SubResource("BreakerFrame01"), SubResource("BreakerFrame01"), SubResource("BreakerFrame01"), SubResource("BreakerFrame01")])
+frames_per_second = 2.4
+lock_transform_during_animation = true
+indicator_offset = Vector2(63, 0)
+indicator_base_energy = 0.2
+indicator_pulse_amount = 0.16
+indicator_pulse_speed = 1.4
+indicator_texture_scale = 0.16
+
+[node name="PowerConverterAssembly" parent="." instance=ExtResource("1_animated_prop")]
+position = Vector2(92.7, 47.9)
+scale = Vector2(0.028, 0.028)
+animation_frames = Array[Texture2D]([ExtResource("4_power_converter"), ExtResource("4_power_converter"), ExtResource("4_power_converter"), ExtResource("4_power_converter")])
+animate_frames = false
+lock_transform_during_animation = true
+indicator_color = Color(0.36, 0.86, 1, 1)
+indicator_offset = Vector2(0, -135)
+indicator_base_energy = 0.2
+indicator_pulse_amount = 0.12
+indicator_pulse_speed = 1.4
+indicator_texture_scale = 0.18
+
+[node name="PowerCellModule" parent="." instance=ExtResource("1_animated_prop")]
+position = Vector2(95.2, 87.3)
+scale = Vector2(0.156, 0.156)
+animation_frames = Array[Texture2D]([SubResource("PowerCellFrame01"), SubResource("PowerCellFrame01"), SubResource("PowerCellFrame01"), SubResource("PowerCellFrame01")])
+frames_per_second = 2.6
+phase_offset = 3
+lock_transform_during_animation = true
+indicator_offset = Vector2(0, -55)
+indicator_base_energy = 0.22
+indicator_pulse_amount = 0.16
+indicator_pulse_speed = 1.6
+indicator_texture_scale = 0.14

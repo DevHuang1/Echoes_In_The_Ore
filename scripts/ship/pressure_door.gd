@@ -26,7 +26,8 @@ const TRANSITION_TIME := 0.24
 const SPRITE_SIZE := Vector2(1000.0, 600.0)
 const WALL_DEPTH_INSET := 0.90
 
-@onready var door_panel: Sprite2D = $DoorPanel
+@onready var left_door_panel: Sprite2D = $LeftDoorPanel
+@onready var right_door_panel: Sprite2D = $RightDoorPanel
 
 var _is_open := false
 var _target_open := false
@@ -48,10 +49,14 @@ func _refresh_preview() -> void:
 	if not is_node_ready():
 		return
 	rotation = PI * 0.5 if orientation == 1 else 0.0
-	door_panel.scale = Vector2(
+	var panel_scale := Vector2(
 		opening_width / SPRITE_SIZE.x, wall_depth * WALL_DEPTH_INSET / SPRITE_SIZE.y
 	)
-	door_panel.position = Vector2.ZERO
+	var half_width := opening_width * 0.25
+	left_door_panel.scale = panel_scale
+	right_door_panel.scale = panel_scale
+	left_door_panel.position = Vector2(-half_width, 0.0)
+	right_door_panel.position = Vector2(half_width, 0.0)
 
 
 func _physics_process(delta: float) -> void:
@@ -99,9 +104,22 @@ func _set_open_target(open: bool) -> void:
 		_transition.kill()
 
 	_transition = create_tween()
+	_transition.set_parallel(true)
 	_transition.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	var offset := Vector2(opening_width * 1.15 if open else 0.0, 0.0)
-	_transition.tween_property(door_panel, "position", offset, TRANSITION_TIME)
+	var half_width := opening_width * 0.25
+	var opening_travel := opening_width * 0.9 if open else 0.0
+	_transition.tween_property(
+		left_door_panel,
+		"position",
+		Vector2(-half_width - opening_travel, 0.0),
+		TRANSITION_TIME
+	)
+	_transition.tween_property(
+		right_door_panel,
+		"position",
+		Vector2(half_width + opening_travel, 0.0),
+		TRANSITION_TIME
+	)
 	_transition.finished.connect(_finish_transition.bind(open))
 
 

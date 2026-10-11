@@ -4,10 +4,19 @@
 [ext_resource type="Texture2D" path="res://art/overview/door_components/pressure_door_wallmatched.png" id="2_door_texture"]
 
 [node name="PressureDoor" type="Node2D" groups=["ship_door"]]
-z_index = -1
+z_index = -2
 script = ExtResource("1_door_script")
 
-[node name="DoorPanel" type="Sprite2D" parent="."]
+[node name="LeftDoorPanel" type="Sprite2D" parent="."]
 texture = ExtResource("2_door_texture")
 centered = true
 texture_filter = 2
+region_enabled = true
+region_rect = Rect2(0, 0, 500, 600)
+
+[node name="RightDoorPanel" type="Sprite2D" parent="."]
+texture = ExtResource("2_door_texture")
+centered = true
+texture_filter = 2
+region_enabled = true
+region_rect = Rect2(500, 0, 500, 600)

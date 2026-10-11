@@ -6,6 +6,7 @@ func _enter_tree() -> void:
 	_define_action(&"move_down", [KEY_S, KEY_DOWN])
 	_define_action(&"move_left", [KEY_A, KEY_LEFT])
 	_define_action(&"move_right", [KEY_D, KEY_RIGHT])
+	_define_action(&"interact", [KEY_E])
 
 
 func _define_action(action: StringName, key_codes: Array[int]) -> void:

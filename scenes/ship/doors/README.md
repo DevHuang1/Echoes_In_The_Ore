@@ -15,4 +15,4 @@ The eight active doors correspond to markers 02–09 in the supplied placement m
 | 08 | `lower_deck_center_entry` | (870, 660.5) | Horizontal | 34 × 30 |
 | 09 | `shuttle_bay_north_entry` | (1263, 528) | Horizontal | 24 × 30 |
 
-The component slides open as the player approaches and closes after `close_delay`. Set `locked` to keep an instance shut. Closed instances join `ship_door` and answer `blocks_position()` for movement.
+The two leaves meet in the middle while closed. As the player approaches, they split and slide in opposite directions behind the wall layer, then meet again after `close_delay`. Set `locked` to keep an instance shut. Closed instances join `ship_door` and answer `blocks_position()` for movement.

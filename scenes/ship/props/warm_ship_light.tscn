@@ -2,7 +2,7 @@
 
 [sub_resource type="Gradient" id="Gradient_warm_ship_light"]
 offsets = PackedFloat32Array(0, 0.46, 1)
-colors = PackedColorArray(Color(1, 1, 1, 0.62), Color(1, 1, 1, 0.24), Color(1, 1, 1, 0))
+colors = PackedColorArray(1, 1, 1, 0.78, 1, 1, 1, 0.36, 1, 1, 1, 0)
 
 [sub_resource type="GradientTexture2D" id="GradientTexture2D_warm_ship_light"]
 gradient = SubResource("Gradient_warm_ship_light")
@@ -14,7 +14,7 @@ fill = 1
 
 [node name="WarmShipLight" type="PointLight2D"]
 color = Color(1, 0.69, 0.4, 1)
-energy = 0.45
+energy = 0.75
 texture = SubResource("GradientTexture2D_warm_ship_light")
 texture_scale = 1.0
 range_z_min = -2
