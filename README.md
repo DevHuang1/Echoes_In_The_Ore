@@ -17,6 +17,12 @@ godot --path .
 - **Enter the Ship**, **Space**, or **Enter** — dismiss the arrival briefing and begin moving.
 - **Skip Intro** — open the ship walkthrough.
 - **WASD** or **arrow keys** — walk in the ship walkthrough.
+- **E** at a service station — open its engineering console.
+- **Auxiliary power** — tune the three capacitor banks into their target ranges, then synchronize the power bus.
+- **Life support** — release the latch, rotate and seat the cartridge, then set airflow between 62% and 72%.
+- **1–9** or **mouse wheel** — select a hotbar slot.
+- **I** — open inventory and equipment; **M** — open the ship map.
+- **Esc** — close an open panel, or open Settings while walking.
 
 ## Reusable ship art
 

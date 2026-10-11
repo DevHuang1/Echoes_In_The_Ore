@@ -2,18 +2,32 @@ extends Node2D
 
 const FLOOR_TEXTURE := preload("res://art/overview/asteria_overview_floor.png")
 const ARRIVAL_BRIEFING_SCENE := preload("res://scenes/ui/arrival_briefing.tscn")
+const SERVICE_TASK_CONSOLE_SCENE := preload("res://scenes/ui/service_task_console.tscn")
+const WALK_HUD_SCENE := preload("res://scenes/ui/walk_hud.tscn")
 const ROOM_TASKS := [
 	{
 		"id": &"auxiliary_power",
+		"title": "Reconnect auxiliary power",
+		"marker_label": "AUX POWER",
 		"station_path": NodePath("PowerMaintenanceRoomProps/PowerCellModule"),
-		"prompt": "AUXILIARY POWER CELL\nE  Reconnect the power cell",
+		"prompt": "AUXILIARY POWER CELL   /   [E] RECONNECT",
 		"completion": "Power cell reconnected. Auxiliary power is restored.",
 	},
 	{
 		"id": &"air_filter",
+		"title": "Replace life-support filter",
+		"marker_label": "LIFE SUPPORT",
 		"station_path": NodePath("LifeSupportRoomProps/FilterCartridge"),
-		"prompt": "LIFE SUPPORT FILTER\nE  Replace the clogged cartridge",
+		"prompt": "LIFE-SUPPORT FILTER   /   [E] REPLACE",
 		"completion": "Filter replaced. Life-support airflow is clear.",
+	},
+	{
+		"id": &"nutrient_flow",
+		"title": "Restore hydroponic nutrient flow",
+		"marker_label": "HYDROPONICS",
+		"station_path": NodePath("HydroponicsRoomProps/ControlConsole"),
+		"prompt": "HYDROPONICS CONSOLE   /   [E] ROUTE NUTRIENTS",
+		"completion": "Nutrient manifold aligned. The grow beds are irrigating.",
 	},
 ]
 const ROOM_TASK_INTERACTION_RADIUS := 44.0
@@ -25,14 +39,16 @@ const ROOM_TASK_INTERACTION_RADIUS := 44.0
 
 var _completed_room_tasks: Dictionary = {}
 var _active_room_task_id: StringName = &""
+var _task_console_open := false
+var _arrival_briefing_open := true
+var _hud_modal_open := false
 var _room_task_feedback := ""
+var _pending_room_task_feedback := ""
 var _room_task_feedback_timer := 0.0
-var _room_task_panel: PanelContainer
-var _room_task_label: Label
+var _walk_hud: WalkHud
 
 
 func _ready() -> void:
-	_create_room_task_hud()
 	player.set_walkable_floor_mask(FLOOR_TEXTURE, floor_layer.position, 8.0)
 	var map_size: Vector2 = FLOOR_TEXTURE.get_size()
 	var camera_bounds := Rect2(floor_layer.position - map_size * 0.5, map_size * 2.0)
@@ -41,6 +57,22 @@ func _ready() -> void:
 	player.camera.make_current()
 	player.camera.reset_smoothing()
 	player.set_physics_process(false)
+	var hud_task_entries: Array[Dictionary] = []
+	for task in ROOM_TASKS:
+		var station := get_node_or_null(task["station_path"]) as Node2D
+		if station == null:
+			continue
+		hud_task_entries.append({
+			"id": task["id"],
+			"title": task["title"],
+			"marker_label": task["marker_label"],
+			"position": station.global_position,
+		})
+	_walk_hud = WALK_HUD_SCENE.instantiate() as WalkHud
+	_walk_hud.setup(player, hud_task_entries, floor_layer.global_position, FLOOR_TEXTURE.get_size())
+	_walk_hud.modal_state_changed.connect(_on_hud_modal_state_changed)
+	add_child(_walk_hud)
+	_walk_hud.set_walking_visible(false)
 	var arrival_briefing := ARRIVAL_BRIEFING_SCENE.instantiate()
 	arrival_briefing.connect(&"dismissed", _on_arrival_briefing_dismissed)
 	add_child(arrival_briefing)
@@ -55,60 +87,53 @@ func _process(delta: float) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if not event.is_action_pressed(&"interact") or _active_room_task_id == &"":
+	if _arrival_briefing_open or _hud_modal_open or _task_console_open or not event.is_action_pressed(&"interact") or _active_room_task_id == &"":
 		return
+	_open_room_task_console(_active_room_task_id)
+	get_viewport().set_input_as_handled()
+
+
+func _open_room_task_console(task_id: StringName) -> void:
+	if _task_console_open:
+		return
+	_task_console_open = true
+	_walk_hud.set_walking_visible(false)
+	_update_player_walk_state()
+	var console := SERVICE_TASK_CONSOLE_SCENE.instantiate() as ServiceTaskConsole
+	console.setup(task_id, _completed_room_tasks.size(), ROOM_TASKS.size())
+	console.task_completed.connect(_on_room_task_completed)
+	console.console_closed.connect(_on_room_task_console_closed)
+	add_child(console)
+
+
+func _on_room_task_completed(task_id: StringName) -> void:
+	if _completed_room_tasks.has(task_id):
+		return
+	var completion := "Service task complete."
 	for task in ROOM_TASKS:
-		if task["id"] != _active_room_task_id:
-			continue
-		_completed_room_tasks[_active_room_task_id] = true
-		_room_task_feedback = "%s\nSERVICE TASKS  %d / %d COMPLETE" % [
-			task["completion"],
-			_completed_room_tasks.size(),
-			ROOM_TASKS.size(),
-		]
-		if _completed_room_tasks.size() == ROOM_TASKS.size():
-			_room_task_feedback = "AUXILIARY POWER AND LIFE SUPPORT ONLINE\nSHIP SERVICE TASKS COMPLETE"
+		if task["id"] == task_id:
+			completion = task["completion"]
+			break
+	_completed_room_tasks[task_id] = true
+	_walk_hud.set_task_completed(task_id)
+	_room_task_feedback = "%s\nSERVICE TASKS  %d / %d COMPLETE" % [
+		completion,
+		_completed_room_tasks.size(),
+		ROOM_TASKS.size(),
+	]
+	if _completed_room_tasks.size() == ROOM_TASKS.size():
+		_room_task_feedback = "POWER, LIFE SUPPORT, AND HYDROPONICS ONLINE\nSHIP SERVICE TASKS COMPLETE"
+	_pending_room_task_feedback = _room_task_feedback
+
+
+func _on_room_task_console_closed() -> void:
+	_task_console_open = false
+	_walk_hud.set_walking_visible(not _arrival_briefing_open)
+	_update_player_walk_state()
+	if not _pending_room_task_feedback.is_empty():
+		_room_task_feedback = _pending_room_task_feedback
 		_room_task_feedback_timer = 3.5
-		_active_room_task_id = &""
-		get_viewport().set_input_as_handled()
-		return
-
-
-func _create_room_task_hud() -> void:
-	var canvas := CanvasLayer.new()
-	canvas.name = "RoomTaskHUD"
-	canvas.layer = 10
-	add_child(canvas)
-
-	_room_task_panel = PanelContainer.new()
-	_room_task_panel.name = "ServiceTaskPrompt"
-	_room_task_panel.anchor_left = 0.5
-	_room_task_panel.anchor_right = 0.5
-	_room_task_panel.anchor_top = 1.0
-	_room_task_panel.anchor_bottom = 1.0
-	_room_task_panel.offset_left = -235.0
-	_room_task_panel.offset_top = -91.0
-	_room_task_panel.offset_right = 235.0
-	_room_task_panel.offset_bottom = -20.0
-	_room_task_panel.custom_minimum_size = Vector2(470.0, 70.0)
-	_room_task_panel.visible = false
-	var panel_style := StyleBoxFlat.new()
-	panel_style.bg_color = Color(0.025, 0.045, 0.055, 0.94)
-	panel_style.border_color = Color(1.0, 0.62, 0.28, 0.92)
-	panel_style.set_border_width_all(1)
-	panel_style.set_corner_radius_all(6)
-	panel_style.set_content_margin_all(12.0)
-	_room_task_panel.add_theme_stylebox_override("panel", panel_style)
-	canvas.add_child(_room_task_panel)
-
-	_room_task_label = Label.new()
-	_room_task_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_room_task_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_room_task_label.add_theme_font_size_override("font_size", 15)
-	_room_task_label.add_theme_color_override("font_color", Color(0.96, 0.91, 0.82))
-	_room_task_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_room_task_panel.add_child(_room_task_label)
-
+		_pending_room_task_feedback = ""
 
 func _refresh_room_task_prompt() -> void:
 	_active_room_task_id = &""
@@ -129,14 +154,23 @@ func _refresh_room_task_prompt() -> void:
 
 	if not closest_task.is_empty():
 		_active_room_task_id = closest_task["id"]
-		_room_task_label.text = closest_task["prompt"]
-		_room_task_panel.visible = true
+		_walk_hud.set_interaction_prompt(closest_task["prompt"], true)
 	elif _room_task_feedback_timer > 0.0:
-		_room_task_label.text = _room_task_feedback
-		_room_task_panel.visible = true
+		_walk_hud.set_interaction_prompt(_room_task_feedback, true)
 	else:
-		_room_task_panel.visible = false
+		_walk_hud.set_interaction_prompt("", false)
 
 
 func _on_arrival_briefing_dismissed() -> void:
-	player.set_physics_process(true)
+	_arrival_briefing_open = false
+	_walk_hud.set_walking_visible(true)
+	_update_player_walk_state()
+
+
+func _on_hud_modal_state_changed(is_open: bool) -> void:
+	_hud_modal_open = is_open
+	_update_player_walk_state()
+
+
+func _update_player_walk_state() -> void:
+	player.set_physics_process(not (_arrival_briefing_open or _hud_modal_open or _task_console_open))

@@ -5,5 +5,5 @@
 [node name="EnginePlume" type="AnimatedSprite2D" unique_id=505532081]
 z_index = -2
 texture_filter = 2
-position = Vector2(360, -337)
+position = Vector2(269, -2293)
 script = ExtResource("1_plume")

@@ -136,12 +136,6 @@ animation_frames = Array[Texture2D]([ExtResource("10_pump_01"), ExtResource("11_
 frames_per_second = 3.5
 phase_offset = 1
 
-[node name="NorthHerbA" parent="." instance=ExtResource("1_prop")]
-position = Vector2(348, 676)
-scale = Vector2(0.05, 0.05)
-animation_frames = Array[Texture2D]([ExtResource("18_pot_01"), ExtResource("19_pot_02"), ExtResource("20_pot_03"), ExtResource("21_pot_04")])
-frames_per_second = 3.0
-
 [node name="NorthHerbB" parent="." instance=ExtResource("1_prop")]
 position = Vector2(367, 676)
 scale = Vector2(0.05, 0.05)

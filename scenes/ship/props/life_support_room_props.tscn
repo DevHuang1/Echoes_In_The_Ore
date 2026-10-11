@@ -1,8 +1,9 @@
-[gd_scene load_steps=8 format=3]
+[gd_scene load_steps=9 format=3]
 
 [ext_resource type="PackedScene" path="res://scenes/ship/props/hydroponic_animated_prop.tscn" id="1_animated_prop"]
 [ext_resource type="Texture2D" path="res://art/concepts/ship_room_props/life_support_animation_sheet.png" id="2_animation_sheet"]
 [ext_resource type="PackedScene" path="res://scenes/ship/props/warm_ship_light.tscn" id="3_warm_light"]
+[ext_resource type="Script" path="res://scripts/ship/life_support_airflow.gd" id="4_airflow"]
 
 [sub_resource type="AtlasTexture" id="TankRackFrame01"]
 atlas = ExtResource("2_animation_sheet")
@@ -62,6 +63,16 @@ indicator_base_energy = 0.2
 indicator_pulse_amount = 0.16
 indicator_pulse_speed = 1.7
 indicator_texture_scale = 0.16
+
+[node name="VentAirflow" type="Node2D" parent="."]
+position = Vector2(66, 145)
+script = ExtResource("4_airflow")
+
+[node name="VentGlow" parent="VentAirflow" instance=ExtResource("3_warm_light")]
+position = Vector2(14, -6)
+color = Color(0.22, 0.88, 1, 1)
+energy = 0.44
+texture_scale = 0.26
 
 [node name="AirScrubber" parent="." instance=ExtResource("1_animated_prop")]
 position = Vector2(97.3, 92.5)

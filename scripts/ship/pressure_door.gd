@@ -28,6 +28,7 @@ const WALL_DEPTH_INSET := 0.90
 
 @onready var left_door_panel: Sprite2D = $LeftDoorPanel
 @onready var right_door_panel: Sprite2D = $RightDoorPanel
+@onready var opening_sound: AudioStreamPlayer2D = $OpenSFX
 
 var _is_open := false
 var _target_open := false
@@ -100,6 +101,8 @@ func _set_open_target(open: bool) -> void:
 	_target_open = open
 	_transitioning = true
 	_is_open = false
+	if open:
+		opening_sound.play()
 	if is_instance_valid(_transition) and _transition.is_running():
 		_transition.kill()
 

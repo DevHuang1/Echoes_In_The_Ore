@@ -87,7 +87,7 @@ func _build_ui() -> void:
 	crew.custom_minimum_size.y = 40.0
 	content.add_child(crew)
 
-	var first_duty := _label("FIRST DUTY   Recalibrate the oxygen sensor and inspect the sample chamber.", 15, MUTED)
+	var first_duty := _label("FIRST DUTY   Restore auxiliary power, replace the life-support filter, and restart hydroponic nutrient flow.", 15, MUTED)
 	first_duty.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	content.add_child(first_duty)
 

@@ -1,4 +1,4 @@
-[gd_scene load_steps=12 format=3 uid="uid://ddl36jsnqn5f8"]
+[gd_scene format=3 uid="uid://ddl36jsnqn5f8"]
 
 [ext_resource type="Script" uid="uid://mxdrvpc6q3b3" path="res://scripts/ship/bare_ship_walkthrough.gd" id="1_walkthrough"]
 [ext_resource type="Texture2D" uid="uid://chi8e3l3w8vc5" path="res://art/overview/asteria_overview_floor.png" id="2_floor"]
@@ -35,10 +35,10 @@ position = Vector2(682, 269)
 
 [node name="HydroponicsRoomProps" parent="." unique_id=1740298104 instance=ExtResource("9_hydroponics_props")]
 
-[node name="PowerMaintenanceRoomProps" parent="." instance=ExtResource("10_power_maintenance_props")]
+[node name="PowerMaintenanceRoomProps" parent="." unique_id=1633341448 instance=ExtResource("10_power_maintenance_props")]
 position = Vector2(1058, 263)
 
-[node name="LifeSupportRoomProps" parent="." instance=ExtResource("11_life_support_props")]
+[node name="LifeSupportRoomProps" parent="." unique_id=865870324 instance=ExtResource("11_life_support_props")]
 position = Vector2(1221, 198)
 
 [node name="ShipDoors" parent="." unique_id=1388646547 instance=ExtResource("7_doors")]
@@ -46,11 +46,11 @@ position = Vector2(3, -4)
 rotation = 0.00050925
 
 [node name="UpperAftEnginePlume" parent="." unique_id=1590277352 instance=ExtResource("6_plume")]
-position = Vector2(1689, 226)
+position = Vector2(1661.0001, 168)
 scale = Vector2(0.7, 0.4)
 
 [node name="LowerAftEnginePlume" parent="." unique_id=922350946 instance=ExtResource("6_plume")]
-position = Vector2(1693, 545)
+position = Vector2(1672, 576)
 scale = Vector2(0.62, 0.35)
 
 [node name="Player" parent="." unique_id=184995048 instance=ExtResource("4_player")]

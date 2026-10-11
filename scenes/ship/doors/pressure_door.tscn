@@ -1,7 +1,8 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://scripts/ship/pressure_door.gd" id="1_door_script"]
 [ext_resource type="Texture2D" path="res://art/overview/door_components/pressure_door_wallmatched.png" id="2_door_texture"]
+[ext_resource type="AudioStreamMP3" path="res://audio/sfx/airlock_mechanical_open.mp3" id="3_open_sfx"]
 
 [node name="PressureDoor" type="Node2D" groups=["ship_door"]]
 z_index = -2
@@ -20,3 +21,9 @@ centered = true
 texture_filter = 2
 region_enabled = true
 region_rect = Rect2(500, 0, 500, 600)
+
+[node name="OpenSFX" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("3_open_sfx")
+volume_db = -4.0
+max_distance = 900.0
+attenuation = 1.0
