@@ -11,8 +11,10 @@
 [ext_resource type="PackedScene" path="res://scenes/ship/props/hydroponics_room_props.tscn" id="9_hydroponics_props"]
 [ext_resource type="PackedScene" path="res://scenes/ship/props/power_maintenance_room_props.tscn" id="10_power_maintenance_props"]
 [ext_resource type="PackedScene" path="res://scenes/ship/props/life_support_room_props.tscn" id="11_life_support_props"]
+[ext_resource type="PackedScene" path="res://scenes/ship/props/bridge_room_props.tscn" id="12_bridge_props"]
 
 [node name="BareShipWalkthrough" type="Node2D" unique_id=1816551452]
+y_sort_enabled = true
 script = ExtResource("1_walkthrough")
 
 [node name="SpaceBackdrop" parent="." unique_id=1690483491 instance=ExtResource("5_space")]
@@ -35,6 +37,38 @@ position = Vector2(682, 269)
 
 [node name="HydroponicsRoomProps" parent="." unique_id=1740298104 instance=ExtResource("9_hydroponics_props")]
 
+[node name="BridgeRoomProps" parent="." unique_id=845601708 instance=ExtResource("12_bridge_props")]
+position = Vector2(7, 12)
+
+[node name="UpperFlightControlStation" parent="BridgeRoomProps" index="0"]
+position = Vector2(220, 258)
+
+[node name="UpperBowFlightConsole" parent="BridgeRoomProps" index="1"]
+position = Vector2(145, 283)
+
+[node name="LowerBowFlightConsole" parent="BridgeRoomProps" index="2"]
+position = Vector2(144, 418)
+
+[node name="LowerFlightControlStation" parent="BridgeRoomProps" index="3"]
+position = Vector2(217, 433)
+
+[node name="MainHelmConsole" parent="BridgeRoomProps" index="4"]
+position = Vector2(109, 335)
+
+[node name="UpperStationChair" parent="BridgeRoomProps" index="5"]
+position = Vector2(220, 293)
+
+[node name="MainHelmChair" parent="BridgeRoomProps" index="6"]
+position = Vector2(149, 344)
+artwork_scale = 0.06999999999999999
+
+[node name="LowerStationChair" parent="BridgeRoomProps" index="7"]
+position = Vector2(218, 396)
+
+[node name="MissionPlanningTable" parent="BridgeRoomProps" index="8"]
+position = Vector2(254, 340)
+artwork_scale = 0.16
+
 [node name="PowerMaintenanceRoomProps" parent="." unique_id=1633341448 instance=ExtResource("10_power_maintenance_props")]
 position = Vector2(1058, 263)
 
@@ -55,3 +89,5 @@ scale = Vector2(0.62, 0.35)
 
 [node name="Player" parent="." unique_id=184995048 instance=ExtResource("4_player")]
 position = Vector2(900, 500)
+
+[editable path="BridgeRoomProps"]

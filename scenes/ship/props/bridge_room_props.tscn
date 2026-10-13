@@ -1,0 +1,42 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/ship/props/flight_control_station.tscn" id="1_console"]
+[ext_resource type="PackedScene" path="res://scenes/ship/props/diagonal_flight_console.tscn" id="2_diagonal_console"]
+[ext_resource type="PackedScene" path="res://scenes/ship/props/main_helm_console.tscn" id="3_main_helm"]
+[ext_resource type="PackedScene" path="res://scenes/ship/props/captain_chair.tscn" id="4_chair"]
+[ext_resource type="PackedScene" path="res://scenes/ship/props/mission_planning_table.tscn" id="5_mission_table"]
+
+[node name="BridgeRoomProps" type="Node2D"]
+y_sort_enabled = true
+
+[node name="UpperFlightControlStation" parent="." instance=ExtResource("1_console")]
+position = Vector2(221, 265)
+
+[node name="UpperBowFlightConsole" parent="." instance=ExtResource("2_diagonal_console")]
+position = Vector2(132, 278)
+direction = 2
+
+[node name="LowerBowFlightConsole" parent="." instance=ExtResource("2_diagonal_console")]
+position = Vector2(132, 405)
+direction = 0
+
+[node name="LowerFlightControlStation" parent="." instance=ExtResource("1_console")]
+position = Vector2(221, 435)
+direction = 0
+
+[node name="MainHelmConsole" parent="." instance=ExtResource("3_main_helm")]
+position = Vector2(101, 335)
+
+[node name="UpperStationChair" parent="." instance=ExtResource("4_chair")]
+position = Vector2(224, 311)
+
+[node name="MainHelmChair" parent="." instance=ExtResource("4_chair")]
+position = Vector2(144, 347)
+direction = 3
+
+[node name="LowerStationChair" parent="." instance=ExtResource("4_chair")]
+position = Vector2(217, 394)
+direction = 1
+
+[node name="MissionPlanningTable" parent="." instance=ExtResource("5_mission_table")]
+position = Vector2(214, 347.565)
