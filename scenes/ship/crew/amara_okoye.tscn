@@ -1,0 +1,19 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/ship/amara_okoye.gd" id="1_amara"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_amara"]
+radius = 7.0
+
+[node name="AmaraOkoye" type="CharacterBody2D"]
+collision_layer = 4
+collision_mask = 1
+script = ExtResource("1_amara")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_amara")
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
+position = Vector2(0, -4)
+texture_filter = 1
+z_index = 3

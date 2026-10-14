@@ -1,6 +1,8 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=9 format=3]
 
 [ext_resource type="Texture2D" path="res://art/overview/floor_modules/rooms/r03_center_recess_floor.png" id="1_texture"]
+[ext_resource type="PackedScene" path="res://scenes/ship/props/warm_ship_light.tscn" id="2_warm_light"]
+[ext_resource type="PackedScene" path="res://scenes/ship/props/ambient_gas_mist.tscn" id="3_gas_mist"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_top"]
 size = Vector2(197, 14)
@@ -53,6 +55,47 @@ shape = SubResource("RectangleShape2D_bottom")
 [node name="BottomRightWall" type="CollisionShape2D" parent="WallCollision"]
 position = Vector2(239, 98)
 shape = SubResource("RectangleShape2D_bottom")
+
+[node name="NorthwestWallSconce" parent="." instance=ExtResource("2_warm_light")]
+position = Vector2(120, 18)
+energy = 0.6
+texture_scale = 0.26
+
+[node name="NortheastWallSconce" parent="." instance=ExtResource("2_warm_light")]
+position = Vector2(237, 18)
+energy = 0.6
+texture_scale = 0.26
+
+[node name="WestWallSconce" parent="." instance=ExtResource("2_warm_light")]
+position = Vector2(64, 63)
+energy = 0.5
+texture_scale = 0.24
+
+[node name="EastWallSconce" parent="." instance=ExtResource("2_warm_light")]
+position = Vector2(295, 63)
+energy = 0.5
+texture_scale = 0.24
+
+[node name="SouthwestWallSconce" parent="." instance=ExtResource("2_warm_light")]
+position = Vector2(119, 101)
+energy = 0.48
+texture_scale = 0.23
+
+[node name="SoutheastWallSconce" parent="." instance=ExtResource("2_warm_light")]
+position = Vector2(239, 101)
+energy = 0.48
+texture_scale = 0.23
+
+[node name="CryogenicVapor" parent="." instance=ExtResource("3_gas_mist")]
+position = Vector2(181, 62)
+gas_color = Color(0.67, 0.53, 1, 1)
+blob_count = 16
+spread = Vector2(38, 21)
+drift_direction = Vector2(-0.04, -1)
+drift_speed = 4.2
+lifetime = 8.0
+blob_size = Vector2(40, 31)
+opacity = 0.54
 
 [node name="LowerRightCorner" type="CollisionShape2D" parent="WallCollision"]
 position = Vector2(287, 91)

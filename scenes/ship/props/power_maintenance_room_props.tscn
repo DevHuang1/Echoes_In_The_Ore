@@ -1,9 +1,12 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=10 format=3]
 
 [ext_resource type="PackedScene" path="res://scenes/ship/props/hydroponic_animated_prop.tscn" id="1_animated_prop"]
 [ext_resource type="Texture2D" path="res://art/concepts/ship_room_props/power_maintenance_animation_sheet.png" id="2_animation_sheet"]
 [ext_resource type="PackedScene" path="res://scenes/ship/props/warm_ship_light.tscn" id="3_warm_light"]
 [ext_resource type="Texture2D" path="res://art/concepts/ship_room_props/power_converter.png" id="4_power_converter"]
+[ext_resource type="PackedScene" path="res://scenes/ship/props/ambient_gas_mist.tscn" id="5_gas_mist"]
+[ext_resource type="PackedScene" path="res://scenes/ship/floor_modules/tiles/floor_tile_upper_plate.tscn" id="6_upper_plate"]
+[ext_resource type="PackedScene" path="res://scenes/ship/floor_modules/tiles/floor_tile_hazard_zone.tscn" id="7_hazard_zone"]
 
 [sub_resource type="AtlasTexture" id="BreakerFrame01"]
 atlas = ExtResource("2_animation_sheet")
@@ -17,6 +20,16 @@ filter_clip = true
 
 [node name="PowerMaintenanceRoomProps" type="Node2D"]
 
+[node name="FloorDetail" type="Node2D" parent="."]
+z_index = -2
+
+[node name="UpperDeckPanel" parent="FloorDetail" instance=ExtResource("6_upper_plate")]
+position = Vector2(5, 2)
+
+[node name="PowerCellCautionInset" parent="FloorDetail" instance=ExtResource("7_hazard_zone")]
+position = Vector2(68, 57)
+scale = Vector2(0.42, 0.42)
+
 [node name="BreakerWorklight" parent="." instance=ExtResource("3_warm_light")]
 position = Vector2(43, 39)
 energy = 0.82
@@ -26,6 +39,32 @@ texture_scale = 0.32
 position = Vector2(92.7, 30)
 energy = 0.62
 texture_scale = 0.3
+
+[node name="PortWallSconce" parent="." instance=ExtResource("3_warm_light")]
+position = Vector2(13, 74)
+energy = 0.48
+texture_scale = 0.23
+
+[node name="StarboardWallSconce" parent="." instance=ExtResource("3_warm_light")]
+position = Vector2(129, 72)
+energy = 0.48
+texture_scale = 0.23
+
+[node name="LowerWallSconce" parent="." instance=ExtResource("3_warm_light")]
+position = Vector2(69, 108)
+energy = 0.44
+texture_scale = 0.22
+
+[node name="CoolantSteam" parent="." instance=ExtResource("5_gas_mist")]
+position = Vector2(116, 87)
+gas_color = Color(1, 0.46, 0.2, 1)
+blob_count = 15
+spread = Vector2(27, 15)
+drift_direction = Vector2(0.28, -1)
+drift_speed = 4.8
+lifetime = 6.2
+blob_size = Vector2(34, 25)
+opacity = 0.58
 
 [node name="BreakerCabinet" parent="." instance=ExtResource("1_animated_prop")]
 position = Vector2(54.8, 43.6)

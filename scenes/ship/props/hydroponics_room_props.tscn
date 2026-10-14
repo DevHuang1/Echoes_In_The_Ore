@@ -1,4 +1,4 @@
-[gd_scene load_steps=28 format=3]
+[gd_scene load_steps=33 format=3]
 
 [ext_resource type="PackedScene" path="res://scenes/ship/props/hydroponic_anchored_prop.tscn" id="1_prop"]
 [ext_resource type="Texture2D" path="res://art/concepts/hydroponics_animation_frames/anchored/grow_tray_power_sway_frames/grow_tray_power_sway_frame_01.png" id="2_tray_01"]
@@ -27,10 +27,40 @@
 [ext_resource type="Texture2D" path="res://art/concepts/hydroponics_animation_frames/anchored/wall_herb_shelf_sway_frames/wall_herb_shelf_sway_frame_04.png" id="25_shelf_04"]
 [ext_resource type="PackedScene" path="res://scenes/ship/props/warm_ship_light.tscn" id="26_warm_light"]
 [ext_resource type="PackedScene" path="res://scenes/ship/props/hydroponics_pipes.tscn" id="27_pipes"]
+[ext_resource type="Texture2D" path="res://art/props/floor_decals/moss_patch_broad.png" id="28_moss_broad"]
+[ext_resource type="Texture2D" path="res://art/props/floor_decals/moss_seam_strip.png" id="29_moss_seam"]
+[ext_resource type="Texture2D" path="res://art/props/floor_decals/algae_film_patch.png" id="30_algae_film"]
+[ext_resource type="Texture2D" path="res://art/props/floor_decals/algae_scatter_cluster.png" id="31_algae_scatter"]
+[ext_resource type="PackedScene" path="res://scenes/ship/props/ambient_gas_mist.tscn" id="32_gas_mist"]
 
 [node name="HydroponicsRoomProps" type="Node2D"]
 
 [node name="HydroponicsPipes" parent="." instance=ExtResource("27_pipes")]
+
+[node name="FloorDecals" type="Node2D" parent="."]
+z_index = -2
+texture_filter = 2
+
+[node name="MossPatchBroad" type="Sprite2D" parent="FloorDecals"]
+position = Vector2(315, 805)
+scale = Vector2(0.04, 0.04)
+texture = ExtResource("28_moss_broad")
+
+[node name="MossSeamStrip" type="Sprite2D" parent="FloorDecals"]
+position = Vector2(420, 703)
+rotation = -0.12
+scale = Vector2(0.032, 0.032)
+texture = ExtResource("29_moss_seam")
+
+[node name="AlgaeFilmPatch" type="Sprite2D" parent="FloorDecals"]
+position = Vector2(366, 782)
+scale = Vector2(0.035, 0.035)
+texture = ExtResource("30_algae_film")
+
+[node name="AlgaeScatterCluster" type="Sprite2D" parent="FloorDecals"]
+position = Vector2(430, 790)
+scale = Vector2(0.028, 0.028)
+texture = ExtResource("31_algae_scatter")
 
 [node name="HydroponicsLighting" type="Node2D" parent="."]
 
@@ -98,6 +128,37 @@ texture_scale = 0.35
 position = Vector2(280, 835)
 energy = 0.9
 texture_scale = 0.36
+
+[node name="PortWallSconce" parent="HydroponicsLighting" instance=ExtResource("26_warm_light")]
+position = Vector2(26, 747)
+energy = 0.68
+texture_scale = 0.32
+
+[node name="PortLowerWallSconce" parent="HydroponicsLighting" instance=ExtResource("26_warm_light")]
+position = Vector2(76, 852)
+energy = 0.72
+texture_scale = 0.32
+
+[node name="StarboardUpperWallSconce" parent="HydroponicsLighting" instance=ExtResource("26_warm_light")]
+position = Vector2(523, 682)
+energy = 0.72
+texture_scale = 0.32
+
+[node name="StarboardLowerWallSconce" parent="HydroponicsLighting" instance=ExtResource("26_warm_light")]
+position = Vector2(520, 835)
+energy = 0.68
+texture_scale = 0.32
+
+[node name="BioVapor" parent="." instance=ExtResource("32_gas_mist")]
+position = Vector2(139, 802)
+gas_color = Color(0.53, 1, 0.32, 1)
+blob_count = 18
+spread = Vector2(36, 16)
+drift_direction = Vector2(-0.22, -1)
+drift_speed = 5.5
+lifetime = 8.2
+blob_size = Vector2(34, 27)
+opacity = 0.62
 
 [node name="WallHerbShelf" parent="." instance=ExtResource("1_prop")]
 position = Vector2(436, 677)

@@ -61,14 +61,14 @@ func _refresh_preview() -> void:
 
 
 func _physics_process(delta: float) -> void:
-	var player_near := _is_player_near()
+	var actor_near := _is_actor_near()
 	if locked:
 		_close_timer = 0.0
 		if _target_open:
 			_set_open_target(false)
 		return
 
-	if player_near:
+	if actor_near:
 		_close_timer = close_delay
 		if not _target_open:
 			_set_open_target(true)
@@ -135,14 +135,15 @@ func _finish_transition(open: bool) -> void:
 		closed.emit(door_id)
 
 
-func _is_player_near() -> bool:
-	var players := get_tree().get_nodes_in_group("ship_player")
-	if players.is_empty():
-		return false
-	var player := players[0] as Node2D
-	if not is_instance_valid(player):
-		return false
-	var local_position := to_local(player.global_position)
-	var beyond_span := maxf(absf(local_position.x) - opening_width * 0.5, 0.0)
-	var beyond_wall := maxf(absf(local_position.y) - wall_depth * 0.5, 0.0)
-	return Vector2(beyond_span, beyond_wall).length() <= activation_distance
+func _is_actor_near() -> bool:
+	for group_name in [&"ship_player", &"ship_crew"]:
+		for actor_node in get_tree().get_nodes_in_group(group_name):
+			var actor := actor_node as Node2D
+			if not is_instance_valid(actor):
+				continue
+			var local_position := to_local(actor.global_position)
+			var beyond_span := maxf(absf(local_position.x) - opening_width * 0.5, 0.0)
+			var beyond_wall := maxf(absf(local_position.y) - wall_depth * 0.5, 0.0)
+			if Vector2(beyond_span, beyond_wall).length() <= activation_distance:
+				return true
+	return false

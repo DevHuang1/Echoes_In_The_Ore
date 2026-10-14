@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/crew_dialogue.gd" id="1_crew_dialogue"]
+
+[node name="CrewDialogue" type="CanvasLayer"]
+script = ExtResource("1_crew_dialogue")
