@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" uid="uid://mxdrvpc6q3b3" path="res://scripts/ship/bare_ship_walkthrough.gd" id="1_walkthrough"]
 [ext_resource type="Texture2D" uid="uid://chi8e3l3w8vc5" path="res://art/overview/asteria_overview_floor.png" id="2_floor"]
-[ext_resource type="Texture2D" uid="uid://ru8r0ka7sokn" path="res://art/overview/asteria_overview_walls_2x.png" id="3_walls"]
+[ext_resource type="Texture2D" uid="uid://msnfl0l2p2m7" path="res://art/concepts/ship_walls_valkyrie.png" id="3_walls"]
 [ext_resource type="PackedScene" path="res://scenes/player/player.tscn" id="4_player"]
 [ext_resource type="PackedScene" path="res://scenes/ship/space_backdrop.tscn" id="5_space"]
 [ext_resource type="PackedScene" uid="uid://b8lq0lk6k2n0l" path="res://scenes/ship/engine_plume.tscn" id="6_plume"]
@@ -11,13 +11,15 @@
 [ext_resource type="PackedScene" path="res://scenes/ship/props/hydroponics_room_props.tscn" id="9_hydroponics_props"]
 [ext_resource type="PackedScene" path="res://scenes/ship/props/power_maintenance_room_props.tscn" id="10_power_maintenance_props"]
 [ext_resource type="PackedScene" path="res://scenes/ship/props/life_support_room_props.tscn" id="11_life_support_props"]
-[ext_resource type="PackedScene" path="res://scenes/ship/props/bridge_room_props.tscn" id="12_bridge_props"]
 [ext_resource type="PackedScene" path="res://scenes/ship/crew/amara_okoye.tscn" id="12_amara"]
+[ext_resource type="PackedScene" path="res://scenes/ship/props/bridge_room_props.tscn" id="12_bridge_props"]
 [ext_resource type="PackedScene" path="res://scenes/ship/props/ship_vent_network.tscn" id="13_vent_network"]
 [ext_resource type="PackedScene" path="res://scenes/ship/props/ship_fog_halo.tscn" id="14_fog"]
+[ext_resource type="PackedScene" path="res://scenes/ship/props/crew_living_quarter_props.tscn" id="15_crew_quarters"]
 
 [node name="BareShipWalkthrough" type="Node2D" unique_id=1816551452]
 y_sort_enabled = true
+position = Vector2(-30, -23)
 script = ExtResource("1_walkthrough")
 
 [node name="SpaceBackdrop" parent="." unique_id=1690483491 instance=ExtResource("5_space")]
@@ -32,8 +34,7 @@ centered = false
 
 [node name="WallLayer" type="Sprite2D" parent="." unique_id=257802278]
 z_index = -1
-texture_filter = 2
-scale = Vector2(0.5, 0.5)
+texture_filter = 1
 texture = ExtResource("3_walls")
 centered = false
 
@@ -48,33 +49,80 @@ position = Vector2(682, 269)
 position = Vector2(7, 12)
 
 [node name="UpperFlightControlStation" parent="BridgeRoomProps" index="0"]
-position = Vector2(220, 258)
+position = Vector2(234, 271)
 
 [node name="UpperBowFlightConsole" parent="BridgeRoomProps" index="1"]
-position = Vector2(145, 283)
+position = Vector2(159, 288)
+artwork_scale = 0.15000000000000002
 
 [node name="LowerBowFlightConsole" parent="BridgeRoomProps" index="2"]
-position = Vector2(144, 418)
+position = Vector2(154, 410)
+artwork_scale = 0.15000000000000002
 
 [node name="LowerFlightControlStation" parent="BridgeRoomProps" index="3"]
-position = Vector2(217, 433)
+position = Vector2(213, 426)
+artwork_scale = 0.09999999999999999
 
 [node name="MainHelmConsole" parent="BridgeRoomProps" index="4"]
 position = Vector2(109, 335)
 
 [node name="UpperStationChair" parent="BridgeRoomProps" index="5"]
-position = Vector2(220, 293)
+position = Vector2(234, 302)
 
 [node name="MainHelmChair" parent="BridgeRoomProps" index="6"]
 position = Vector2(149, 344)
 artwork_scale = 0.06999999999999999
 
 [node name="LowerStationChair" parent="BridgeRoomProps" index="7"]
-position = Vector2(218, 396)
+position = Vector2(213, 398)
 
 [node name="MissionPlanningTable" parent="BridgeRoomProps" index="8"]
 position = Vector2(254, 340)
 artwork_scale = 0.16
+
+[node name="CrewLivingQuarterProps" parent="." unique_id=749015337 instance=ExtResource("15_crew_quarters")]
+position = Vector2(300, 450)
+
+[node name="StackedCapsuleUnit" parent="CrewLivingQuarterProps" index="0"]
+position = Vector2(25, 67)
+artwork_scale = 0.06999999999999999
+
+[node name="PersonalComputerDesk" parent="CrewLivingQuarterProps" index="1"]
+position = Vector2(272, 11)
+
+[node name="DeskChair" parent="CrewLivingQuarterProps" index="2"]
+position = Vector2(274, 41)
+
+[node name="CommunalTable" parent="CrewLivingQuarterProps" index="3"]
+position = Vector2(312, 147)
+
+[node name="TableChairNorth" parent="CrewLivingQuarterProps" index="4"]
+position = Vector2(311, 132)
+
+[node name="TableChairSouth" parent="CrewLivingQuarterProps" index="5"]
+position = Vector2(312, 178)
+
+[node name="TableChairWest" parent="CrewLivingQuarterProps" index="6"]
+position = Vector2(267, 148)
+
+[node name="TableChairEast" parent="CrewLivingQuarterProps" index="7"]
+position = Vector2(358, 148)
+
+[node name="ThreeDrawerChest" parent="CrewLivingQuarterProps" index="8"]
+position = Vector2(155, 9)
+
+[node name="StorageCabinet02" parent="CrewLivingQuarterProps" index="9"]
+position = Vector2(315, 24)
+artwork_scale = 0.1
+
+[node name="ThreeDrawerChest02" parent="CrewLivingQuarterProps" index="10"]
+position = Vector2(191, 9)
+
+[node name="StackedCapsuleUnit02" parent="CrewLivingQuarterProps" index="11"]
+position = Vector2(69, 68)
+
+[node name="StackedCapsuleUnit03" parent="CrewLivingQuarterProps" index="12"]
+position = Vector2(114, 69)
 
 [node name="PowerMaintenanceRoomProps" parent="." unique_id=1633341448 instance=ExtResource("10_power_maintenance_props")]
 position = Vector2(1058, 263)
@@ -101,3 +149,4 @@ position = Vector2(900, 500)
 position = Vector2(320, 746)
 
 [editable path="BridgeRoomProps"]
+[editable path="CrewLivingQuarterProps"]
