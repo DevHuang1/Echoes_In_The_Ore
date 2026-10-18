@@ -158,7 +158,7 @@ func _build_ui() -> void:
 	add_child(top_bar)
 
 	var top_label := Label.new()
-	top_label.text = "ECHOES IN THE ORE  /  EARTH YEARS"
+	top_label.text = "ASTERIA-1 // CREW ARCHIVE DOSSIER: THURA MIN"
 	top_label.anchor_left = 0.045
 	top_label.anchor_top = 0.035
 	top_label.anchor_right = 0.68
@@ -169,7 +169,7 @@ func _build_ui() -> void:
 	add_child(top_label)
 
 	_skip_button = Button.new()
-	_skip_button.text = "SKIP INTRO"
+	_skip_button.text = "[ SKIP DOSSIER  → ]"
 	_skip_button.anchor_left = 0.83
 	_skip_button.anchor_top = 0.035
 	_skip_button.anchor_right = 0.96
@@ -206,7 +206,7 @@ func _build_ui() -> void:
 	_progress_fill.anchor_right = 0.0
 	_progress_fill.anchor_bottom = 0.775
 	_progress_fill.offset_bottom = 3.0
-	_progress_fill.color = Color(0.86, 0.66, 0.34, 0.98)
+	_progress_fill.color = Color(0.24, 0.95, 0.54, 0.98)
 	_progress_fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_progress_fill)
 
@@ -243,7 +243,7 @@ func _build_ui() -> void:
 	add_child(_subtitle_label)
 
 	_next_button = Button.new()
-	_next_button.text = "NEXT  ›"
+	_next_button.text = "[ PROCEED  › ]"
 	_next_button.anchor_left = 0.835
 	_next_button.anchor_top = 0.875
 	_next_button.anchor_right = 0.96
@@ -268,6 +268,7 @@ func _button_style(background: Color, border: Color) -> StyleBoxFlat:
 	style.bg_color = background
 	style.border_color = border
 	style.set_border_width_all(1)
+	style.border_width_left = 3
 	style.corner_radius_top_left = 3
 	style.corner_radius_top_right = 3
 	style.corner_radius_bottom_left = 3
@@ -288,7 +289,7 @@ func _show_frame(index: int) -> void:
 	_chapter_label.text = str(frame["chapter"])
 	_counter_label.text = "%02d  /  %02d" % [index + 1, STORY_FRAMES.size()]
 	_subtitle_label.text = str(frame["subtitle"])
-	_next_button.text = "NEXT  ›"
+	_next_button.text = "[ PROCEED  › ]"
 	_progress_fill.anchor_right = float(index) / float(STORY_FRAMES.size())
 	_begin_subtitle_typing()
 	if is_instance_valid(_zoom_tween) and _zoom_tween.is_running():
@@ -304,14 +305,14 @@ func _begin_subtitle_typing() -> void:
 	_subtitle_label.visible_characters = 0
 	_is_subtitle_typing = true
 	_remaining_seconds = 0.0
-	_next_button.text = "SHOW TEXT"
+	_next_button.text = "[ SHOW TEXT ]"
 
 
 func _finish_subtitle() -> void:
 	_subtitle_label.visible_characters = _subtitle_character_count
 	_is_subtitle_typing = false
 	_remaining_seconds = POST_SUBTITLE_HOLD_SECONDS
-	_next_button.text = "BOARD ASTERIA-1" if _finished else "NEXT  ›"
+	_next_button.text = "[ BOARD ASTERIA-1  → ]" if _finished else "[ PROCEED  › ]"
 
 
 func _update_progress() -> void:

@@ -6,6 +6,7 @@ const FLOOR_ALPHA_THRESHOLD := 0.15
 const NAV_CELL_SIZE := 24.0
 const BODY_RADIUS := 7.0
 const DISPLAY_SCALE := 0.12
+
 # Keep local patrols inside Hydroponics and out of the east access corridor.
 const HYDROPONICS_AREA := Rect2(Vector2(60.0, 650.0), Vector2(420.0, 190.0))
 const SHIP_ROAM_AREAS := [
@@ -21,17 +22,160 @@ const ANIMATION_ROWS := {
 	&"walk_up": 3,
 }
 
+# Key inspection stations in Hydroponics with specific target approach points and barks.
+const HYDROPONICS_STATIONS: Array[Dictionary] = [
+	{
+		"id": &"control_console",
+		"name": "Control Console",
+		"target": Vector2(133.0, 748.0),
+		"facing": Vector2.LEFT,
+		"tag": "LOGGING CONSOLE",
+		"barks": [
+			"Nutrient telemetry nominal. Bio-sensors online.",
+			"Checking greenhouse oxygen output levels.",
+			"Logging growth cycle data to Asteria-1 log.",
+		]
+	},
+	{
+		"id": &"nutrient_pump",
+		"name": "Nutrient Pump",
+		"target": Vector2(140.0, 796.0),
+		"facing": Vector2.LEFT,
+		"tag": "CHECKING PUMP",
+		"barks": [
+			"Manifold pressure steady at 3.2 bar.",
+			"No sediment in the filter screen. Flow is clean.",
+			"Bubble agitation rate looks perfect.",
+		]
+	},
+	{
+		"id": &"seedling_rack",
+		"name": "Seedling Rack",
+		"target": Vector2(310.0, 736.0),
+		"facing": Vector2.LEFT,
+		"tag": "INSPECTING SEEDLINGS",
+		"barks": [
+			"Tray humidity steady at 68%. Roots look vibrant.",
+			"Sprouts germinating on schedule under the LED glow.",
+			"Adjusting seedling micro-misters.",
+		]
+	},
+	{
+		"id": &"grow_tray_north",
+		"name": "North Grow Tray",
+		"target": Vector2(190.0, 645.0),
+		"facing": Vector2.DOWN,
+		"tag": "EXAMINING CANOPY",
+		"barks": [
+			"North canopy leaves are absorbing maximum spectrum.",
+			"No fungal discoloration. Crisp emerald stems.",
+			"Checking sub-surface hydration pads.",
+		]
+	},
+	{
+		"id": &"grow_tray_south",
+		"name": "South Grow Tray",
+		"target": Vector2(190.0, 780.0),
+		"facing": Vector2.UP,
+		"tag": "CHECKING CROP TRAY",
+		"barks": [
+			"South tray root mats are expanding nicely.",
+			"Nutrient uptake is within ideal parameters.",
+			"Leaves are firm and fragrant.",
+		]
+	},
+	{
+		"id": &"wall_herb_shelf",
+		"name": "Wall Herb Shelf",
+		"target": Vector2(410.0, 685.0),
+		"facing": Vector2.RIGHT,
+		"tag": "PRUNING HERBS",
+		"barks": [
+			"Pruning dry tips off the medicinal thyme.",
+			"Fresh mint aroma always clears my head.",
+			"Basil specimen is thriving in zero-g soil blend.",
+		]
+	},
+	{
+		"id": &"bio_vapor",
+		"name": "Bio-Vapor Vent",
+		"target": Vector2(170.0, 800.0),
+		"facing": Vector2.LEFT,
+		"tag": "CHECKING BIO-MIST",
+		"barks": [
+			"Atmospheric humidity balance is spot on.",
+			"Bio-vapor scrubbers trapping airborne particulates.",
+			"Air in here is the sweetest on the entire ship.",
+		]
+	},
+	{
+		"id": &"center_moss_aisle",
+		"name": "Center Aisle",
+		"target": Vector2(320.0, 746.0),
+		"facing": Vector2.DOWN,
+		"tag": "EXAMINING FLOOR MOSS",
+		"barks": [
+			"Bio-moss grip tiles preventing slip hazards.",
+			"Walking the center aisle to inspect row alignment.",
+			"Everything in this room is breathing.",
+		]
+	},
+]
+
+const SHIP_PATROL_BARKS: Array[Dictionary] = [
+	{
+		"tag": "PATROLLING SPINE",
+		"barks": [
+			"Spine airflow feels brisk today.",
+			"Central corridor lights running on low auxiliary draw.",
+			"Hull acoustic resonance is normal along the spine.",
+		]
+	},
+	{
+		"tag": "INSPECTING SHIP VENTS",
+		"barks": [
+			"Checking main corridor ventilation flow.",
+			"Return duct pressure is balanced.",
+			"Oxygen recycling lines humming steadily.",
+		]
+	},
+	{
+		"tag": "MONITORING BULKHEADS",
+		"barks": [
+			"Pressure seals look tight and secure.",
+			"Taking a quick walk outside the grow room.",
+			"Checking atmosphere levels between compartments.",
+		]
+	},
+	{
+		"tag": "CHECKING CONDUITS",
+		"barks": [
+			"Auxiliary conduits have steady current flow.",
+			"Good to stretch my legs across the ship.",
+			"Ship structure feels steady as a rock.",
+		]
+	},
+]
+
+const PLAYER_GREETING_BARKS: Array[String] = [
+	"Hey Thura! Glad to see you up and moving.",
+	"Don't worry, the crops are breathing easy today.",
+	"Watch your footing near the bio-vapor mist!",
+	"Fresh mint tea will be ready soon if you want some.",
+	"Good to see another soul on this watch.",
+	"Need a hand with anything, Thura?",
+]
+
 enum RoamPhase { HYDROPONICS, SHIP_EXCURSION, RETURNING }
 
-@export_range(20.0, 240.0, 1.0) var move_speed: float = 170.0
-@export var movement_burst_range := Vector2(0.84, 1.38)
-@export var local_idle_seconds := Vector2(0.02, 0.08)
-@export var ship_idle_seconds := Vector2(0.02, 0.08)
-@export var room_roam_seconds := Vector2(20.0, 28.0)
-@export var room_roam_stops := Vector2i(8, 12)
-@export var excursion_stops := Vector2i(12, 20)
-@export_range(30.0, 180.0, 1.0) var ship_excursion_max_seconds := 105.0
-@export_range(40.0, 240.0, 1.0) var notice_player_distance: float = 150.0
+@export_range(20.0, 240.0, 1.0) var move_speed: float = 145.0
+@export var movement_burst_range := Vector2(0.92, 1.15)
+@export var local_idle_seconds := Vector2(2.4, 4.6)
+@export var ship_idle_seconds := Vector2(1.8, 3.4)
+@export var room_roam_stops := Vector2i(10, 15)
+@export var excursion_stops := Vector2i(8, 14)
+@export_range(30.0, 180.0, 1.0) var ship_excursion_max_seconds := 110.0
+@export_range(40.0, 240.0, 1.0) var notice_player_distance: float = 85.0
 
 @onready var sprite: AnimatedSprite2D = $AnimatedSprite2D
 
@@ -47,21 +191,33 @@ var _ship_zone_cells: Array = []
 var _path: Array[Vector2] = []
 var _path_index := 0
 var _destination := Vector2.ZERO
-var _current_speed := 170.0
+var _current_speed := 145.0
 var _has_destination := false
 var _idle_remaining := 0.0
 var _phase := RoamPhase.HYDROPONICS
-var _seconds_until_excursion := 0.0
 var _excursion_seconds := 0.0
 var _excursion_stops_remaining := 0
 var _room_stops_remaining := 0
 var _facing_animation: StringName = &"walk_down"
+var _station_index := 0
+var _current_station_info: Dictionary = {}
+var _door_wait_retries := 0
+
+# Unique NPC Overhead HUD Bubble
+var _bubble_root: Node2D
+var _bubble_panel: PanelContainer
+var _bubble_tag_label: Label
+var _bubble_text_label: Label
+var _bubble_tween: Tween
+var _player_nearby := false
+var _greeting_cooldown := 0.0
 
 
 func _ready() -> void:
 	_random.randomize()
 	add_to_group("ship_crew")
 	_configure_sprite_animations()
+	_build_overhead_bubble()
 	await get_tree().physics_frame
 	_build_navigation()
 	if not _navigation_ready:
@@ -72,30 +228,38 @@ func _ready() -> void:
 		spawn_cell = _find_nearest_clear_cell(spawn_cell, true)
 		if _grid_region.has_point(spawn_cell) and not _hydroponics_grid.is_point_solid(spawn_cell):
 			global_position = _cell_to_world(spawn_cell)
-	# Start with a lively hydroponics round before her longer ship excursion.
+
 	_room_stops_remaining = _random.randi_range(room_roam_stops.x, room_roam_stops.y)
-	_seconds_until_excursion = _random.randf_range(room_roam_seconds.x, room_roam_seconds.y)
+	_show_overhead_bark("HYDROPONICS SHIFT", "Starting room rounds. Inspecting the grow beds.", 3.5)
 	_choose_next_destination()
 
 
 func _physics_process(delta: float) -> void:
 	if not _navigation_ready:
 		return
-	if _phase == RoamPhase.HYDROPONICS:
-		_seconds_until_excursion = maxf(_seconds_until_excursion - delta, 0.0)
-	elif _phase == RoamPhase.SHIP_EXCURSION:
+
+	if _greeting_cooldown > 0.0:
+		_greeting_cooldown = maxf(_greeting_cooldown - delta, 0.0)
+
+	if _phase == RoamPhase.SHIP_EXCURSION:
 		_excursion_seconds += delta
+
+	_check_player_proximity()
 
 	if _idle_remaining > 0.0:
 		_idle_remaining = maxf(_idle_remaining - delta, 0.0)
 		velocity = Vector2.ZERO
 		_stop_walking()
-		_face_player_if_nearby()
+		if not _player_nearby and not _current_station_info.is_empty():
+			var preferred_facing: Vector2 = _current_station_info.get("facing", Vector2.ZERO)
+			if preferred_facing != Vector2.ZERO:
+				_update_facing(preferred_facing)
 		return
 
 	if not _has_destination:
 		_choose_next_destination()
 		return
+
 	if _path_index >= _path.size():
 		_arrive_at_destination()
 		return
@@ -103,7 +267,7 @@ func _physics_process(delta: float) -> void:
 	var waypoint := _path[_path_index]
 	var to_waypoint := waypoint - global_position
 	var distance := to_waypoint.length()
-	if distance <= 1.5:
+	if distance <= 2.0:
 		_path_index += 1
 		if _path_index >= _path.size():
 			_arrive_at_destination()
@@ -113,14 +277,23 @@ func _physics_process(delta: float) -> void:
 	_update_facing(direction)
 	var step_distance := minf(_current_speed * delta, distance)
 	var motion := direction * step_distance
+
 	if _is_blocked_by_closed_door(global_position + motion):
+		# Door is currently opening; pause briefly so it can open instead of aborting the path
 		velocity = Vector2.ZERO
 		_stop_walking()
+		_door_wait_retries += 1
+		if _door_wait_retries < 4:
+			_idle_remaining = 0.35
+			return
+		_door_wait_retries = 0
 		_path.clear()
 		_path_index = 0
 		_has_destination = false
-		_idle_remaining = 0.04
+		_idle_remaining = 0.2
 		return
+	else:
+		_door_wait_retries = 0
 
 	velocity = direction * _current_speed
 	var collision := move_and_collide(motion)
@@ -128,6 +301,348 @@ func _physics_process(delta: float) -> void:
 		_handle_unmapped_obstacle()
 	elif not sprite.is_playing():
 		sprite.play(_facing_animation)
+
+
+func _build_overhead_bubble() -> void:
+	_bubble_root = Node2D.new()
+	_bubble_root.name = "OverheadBubble"
+	_bubble_root.position = Vector2(0.0, -38.0)
+	_bubble_root.modulate = Color(1.0, 1.0, 1.0, 0.0)
+	_bubble_root.z_index = 10
+	add_child(_bubble_root)
+
+	_bubble_panel = PanelContainer.new()
+	_bubble_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_bubble_panel.custom_minimum_size = Vector2(160.0, 0.0)
+
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.015, 0.035, 0.055, 0.90)
+	style.border_color = Color(0.24, 0.72, 0.82, 0.90)
+	style.set_border_width_all(1)
+	style.corner_radius_top_left = 5
+	style.corner_radius_top_right = 5
+	style.corner_radius_bottom_left = 5
+	style.corner_radius_bottom_right = 5
+	style.content_margin_left = 10.0
+	style.content_margin_right = 10.0
+	style.content_margin_top = 5.0
+	style.content_margin_bottom = 5.0
+	_bubble_panel.add_theme_stylebox_override("panel", style)
+
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 2)
+	_bubble_panel.add_child(vbox)
+
+	_bubble_tag_label = Label.new()
+	_bubble_tag_label.add_theme_font_size_override("font_size", 9)
+	_bubble_tag_label.add_theme_color_override("font_color", Color(0.92, 0.72, 0.38))
+	vbox.add_child(_bubble_tag_label)
+
+	_bubble_text_label = Label.new()
+	_bubble_text_label.add_theme_font_size_override("font_size", 11)
+	_bubble_text_label.add_theme_color_override("font_color", Color(0.92, 0.95, 0.96))
+	_bubble_text_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_bubble_text_label.custom_minimum_size = Vector2(160.0, 0.0)
+	vbox.add_child(_bubble_text_label)
+
+	_bubble_root.add_child(_bubble_panel)
+	# Center the bubble above Amara
+	_bubble_panel.position = Vector2(-90.0, -42.0)
+
+
+func _show_overhead_bark(tag: String, text: String, duration: float = 3.0) -> void:
+	if not is_instance_valid(_bubble_root):
+		return
+	_bubble_tag_label.text = "AMARA OKOYE  •  " + tag.to_upper()
+	_bubble_text_label.text = text
+
+	if is_instance_valid(_bubble_tween) and _bubble_tween.is_running():
+		_bubble_tween.kill()
+
+	_bubble_tween = create_tween()
+	_bubble_tween.tween_property(_bubble_root, "modulate:a", 1.0, 0.20).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	_bubble_tween.tween_interval(maxf(duration - 0.5, 1.2))
+	_bubble_tween.tween_property(_bubble_root, "modulate:a", 0.0, 0.35).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+
+
+func _hide_overhead_bark() -> void:
+	if not is_instance_valid(_bubble_root):
+		return
+	if is_instance_valid(_bubble_tween) and _bubble_tween.is_running():
+		_bubble_tween.kill()
+	_bubble_tween = create_tween()
+	_bubble_tween.tween_property(_bubble_root, "modulate:a", 0.0, 0.20)
+
+
+func _check_player_proximity() -> void:
+	var players := get_tree().get_nodes_in_group("ship_player")
+	if players.is_empty():
+		_player_nearby = false
+		return
+	var player := players[0] as Node2D
+	if not is_instance_valid(player):
+		_player_nearby = false
+		return
+
+	var distance := global_position.distance_to(player.global_position)
+	if distance <= notice_player_distance:
+		var direction := player.global_position - global_position
+		if not direction.is_zero_approx():
+			_update_facing(direction)
+		if not _player_nearby and _greeting_cooldown <= 0.0:
+			_player_nearby = true
+			_greeting_cooldown = 18.0
+			var greeting: String = PLAYER_GREETING_BARKS[_random.randi_range(0, PLAYER_GREETING_BARKS.size() - 1)]
+			_show_overhead_bark("CREW GREETING", greeting, 3.2)
+	else:
+		_player_nearby = false
+
+
+func _choose_next_destination() -> void:
+	var found_destination := false
+	match _phase:
+		RoamPhase.HYDROPONICS:
+			if _room_stops_remaining <= 0:
+				# Completed thorough inspection of hydroponics room; transition to ship excursion
+				_phase = RoamPhase.SHIP_EXCURSION
+				_excursion_seconds = 0.0
+				_excursion_stops_remaining = _random.randi_range(excursion_stops.x, excursion_stops.y)
+				_show_overhead_bark(
+					"SHIP EXCURSION",
+					"Hydroponics checks complete! Going on ship patrol rounds.",
+					3.5
+				)
+				found_destination = _choose_ship_destination()
+				if not found_destination:
+					_phase = RoamPhase.RETURNING
+					found_destination = _choose_local_destination()
+			else:
+				found_destination = _choose_hydroponics_station_or_cell()
+		RoamPhase.SHIP_EXCURSION:
+			if _excursion_stops_remaining <= 0 or _excursion_seconds >= ship_excursion_max_seconds:
+				_phase = RoamPhase.RETURNING
+				_show_overhead_bark(
+					"PATROL FINISHED",
+					"Ship rounds complete. Heading back down to the grow beds.",
+					3.5
+				)
+				found_destination = _choose_local_destination()
+			else:
+				found_destination = _choose_ship_destination()
+		RoamPhase.RETURNING:
+			found_destination = _choose_local_destination()
+
+	if not found_destination:
+		_idle_remaining = 0.15
+
+
+func _choose_hydroponics_station_or_cell() -> bool:
+	# Prioritize systematic station inspection across her room, with occasional room patrols
+	var use_station := _random.randf() < 0.75 and not HYDROPONICS_STATIONS.is_empty()
+	if use_station:
+		_station_index = (_station_index + _random.randi_range(1, 3)) % HYDROPONICS_STATIONS.size()
+		var station := HYDROPONICS_STATIONS[_station_index]
+		var target_pos: Vector2 = station["target"]
+		var target_cell := _world_to_cell(target_pos)
+		if _set_destination(target_cell, true):
+			_current_station_info = station
+			return true
+
+	# Fallback to general patrol within Hydroponics room
+	_current_station_info = {}
+	return _choose_local_destination()
+
+
+func _choose_local_destination() -> bool:
+	var local_only := _should_use_hydroponics_grid()
+	return _choose_destination_from(_hydroponics_cells, 64.0, local_only)
+
+
+func _choose_ship_destination() -> bool:
+	_current_station_info = {}
+	for _attempt in range(12):
+		var zone_index := _random.randi_range(0, _ship_zone_cells.size() - 1)
+		var candidates: Array = _ship_zone_cells[zone_index]
+		if _choose_destination_from(candidates, 110.0):
+			return true
+	return false
+
+
+func _choose_destination_from(candidates: Array, minimum_distance: float, local_only: bool = false) -> bool:
+	if candidates.is_empty():
+		return false
+	var navigation_grid: AStarGrid2D = _hydroponics_grid if local_only else _grid
+	var attempts := mini(40, candidates.size())
+	for _attempt in range(attempts):
+		var target_cell: Vector2i = candidates[_random.randi_range(0, candidates.size() - 1)]
+		if navigation_grid.is_point_solid(target_cell):
+			continue
+		var target_position := _cell_to_world(target_cell)
+		if global_position.distance_to(target_position) < minimum_distance:
+			continue
+		if _set_destination(target_cell, local_only):
+			return true
+	return false
+
+
+func _set_destination(target_cell: Vector2i, local_only: bool = false) -> bool:
+	var navigation_grid: AStarGrid2D = _hydroponics_grid if local_only else _grid
+	if not _grid_region.has_point(target_cell) or navigation_grid.is_point_solid(target_cell):
+		return false
+	var start_cell := _world_to_cell(global_position)
+	if not _grid_region.has_point(start_cell):
+		return false
+	if navigation_grid.is_point_solid(start_cell):
+		start_cell = _find_nearest_clear_cell(start_cell, local_only)
+		if not _grid_region.has_point(start_cell) or navigation_grid.is_point_solid(start_cell):
+			return false
+	var id_path := navigation_grid.get_id_path(start_cell, target_cell)
+	if id_path.is_empty():
+		return false
+
+	_path.clear()
+	for cell in id_path:
+		if cell != start_cell:
+			_path.append(_cell_to_world(cell))
+	if _path.is_empty():
+		return false
+	_path_index = 0
+	_destination = _cell_to_world(target_cell)
+	_current_speed = move_speed * _random.randf_range(movement_burst_range.x, movement_burst_range.y)
+	_has_destination = true
+	_hide_overhead_bark()
+	return true
+
+
+func _find_nearest_clear_cell(origin: Vector2i, local_only: bool = false) -> Vector2i:
+	var navigation_grid: AStarGrid2D = _hydroponics_grid if local_only else _grid
+	for radius in range(1, 5):
+		for y in range(-radius, radius + 1):
+			for x in range(-radius, radius + 1):
+				if absi(x) + absi(y) != radius:
+					continue
+				var candidate := origin + Vector2i(x, y)
+				if _grid_region.has_point(candidate) and not navigation_grid.is_point_solid(candidate):
+					return candidate
+	return Vector2i(-1, -1)
+
+
+func _should_use_hydroponics_grid() -> bool:
+	return (
+		_phase == RoamPhase.HYDROPONICS
+		or (_phase == RoamPhase.RETURNING and HYDROPONICS_AREA.has_point(global_position))
+	)
+
+
+func _arrive_at_destination() -> void:
+	_has_destination = false
+	_path.clear()
+	_path_index = 0
+	velocity = Vector2.ZERO
+	_stop_walking()
+
+	if _phase == RoamPhase.HYDROPONICS:
+		_room_stops_remaining -= 1
+		_idle_remaining = _random.randf_range(local_idle_seconds.x, local_idle_seconds.y)
+		if not _current_station_info.is_empty():
+			var barks: Array = _current_station_info.get("barks", [])
+			var tag: String = _current_station_info.get("tag", "INSPECTING")
+			if not barks.is_empty():
+				var bark: String = barks[_random.randi_range(0, barks.size() - 1)]
+				_show_overhead_bark(tag, bark, _idle_remaining)
+		else:
+			_show_overhead_bark("ROOM PATROL", "Checking the grow bed aisle.", _idle_remaining)
+	elif _phase == RoamPhase.SHIP_EXCURSION:
+		_excursion_stops_remaining -= 1
+		_idle_remaining = _random.randf_range(ship_idle_seconds.x, ship_idle_seconds.y)
+		var patrol_info: Dictionary = SHIP_PATROL_BARKS[_random.randi_range(0, SHIP_PATROL_BARKS.size() - 1)]
+		var barks: Array = patrol_info["barks"]
+		var tag: String = patrol_info["tag"]
+		var bark: String = barks[_random.randi_range(0, barks.size() - 1)]
+		_show_overhead_bark(tag, bark, _idle_remaining)
+	elif _phase == RoamPhase.RETURNING:
+		if HYDROPONICS_AREA.has_point(global_position):
+			_phase = RoamPhase.HYDROPONICS
+			_room_stops_remaining = _random.randi_range(room_roam_stops.x, room_roam_stops.y)
+			_idle_remaining = 3.0
+			_show_overhead_bark("BACK IN HYDROPONICS", "Back at the beds. Starting new maintenance shift.", 3.5)
+		else:
+			_idle_remaining = 0.5
+
+
+func _handle_unmapped_obstacle() -> void:
+	velocity = Vector2.ZERO
+	_stop_walking()
+	if _path_index < _path.size():
+		var blocked_cell := _world_to_cell(_path[_path_index])
+		if _grid_region.has_point(blocked_cell):
+			_grid.set_point_solid(blocked_cell, true)
+			_hydroponics_grid.set_point_solid(blocked_cell, true)
+	var target_cell := _world_to_cell(_destination)
+	var local_only := _should_use_hydroponics_grid()
+	if not _set_destination(target_cell, local_only):
+		_has_destination = false
+		_idle_remaining = 0.25
+
+
+func _is_blocked_by_closed_door(position_to_check: Vector2) -> bool:
+	for door in get_tree().get_nodes_in_group("ship_door"):
+		if door.has_method("blocks_position") and bool(door.call("blocks_position", position_to_check, BODY_RADIUS)):
+			return true
+	return false
+
+
+func _position_is_walkable(world_position: Vector2) -> bool:
+	var local_position := world_position - _floor_origin
+	var pixel_x := floori(local_position.x)
+	var pixel_y := floori(local_position.y)
+	if pixel_x < 0 or pixel_y < 0 or pixel_x >= _floor_mask.get_width() or pixel_y >= _floor_mask.get_height():
+		return false
+	return _floor_mask.get_pixel(pixel_x, pixel_y).a >= FLOOR_ALPHA_THRESHOLD
+
+
+func _world_to_cell(world_position: Vector2) -> Vector2i:
+	var local_position := world_position - _floor_origin
+	return Vector2i(floori(local_position.x / NAV_CELL_SIZE), floori(local_position.y / NAV_CELL_SIZE))
+
+
+func _cell_to_world(cell: Vector2i) -> Vector2:
+	return _floor_origin + Vector2((float(cell.x) + 0.5) * NAV_CELL_SIZE, (float(cell.y) + 0.5) * NAV_CELL_SIZE)
+
+
+func _configure_sprite_animations() -> void:
+	var frames := SpriteFrames.new()
+	frames.remove_animation(&"default")
+	var cell_size := Vector2(float(WALK_ATLAS.get_width()) / 4.0, float(WALK_ATLAS.get_height()) / 4.0)
+	for animation_name in ANIMATION_ROWS:
+		frames.add_animation(animation_name)
+		frames.set_animation_speed(animation_name, 8.0)
+		frames.set_animation_loop(animation_name, true)
+		var row: int = ANIMATION_ROWS[animation_name]
+		for column in range(4):
+			var atlas_frame := AtlasTexture.new()
+			atlas_frame.atlas = WALK_ATLAS
+			atlas_frame.region = Rect2(Vector2(column * cell_size.x, row * cell_size.y), cell_size)
+			frames.add_frame(animation_name, atlas_frame)
+	sprite.sprite_frames = frames
+	sprite.scale = Vector2.ONE * DISPLAY_SCALE
+	sprite.animation = _facing_animation
+	sprite.stop()
+
+
+func _update_facing(direction: Vector2) -> void:
+	if absf(direction.x) > absf(direction.y):
+		_facing_animation = &"walk_right" if direction.x > 0.0 else &"walk_left"
+	else:
+		_facing_animation = &"walk_down" if direction.y > 0.0 else &"walk_up"
+	if sprite.animation != _facing_animation:
+		sprite.play(_facing_animation)
+
+
+func _stop_walking() -> void:
+	if sprite.is_playing():
+		sprite.stop()
+		sprite.frame = 0
 
 
 func _build_navigation() -> void:
@@ -197,216 +712,18 @@ func _build_navigation() -> void:
 		push_warning("Amara could not find a clear hydroponics patrol route.")
 
 
-func _choose_next_destination() -> void:
-	var found_destination := false
-	match _phase:
-		RoamPhase.HYDROPONICS:
-			if _seconds_until_excursion <= 0.0 or _room_stops_remaining <= 0:
-				_phase = RoamPhase.SHIP_EXCURSION
-				_excursion_seconds = 0.0
-				_excursion_stops_remaining = _random.randi_range(excursion_stops.x, excursion_stops.y)
-				found_destination = _choose_ship_destination()
-				if not found_destination:
-					_phase = RoamPhase.RETURNING
-					found_destination = _choose_local_destination()
-			else:
-				found_destination = _choose_local_destination()
-		RoamPhase.SHIP_EXCURSION:
-			if _excursion_stops_remaining <= 0 or _excursion_seconds >= ship_excursion_max_seconds:
-				_phase = RoamPhase.RETURNING
-				found_destination = _choose_local_destination()
-			else:
-				found_destination = _choose_ship_destination()
-		RoamPhase.RETURNING:
-			found_destination = _choose_local_destination()
-
-	if not found_destination:
-		_idle_remaining = 0.08
-
-
-func _choose_local_destination() -> bool:
-	# Use the room-only path grid once she is home. A return trip still uses
-	# the ship grid so she can travel back from an excursion.
-	var local_only := _should_use_hydroponics_grid()
-	return _choose_destination_from(_hydroponics_cells, 76.0, local_only)
-
-
-func _choose_ship_destination() -> bool:
-	for _attempt in range(10):
-		var zone_index := _random.randi_range(0, _ship_zone_cells.size() - 1)
-		var candidates: Array = _ship_zone_cells[zone_index]
-		if _choose_destination_from(candidates, 120.0):
-			return true
-	return false
-
-
-func _choose_destination_from(candidates: Array, minimum_distance: float, local_only: bool = false) -> bool:
-	if candidates.is_empty():
-		return false
-	var navigation_grid: AStarGrid2D = _hydroponics_grid if local_only else _grid
-	var attempts := mini(40, candidates.size())
-	for _attempt in range(attempts):
-		var target_cell: Vector2i = candidates[_random.randi_range(0, candidates.size() - 1)]
-		if navigation_grid.is_point_solid(target_cell):
-			continue
-		var target_position := _cell_to_world(target_cell)
-		if global_position.distance_to(target_position) < minimum_distance:
-			continue
-		if _set_destination(target_cell, local_only):
-			return true
-	return false
-
-
-func _set_destination(target_cell: Vector2i, local_only: bool = false) -> bool:
-	var navigation_grid: AStarGrid2D = _hydroponics_grid if local_only else _grid
-	if not _grid_region.has_point(target_cell) or navigation_grid.is_point_solid(target_cell):
-		return false
-	var start_cell := _world_to_cell(global_position)
-	if not _grid_region.has_point(start_cell):
-		return false
-	if navigation_grid.is_point_solid(start_cell):
-		start_cell = _find_nearest_clear_cell(start_cell, local_only)
-		if not _grid_region.has_point(start_cell) or navigation_grid.is_point_solid(start_cell):
-			return false
-	var id_path := navigation_grid.get_id_path(start_cell, target_cell)
-	if id_path.is_empty():
-		return false
-
-	_path.clear()
-	for cell in id_path:
-		if cell != start_cell:
-			_path.append(_cell_to_world(cell))
-	if _path.is_empty():
-		return false
-	_path_index = 0
-	_destination = _cell_to_world(target_cell)
-	_current_speed = move_speed * _random.randf_range(movement_burst_range.x, movement_burst_range.y)
-	_has_destination = true
-	return true
-
-
-func _find_nearest_clear_cell(origin: Vector2i, local_only: bool = false) -> Vector2i:
-	var navigation_grid: AStarGrid2D = _hydroponics_grid if local_only else _grid
-	for radius in range(1, 5):
-		for y in range(-radius, radius + 1):
-			for x in range(-radius, radius + 1):
-				if absi(x) + absi(y) != radius:
-					continue
-				var candidate := origin + Vector2i(x, y)
-				if _grid_region.has_point(candidate) and not navigation_grid.is_point_solid(candidate):
-					return candidate
-	return Vector2i(-1, -1)
-
-
-func _should_use_hydroponics_grid() -> bool:
-	return (
-		_phase == RoamPhase.HYDROPONICS
-		or (_phase == RoamPhase.RETURNING and HYDROPONICS_AREA.has_point(global_position))
-	)
-
-
-func _arrive_at_destination() -> void:
-	_has_destination = false
-	_path.clear()
-	_path_index = 0
-	velocity = Vector2.ZERO
-	_stop_walking()
-	if _phase == RoamPhase.HYDROPONICS:
-		_room_stops_remaining -= 1
-	elif _phase == RoamPhase.SHIP_EXCURSION:
-		_excursion_stops_remaining -= 1
-	elif _phase == RoamPhase.RETURNING:
-		_phase = RoamPhase.HYDROPONICS
-		_room_stops_remaining = _random.randi_range(room_roam_stops.x, room_roam_stops.y)
-		_seconds_until_excursion = _random.randf_range(room_roam_seconds.x, room_roam_seconds.y)
-	var idle_range := ship_idle_seconds if _phase == RoamPhase.SHIP_EXCURSION else local_idle_seconds
-	_idle_remaining = _random.randf_range(idle_range.x, idle_range.y)
-
-
-func _handle_unmapped_obstacle() -> void:
-	velocity = Vector2.ZERO
-	_stop_walking()
-	if _path_index < _path.size():
-		var blocked_cell := _world_to_cell(_path[_path_index])
-		if _grid_region.has_point(blocked_cell):
-			_grid.set_point_solid(blocked_cell, true)
-			_hydroponics_grid.set_point_solid(blocked_cell, true)
-	var target_cell := _world_to_cell(_destination)
-	var local_only := _should_use_hydroponics_grid()
-	if not _set_destination(target_cell, local_only):
-		_has_destination = false
-		_idle_remaining = 0.08
-
-
-func _is_blocked_by_closed_door(position_to_check: Vector2) -> bool:
-	for door in get_tree().get_nodes_in_group("ship_door"):
-		if door.has_method("blocks_position") and bool(door.call("blocks_position", position_to_check, BODY_RADIUS)):
-			return true
-	return false
-
-
-func _position_is_walkable(world_position: Vector2) -> bool:
-	var local_position := world_position - _floor_origin
-	var pixel_x := floori(local_position.x)
-	var pixel_y := floori(local_position.y)
-	if pixel_x < 0 or pixel_y < 0 or pixel_x >= _floor_mask.get_width() or pixel_y >= _floor_mask.get_height():
-		return false
-	return _floor_mask.get_pixel(pixel_x, pixel_y).a >= FLOOR_ALPHA_THRESHOLD
-
-
-func _world_to_cell(world_position: Vector2) -> Vector2i:
-	var local_position := world_position - _floor_origin
-	return Vector2i(floori(local_position.x / NAV_CELL_SIZE), floori(local_position.y / NAV_CELL_SIZE))
-
-
-func _cell_to_world(cell: Vector2i) -> Vector2:
-	return _floor_origin + Vector2((float(cell.x) + 0.5) * NAV_CELL_SIZE, (float(cell.y) + 0.5) * NAV_CELL_SIZE)
-
-
-func _configure_sprite_animations() -> void:
-	var frames := SpriteFrames.new()
-	frames.remove_animation(&"default")
-	var cell_size := Vector2(float(WALK_ATLAS.get_width()) / 4.0, float(WALK_ATLAS.get_height()) / 4.0)
-	for animation_name in ANIMATION_ROWS:
-		frames.add_animation(animation_name)
-		frames.set_animation_speed(animation_name, 8.0)
-		frames.set_animation_loop(animation_name, true)
-		var row: int = ANIMATION_ROWS[animation_name]
-		for column in range(4):
-			var atlas_frame := AtlasTexture.new()
-			atlas_frame.atlas = WALK_ATLAS
-			atlas_frame.region = Rect2(Vector2(column * cell_size.x, row * cell_size.y), cell_size)
-			frames.add_frame(animation_name, atlas_frame)
-	sprite.sprite_frames = frames
-	# Match Thura's runtime sprite scale so both crew members read at the same size.
-	sprite.scale = Vector2.ONE * DISPLAY_SCALE
-	sprite.animation = _facing_animation
-	sprite.stop()
-
-
-func _update_facing(direction: Vector2) -> void:
-	if absf(direction.x) > absf(direction.y):
-		_facing_animation = &"walk_right" if direction.x > 0.0 else &"walk_left"
-	else:
-		_facing_animation = &"walk_down" if direction.y > 0.0 else &"walk_up"
-	if sprite.animation != _facing_animation:
-		sprite.play(_facing_animation)
-
-
-func _stop_walking() -> void:
-	if sprite.is_playing():
-		sprite.stop()
-		sprite.frame = 0
-
-
-func _face_player_if_nearby() -> void:
-	var players := get_tree().get_nodes_in_group("ship_player")
-	if players.is_empty():
-		return
-	var player := players[0] as Node2D
-	if not is_instance_valid(player) or global_position.distance_to(player.global_position) > notice_player_distance:
-		return
-	var direction := player.global_position - global_position
-	if not direction.is_zero_approx():
-		_update_facing(direction)
+func set_in_dialogue(in_dialogue: bool) -> void:
+	if in_dialogue:
+		_hide_overhead_bark()
+		velocity = Vector2.ZERO
 		_stop_walking()
+		var players := get_tree().get_nodes_in_group("ship_player")
+		if not players.is_empty():
+			var player := players[0] as Node2D
+			if is_instance_valid(player):
+				var direction := player.global_position - global_position
+				if not direction.is_zero_approx():
+					_update_facing(direction)
+	else:
+		_idle_remaining = 1.2
+

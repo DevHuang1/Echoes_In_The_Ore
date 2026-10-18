@@ -75,32 +75,32 @@ energy = 1.0
 texture_scale = 0.4
 
 [node name="NorthGrowTrayLight" parent="HydroponicsLighting" instance=ExtResource("26_warm_light")]
-position = Vector2(165, 682)
+position = Vector2(190, 675)
 energy = 1.15
 texture_scale = 0.34
 
 [node name="SeedlingRackUpperLight" parent="HydroponicsLighting" instance=ExtResource("26_warm_light")]
-position = Vector2(236, 696)
+position = Vector2(248, 696)
 energy = 0.95
 texture_scale = 0.26
 
 [node name="SeedlingRackMiddleLight" parent="HydroponicsLighting" instance=ExtResource("26_warm_light")]
-position = Vector2(236, 736)
+position = Vector2(248, 736)
 energy = 0.95
 texture_scale = 0.26
 
 [node name="SeedlingRackLowerLight" parent="HydroponicsLighting" instance=ExtResource("26_warm_light")]
-position = Vector2(236, 776)
+position = Vector2(248, 776)
 energy = 0.95
 texture_scale = 0.26
 
 [node name="SouthGrowTrayLight" parent="HydroponicsLighting" instance=ExtResource("26_warm_light")]
-position = Vector2(165, 750)
+position = Vector2(190, 738)
 energy = 1.15
 texture_scale = 0.34
 
 [node name="NutrientStationLight" parent="HydroponicsLighting" instance=ExtResource("26_warm_light")]
-position = Vector2(122, 800)
+position = Vector2(95, 820)
 energy = 1.0
 texture_scale = 0.36
 
@@ -150,7 +150,7 @@ energy = 0.68
 texture_scale = 0.32
 
 [node name="BioVapor" parent="." instance=ExtResource("32_gas_mist")]
-position = Vector2(139, 802)
+position = Vector2(115, 822)
 gas_color = Color(0.53, 1, 0.32, 1)
 blob_count = 18
 spread = Vector2(36, 16)
@@ -167,19 +167,19 @@ animation_frames = Array[Texture2D]([ExtResource("22_shelf_01"), ExtResource("23
 frames_per_second = 3.0
 
 [node name="GrowTrayNorth" parent="." instance=ExtResource("1_prop")]
-position = Vector2(165, 697)
+position = Vector2(190, 680)
 scale = Vector2(0.112, 0.127)
 animation_frames = Array[Texture2D]([ExtResource("2_tray_01"), ExtResource("3_tray_02"), ExtResource("4_tray_03"), ExtResource("5_tray_04")])
 frames_per_second = 4.0
 
 [node name="GrowTraySouth" parent="." instance=ExtResource("1_prop")]
-position = Vector2(165, 750)
+position = Vector2(190, 738)
 scale = Vector2(0.112, 0.127)
 animation_frames = Array[Texture2D]([ExtResource("2_tray_01"), ExtResource("3_tray_02"), ExtResource("4_tray_03"), ExtResource("5_tray_04")])
 frames_per_second = 4.0
 
 [node name="SeedlingRack" parent="." instance=ExtResource("1_prop")]
-position = Vector2(236, 736)
+position = Vector2(248, 736)
 scale = Vector2(0.20, 0.20)
 animation_frames = Array[Texture2D]([ExtResource("6_rack_01"), ExtResource("7_rack_02"), ExtResource("8_rack_03"), ExtResource("9_rack_04")])
 frames_per_second = 3.5
@@ -191,7 +191,7 @@ animation_frames = Array[Texture2D]([ExtResource("14_console_01"), ExtResource("
 frames_per_second = 3.0
 
 [node name="NutrientPump" parent="." instance=ExtResource("1_prop")]
-position = Vector2(118, 802)
+position = Vector2(95, 822)
 scale = Vector2(0.12, 0.12)
 animation_frames = Array[Texture2D]([ExtResource("10_pump_01"), ExtResource("11_pump_02"), ExtResource("12_pump_03"), ExtResource("13_pump_04")])
 frames_per_second = 3.5

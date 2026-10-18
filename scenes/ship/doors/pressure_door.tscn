@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" path="res://scripts/ship/pressure_door.gd" id="1_door_script"]
 [ext_resource type="Texture2D" path="res://art/overview/door_components/pressure_door_wallmatched.png" id="2_door_texture"]
-[ext_resource type="AudioStreamMP3" path="res://audio/sfx/airlock_mechanical_open.mp3" id="3_open_sfx"]
+[ext_resource type="AudioStreamMP3" path="res://audio/sfx/pressure_door_open.mp3" id="3_open_sfx"]
 
 [node name="PressureDoor" type="Node2D" groups=["ship_door"]]
 z_index = -2

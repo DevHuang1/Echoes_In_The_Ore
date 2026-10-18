@@ -53,7 +53,8 @@ var _flow_distance := 0.0
 
 
 func _ready() -> void:
-	_create_pipe_collisions()
+	# Pipes are floor/wall-mounted conduits and should not block room walkways
+	pass
 
 
 func _process(delta: float) -> void:

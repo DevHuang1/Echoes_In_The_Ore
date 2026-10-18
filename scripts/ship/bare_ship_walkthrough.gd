@@ -27,6 +27,8 @@ const ROOM_TASKS := [
 		"title": "Restore hydroponic nutrient flow",
 		"marker_label": "HYDROPONICS",
 		"station_path": NodePath("HydroponicsRoomProps/ControlConsole"),
+		"interaction_offset": Vector2(32.0, 0.0),
+		"interaction_radius": 65.0,
 		"prompt": "HYDROPONICS CONSOLE   /   [E] ROUTE NUTRIENTS",
 		"completion": "Nutrient manifold aligned. The grow beds are irrigating.",
 	},
@@ -94,12 +96,13 @@ func _ready() -> void:
 		var station := get_node_or_null(task["station_path"]) as Node2D
 		if station == null:
 			continue
+		var interaction_pos := _room_task_interaction_position(task, station)
 		hud_task_entries.append({
 			"id": task["id"],
 			"title": task["title"],
 			"marker_label": task["marker_label"],
-			"position": station.global_position,
-			"marker_position": _task_marker_position(station),
+			"position": interaction_pos,
+			"marker_position": _task_marker_position(station, task.get("interaction_offset", Vector2.ZERO)),
 		})
 	_walk_hud = WALK_HUD_SCENE.instantiate() as WalkHud
 	_walk_hud.setup(player, hud_task_entries, floor_layer.global_position, FLOOR_TEXTURE.get_size())
@@ -209,7 +212,7 @@ func _refresh_room_task_prompt() -> void:
 		_walk_hud.set_interaction_prompt(closest_crew_task["prompt"], true)
 		return
 	var closest_task: Dictionary = {}
-	var closest_distance := ROOM_TASK_INTERACTION_RADIUS
+	var closest_distance := 999999.0
 	for task in ROOM_TASKS:
 		var task_id: StringName = task["id"]
 		if _completed_room_tasks.has(task_id):
@@ -218,8 +221,10 @@ func _refresh_room_task_prompt() -> void:
 		var station := get_node_or_null(station_path) as Node2D
 		if station == null:
 			continue
-		var distance := player.global_position.distance_to(station.global_position)
-		if distance <= closest_distance:
+		var interaction_pos := _room_task_interaction_position(task, station)
+		var max_dist: float = task.get("interaction_radius", ROOM_TASK_INTERACTION_RADIUS)
+		var distance := player.global_position.distance_to(interaction_pos)
+		if distance <= max_dist and distance <= closest_distance:
 			closest_distance = distance
 			closest_task = task
 
@@ -238,6 +243,8 @@ func _begin_amara_dialogue() -> void:
 	var first_meeting := not _amara_intro_seen
 	_crew_dialogue_open = true
 	_amara_intro_seen = true
+	if is_instance_valid(amara) and amara.has_method("set_in_dialogue"):
+		amara.set_in_dialogue(true)
 	_update_player_walk_state()
 	_walk_hud.set_interaction_prompt("", false)
 	var lines: Array[String] = []
@@ -265,6 +272,8 @@ func _begin_amara_dialogue() -> void:
 
 func _on_amara_dialogue_finished(accepted_tasks: bool) -> void:
 	_crew_dialogue_open = false
+	if is_instance_valid(amara) and amara.has_method("set_in_dialogue"):
+		amara.set_in_dialogue(false)
 	if accepted_tasks and not _crew_tasks_unlocked:
 		_crew_tasks_unlocked = true
 		for task in AMARA_CREW_TASKS:
@@ -283,6 +292,14 @@ func _on_amara_dialogue_finished(accepted_tasks: bool) -> void:
 	_update_player_walk_state()
 
 
+func _room_task_interaction_position(task: Dictionary, station: Node2D) -> Vector2:
+	var offset: Vector2 = task.get("interaction_offset", Vector2.ZERO)
+	var parent := station.get_parent() as Node2D
+	if parent == null:
+		return station.global_position + offset
+	return parent.to_global(station.position + offset)
+
+
 func _crew_task_interaction_position(task: Dictionary, station: Node2D) -> Vector2:
 	var offset: Vector2 = task.get("interaction_offset", Vector2.ZERO)
 	var parent := station.get_parent() as Node2D
@@ -291,15 +308,15 @@ func _crew_task_interaction_position(task: Dictionary, station: Node2D) -> Vecto
 	return parent.to_global(station.position + offset)
 
 
-func _task_marker_position(station: Node2D) -> Vector2:
+func _task_marker_position(station: Node2D, offset: Vector2 = Vector2.ZERO) -> Vector2:
 	if station is AnimatedSprite2D:
 		var animated_station := station as AnimatedSprite2D
 		if animated_station.sprite_frames != null:
 			var texture := animated_station.sprite_frames.get_frame_texture(animated_station.animation, animated_station.frame)
 			if texture != null:
-				var top_offset := animated_station.offset + Vector2(0.0, -texture.get_height() * 0.5 - 12.0)
+				var top_offset := animated_station.offset + Vector2(0.0, -texture.get_height() * 0.5 - 12.0) + offset
 				return animated_station.to_global(top_offset)
-	return station.global_position + Vector2(0.0, -36.0)
+	return station.global_position + Vector2(0.0, -36.0) + offset
 
 
 func _complete_crew_task(task_id: StringName) -> void:

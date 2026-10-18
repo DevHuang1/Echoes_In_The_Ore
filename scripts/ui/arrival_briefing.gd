@@ -5,6 +5,7 @@ signal dismissed
 const GOLD := Color(0.91, 0.69, 0.36)
 const PALE := Color(0.91, 0.94, 0.95)
 const MUTED := Color(0.62, 0.7, 0.75)
+const GREEN := Color(0.48, 0.93, 0.64)
 
 var _root: Control
 var _continue_button: Button
@@ -26,7 +27,7 @@ func _build_ui() -> void:
 	add_child(_root)
 
 	var dimmer := ColorRect.new()
-	dimmer.color = Color(0.008, 0.018, 0.032, 0.76)
+	dimmer.color = Color(0.008, 0.018, 0.032, 0.82)
 	dimmer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	dimmer.mouse_filter = Control.MOUSE_FILTER_STOP
 	_root.add_child(dimmer)
@@ -37,65 +38,73 @@ func _build_ui() -> void:
 	_root.add_child(center)
 
 	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(1000.0, 0.0)
+	panel.custom_minimum_size = Vector2(1040.0, 0.0)
 	panel.add_theme_stylebox_override("panel", _panel_style())
 	center.add_child(panel)
 
 	var content := VBoxContainer.new()
-	content.add_theme_constant_override("separation", 11)
+	content.add_theme_constant_override("separation", 12)
 	panel.add_child(content)
 
-	var eyebrow := _label("ASTERIA-1  /  CREW ARRIVAL BRIEF", 14, GOLD)
-	content.add_child(eyebrow)
+	var header_row := HBoxContainer.new()
+	header_row.add_theme_constant_override("separation", 10)
+	var badge := _label("[ MISSION BRIEFING ]", 11, GOLD)
+	header_row.add_child(badge)
+	var telemetry_tag := _label("// FLIGHT RECORD DAY 184 // ASTERIA-1", 11, MUTED)
+	header_row.add_child(telemetry_tag)
+	header_row.add_spacer(false)
+	var status_tag := _label("● ORBITAL TELEMETRY LINKED", 11, GREEN)
+	header_row.add_child(status_tag)
+	content.add_child(header_row)
 
-	var welcome := _label("WELCOME ABOARD, THURA MIN!", 40, PALE)
-	welcome.custom_minimum_size.y = 54.0
+	var welcome := _label("WELCOME ABOARD, SPECIALIST THURA MIN", 34, PALE)
+	welcome.custom_minimum_size.y = 44.0
 	content.add_child(welcome)
 
-	var status := _label("DAY 184     •     FINAL APPROACH TO EREBOS", 17, MUTED)
+	var status := _label("VESSEL STATUS: DRIFTING IN LOW EREBOS ORBIT // DEFCON 4 TELEMETRY", 14, MUTED)
 	content.add_child(status)
 
 	var divider := HSeparator.new()
 	divider.add_theme_color_override("separator_color", Color(0.66, 0.49, 0.27, 0.72))
 	content.add_child(divider)
 
-	var mission_heading := _label("MISSION BRIEF", 13, GOLD)
+	var mission_heading := _label("OPERATION DIRECTIVE // SURVEY & EXTRACTION", 12, GOLD)
 	content.add_child(mission_heading)
 
 	var mission := _label(
-		"A crewed deep-space industrial research mission to survey Erebos and test autonomous mining systems.",
-		18,
+		"Crewed deep-space industrial research expedition to survey minor planet Erebos and validate autonomous ore extraction systems.",
+		16,
 		PALE
 	)
 	mission.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	mission.custom_minimum_size.y = 28.0
+	mission.custom_minimum_size.y = 26.0
 	content.add_child(mission)
 
 	var cards := HBoxContainer.new()
 	cards.add_theme_constant_override("separation", 12)
 	content.add_child(cards)
-	cards.add_child(_info_card("DESTINATION", "EREBOS", "Metal-rich minor planet"))
-	cards.add_child(_info_card("YOUR SPECIALTY", "PLANETARY GEOLOGY", "Operate autonomous mining drones"))
-	cards.add_child(_info_card("SHIP SYSTEMS", "LIFE SUPPORT", "Power · oxygen · pressure doors · communications"))
+	cards.add_child(_info_card("[ 01 // DESTINATION ]", "EREBOS (MINOR PLANET)", "High-density ore survey target; anomalous magnetic signature."))
+	cards.add_child(_info_card("[ 02 // ASSIGNMENT ]", "PLANETARY GEOLOGY", "Lead specialist: autonomous drone deployment & core sampling."))
+	cards.add_child(_info_card("[ 03 // SHIP STATUS ]", "SERVICE TELEMETRY ALERT", "Aux power, life-support filtration, & hydroponics offline."))
 
 	var crew := _label(
-		"CREW ONBOARD   Maya Chen — Commander  ·  Elias Ward — Pilot  ·  Amara Okoye — Medical / Astrobiology  ·  Leila Haddad — Chief Engineer  ·  Mateo Ruiz — Mining Specialist",
-		15,
+		"CREW ONBOARD:  Maya Chen (CDR) · Elias Ward (PLT) · Amara Okoye (MED) · Leila Haddad (ENG) · Mateo Ruiz (MIN)",
+		14,
 		PALE
 	)
 	crew.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	crew.custom_minimum_size.y = 40.0
+	crew.custom_minimum_size.y = 32.0
 	content.add_child(crew)
 
-	var first_duty := _label("FIRST DUTY   Restore auxiliary power, replace the life-support filter, and restart hydroponic nutrient flow.", 15, MUTED)
+	var first_duty := _label("IMMEDIATE DIRECTIVE: Access engineering terminals to restore [AUX POWER], replace canister in [LIFE SUPPORT], and align irrigation in [HYDROPONICS]. Press [M] for tactical deck schematic.", 14, MUTED)
 	first_duty.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	content.add_child(first_duty)
 
 	_continue_button = Button.new()
-	_continue_button.text = "ENTER THE SHIP  →"
-	_continue_button.custom_minimum_size = Vector2(230.0, 50.0)
+	_continue_button.text = "[ ✔ ENTER SHIP DECK  → ]"
+	_continue_button.custom_minimum_size = Vector2(250.0, 50.0)
 	_continue_button.size_flags_horizontal = Control.SIZE_SHRINK_END
-	_continue_button.add_theme_font_size_override("font_size", 16)
+	_continue_button.add_theme_font_size_override("font_size", 15)
 	_continue_button.add_theme_color_override("font_color", Color(0.07, 0.08, 0.08))
 	_continue_button.add_theme_color_override("font_hover_color", Color(0.07, 0.08, 0.08))
 	_continue_button.add_theme_stylebox_override("normal", _button_style(Color(0.89, 0.68, 0.36), Color(0.99, 0.82, 0.53)))
@@ -122,13 +131,13 @@ func _info_card(heading: String, title: String, detail: String) -> PanelContaine
 	var stack := VBoxContainer.new()
 	stack.add_theme_constant_override("separation", 5)
 	card.add_child(stack)
-	stack.add_child(_label(heading, 12, GOLD))
+	stack.add_child(_label(heading, 11, GOLD))
 
-	var card_title := _label(title, 17, PALE)
+	var card_title := _label(title, 16, PALE)
 	card_title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	stack.add_child(card_title)
 
-	var card_detail := _label(detail, 13, MUTED)
+	var card_detail := _label(detail, 12, MUTED)
 	card_detail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	stack.add_child(card_detail)
 	return card
@@ -139,14 +148,18 @@ func _panel_style() -> StyleBoxFlat:
 	style.bg_color = Color(0.018, 0.041, 0.063, 0.98)
 	style.border_color = Color(0.75, 0.58, 0.34, 0.9)
 	style.set_border_width_all(1)
-	style.corner_radius_top_left = 8
-	style.corner_radius_top_right = 8
-	style.corner_radius_bottom_left = 8
-	style.corner_radius_bottom_right = 8
+	style.border_width_left = 3
+	style.corner_radius_top_left = 6
+	style.corner_radius_top_right = 6
+	style.corner_radius_bottom_left = 6
+	style.corner_radius_bottom_right = 6
 	style.content_margin_left = 36.0
 	style.content_margin_right = 36.0
-	style.content_margin_top = 30.0
+	style.content_margin_top = 28.0
 	style.content_margin_bottom = 26.0
+	style.shadow_color = Color(0.0, 0.0, 0.0, 0.5)
+	style.shadow_size = 6
+	style.shadow_offset = Vector2(3.0, 4.0)
 	return style
 
 

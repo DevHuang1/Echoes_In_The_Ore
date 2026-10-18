@@ -110,35 +110,56 @@ class PixelIcon extends Control:
 
 
 class MapDot extends Control:
-	var dot_color := Color(1.0, 0.78, 0.38)
+	var dot_color := Color(0.36, 0.9, 1.0)
+	var _pulse := 0.0
+
+	func _process(delta: float) -> void:
+		_pulse = fposmod(_pulse + delta * 3.0, TAU)
+		queue_redraw()
 
 	func _draw() -> void:
 		var center := size * 0.5
+		var sweep := (sin(_pulse) + 1.0) * 0.5
+		draw_arc(center, 7.0 + sweep * 5.0, 0.0, TAU, 24, Color(dot_color.r, dot_color.g, dot_color.b, 0.35 * (1.0 - sweep)), 1.5, false)
 		draw_circle(center, 6.0, Color(0.015, 0.035, 0.045, 0.96))
 		draw_circle(center, 4.0, dot_color)
-		draw_arc(center, 4.8, 0.0, TAU, 20, Color(0.94, 0.97, 0.96), 1.0, false)
+		draw_circle(center, 1.8, Color(0.96, 0.985, 1.0))
 
 
 class MapPin extends Control:
 	var pin_color := Color(1.0, 0.68, 0.32)
+	var is_complete := false
+	var _pulse := 0.0
+
+	func _process(delta: float) -> void:
+		if not is_complete:
+			_pulse = fposmod(_pulse + delta * 3.5, TAU)
+			queue_redraw()
 
 	func _draw() -> void:
+		var center := Vector2(10.0, 10.0)
+		if not is_complete:
+			var wave := (sin(_pulse) + 1.0) * 0.5
+			draw_arc(center, 9.0 + wave * 4.0, 0.0, TAU, 20, Color(pin_color.r, pin_color.g, pin_color.b, 0.4 * (1.0 - wave)), 1.5, false)
 		var outline := PackedVector2Array([
-			Vector2(10.0, 27.0), Vector2(4.0, 18.0), Vector2(1.0, 13.0),
-			Vector2(1.0, 9.0), Vector2(2.0, 5.0), Vector2(6.0, 1.0),
-			Vector2(10.0, 0.0), Vector2(14.0, 1.0), Vector2(18.0, 5.0),
-			Vector2(19.0, 9.0), Vector2(19.0, 13.0), Vector2(16.0, 18.0),
+			Vector2(10.0, 26.0), Vector2(4.0, 17.0), Vector2(2.0, 12.0),
+			Vector2(2.0, 8.0), Vector2(4.0, 4.0), Vector2(8.0, 1.0),
+			Vector2(12.0, 1.0), Vector2(16.0, 4.0), Vector2(18.0, 8.0),
+			Vector2(18.0, 12.0), Vector2(16.0, 17.0),
 		])
 		draw_colored_polygon(outline, Color(0.012, 0.032, 0.042, 1.0))
 		var fill := PackedVector2Array([
-			Vector2(10.0, 23.0), Vector2(6.0, 16.0), Vector2(3.0, 12.0),
-			Vector2(3.0, 9.0), Vector2(4.0, 6.0), Vector2(7.0, 3.0),
-			Vector2(10.0, 2.0), Vector2(13.0, 3.0), Vector2(16.0, 6.0),
-			Vector2(17.0, 9.0), Vector2(17.0, 12.0), Vector2(14.0, 16.0),
+			Vector2(10.0, 23.0), Vector2(5.5, 15.5), Vector2(3.5, 11.0),
+			Vector2(3.5, 8.0), Vector2(5.0, 5.0), Vector2(8.5, 2.5),
+			Vector2(11.5, 2.5), Vector2(15.0, 5.0), Vector2(16.5, 8.0),
+			Vector2(16.5, 11.0), Vector2(14.5, 15.5),
 		])
 		draw_colored_polygon(fill, pin_color)
-		draw_circle(Vector2(10.0, 9.0), 3.1, Color(0.012, 0.032, 0.042, 1.0))
-		draw_circle(Vector2(10.0, 9.0), 1.5, Color(0.94, 0.97, 0.96))
+		draw_circle(center, 4.5, Color(0.012, 0.032, 0.042, 1.0))
+		if is_complete:
+			draw_circle(center, 2.5, Color(0.96, 0.985, 1.0))
+		else:
+			draw_string(ThemeDB.fallback_font, Vector2(8.5, 14.0), "!", HORIZONTAL_ALIGNMENT_CENTER, -1.0, 11, Color(0.96, 0.985, 1.0))
 
 
 class TaskLocationMarker extends Control:
@@ -410,31 +431,32 @@ func _build_mission_panel() -> void:
 	panel.anchor_bottom = 0.0
 	panel.offset_left = 18.0
 	panel.offset_top = 18.0
-	panel.offset_right = 360.0
-	panel.offset_bottom = 198.0 + maxi(_task_entries.size() - 3, 0) * 32.0
-	var mission_style := _panel_style(SURFACE, Color(1.0, 0.78, 0.38, 0.94), 13.0)
-	mission_style.border_width_left = 3
+	panel.offset_right = 380.0
+	panel.offset_bottom = 208.0 + maxi(_task_entries.size() - 3, 0) * 34.0
+	var mission_style := _panel_style(Color(0.015, 0.03, 0.042, 0.94), Color(0.24, 0.95, 0.54, 0.85), 12.0)
+	mission_style.border_width_left = 4
 	panel.add_theme_stylebox_override("panel", mission_style)
 	_root.add_child(panel)
 	var stack := VBoxContainer.new()
 	_mission_stack = stack
-	stack.add_theme_constant_override("separation", 7)
+	stack.add_theme_constant_override("separation", 6)
 	panel.add_child(stack)
 	var heading := HBoxContainer.new()
-	heading.add_child(_label("ACTIVE MISSION  /  EREBOS", 10, GOLD))
+	heading.add_child(_label("TOTAL TASKS COMPLETED", 10, Color(0.24, 0.95, 0.54)))
 	heading.add_spacer(false)
-	_mission_progress_label = _label("00 / 02", 10, MUTED)
+	_mission_progress_label = _label("00 / 02  (0%)", 10, Color(0.48, 0.93, 0.64))
 	heading.add_child(_mission_progress_label)
 	stack.add_child(heading)
-	stack.add_child(_label("Restore Ship Systems", 17, PALE))
 	_mission_progress_bar = ProgressBar.new()
 	_mission_progress_bar.min_value = 0.0
 	_mission_progress_bar.max_value = maxi(_task_entries.size(), 1)
 	_mission_progress_bar.show_percentage = false
-	_mission_progress_bar.custom_minimum_size.y = 6.0
-	_mission_progress_bar.add_theme_stylebox_override("background", _panel_style(Color(0.09, 0.16, 0.17), Color(0.09, 0.16, 0.17), 0.0))
-	_mission_progress_bar.add_theme_stylebox_override("fill", _panel_style(GOLD, GOLD, 0.0))
+	_mission_progress_bar.custom_minimum_size.y = 8.0
+	_mission_progress_bar.add_theme_stylebox_override("background", _panel_style(Color(0.02, 0.05, 0.07), Color(0.12, 0.22, 0.25), 0.0))
+	_mission_progress_bar.add_theme_stylebox_override("fill", _panel_style(Color(0.24, 0.95, 0.54), Color(0.24, 0.95, 0.54), 0.0))
 	stack.add_child(_mission_progress_bar)
+	var sub_heading := _label("SHIP TELEMETRY // ACTIVE WORK ORDERS", 9, MUTED)
+	stack.add_child(sub_heading)
 	for entry in _task_entries:
 		_add_mission_row(entry)
 
@@ -443,15 +465,24 @@ func _add_mission_row(entry: Dictionary) -> void:
 	if not is_instance_valid(_mission_stack):
 		return
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 7)
-	var mark := _label("□", 14, MUTED)
-	mark.custom_minimum_size.x = 18.0
-	row.add_child(mark)
-	var objective := _label(str(entry.get("title", "Ship work order")), 12, PALE)
+	row.add_theme_constant_override("separation", 6)
+	var tag_text: String = str(entry.get("marker_label", "TASK"))
+	var tag := _label("[%s]" % tag_text, 9, GOLD)
+	tag.custom_minimum_size.x = 88.0
+	row.add_child(tag)
+	var title_text: String = str(entry.get("title", "Ship work order"))
+	if title_text.begins_with("Amara: "):
+		title_text = title_text.substr(7)
+	var objective := _label(title_text, 11, PALE)
 	objective.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	objective.clip_text = true
 	row.add_child(objective)
+	var status := _label("● PENDING", 9, ORANGE)
+	status.custom_minimum_size.x = 68.0
+	status.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	row.add_child(status)
 	_mission_stack.add_child(row)
-	_mission_rows[entry["id"]] = {"mark": mark, "label": objective}
+	_mission_rows[entry["id"]] = {"mark": status, "label": objective, "tag": tag}
 
 
 func add_task_entry(entry: Dictionary) -> void:
@@ -495,17 +526,31 @@ func _build_context_prompt() -> void:
 	_context_prompt.anchor_right = 0.5
 	_context_prompt.anchor_top = 1.0
 	_context_prompt.anchor_bottom = 1.0
-	_context_prompt.offset_left = -280.0
-	_context_prompt.offset_top = -128.0
-	_context_prompt.offset_right = 280.0
-	_context_prompt.offset_bottom = -88.0
+	_context_prompt.offset_left = -300.0
+	_context_prompt.offset_top = -134.0
+	_context_prompt.offset_right = 300.0
+	_context_prompt.offset_bottom = -90.0
 	_context_prompt.visible = false
-	_context_prompt.add_theme_stylebox_override("panel", _panel_style(SURFACE, ORANGE, 9.0))
+	var prompt_style := _panel_style(Color(0.012, 0.025, 0.038, 0.95), ORANGE, 7.0)
+	prompt_style.border_width_left = 3
+	prompt_style.border_width_right = 3
+	_context_prompt.add_theme_stylebox_override("panel", prompt_style)
 	_root.add_child(_context_prompt)
-	_context_label = _label("", 11, PALE)
+	var prompt_box := HBoxContainer.new()
+	prompt_box.alignment = BoxContainer.ALIGNMENT_CENTER
+	prompt_box.add_theme_constant_override("separation", 10)
+	_context_prompt.add_child(prompt_box)
+	var keycap := PanelContainer.new()
+	var keycap_style := _panel_style(ORANGE, Color(1.0, 0.82, 0.42), 4.0)
+	keycap.add_theme_stylebox_override("panel", keycap_style)
+	var keycap_label := _label("E", 11, Color(0.02, 0.035, 0.05))
+	keycap_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	keycap.add_child(keycap_label)
+	prompt_box.add_child(keycap)
+	_context_label = _label("", 12, PALE)
 	_context_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_context_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_context_prompt.add_child(_context_label)
+	prompt_box.add_child(_context_label)
 
 
 func _build_hotbar() -> void:
@@ -539,7 +584,7 @@ func _build_hotbar() -> void:
 
 
 func _create_map_overlay() -> void:
-	var modal := _create_modal_shell("SHIP MAP", Vector2(1060.0, 620.0))
+	var modal := _create_modal_shell("TACTICAL DECK SCHEMATIC // ASTERIA-1", Vector2(1060.0, 620.0))
 	_overlay_nodes[&"map"] = modal["root"]
 	var content: VBoxContainer = modal["content"]
 	var map_wrapper := CenterContainer.new()
@@ -558,18 +603,41 @@ func _create_map_overlay() -> void:
 	image.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	image.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_map_surface.add_child(image)
-	_map_player_marker = _map_marker(GOLD, true)
+
+	var room_tags := [
+		{"name": "BRIDGE", "pos": Vector2(85.0, 150.0)},
+		{"name": "UPPER DECK", "pos": Vector2(460.0, 60.0)},
+		{"name": "CENTER RECESS", "pos": Vector2(460.0, 175.0)},
+		{"name": "AUX POWER", "pos": Vector2(620.0, 165.0)},
+		{"name": "LIFE SUPPORT", "pos": Vector2(720.0, 145.0)},
+		{"name": "ENGINE / AFT", "pos": Vector2(830.0, 200.0)},
+		{"name": "HYDROPONICS", "pos": Vector2(250.0, 275.0)},
+		{"name": "CARGO BAY", "pos": Vector2(510.0, 280.0)},
+		{"name": "SHUTTLE BAY", "pos": Vector2(710.0, 320.0)},
+		{"name": "LOWER DECK", "pos": Vector2(350.0, 420.0)},
+	]
+	for r in room_tags:
+		var badge := PanelContainer.new()
+		var badge_style := _panel_style(Color(0.012, 0.025, 0.035, 0.8), Color(0.24, 0.45, 0.52, 0.6), 3.0)
+		badge.add_theme_stylebox_override("panel", badge_style)
+		var lbl := _label(str(r["name"]), 8, Color(0.55, 0.82, 0.90))
+		lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		badge.add_child(lbl)
+		badge.position = r["pos"]
+		badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_map_surface.add_child(badge)
+
+	_map_player_marker = _map_marker(CYAN, true)
 	_map_surface.add_child(_map_player_marker)
 	for entry in _task_entries:
 		_add_map_task_marker(entry)
 	var map_legend := HBoxContainer.new()
 	map_legend.add_theme_constant_override("separation", 14)
-	map_legend.add_child(_label("THURA  /  CURRENT POSITION", 10, GOLD))
-	map_legend.add_child(_label("OPEN TASK", 10, ORANGE))
-	map_legend.add_child(_label("COMPLETE", 10, GREEN))
-	map_legend.add_child(_label("HOVER PINS FOR DETAILS", 9, MUTED))
+	map_legend.add_child(_label("● [OPERATOR] THURA MIN", 10, CYAN))
+	map_legend.add_child(_label("▲ [ALERT] PENDING REPAIR", 10, ORANGE))
+	map_legend.add_child(_label("✔ [NOMINAL] SYSTEM RESTORED", 10, GREEN))
 	map_legend.add_spacer(false)
-	map_legend.add_child(_label("M OR ESC  /  CLOSE", 10, MUTED))
+	map_legend.add_child(_label("M OR ESC // CLOSE SCHEMATIC", 10, MUTED))
 	content.add_child(map_legend)
 	_update_map_markers()
 
@@ -815,8 +883,9 @@ func _update_map_markers() -> void:
 		var marker := marker_data["marker"] as MapPin
 		_set_map_pin_position(marker, normalized)
 		var is_complete: bool = bool(_task_completed.get(task_id, false))
+		marker.is_complete = is_complete
 		marker.pin_color = GREEN if is_complete else ORANGE
-		marker.tooltip_text = ("COMPLETE  /  " if is_complete else "OPEN TASK  /  ") + str(entry.get("title", "Ship task"))
+		marker.tooltip_text = ("[NOMINAL] " if is_complete else "[ALERT] ") + str(entry.get("title", "Ship task"))
 		marker.queue_redraw()
 
 
@@ -880,16 +949,26 @@ func _refresh_mission_panel() -> void:
 		if _task_completed[task_id]:
 			completed_count += 1
 	var total := _task_entries.size()
-	_mission_progress_label.text = "%02d / %02d" % [completed_count, total]
-	_mission_progress_label.add_theme_color_override("font_color", GREEN if completed_count == total else MUTED)
+	var pct := int(roundf((float(completed_count) / float(maxi(total, 1))) * 100.0))
+	_mission_progress_label.text = "%02d / %02d  (%d%%)" % [completed_count, total, pct]
+	_mission_progress_label.add_theme_color_override("font_color", GREEN if completed_count == total else Color(0.48, 0.93, 0.64))
 	_mission_progress_bar.max_value = maxi(total, 1)
 	_mission_progress_bar.value = completed_count
 	for task_id in _mission_rows:
 		var row: Dictionary = _mission_rows[task_id]
 		var is_complete: bool = bool(_task_completed.get(task_id, false))
-		row["mark"].text = "✓" if is_complete else "□"
-		row["mark"].add_theme_color_override("font_color", GREEN if is_complete else MUTED)
-		row["label"].add_theme_color_override("font_color", GREEN if is_complete else PALE)
+		if is_complete:
+			row["mark"].text = "✔ DONE"
+			row["mark"].add_theme_color_override("font_color", GREEN)
+			row["label"].add_theme_color_override("font_color", Color(0.52, 0.72, 0.65))
+			if row.has("tag"):
+				row["tag"].add_theme_color_override("font_color", Color(0.38, 0.58, 0.50))
+		else:
+			row["mark"].text = "● PENDING"
+			row["mark"].add_theme_color_override("font_color", ORANGE)
+			row["label"].add_theme_color_override("font_color", PALE)
+			if row.has("tag"):
+				row["tag"].add_theme_color_override("font_color", GOLD)
 	_update_map_markers()
 
 
@@ -904,7 +983,12 @@ func set_task_completed(task_id: StringName) -> void:
 func set_interaction_prompt(text: String, is_visible: bool) -> void:
 	if not is_instance_valid(_context_prompt):
 		return
-	_context_label.text = text
+	var formatted_text := text
+	if formatted_text.find("[E]") != -1:
+		formatted_text = formatted_text.replace("[E]", "").replace("   /   ", " // ").strip_edges()
+		if not formatted_text.begins_with("USE") and not formatted_text.begins_with("INTERACT"):
+			formatted_text = "USE // " + formatted_text
+	_context_label.text = formatted_text
 	_context_prompt.visible = is_visible and _walking_visible and _active_overlay == &""
 
 

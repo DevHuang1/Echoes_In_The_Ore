@@ -509,7 +509,7 @@ func _build_header() -> Control:
 	var badge := PanelContainer.new()
 	badge.custom_minimum_size = Vector2(48.0, 48.0)
 	badge.add_theme_stylebox_override("panel", _panel_style(Color(0.09, 0.16, 0.17), GOLD, 4.0))
-	var badge_label := _label("A1", 17, GOLD)
+	var badge_label := _label("SYS", 14, GOLD)
 	badge_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	badge_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	badge.add_child(badge_label)
@@ -518,8 +518,8 @@ func _build_header() -> Control:
 	var heading := VBoxContainer.new()
 	heading.add_theme_constant_override("separation", 1)
 	heading.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	heading.add_child(_label("ASTERIA-1  /  ENGINEERING", 11, GOLD))
-	var header_title := _label("SHIP SERVICE CONSOLE", 21, PALE)
+	heading.add_child(_label("ASTERIA-1 // ENGINEERING TELEMETRY", 10, GOLD))
+	var header_title := _label("SHIP MAINTENANCE TERMINAL", 20, PALE)
 	heading.add_child(header_title)
 	row.add_child(heading)
 	row.add_spacer(false)
@@ -531,7 +531,7 @@ func _build_header() -> Control:
 	_status_light.color = GREEN
 	_status_light.custom_minimum_size = Vector2(8.0, 8.0)
 	status_group.add_child(_centered(_status_light))
-	_status_label = _label("CONNECTION SECURE", 11, GREEN)
+	_status_label = _label("TERMINAL LINK SECURE", 10, GREEN)
 	status_group.add_child(_centered(_status_label))
 	row.add_child(status_group)
 
@@ -553,35 +553,35 @@ func _build_body() -> Control:
 
 func _build_sidebar() -> Control:
 	var sidebar := PanelContainer.new()
-	sidebar.custom_minimum_size.x = 238.0
+	sidebar.custom_minimum_size.x = 245.0
 	sidebar.add_theme_stylebox_override("panel", _panel_style(Color(0.025, 0.055, 0.074, 0.98), Color(0.34, 0.51, 0.55), 14.0))
 	var stack := VBoxContainer.new()
 	stack.add_theme_constant_override("separation", 10)
 	sidebar.add_child(stack)
-	stack.add_child(_label("DUTY ROSTER", 11, GOLD))
-	stack.add_child(_label("Restore ship\nservice systems", 18, PALE))
+	stack.add_child(_label("CREW WORK ORDERS", 11, GOLD))
+	stack.add_child(_label("Restore ship\nservice systems", 17, PALE))
 
 	_progress_bar = ProgressBar.new()
 	_progress_bar.min_value = 0.0
 	_progress_bar.max_value = _task_total
 	_progress_bar.value = _completed_count
 	_progress_bar.show_percentage = false
-	_progress_bar.custom_minimum_size.y = 9.0
-	_progress_bar.add_theme_stylebox_override("background", _panel_style(Color(0.13, 0.22, 0.23), Color(0.13, 0.22, 0.23), 0.0))
-	_progress_bar.add_theme_stylebox_override("fill", _panel_style(GOLD, GOLD, 0.0))
+	_progress_bar.custom_minimum_size.y = 8.0
+	_progress_bar.add_theme_stylebox_override("background", _panel_style(Color(0.02, 0.05, 0.07), Color(0.12, 0.22, 0.25), 0.0))
+	_progress_bar.add_theme_stylebox_override("fill", _panel_style(GREEN, GREEN, 0.0))
 	stack.add_child(_progress_bar)
-	_progress_label = _label("%02d / %02d TASKS COMPLETE" % [_completed_count, _task_total], 10, MUTED)
+	_progress_label = _label("%02d / %02d TASKS COMPLETED" % [_completed_count, _task_total], 10, MUTED)
 	stack.add_child(_progress_label)
 
 	var section_line := HSeparator.new()
 	section_line.add_theme_color_override("separator_color", Color(0.34, 0.51, 0.55))
 	stack.add_child(section_line)
 	stack.add_child(_label("SERVICE QUEUE", 10, MUTED))
-	stack.add_child(_task_card("01", "AUXILIARY POWER", "Reconnect the cell", _task_id == &"auxiliary_power"))
-	stack.add_child(_task_card("02", "LIFE SUPPORT", "Replace the filter", _task_id == &"air_filter"))
-	stack.add_child(_task_card("03", "HYDROPONICS", "Route nutrient flow", _task_id == &"nutrient_flow"))
+	stack.add_child(_task_card("01", "[AUX POWER]", "Reconnect the cell", _task_id == &"auxiliary_power"))
+	stack.add_child(_task_card("02", "[LIFE SUPPORT]", "Replace the filter", _task_id == &"air_filter"))
+	stack.add_child(_task_card("03", "[HYDROPONICS]", "Route nutrient flow", _task_id == &"nutrient_flow"))
 	stack.add_spacer(false)
-	var note := _label("WORK ORDER\nComplete the console sequence to restore the selected system.", 11, MUTED)
+	var note := _label("WORK ORDER PROTOCOL\nComplete the console sequence to restore the selected ship subsystem.", 10, MUTED)
 	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	stack.add_child(note)
 	return sidebar
@@ -602,7 +602,7 @@ func _task_card(number: String, title: String, detail: String, active: bool) -> 
 	labels.add_theme_constant_override("separation", 3)
 	labels.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	labels.add_child(_label(title, 10, PALE))
-	var detail_label := _label("IN PROGRESS" if active else detail.to_upper(), 9, color if active else MUTED)
+	var detail_label := _label("● IN PROGRESS" if active else detail.to_upper(), 9, color if active else MUTED)
 	labels.add_child(detail_label)
 	row.add_child(labels)
 	return card
@@ -619,20 +619,20 @@ func _build_game_panel() -> Control:
 	var game_heading := HBoxContainer.new()
 	game_heading.add_theme_constant_override("separation", 10)
 	var number := "01"
-	var category := "ELECTRICAL  /  POWER"
-	var title := "Reconnect the power bus"
-	var instruction := "Bring each cell into its target range, then synchronize the bus."
+	var category := "ELECTRICAL // POWER BUS"
+	var title := "Calibrate Capacitor Banks"
+	var instruction := "Tune each capacitor bank into its target frequency window, then synchronize the power bus."
 	if _task_id == &"air_filter":
 		number = "02"
-		category = "LIFE SUPPORT  /  AIRFLOW"
-		title = "Replace the air filter"
-		instruction = "Replace the clogged media, align the lock, then restore airflow."
+		category = "LIFE SUPPORT // O2 FILTRATION DUCT"
+		title = "Replace O2 Filter Canister"
+		instruction = "Release housing latch, rotate keyway 180°, seat replacement canister, and regulate airflow velocity to 62–72%."
 	elif _task_id == &"nutrient_flow":
 		number = "03"
-		category = "HYDROPONICS  /  IRRIGATION"
-		title = "Restore nutrient flow"
-		instruction = "Rotate each manifold valve to its marked target, then restart irrigation."
-	_title_label = _label(title, 23, PALE)
+		category = "HYDROPONICS // IRRIGATION MANIFOLD"
+		title = "Divert Nutrient Manifold"
+		instruction = "Rotate each manifold valve to clear conduit flow paths, then engage automated irrigation."
+	_title_label = _label(title, 22, PALE)
 	var heading_stack := VBoxContainer.new()
 	heading_stack.add_theme_constant_override("separation", 3)
 	heading_stack.add_child(_label("WORK ORDER %s  /  %s" % [number, category], 10, GOLD))
@@ -643,7 +643,7 @@ func _build_game_panel() -> Control:
 	_instruction_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_instruction_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_instruction_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_instruction_label.custom_minimum_size.x = 250.0
+	_instruction_label.custom_minimum_size.x = 260.0
 	game_heading.add_child(_instruction_label)
 	_content_stack.add_child(game_heading)
 	var separator := HSeparator.new()
@@ -660,7 +660,7 @@ func _build_game_panel() -> Control:
 	_success_banner = _label("", 11, GREEN)
 	_success_banner.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_content_stack.add_child(_success_banner)
-	_return_button = _button("RETURN TO SHIP  →", Vector2(190.0, 42.0), GOLD)
+	_return_button = _button("[ RETURN TO SHIP ]", Vector2(190.0, 42.0), GOLD)
 	_return_button.size_flags_horizontal = Control.SIZE_SHRINK_END
 	_return_button.visible = false
 	_return_button.pressed.connect(_close_console)
@@ -742,7 +742,7 @@ func _build_power_game() -> void:
 	workspace.add_child(control_panel)
 	_content_stack.add_child(workspace)
 
-	_power_sync_button = _button("SYNCHRONIZE POWER BUS  →", Vector2(0.0, 46.0), GOLD)
+	_power_sync_button = _button("[ ✔ SYNCHRONIZE POWER BUS ]", Vector2(0.0, 46.0), GOLD)
 	_power_sync_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_power_sync_button.disabled = true
 	_power_sync_button.pressed.connect(_on_power_sync_pressed)
@@ -836,7 +836,7 @@ func _build_hydroponics_game() -> void:
 	_nutrient_status = _label("PUMP READY  /  MANIFOLD MISALIGNED", 9, GOLD)
 	control_stack.add_child(_nutrient_status)
 	control_stack.add_spacer(false)
-	_nutrient_restore_button = _button("RESTART IRRIGATION  →", Vector2(0.0, 46.0), GOLD)
+	_nutrient_restore_button = _button("[ ✔ RESTORE NUTRIENT IRRIGATION ]", Vector2(0.0, 46.0), GOLD)
 	_nutrient_restore_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_nutrient_restore_button.disabled = true
 	_nutrient_restore_button.pressed.connect(_on_nutrient_flow_restore_pressed)
@@ -926,7 +926,7 @@ func _build_filter_game() -> void:
 	_filter_action_box.add_spacer(false)
 	_filter_stage_controls = VBoxContainer.new()
 	_filter_action_box.add_child(_filter_stage_controls)
-	_filter_release_button = _button("RELEASE LATCH  →", Vector2(0.0, 48.0), GOLD)
+	_filter_release_button = _button("RELEASE PNEUMATIC LATCH  →", Vector2(0.0, 48.0), GOLD)
 	_filter_release_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_filter_release_button.pressed.connect(_on_filter_release_pressed)
 	_filter_stage_controls.add_child(_filter_release_button)
@@ -967,7 +967,7 @@ func _on_filter_release_pressed() -> void:
 	rotate_button.pressed.connect(_on_filter_rotate_pressed)
 	rotate_row.add_child(rotate_button)
 	_filter_stage_controls.add_child(rotate_row)
-	var align_button := _button("SEAT FILTER", Vector2(0.0, 46.0), GOLD)
+	var align_button := _button("[ SEAT CANISTER ]", Vector2(0.0, 46.0), GOLD)
 	align_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	align_button.disabled = true
 	align_button.pressed.connect(_on_filter_seat_pressed)
@@ -1019,7 +1019,7 @@ func _on_filter_seat_pressed() -> void:
 	_filter_pressure_slider.value_changed.connect(_on_filter_pressure_changed)
 	_filter_stage_controls.add_child(_filter_pressure_slider)
 	_filter_stage_controls.add_child(_label("0%  /  LOW                                      HIGH  /  100%", 9, MUTED))
-	_filter_pressure_button = _button("STABILIZE AIRFLOW", Vector2(0.0, 46.0), GOLD)
+	_filter_pressure_button = _button("[ ✔ STABILIZE AIRFLOW & SEAL DUCT ]", Vector2(0.0, 46.0), GOLD)
 	_filter_pressure_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_filter_pressure_button.disabled = true
 	_filter_pressure_button.pressed.connect(_on_filter_pressure_locked)

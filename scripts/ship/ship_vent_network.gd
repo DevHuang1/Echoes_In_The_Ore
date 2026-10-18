@@ -1,8 +1,8 @@
 @tool
 extends Node2D
 
-const LONG_VENT := preload("res://art/props/floor_decals/floor_vent_long.png")
-const JUNCTION_VENT := preload("res://art/props/floor_decals/floor_vent_square.png")
+const LONG_VENT := preload("res://art/props/floor_decals/floor_vent_long_refined.png")
+const JUNCTION_VENT := preload("res://art/props/floor_decals/floor_vent_square_refined.png")
 
 const LONG_SCALE := 0.04
 const LONG_BODY_LENGTH := 1632.0
