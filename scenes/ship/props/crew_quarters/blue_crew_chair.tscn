@@ -1,0 +1,26 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/ship/props/crew_quarters/crew_quarters_prop.tscn" id="1_base"]
+[ext_resource type="Texture2D" path="res://art/concepts/crew_living_quarter_props/Blue crew chair, four orthographic views.png" id="2_artwork"]
+
+[sub_resource type="AtlasTexture" id="Atlas_initial"]
+atlas = ExtResource("2_artwork")
+region = Rect2(310, 106, 282, 364)
+filter_clip = true
+
+[node name="BlueCrewChair" instance=ExtResource("1_base")]
+artwork = ExtResource("2_artwork")
+atlas_regions = Array[Rect2]([Rect2(310, 106, 282, 364), Rect2(945, 101, 282, 369), Rect2(329, 565, 269, 376), Rect2(939, 565, 269, 376)])
+floor_anchors = PackedVector2Array(142, 324, 139, 329, 121, 335, 145, 335)
+view_names = PackedStringArray("North (rear)", "South (front)", "West (seat faces left)", "East (seat faces right)")
+oval_footprint = true
+direction = 0
+artwork_scale = 0.08
+footprint_size = Vector2(14, 6)
+footprint_side_size = Vector2(14, 6)
+
+[node name="Sprite2D" parent="." index="0"]
+position = Vector2(-11.36, -25.92)
+scale = Vector2(0.08, 0.08)
+texture = SubResource("Atlas_initial")
+

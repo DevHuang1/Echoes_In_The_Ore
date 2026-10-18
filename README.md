@@ -26,7 +26,7 @@ godot --path .
 
 ## Reusable ship art
 
-- `art/overview/asteria_overview_floor.png` and `art/overview/asteria_overview_walls_2x.png` are the aligned full-layout layers used by the walkthrough. The 2× wall texture keeps the same world footprint and uses lossless import so its baked highlights and shadows stay crisp when the camera follows the astronaut.
+- The walkthrough uses `art/overview/asteria_overview_floor.png` with `art/concepts/ship_walls_valkyrie.png` as its visual wall layer. Both use the same 1774×887 canvas and origin; the wall uses nearest filtering, lossless import and no resolution limit. The original `art/overview/asteria_overview_walls_2x.png` remains available for reverting. Local wall-thickness and doorway-art mismatches are recorded in [the wall validation report](tools/ship_wall_visual_report.md); floor artwork and gameplay geometry are unchanged.
 - `art/overview/space_frames/` contains the forty looping, double-resolution starfield frames drawn behind the ship. The background covers the ship with overscan and drifts gently while the floor and hull stay fixed.
 - `scenes/ship/floor_modules/` contains drop-in floor Sprite2D scenes; their source images and manifest are in `art/overview/floor_modules/`.
 - `scenes/ship/wall_components/` contains drop-in wall Sprite2D scenes; their source images and notes are in `art/overview/wall_components/`.

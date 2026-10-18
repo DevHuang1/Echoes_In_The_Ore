@@ -1,13 +1,13 @@
 class_name CrewDialogue
 extends CanvasLayer
 
+const SKIN := preload("res://scripts/ui/pixel_ui.gd")
+
 signal dialogue_finished(accepted_tasks: bool)
 
-const PALE := Color(0.94, 0.97, 0.96)
-const MUTED := Color(0.62, 0.75, 0.77)
-const GOLD := Color(1.0, 0.76, 0.39)
-const SURFACE := Color(0.025, 0.065, 0.078, 0.97)
-const EDGE := Color(0.34, 0.62, 0.61)
+const PALE := Color(0.94, 0.91, 0.82)
+const MUTED := Color(0.59, 0.69, 0.73)
+const GOLD := Color(1.0, 0.77, 0.34)
 
 const TYPEWRITER_CHARS_PER_SECOND := 38.0
 
@@ -87,6 +87,7 @@ func _input(event: InputEvent) -> void:
 
 func _build_ui() -> void:
 	_root = Control.new()
+	SKIN.apply(_root)
 	_root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_root)
@@ -97,9 +98,9 @@ func _build_ui() -> void:
 	_bubble.anchor_right = 0.5
 	_bubble.anchor_top = 1.0
 	_bubble.anchor_bottom = 1.0
-	_bubble.offset_left = -365.0
-	_bubble.offset_top = -236.0
-	_bubble.offset_right = 365.0
+	_bubble.offset_left = -430.0
+	_bubble.offset_top = -266.0
+	_bubble.offset_right = 430.0
 	_bubble.offset_bottom = -106.0
 	_bubble.add_theme_stylebox_override("panel", _bubble_style())
 	_root.add_child(_bubble)
@@ -109,18 +110,18 @@ func _build_ui() -> void:
 	_bubble.add_child(content)
 	_speaker_label = Label.new()
 	_speaker_label.text = "AMARA OKOYE   /   HYDROPONICS"
-	_speaker_label.add_theme_font_size_override("font_size", 11)
+	_speaker_label.add_theme_font_size_override("font_size", 12)
 	_speaker_label.add_theme_color_override("font_color", GOLD)
 	content.add_child(_speaker_label)
 	_dialogue_label = Label.new()
-	_dialogue_label.custom_minimum_size = Vector2(690.0, 50.0)
+	_dialogue_label.custom_minimum_size = Vector2(0.0, 70.0)
 	_dialogue_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_dialogue_label.add_theme_font_size_override("font_size", 15)
+	_dialogue_label.add_theme_font_size_override("font_size", 16)
 	_dialogue_label.add_theme_color_override("font_color", PALE)
 	content.add_child(_dialogue_label)
 	_prompt_label = Label.new()
 	_prompt_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	_prompt_label.add_theme_font_size_override("font_size", 10)
+	_prompt_label.add_theme_font_size_override("font_size", 12)
 	_prompt_label.add_theme_color_override("font_color", MUTED)
 	content.add_child(_prompt_label)
 
@@ -159,15 +160,5 @@ func _finish(accepted_tasks: bool) -> void:
 	dialogue_finished.emit(accepted_tasks)
 
 
-func _bubble_style() -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = SURFACE
-	style.border_color = EDGE
-	style.set_border_width_all(1)
-	style.border_width_left = 3
-	style.set_corner_radius_all(12)
-	style.content_margin_left = 19.0
-	style.content_margin_right = 19.0
-	style.content_margin_top = 13.0
-	style.content_margin_bottom = 11.0
-	return style
+func _bubble_style() -> StyleBox:
+	return SKIN.panel(20.0)
