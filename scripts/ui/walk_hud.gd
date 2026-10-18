@@ -426,7 +426,7 @@ func _build_mission_panel() -> void:
 	_mission_progress_label = _label("00 / 02", 10, MUTED)
 	heading.add_child(_mission_progress_label)
 	stack.add_child(heading)
-	stack.add_child(_label("Restore Ship Systems", 17, PALE))
+	stack.add_child(_label("Restore Ship & Study Erebos", 17, PALE))
 	_mission_progress_bar = ProgressBar.new()
 	_mission_progress_bar.min_value = 0.0
 	_mission_progress_bar.max_value = maxi(_task_entries.size(), 1)

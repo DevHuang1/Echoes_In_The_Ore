@@ -31,6 +31,56 @@ const ROOM_TASKS := [
 		"completion": "Nutrient manifold aligned. The grow beds are irrigating.",
 	},
 ]
+const LAB_DEVICES := [
+	{
+		"id": &"lab_specimen",
+		"station_path": NodePath("LabRoom/NorthWorkstation"),
+		"interaction_offset": Vector2(-34.0, 27.0),
+		"prompt": "SPECIMEN ANALYSIS TABLE   /   [E] OPEN ANALYZER",
+	},
+	{
+		"id": &"lab_earth_comms",
+		"station_path": NodePath("LabRoom/ConsoleStation"),
+		"interaction_offset": Vector2(39.0, 18.0),
+		"prompt": "RESEARCH CONSOLE   /   [E] OPEN TERMINAL",
+	},
+	{
+		"id": &"lab_containment",
+		"station_path": NodePath("LabRoom/OreContainment"),
+		"interaction_offset": Vector2(-28.0, 28.0),
+		"prompt": "SAMPLE CONTAINMENT   /   [E] OPEN CONTROLS",
+	},
+	{
+		"id": &"lab_trolley",
+		"station_path": NodePath("LabRoom/MicroscopeCart"),
+		"interaction_offset": Vector2(0.0, 38.0),
+		"prompt": "INSTRUMENT TROLLEY   /   [E] OPEN INSTRUMENTS",
+	},
+	{
+		"id": &"lab_archive_01",
+		"station_path": NodePath("LabRoom/ArchiveStationLeft"),
+		"interaction_offset": Vector2(-18.0, 34.0),
+		"prompt": "PERSONNEL ARCHIVE   /   [E] BROWSE RECORDS",
+	},
+	{
+		"id": &"lab_archive_02",
+		"station_path": NodePath("LabRoom/ArchiveStationCenter"),
+		"interaction_offset": Vector2(0.0, 34.0),
+		"prompt": "SPECIMEN ARCHIVE   /   [E] BROWSE RECORDS",
+	},
+	{
+		"id": &"lab_archive_03",
+		"station_path": NodePath("LabRoom/ArchiveStationRight"),
+		"interaction_offset": Vector2(18.0, 34.0),
+		"prompt": "CONTAINMENT ARCHIVE   /   [E] BROWSE RECORDS",
+	},
+	{
+		"id": &"lab_robot_arm",
+		"station_path": NodePath("LabRoom/SampleManipulator"),
+		"interaction_offset": Vector2(0.0, 36.0),
+		"prompt": "SAMPLE MANIPULATOR   /   [E] OPEN CONTROLS",
+	},
+]
 const ROOM_TASK_INTERACTION_RADIUS := 44.0
 const AMARA_INTERACTION_RADIUS := 66.0
 const CREW_TASK_INTERACTION_RADIUS := 48.0
@@ -64,6 +114,7 @@ const AMARA_CREW_TASKS := [
 
 var _completed_room_tasks: Dictionary = {}
 var _active_room_task_id: StringName = &""
+var _active_lab_device_id: StringName = &""
 var _task_console_open := false
 var _arrival_briefing_open := true
 var _hud_modal_open := false
@@ -98,8 +149,8 @@ func _ready() -> void:
 			"id": task["id"],
 			"title": task["title"],
 			"marker_label": task["marker_label"],
-			"position": station.global_position,
-			"marker_position": _task_marker_position(station),
+			"position": _room_task_interaction_position(task, station),
+			"marker_position": _room_task_marker_position(task, station),
 		})
 	_walk_hud = WALK_HUD_SCENE.instantiate() as WalkHud
 	_walk_hud.setup(player, hud_task_entries, floor_layer.global_position, FLOOR_TEXTURE.get_size())
@@ -129,11 +180,32 @@ func _unhandled_input(event: InputEvent) -> void:
 		_begin_amara_dialogue()
 	elif _active_crew_task_id != &"":
 		_complete_crew_task(_active_crew_task_id)
+	elif _active_lab_device_id != &"":
+		_open_lab_device_console(_active_lab_device_id)
 	elif _active_room_task_id != &"":
 		_open_room_task_console(_active_room_task_id)
 	else:
 		return
 	get_viewport().set_input_as_handled()
+
+
+func _open_lab_device_console(device_id: StringName) -> void:
+	if _task_console_open:
+		return
+	for device in LAB_DEVICES:
+		if device["id"] != device_id:
+			continue
+		var station := get_node_or_null(device["station_path"]) as Node2D
+		if station != null:
+			player.face_toward(station.global_position)
+		break
+	_task_console_open = true
+	_walk_hud.set_walking_visible(false)
+	_update_player_walk_state()
+	var console := SERVICE_TASK_CONSOLE_SCENE.instantiate() as ServiceTaskConsole
+	console.setup(device_id, 0, 1)
+	console.console_closed.connect(_on_room_task_console_closed)
+	add_child(console)
 
 
 func _open_room_task_console(task_id: StringName) -> void:
@@ -165,7 +237,7 @@ func _on_room_task_completed(task_id: StringName) -> void:
 		ROOM_TASKS.size(),
 	]
 	if _completed_room_tasks.size() == ROOM_TASKS.size():
-		_room_task_feedback = "POWER, LIFE SUPPORT, AND HYDROPONICS ONLINE\nSHIP SERVICE TASKS COMPLETE"
+		_room_task_feedback = "SHIP SERVICE WORK ORDERS COMPLETE"
 	_pending_room_task_feedback = _room_task_feedback
 
 
@@ -180,6 +252,7 @@ func _on_room_task_console_closed() -> void:
 
 func _refresh_room_task_prompt() -> void:
 	_active_room_task_id = &""
+	_active_lab_device_id = &""
 	_active_crew_task_id = &""
 	_active_amara_interaction = false
 	if _crew_dialogue_open or not _arrival_briefing_open and (_hud_modal_open or _task_console_open):
@@ -208,6 +281,21 @@ func _refresh_room_task_prompt() -> void:
 		_active_crew_task_id = closest_crew_task["id"]
 		_walk_hud.set_interaction_prompt(closest_crew_task["prompt"], true)
 		return
+	var closest_device: Dictionary = {}
+	var closest_device_distance := ROOM_TASK_INTERACTION_RADIUS
+	for device in LAB_DEVICES:
+		var station := get_node_or_null(device["station_path"]) as Node2D
+		if station == null:
+			continue
+		var interaction_position := _room_task_interaction_position(device, station)
+		var distance := player.global_position.distance_to(interaction_position)
+		if distance <= closest_device_distance:
+			closest_device_distance = distance
+			closest_device = device
+	if not closest_device.is_empty():
+		_active_lab_device_id = closest_device["id"]
+		_walk_hud.set_interaction_prompt(closest_device["prompt"], true)
+		return
 	var closest_task: Dictionary = {}
 	var closest_distance := ROOM_TASK_INTERACTION_RADIUS
 	for task in ROOM_TASKS:
@@ -218,7 +306,7 @@ func _refresh_room_task_prompt() -> void:
 		var station := get_node_or_null(station_path) as Node2D
 		if station == null:
 			continue
-		var distance := player.global_position.distance_to(station.global_position)
+		var distance := player.global_position.distance_to(_room_task_interaction_position(task, station))
 		if distance <= closest_distance:
 			closest_distance = distance
 			closest_task = task
@@ -285,6 +373,22 @@ func _on_amara_dialogue_finished(accepted_tasks: bool) -> void:
 
 func _crew_task_interaction_position(task: Dictionary, station: Node2D) -> Vector2:
 	var offset: Vector2 = task.get("interaction_offset", Vector2.ZERO)
+	var parent := station.get_parent() as Node2D
+	if parent == null:
+		return station.global_position + offset
+	return parent.to_global(station.position + offset)
+
+
+func _room_task_interaction_position(task: Dictionary, station: Node2D) -> Vector2:
+	var offset: Vector2 = task.get("interaction_offset", Vector2.ZERO)
+	var parent := station.get_parent() as Node2D
+	if parent == null:
+		return station.global_position + offset
+	return parent.to_global(station.position + offset)
+
+
+func _room_task_marker_position(task: Dictionary, station: Node2D) -> Vector2:
+	var offset: Vector2 = task.get("marker_offset", Vector2(0.0, -36.0))
 	var parent := station.get_parent() as Node2D
 	if parent == null:
 		return station.global_position + offset

@@ -14,6 +14,7 @@
 [ext_resource type="PackedScene" path="res://scenes/ship/crew/amara_okoye.tscn" id="12_amara"]
 [ext_resource type="PackedScene" path="res://scenes/ship/props/ship_vent_network.tscn" id="13_vent_network"]
 [ext_resource type="PackedScene" path="res://scenes/ship/props/ship_fog_halo.tscn" id="14_fog"]
+[ext_resource type="PackedScene" path="res://scenes/ship/lab_room.tscn" id="15_lab"]
 
 [node name="BareShipWalkthrough" type="Node2D" unique_id=1816551452]
 script = ExtResource("1_walkthrough")
@@ -47,6 +48,9 @@ position = Vector2(1058, 263)
 
 [node name="LifeSupportRoomProps" parent="." unique_id=865870324 instance=ExtResource("11_life_support_props")]
 position = Vector2(1221, 198)
+
+[node name="LabRoom" parent="." instance=ExtResource("15_lab")]
+position = Vector2(697, 405)
 
 [node name="ShipDoors" parent="." unique_id=1388646547 instance=ExtResource("7_doors")]
 position = Vector2(3, -4)

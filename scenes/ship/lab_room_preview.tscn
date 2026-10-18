@@ -1,0 +1,30 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Texture2D" path="res://art/overview/asteria_overview_floor.png" id="1_floor"]
+[ext_resource type="Texture2D" path="res://art/overview/asteria_overview_walls_2x.png" id="2_walls"]
+[ext_resource type="PackedScene" path="res://scenes/ship/lab_room.tscn" id="3_lab"]
+[ext_resource type="PackedScene" path="res://scenes/ship/space_backdrop.tscn" id="4_space"]
+
+[node name="LabRoomPreview" type="Node2D"]
+
+[node name="SpaceBackdrop" parent="." instance=ExtResource("4_space")]
+position = Vector2(887, 443.5)
+
+[node name="FloorLayer" type="Sprite2D" parent="."]
+z_index = -2
+texture = ExtResource("1_floor")
+centered = false
+
+[node name="WallLayer" type="Sprite2D" parent="."]
+z_index = -1
+texture_filter = 2
+scale = Vector2(0.5, 0.5)
+texture = ExtResource("2_walls")
+centered = false
+
+[node name="LabRoom" parent="." instance=ExtResource("3_lab")]
+position = Vector2(697, 405)
+
+[node name="RoomCamera" type="Camera2D" parent="."]
+position = Vector2(958.5, 535)
+zoom = Vector2(2, 2)
