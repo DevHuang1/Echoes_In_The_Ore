@@ -1,0 +1,25 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/ship/props/crew_quarters/crew_quarters_prop.tscn" id="1_base"]
+[ext_resource type="Texture2D" path="res://art/concepts/crew_living_quarter_props/Four-view crew work desk sprite.png" id="2_artwork"]
+
+[sub_resource type="AtlasTexture" id="Atlas_initial"]
+atlas = ExtResource("2_artwork")
+region = Rect2(868, 133, 506, 288)
+filter_clip = true
+
+[node name="PersonalComputerDesk" instance=ExtResource("1_base")]
+artwork = ExtResource("2_artwork")
+atlas_regions = Array[Rect2]([Rect2(162, 133, 507, 288), Rect2(868, 133, 506, 288), Rect2(307, 540, 261, 336), Rect2(984, 540, 245, 336)])
+floor_anchors = PackedVector2Array(253, 211, 253, 211, 132, 259, 122, 259)
+view_names = PackedStringArray("North (rear)", "South (front)", "West (screen on left)", "East (screen on right)")
+direction = 1
+artwork_scale = 0.11
+footprint_size = Vector2(52, 16)
+footprint_side_size = Vector2(22, 16)
+
+[node name="Sprite2D" parent="." index="0"]
+position = Vector2(-27.83, -23.21)
+scale = Vector2(0.11, 0.11)
+texture = SubResource("Atlas_initial")
+

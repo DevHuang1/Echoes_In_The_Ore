@@ -1,12 +1,14 @@
 class_name ServiceTaskConsole
 extends CanvasLayer
 
+const SKIN := preload("res://scripts/ui/pixel_ui.gd")
+
 signal task_completed(task_id: StringName)
 signal console_closed
 
-const GOLD := Color(1.0, 0.78, 0.38)
-const PALE := Color(0.96, 0.985, 1.0)
-const MUTED := Color(0.7, 0.8, 0.83)
+const GOLD := Color(1.0, 0.77, 0.34)
+const PALE := Color(0.94, 0.91, 0.82)
+const MUTED := Color(0.59, 0.69, 0.73)
 const CYAN := Color(0.36, 0.9, 1.0)
 const ORANGE := Color(1.0, 0.68, 0.32)
 const MINT := Color(0.53, 0.94, 0.75)
@@ -19,8 +21,8 @@ const POWER_CELL_COLORS := [CYAN, GOLD, MINT]
 
 
 class PowerDiagram extends Control:
-	const PALE := Color(0.96, 0.985, 1.0)
-	const MUTED := Color(0.7, 0.8, 0.83)
+	const PALE := Color(0.94, 0.91, 0.82)
+	const MUTED := Color(0.59, 0.69, 0.73)
 	const CYAN := Color(0.36, 0.9, 1.0)
 	const GREEN := Color(0.48, 0.93, 0.64)
 	const ORANGE := Color(1.0, 0.68, 0.32)
@@ -33,12 +35,11 @@ class PowerDiagram extends Control:
 
 	func _draw() -> void:
 		var card_rect := Rect2(Vector2(8.0, 8.0), size - Vector2(16.0, 16.0))
-		draw_rect(card_rect, Color(0.045, 0.083, 0.105, 1.0), true)
-		draw_rect(card_rect, Color(0.34, 0.51, 0.55, 0.95), false, 1.0, false)
-		var font := ThemeDB.fallback_font
+		draw_style_box(get_theme_stylebox("normal", "InventorySlot"), card_rect)
+		var font := get_theme_font("font", "Label")
 		if font == null:
 			return
-		draw_string(font, Vector2(24.0, 34.0), "AUX POWER BUS  /  CELL BANK", HORIZONTAL_ALIGNMENT_LEFT, -1.0, 10, MUTED)
+		draw_string(font, Vector2(24.0, 34.0), "AUX POWER BUS  /  CELL BANK", HORIZONTAL_ALIGNMENT_LEFT, -1.0, 12, MUTED)
 		draw_line(Vector2(24.0, 47.0), Vector2(size.x - 24.0, 47.0), Color(0.31, 0.47, 0.5), 1.0, false)
 
 		var feed_rail := Rect2(Vector2(24.0, 53.0), Vector2(size.x - 48.0, 8.0))
@@ -101,15 +102,15 @@ class PowerDiagram extends Control:
 			draw_line(Vector2(bar.position.x + 3.0, target_top + target_height), Vector2(bar.end.x - 3.0, target_top + target_height), GREEN, 1.0, false)
 			draw_rect(bar, Color(0.43, 0.58, 0.60), false, 1.0)
 			draw_string(font, Vector2(x - 16.0, bar.end.y + 22.0), "%02d%%" % roundi(value), HORIZONTAL_ALIGNMENT_CENTER, slot_width + 32.0, 12, GREEN if in_range else PALE)
-			draw_string(font, Vector2(x - 18.0, bar.end.y + 40.0), "%s" % cell_name, HORIZONTAL_ALIGNMENT_CENTER, slot_width + 36.0, 8, MUTED)
+			draw_string(font, Vector2(x - 18.0, bar.end.y + 40.0), "%s" % cell_name, HORIZONTAL_ALIGNMENT_CENTER, slot_width + 36.0, 10, MUTED)
 			var indicator := Rect2(Vector2(x + slot_width * 0.5 - 3.0, bar_top - 8.0), Vector2(6.0, 6.0))
 			draw_rect(indicator, GREEN if in_range else ORANGE, true)
 			draw_rect(indicator, Color(0.76, 0.84, 0.79), false, 1.0)
 
 
 class FilterDiagram extends Control:
-	const GOLD := Color(1.0, 0.78, 0.38)
-	const MUTED := Color(0.7, 0.8, 0.83)
+	const GOLD := Color(1.0, 0.77, 0.34)
+	const MUTED := Color(0.59, 0.69, 0.73)
 	const ORANGE := Color(1.0, 0.68, 0.32)
 	const CYAN := Color(0.36, 0.9, 1.0)
 	const GREEN := Color(0.48, 0.93, 0.64)
@@ -121,12 +122,11 @@ class FilterDiagram extends Control:
 
 	func _draw() -> void:
 		var card_rect := Rect2(Vector2(8.0, 8.0), size - Vector2(16.0, 16.0))
-		draw_rect(card_rect, Color(0.045, 0.083, 0.105, 1.0), true)
-		draw_rect(card_rect, Color(0.34, 0.51, 0.55, 0.95), false, 1.0, false)
-		var font := ThemeDB.fallback_font
+		draw_style_box(get_theme_stylebox("normal", "InventorySlot"), card_rect)
+		var font := get_theme_font("font", "Label")
 		if font == null:
 			return
-		draw_string(font, Vector2(24.0, 35.0), "LIFE-SUPPORT DUCT  /  FILTER B-04", HORIZONTAL_ALIGNMENT_LEFT, -1.0, 11, MUTED)
+		draw_string(font, Vector2(24.0, 35.0), "LIFE SUPPORT / FILTER B-04", HORIZONTAL_ALIGNMENT_LEFT, -1.0, 12, MUTED)
 		draw_line(Vector2(24.0, 48.0), Vector2(size.x - 24.0, 48.0), Color(0.31, 0.47, 0.5), 1.0, false)
 
 		var housing := Rect2(size.x * 0.30, 68.0, size.x * 0.40, size.y - 132.0)
@@ -153,8 +153,8 @@ class FilterDiagram extends Control:
 		_draw_duct(outlet_route, flow_tint)
 		_draw_intake_grille(Vector2(43.0, pipe_top_y))
 		_draw_pressure_gauge(Vector2(size.x - 32.0, pipe_top_y), flow_color)
-		draw_string(font, Vector2(20.0, pipe_top_y - 25.0), "INTAKE", HORIZONTAL_ALIGNMENT_LEFT, -1.0, 8, MUTED)
-		draw_string(font, Vector2(size.x - 71.0, pipe_top_y - 25.0), "PRESS", HORIZONTAL_ALIGNMENT_LEFT, -1.0, 8, MUTED)
+		draw_string(font, Vector2(20.0, pipe_top_y - 25.0), "INTAKE", HORIZONTAL_ALIGNMENT_LEFT, -1.0, 10, MUTED)
+		draw_string(font, Vector2(size.x - 71.0, pipe_top_y - 25.0), "PRESS", HORIZONTAL_ALIGNMENT_LEFT, -1.0, 10, MUTED)
 		_draw_air_arrow(Vector2(size.x * 0.24, pipe_y), flow_color)
 		_draw_air_arrow(Vector2(size.x * 0.76, pipe_y), flow_color)
 
@@ -198,9 +198,9 @@ class FilterDiagram extends Control:
 			var notch_center := filter_rect.get_center() + Vector2(cos(notch_angle), sin(notch_angle)) * (filter_rect.size.y * 0.42)
 			draw_circle(notch_center, 5.0, GOLD if rotation_step == 2 else ORANGE)
 			if not filter_removed:
-				draw_string(font, Vector2(filter_rect.position.x + 8.0, filter_rect.end.y - 10.0), "CLOGGED  /  88%", HORIZONTAL_ALIGNMENT_LEFT, -1.0, 10, ORANGE)
+				draw_string(font, Vector2(filter_rect.position.x, filter_rect.end.y - 10.0), "CLOGGED 88%", HORIZONTAL_ALIGNMENT_CENTER, filter_rect.size.x, 10, ORANGE)
 			elif cartridge_seated:
-				draw_string(font, Vector2(filter_rect.position.x + 8.0, filter_rect.end.y - 10.0), "NEW MEDIA  /  SEALED", HORIZONTAL_ALIGNMENT_LEFT, -1.0, 10, GREEN)
+				draw_string(font, Vector2(filter_rect.position.x, filter_rect.end.y - 10.0), "SEALED", HORIZONTAL_ALIGNMENT_CENTER, filter_rect.size.x, 12, GREEN)
 
 		draw_string(font, Vector2(24.0, size.y - 31.0), "AIRFLOW  %d%%" % roundi(airflow), HORIZONTAL_ALIGNMENT_LEFT, -1.0, 11, GREEN if airflow >= 62.0 and airflow <= 72.0 else MUTED)
 		draw_string(font, Vector2(size.x - 154.0, size.y - 31.0), "TARGET  /  62–72%", HORIZONTAL_ALIGNMENT_LEFT, -1.0, 10, MUTED)
@@ -270,9 +270,9 @@ class FilterDiagram extends Control:
 
 
 class NutrientDiagram extends Control:
-	const PALE := Color(0.96, 0.985, 1.0)
-	const MUTED := Color(0.7, 0.8, 0.83)
-	const GOLD := Color(1.0, 0.78, 0.38)
+	const PALE := Color(0.94, 0.91, 0.82)
+	const MUTED := Color(0.59, 0.69, 0.73)
+	const GOLD := Color(1.0, 0.77, 0.34)
 	const CYAN := Color(0.36, 0.9, 1.0)
 	const GREEN := Color(0.48, 0.93, 0.64)
 	const LEAF := Color(0.42, 0.9, 0.34)
@@ -290,12 +290,11 @@ class NutrientDiagram extends Control:
 
 	func _draw() -> void:
 		var card := Rect2(Vector2(8.0, 8.0), size - Vector2(16.0, 16.0))
-		draw_rect(card, Color(0.045, 0.083, 0.105), true)
-		draw_rect(card, Color(0.34, 0.51, 0.55), false, 1.0, false)
-		var font := ThemeDB.fallback_font
+		draw_style_box(get_theme_stylebox("normal", "InventorySlot"), card)
+		var font := get_theme_font("font", "Label")
 		if font == null:
 			return
-		draw_string(font, Vector2(24.0, 35.0), "HYDROPONIC LOOP  /  NUTRIENT MANIFOLD", HORIZONTAL_ALIGNMENT_LEFT, -1.0, 10, MUTED)
+		draw_string(font, Vector2(24.0, 35.0), "HYDROPONIC / NUTRIENT MANIFOLD", HORIZONTAL_ALIGNMENT_LEFT, -1.0, 12, MUTED)
 		draw_line(Vector2(24.0, 48.0), Vector2(size.x - 24.0, 48.0), Color(0.31, 0.47, 0.5), 1.0, false)
 
 		var aligned := all_aligned()
@@ -335,7 +334,7 @@ class NutrientDiagram extends Control:
 		var pump_accent := GREEN if aligned else CYAN
 		draw_line(pump_center, pump_center + Vector2(8.0, -6.0), pump_accent, 2.0, false)
 		draw_circle(pump_center, 2.0, PALE)
-		draw_string(font, Vector2(28.0, pump_rect.end.y + 15.0), "PUMP", HORIZONTAL_ALIGNMENT_LEFT, -1.0, 8, MUTED)
+		draw_string(font, Vector2(28.0, pump_rect.end.y + 15.0), "PUMP", HORIZONTAL_ALIGNMENT_LEFT, -1.0, 10, MUTED)
 
 		for index in range(3):
 			var tray_center: Vector2 = tray_centers[index]
@@ -346,14 +345,16 @@ class NutrientDiagram extends Control:
 			_draw_pipe(drop_points, CYAN.darkened(0.12), 6.0)
 		var return_color := GREEN if aligned else CYAN.darkened(0.12)
 		_draw_pipe(PackedVector2Array([Vector2(tray_centers[2].x, return_y), Vector2(pump_center.x, return_y), Vector2(pump_center.x, pipe_y + 29.0)]), return_color, 7.0)
-		draw_string(font, Vector2(size.x - 114.0, return_y - 7.0), "RETURN LINE", HORIZONTAL_ALIGNMENT_LEFT, -1.0, 8, MUTED)
+		draw_string(font, Vector2(size.x - 114.0, return_y - 7.0), "RETURN LINE", HORIZONTAL_ALIGNMENT_LEFT, -1.0, 10, MUTED)
 		_draw_flow_arrow(Vector2(size.x - 146.0, return_y), return_color)
 
 		for index in range(3):
 			var valve := valve_centers[index]
-			draw_string(font, Vector2(valve.x - 18.0, valve.y - 34.0), "V-%02d" % (index + 1), HORIZONTAL_ALIGNMENT_CENTER, 36.0, 8, MUTED)
-		draw_string(font, Vector2(24.0, size.y - 29.0), "SUPPLY  /  %s" % ("FLOWING" if aligned else "ROUTE INTERRUPTED"), HORIZONTAL_ALIGNMENT_LEFT, -1.0, 9, GREEN if aligned else GOLD)
-		draw_string(font, Vector2(size.x - 119.0, size.y - 29.0), "TARGET  /  ALL VALVES", HORIZONTAL_ALIGNMENT_LEFT, -1.0, 8, MUTED)
+			draw_string(font, Vector2(valve.x - 18.0, valve.y - 34.0), "V-%02d" % (index + 1), HORIZONTAL_ALIGNMENT_CENTER, 36.0, 10, MUTED)
+		draw_string(font, Vector2(24.0, size.y - 29.0), "SUPPLY / %s" % ("FLOWING" if aligned else "BLOCKED"), HORIZONTAL_ALIGNMENT_LEFT, -1.0, 10, GREEN if aligned else GOLD)
+		var target_text := "TARGET / 3 VALVES"
+		var target_width := font.get_string_size(target_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 10).x
+		draw_string(font, Vector2(size.x - 24.0 - target_width, size.y - 29.0), target_text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 10, MUTED)
 
 	func _draw_pipe(points: PackedVector2Array, accent: Color, width: float = 10.0) -> void:
 		draw_polyline(points, Color(0.008, 0.018, 0.025), width + 5.0, false)
@@ -465,6 +466,7 @@ func _ready() -> void:
 
 func _build_ui() -> void:
 	_root = Control.new()
+	SKIN.apply(_root)
 	_root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_root.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(_root)
@@ -481,17 +483,13 @@ func _build_ui() -> void:
 	_root.add_child(center)
 
 	var frame := PanelContainer.new()
-	frame.custom_minimum_size = Vector2(1100.0, 610.0)
-	var frame_style := _panel_style(Color(0.031, 0.067, 0.086, 0.99), Color(1.0, 0.78, 0.38, 0.94), 20.0)
-	frame_style.border_width_left = 3
-	frame_style.shadow_color = Color(0.0, 0.0, 0.0, 0.48)
-	frame_style.shadow_size = 5
-	frame_style.shadow_offset = Vector2(3.0, 4.0)
+	frame.custom_minimum_size = Vector2(1232.0, 672.0)
+	var frame_style := _panel_style(Color(0.031, 0.067, 0.086, 0.99), Color(1.0, 0.78, 0.38, 0.94), 16.0)
 	frame.add_theme_stylebox_override("panel", frame_style)
 	center.add_child(frame)
 
 	var layout := VBoxContainer.new()
-	layout.add_theme_constant_override("separation", 13)
+	layout.add_theme_constant_override("separation", 8)
 	frame.add_child(layout)
 	layout.add_child(_build_header())
 	var divider := HSeparator.new()
@@ -503,7 +501,7 @@ func _build_ui() -> void:
 
 func _build_header() -> Control:
 	var row := HBoxContainer.new()
-	row.custom_minimum_size.y = 55.0
+	row.custom_minimum_size.y = 48.0
 	row.add_theme_constant_override("separation", 14)
 
 	var badge := PanelContainer.new()
@@ -535,8 +533,8 @@ func _build_header() -> Control:
 	status_group.add_child(_centered(_status_label))
 	row.add_child(status_group)
 
-	_close_button = _button("×", Vector2(40.0, 40.0), GOLD)
-	_close_button.add_theme_font_size_override("font_size", 22)
+	_close_button = Button.new()
+	SKIN.close_button(_close_button)
 	_close_button.pressed.connect(_close_console)
 	row.add_child(_close_button)
 	return row
@@ -553,7 +551,7 @@ func _build_body() -> Control:
 
 func _build_sidebar() -> Control:
 	var sidebar := PanelContainer.new()
-	sidebar.custom_minimum_size.x = 245.0
+	sidebar.custom_minimum_size.x = 264.0
 	sidebar.add_theme_stylebox_override("panel", _panel_style(Color(0.025, 0.055, 0.074, 0.98), Color(0.34, 0.51, 0.55), 14.0))
 	var stack := VBoxContainer.new()
 	stack.add_theme_constant_override("separation", 10)
@@ -591,7 +589,7 @@ func _task_card(number: String, title: String, detail: String, active: bool) -> 
 	var card := PanelContainer.new()
 	card.custom_minimum_size.y = 72.0
 	var color := GOLD if active else Color(0.22, 0.35, 0.4)
-	card.add_theme_stylebox_override("panel", _panel_style(Color(0.045, 0.09, 0.105), color, 9.0))
+	card.add_theme_stylebox_override("panel", SKIN.panel(9.0, true, active))
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 9)
 	card.add_child(row)
@@ -611,9 +609,9 @@ func _task_card(number: String, title: String, detail: String, active: bool) -> 
 func _build_game_panel() -> Control:
 	var panel := PanelContainer.new()
 	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	panel.add_theme_stylebox_override("panel", _panel_style(Color(0.035, 0.068, 0.087, 0.99), Color(0.34, 0.51, 0.55), 18.0))
+	panel.add_theme_stylebox_override("panel", _panel_style(Color(0.035, 0.068, 0.087, 0.99), Color(0.34, 0.51, 0.55), 12.0))
 	_content_stack = VBoxContainer.new()
-	_content_stack.add_theme_constant_override("separation", 10)
+	_content_stack.add_theme_constant_override("separation", 8)
 	panel.add_child(_content_stack)
 
 	var game_heading := HBoxContainer.new()
@@ -658,13 +656,13 @@ func _build_game_panel() -> Control:
 		_build_hydroponics_game()
 
 	_success_banner = _label("", 11, GREEN)
+	_success_banner.custom_minimum_size.y = 30.0
 	_success_banner.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_content_stack.add_child(_success_banner)
 	_return_button = _button("[ RETURN TO SHIP ]", Vector2(190.0, 42.0), GOLD)
 	_return_button.size_flags_horizontal = Control.SIZE_SHRINK_END
 	_return_button.visible = false
 	_return_button.pressed.connect(_close_console)
-	_content_stack.add_child(_return_button)
 	return panel
 
 
@@ -681,7 +679,7 @@ func _build_power_game() -> void:
 	workspace.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	workspace.add_theme_constant_override("separation", 12)
 	_power_diagram = PowerDiagram.new()
-	_power_diagram.custom_minimum_size = Vector2(280.0, 300.0)
+	_power_diagram.custom_minimum_size = Vector2(350.0, 300.0)
 	_power_diagram.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_power_diagram.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	for index in range(3):
@@ -702,7 +700,7 @@ func _build_power_game() -> void:
 	control_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	control_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.045, 0.084, 0.103), Color(0.24, 0.39, 0.43), 14.0))
 	var control_stack := VBoxContainer.new()
-	control_stack.add_theme_constant_override("separation", 9)
+	control_stack.add_theme_constant_override("separation", 6)
 	control_panel.add_child(control_stack)
 	control_stack.add_child(_label("ENERGY RESERVOIRS", 10, GOLD))
 	for index in range(3):
@@ -790,7 +788,7 @@ func _build_hydroponics_game() -> void:
 	workspace.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	workspace.add_theme_constant_override("separation", 12)
 	_nutrient_diagram = NutrientDiagram.new()
-	_nutrient_diagram.custom_minimum_size = Vector2(330.0, 310.0)
+	_nutrient_diagram.custom_minimum_size = Vector2(350.0, 310.0)
 	_nutrient_diagram.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_nutrient_diagram.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_nutrient_diagram.rotations = _nutrient_rotations
@@ -798,7 +796,7 @@ func _build_hydroponics_game() -> void:
 	workspace.add_child(_nutrient_diagram)
 
 	var controls := PanelContainer.new()
-	controls.custom_minimum_size.x = 355.0
+	controls.custom_minimum_size.x = 450.0
 	controls.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	controls.add_theme_stylebox_override("panel", _panel_style(Color(0.045, 0.084, 0.103), Color(0.24, 0.39, 0.43), 13.0))
 	var control_stack := VBoxContainer.new()
@@ -827,7 +825,7 @@ func _build_hydroponics_game() -> void:
 		value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		_nutrient_rotation_labels.append(value_label)
 		row.add_child(value_label)
-		var rotate_button := _button("TURN 90°  ↻", Vector2(102.0, 39.0), CYAN)
+		var rotate_button := _button("TURN 90°", Vector2(102.0, 39.0), CYAN)
 		rotate_button.pressed.connect(_on_nutrient_rotate_pressed.bind(index))
 		_nutrient_rotate_buttons.append(rotate_button)
 		row.add_child(rotate_button)
@@ -905,7 +903,7 @@ func _build_filter_game() -> void:
 	workspace.add_theme_constant_override("separation", 14)
 
 	_filter_diagram = FilterDiagram.new()
-	_filter_diagram.custom_minimum_size = Vector2(270.0, 320.0)
+	_filter_diagram.custom_minimum_size = Vector2(350.0, 320.0)
 	_filter_diagram.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_filter_diagram.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	workspace.add_child(_filter_diagram)
@@ -962,7 +960,7 @@ func _on_filter_release_pressed() -> void:
 	_filter_action_box.add_child(_filter_stage_controls)
 	var rotate_row := HBoxContainer.new()
 	rotate_row.add_theme_constant_override("separation", 8)
-	var rotate_button := _button("ROTATE 90°  ↻", Vector2(0.0, 46.0), CYAN)
+	var rotate_button := _button("ROTATE 90°", Vector2(0.0, 46.0), CYAN)
 	rotate_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	rotate_button.pressed.connect(_on_filter_rotate_pressed)
 	rotate_row.add_child(rotate_button)
@@ -1018,7 +1016,7 @@ func _on_filter_seat_pressed() -> void:
 	_style_task_slider(_filter_pressure_slider, CYAN)
 	_filter_pressure_slider.value_changed.connect(_on_filter_pressure_changed)
 	_filter_stage_controls.add_child(_filter_pressure_slider)
-	_filter_stage_controls.add_child(_label("0%  /  LOW                                      HIGH  /  100%", 9, MUTED))
+	_filter_stage_controls.add_child(_pressure_scale())
 	_filter_pressure_button = _button("[ ✔ STABILIZE AIRFLOW & SEAL DUCT ]", Vector2(0.0, 46.0), GOLD)
 	_filter_pressure_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_filter_pressure_button.disabled = true
@@ -1085,11 +1083,12 @@ func _refresh_filter_step_footer() -> void:
 
 func _build_footer() -> Control:
 	var footer := HBoxContainer.new()
-	footer.custom_minimum_size.y = 24.0
+	footer.custom_minimum_size.y = 42.0
 	footer.add_theme_constant_override("separation", 8)
 	footer.add_child(_label("FIELD TERMINAL  /  EREBOS DEEP-SPACE SURVEY", 9, MUTED))
 	footer.add_spacer(false)
 	footer.add_child(_label("ESC  CLOSE CONSOLE", 9, MUTED))
+	footer.add_child(_return_button)
 	return footer
 
 
@@ -1102,73 +1101,37 @@ func _centered(control: Control) -> Control:
 func _label(text: String, font_size: int, color: Color) -> Label:
 	var label := Label.new()
 	label.text = text
-	label.add_theme_font_size_override("font_size", font_size)
+	label.add_theme_font_size_override("font_size", maxi(12, font_size))
 	label.add_theme_color_override("font_color", color)
 	return label
 
 
-func _button(text: String, minimum_size: Vector2, accent: Color) -> Button:
+func _button(text: String, minimum_size: Vector2, _accent: Color) -> Button:
 	var button := Button.new()
 	button.text = text
 	button.custom_minimum_size = minimum_size
 	button.focus_mode = Control.FOCUS_ALL
-	button.add_theme_font_size_override("font_size", 11)
-	button.add_theme_color_override("font_color", PALE)
-	button.add_theme_color_override("font_hover_color", PALE)
-	button.add_theme_color_override("font_pressed_color", PALE)
-	button.add_theme_color_override("font_disabled_color", MUTED)
-	button.add_theme_stylebox_override("normal", _terminal_style(accent, false))
-	button.add_theme_stylebox_override("hover", _terminal_style(accent, true))
-	button.add_theme_stylebox_override("pressed", _terminal_style(accent, true))
-	button.add_theme_stylebox_override("focus", _terminal_style(accent, true))
-	button.add_theme_stylebox_override("disabled", _terminal_style(accent.darkened(0.5), false))
+	button.add_theme_font_size_override("font_size", 12)
 	return button
 
+func _style_task_slider(slider: HSlider, _accent: Color) -> void:
+	slider.custom_minimum_size.y = maxf(28.0, slider.custom_minimum_size.y)
+	slider.focus_mode = Control.FOCUS_ALL
 
-func _style_task_slider(slider: HSlider, accent: Color) -> void:
-	var track := StyleBoxFlat.new()
-	track.bg_color = Color(0.018, 0.036, 0.047)
-	track.border_color = Color(0.34, 0.51, 0.55)
-	track.set_border_width_all(1)
-	track.set_corner_radius_all(0)
-	track.content_margin_top = 4.0
-	track.content_margin_bottom = 4.0
-	slider.add_theme_stylebox_override("slider", track)
-	var active_track := StyleBoxFlat.new()
-	active_track.bg_color = Color(accent.r, accent.g, accent.b, 0.78)
-	active_track.set_corner_radius_all(0)
-	active_track.content_margin_top = 4.0
-	active_track.content_margin_bottom = 4.0
-	slider.add_theme_stylebox_override("grabber_area", active_track)
-	slider.add_theme_stylebox_override("grabber_area_highlight", active_track)
+func _pressure_scale() -> HBoxContainer:
+	var row := HBoxContainer.new()
+	row.add_child(_label("0% / LOW", 12, MUTED))
+	row.add_spacer(false)
+	row.add_child(_label("HIGH / 100%", 12, MUTED))
+	return row
 
-
-func _terminal_style(accent: Color, highlighted: bool) -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.045, 0.084, 0.103) if not highlighted else Color(0.068, 0.125, 0.141)
-	style.border_color = accent if highlighted else Color(accent.r, accent.g, accent.b, 0.86)
-	style.set_border_width_all(1)
-	style.border_width_left = 3
-	style.set_corner_radius_all(0)
-	style.content_margin_left = 11.0
-	style.content_margin_right = 10.0
-	style.content_margin_top = 7.0
-	style.content_margin_bottom = 7.0
-	return style
-
-
-func _panel_style(background: Color, border: Color, padding: float) -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = background
-	style.border_color = border
-	style.set_border_width_all(1)
-	style.set_corner_radius_all(0)
-	style.content_margin_left = padding
-	style.content_margin_right = padding
-	style.content_margin_top = padding
-	style.content_margin_bottom = padding
-	return style
-
+func _panel_style(background: Color, _border: Color, padding: float) -> StyleBox:
+	# The only unframed areas are the solid progress-bar fills.
+	if padding <= 0.0:
+		var fill := StyleBoxFlat.new()
+		fill.bg_color = background
+		return fill
+	return SKIN.panel(padding, padding < 16.0)
 
 func _unhandled_key_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ESCAPE:

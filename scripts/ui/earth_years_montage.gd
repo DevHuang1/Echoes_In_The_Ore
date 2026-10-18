@@ -1,5 +1,7 @@
 extends Control
 
+const SKIN := preload("res://scripts/ui/pixel_ui.gd")
+
 const GAMEPLAY_SCENE := "res://scenes/ship/bare_ship_walkthrough.tscn"
 const TYPEWRITER_CHARACTERS_PER_SECOND := 38.0
 const POST_SUBTITLE_HOLD_SECONDS := 2.6
@@ -97,6 +99,7 @@ var _finished := false
 
 
 func _ready() -> void:
+	SKIN.apply(self)
 	_build_ui()
 	_show_frame(0)
 	_transitioning = true
@@ -147,13 +150,12 @@ func _build_ui() -> void:
 	image_tint.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(image_tint)
 
-	var top_bar := ColorRect.new()
-	top_bar.color = Color(0.0, 0.0, 0.0, 0.38)
+	var top_bar := Panel.new()
+	top_bar.add_theme_stylebox_override("panel", SKIN.panel())
 	top_bar.anchor_left = 0.0
 	top_bar.anchor_top = 0.0
 	top_bar.anchor_right = 1.0
-	top_bar.anchor_bottom = 0.0
-	top_bar.offset_bottom = 32.0
+	top_bar.anchor_bottom = 0.13
 	top_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(top_bar)
 
@@ -175,18 +177,15 @@ func _build_ui() -> void:
 	_skip_button.anchor_right = 0.96
 	_skip_button.anchor_bottom = 0.105
 	_skip_button.add_theme_font_size_override("font_size", 14)
-	_skip_button.add_theme_color_override("font_color", Color(0.91, 0.93, 0.94))
-	_skip_button.add_theme_stylebox_override("normal", _button_style(Color(0.015, 0.027, 0.045, 0.72), Color(0.48, 0.52, 0.54, 0.65)))
-	_skip_button.add_theme_stylebox_override("hover", _button_style(Color(0.12, 0.18, 0.23, 0.94), Color(0.83, 0.68, 0.42)))
 	_skip_button.pressed.connect(_enter_game)
 	add_child(_skip_button)
 
-	var subtitle_panel := ColorRect.new()
+	var subtitle_panel := Panel.new()
 	subtitle_panel.anchor_left = 0.0
 	subtitle_panel.anchor_top = 0.775
 	subtitle_panel.anchor_right = 1.0
 	subtitle_panel.anchor_bottom = 1.0
-	subtitle_panel.color = Color(0.008, 0.016, 0.027, 0.91)
+	subtitle_panel.add_theme_stylebox_override("panel", SKIN.panel())
 	subtitle_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(subtitle_panel)
 
@@ -232,27 +231,23 @@ func _build_ui() -> void:
 	_subtitle_label = Label.new()
 	_subtitle_label.anchor_left = 0.05
 	_subtitle_label.anchor_top = 0.84
-	_subtitle_label.anchor_right = 0.79
+	_subtitle_label.anchor_right = 0.75
 	_subtitle_label.anchor_bottom = 0.975
 	_subtitle_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_subtitle_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_subtitle_label.add_theme_font_size_override("font_size", 24)
+	_subtitle_label.add_theme_font_size_override("font_size", 20)
 	_subtitle_label.add_theme_color_override("font_color", Color(0.96, 0.96, 0.92))
-	_subtitle_label.add_theme_constant_override("outline_size", 2)
+	_subtitle_label.add_theme_constant_override("outline_size", 0)
 	_subtitle_label.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 0.0, 0.8))
 	add_child(_subtitle_label)
 
 	_next_button = Button.new()
 	_next_button.text = "[ PROCEED  › ]"
-	_next_button.anchor_left = 0.835
+	_next_button.anchor_left = 0.78
 	_next_button.anchor_top = 0.875
 	_next_button.anchor_right = 0.96
 	_next_button.anchor_bottom = 0.955
 	_next_button.add_theme_font_size_override("font_size", 16)
-	_next_button.add_theme_color_override("font_color", Color(0.97, 0.95, 0.89))
-	_next_button.add_theme_stylebox_override("normal", _button_style(Color(0.07, 0.13, 0.19, 0.94), Color(0.77, 0.61, 0.34)))
-	_next_button.add_theme_stylebox_override("hover", _button_style(Color(0.84, 0.68, 0.4, 0.98), Color(0.98, 0.83, 0.57)))
-	_next_button.add_theme_color_override("font_hover_color", Color(0.08, 0.07, 0.05))
 	_next_button.pressed.connect(_advance)
 	add_child(_next_button)
 
@@ -261,23 +256,6 @@ func _build_ui() -> void:
 	_fade_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_fade_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_fade_overlay)
-
-
-func _button_style(background: Color, border: Color) -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = background
-	style.border_color = border
-	style.set_border_width_all(1)
-	style.border_width_left = 3
-	style.corner_radius_top_left = 3
-	style.corner_radius_top_right = 3
-	style.corner_radius_bottom_left = 3
-	style.corner_radius_bottom_right = 3
-	style.content_margin_left = 16.0
-	style.content_margin_right = 16.0
-	style.content_margin_top = 8.0
-	style.content_margin_bottom = 8.0
-	return style
 
 
 func _show_frame(index: int) -> void:

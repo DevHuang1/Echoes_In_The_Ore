@@ -1,0 +1,25 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/ship/props/crew_quarters/crew_quarters_prop.tscn" id="1_base"]
+[ext_resource type="Texture2D" path="res://art/concepts/crew_living_quarter_props/Four-direction crew quarters drawer chest.png" id="2_artwork"]
+
+[sub_resource type="AtlasTexture" id="Atlas_initial"]
+atlas = ExtResource("2_artwork")
+region = Rect2(864, 85, 449, 359)
+filter_clip = true
+
+[node name="ThreeDrawerChest" instance=ExtResource("1_base")]
+artwork = ExtResource("2_artwork")
+atlas_regions = Array[Rect2]([Rect2(223, 85, 450, 359), Rect2(864, 85, 449, 359), Rect2(350, 510, 224, 406), Rect2(962, 509, 225, 407)])
+floor_anchors = PackedVector2Array(225, 285, 223, 285, 110, 334, 113, 335)
+view_names = PackedStringArray("North (rear)", "South (drawers)", "East (drawers right)", "West (drawers left)")
+direction = 1
+artwork_scale = 0.085
+footprint_size = Vector2(34, 12)
+footprint_side_size = Vector2(14, 12)
+
+[node name="Sprite2D" parent="." index="0"]
+position = Vector2(-18.955, -24.225)
+scale = Vector2(0.085, 0.085)
+texture = SubResource("Atlas_initial")
+

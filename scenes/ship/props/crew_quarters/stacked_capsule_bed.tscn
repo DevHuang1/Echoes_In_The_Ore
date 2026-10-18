@@ -1,0 +1,25 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/ship/props/crew_quarters/crew_quarters_prop.tscn" id="1_base"]
+[ext_resource type="Texture2D" path="res://art/concepts/crew_living_quarter_props/Sleeping Pod With Continuous Right-Side Ladder.png" id="2_artwork"]
+
+[sub_resource type="AtlasTexture" id="Atlas_initial"]
+atlas = ExtResource("2_artwork")
+region = Rect2(194, 99, 637, 1312)
+filter_clip = true
+
+[node name="StackedCapsuleBed" instance=ExtResource("1_base")]
+artwork = ExtResource("2_artwork")
+atlas_regions = Array[Rect2]([Rect2(194, 99, 637, 1312)])
+floor_anchors = PackedVector2Array(322, 1216)
+view_names = PackedStringArray("South-facing entrances (fixed)")
+direction = 0
+artwork_scale = 0.075
+footprint_size = Vector2(38, 12)
+footprint_side_size = Vector2(38, 12)
+
+[node name="Sprite2D" parent="." index="0"]
+position = Vector2(-24.15, -91.2)
+scale = Vector2(0.075, 0.075)
+texture = SubResource("Atlas_initial")
+

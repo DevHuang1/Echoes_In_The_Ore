@@ -1,10 +1,12 @@
 extends CanvasLayer
 
+const SKIN := preload("res://scripts/ui/pixel_ui.gd")
+
 signal dismissed
 
-const GOLD := Color(0.91, 0.69, 0.36)
-const PALE := Color(0.91, 0.94, 0.95)
-const MUTED := Color(0.62, 0.7, 0.75)
+const GOLD := Color(1.0, 0.77, 0.34)
+const PALE := Color(0.94, 0.91, 0.82)
+const MUTED := Color(0.59, 0.69, 0.73)
 const GREEN := Color(0.48, 0.93, 0.64)
 
 var _root: Control
@@ -22,6 +24,7 @@ func _ready() -> void:
 
 func _build_ui() -> void:
 	_root = Control.new()
+	SKIN.apply(_root)
 	_root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_root.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(_root)
@@ -38,7 +41,7 @@ func _build_ui() -> void:
 	_root.add_child(center)
 
 	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(1040.0, 0.0)
+	panel.custom_minimum_size = Vector2(1120.0, 0.0)
 	panel.add_theme_stylebox_override("panel", _panel_style())
 	center.add_child(panel)
 
@@ -104,12 +107,7 @@ func _build_ui() -> void:
 	_continue_button.text = "[ ✔ ENTER SHIP DECK  → ]"
 	_continue_button.custom_minimum_size = Vector2(250.0, 50.0)
 	_continue_button.size_flags_horizontal = Control.SIZE_SHRINK_END
-	_continue_button.add_theme_font_size_override("font_size", 15)
-	_continue_button.add_theme_color_override("font_color", Color(0.07, 0.08, 0.08))
-	_continue_button.add_theme_color_override("font_hover_color", Color(0.07, 0.08, 0.08))
-	_continue_button.add_theme_stylebox_override("normal", _button_style(Color(0.89, 0.68, 0.36), Color(0.99, 0.82, 0.53)))
-	_continue_button.add_theme_stylebox_override("hover", _button_style(Color(0.98, 0.8, 0.49), Color(1.0, 0.9, 0.69)))
-	_continue_button.add_theme_stylebox_override("focus", _button_style(Color(0.89, 0.68, 0.36), Color(1.0, 0.94, 0.79)))
+	_continue_button.add_theme_font_size_override("font_size", 16)
 	_continue_button.pressed.connect(_dismiss)
 	content.add_child(_continue_button)
 
@@ -117,7 +115,7 @@ func _build_ui() -> void:
 func _label(text: String, font_size: int, color: Color) -> Label:
 	var label := Label.new()
 	label.text = text
-	label.add_theme_font_size_override("font_size", font_size)
+	label.add_theme_font_size_override("font_size", maxi(12, font_size))
 	label.add_theme_color_override("font_color", color)
 	return label
 
@@ -143,57 +141,11 @@ func _info_card(heading: String, title: String, detail: String) -> PanelContaine
 	return card
 
 
-func _panel_style() -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.018, 0.041, 0.063, 0.98)
-	style.border_color = Color(0.75, 0.58, 0.34, 0.9)
-	style.set_border_width_all(1)
-	style.border_width_left = 3
-	style.corner_radius_top_left = 6
-	style.corner_radius_top_right = 6
-	style.corner_radius_bottom_left = 6
-	style.corner_radius_bottom_right = 6
-	style.content_margin_left = 36.0
-	style.content_margin_right = 36.0
-	style.content_margin_top = 28.0
-	style.content_margin_bottom = 26.0
-	style.shadow_color = Color(0.0, 0.0, 0.0, 0.5)
-	style.shadow_size = 6
-	style.shadow_offset = Vector2(3.0, 4.0)
-	return style
+func _panel_style() -> StyleBox:
+	return SKIN.panel(24.0)
 
-
-func _card_style() -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.035, 0.071, 0.096, 0.96)
-	style.border_color = Color(0.27, 0.36, 0.4, 0.85)
-	style.set_border_width_all(1)
-	style.corner_radius_top_left = 4
-	style.corner_radius_top_right = 4
-	style.corner_radius_bottom_left = 4
-	style.corner_radius_bottom_right = 4
-	style.content_margin_left = 14.0
-	style.content_margin_right = 14.0
-	style.content_margin_top = 12.0
-	style.content_margin_bottom = 10.0
-	return style
-
-
-func _button_style(background: Color, border: Color) -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = background
-	style.border_color = border
-	style.set_border_width_all(1)
-	style.corner_radius_top_left = 4
-	style.corner_radius_top_right = 4
-	style.corner_radius_bottom_left = 4
-	style.corner_radius_bottom_right = 4
-	style.content_margin_left = 18.0
-	style.content_margin_right = 18.0
-	style.content_margin_top = 8.0
-	style.content_margin_bottom = 8.0
-	return style
-
+func _card_style() -> StyleBox:
+	return SKIN.panel(14.0, true)
 
 func _unhandled_key_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
