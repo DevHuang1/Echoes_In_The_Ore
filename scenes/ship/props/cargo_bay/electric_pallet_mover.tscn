@@ -1,0 +1,26 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/ship/props/cargo_bay/cargo_bay_prop.tscn" id="base"]
+[ext_resource type="Texture2D" path="res://art/concepts/cargo_bay_props/Pixel-art four-view electric pallet mover-2.png" id="art"]
+
+[sub_resource type="AtlasTexture" id="initial"]
+atlas = ExtResource("art")
+region = Rect2(64, 675, 616, 356)
+filter_clip = true
+
+[node name="ElectricPalletMover" instance=ExtResource("base")]
+artwork = ExtResource("art")
+atlas_regions = Array[Rect2]([Rect2(324, 46, 257, 603), Rect2(921, 30, 224, 641), Rect2(64, 675, 616, 356), Rect2(773, 675, 616, 356)])
+floor_anchors = PackedVector2Array(128, 574, 113, 300, 153, 325, 513, 325)
+view_names = PackedStringArray("North (forks up)", "South (forks down)", "East (forks right)", "West (forks left)")
+facing_vectors = PackedVector2Array(0, -1, 0, 1, 1, 0, -1, 0)
+direction = 2
+artwork_scale = 0.1
+footprint_size = Vector2(22, 14)
+footprint_side_size = Vector2(20, 14)
+footprint_kind = 1
+
+[node name="Sprite2D" parent="." index="0"]
+position = Vector2(-15.3, -32.5)
+scale = Vector2(0.1, 0.1)
+texture = SubResource("initial")

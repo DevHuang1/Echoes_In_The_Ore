@@ -1,0 +1,26 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/ship/props/cargo_bay/cargo_bay_prop.tscn" id="base"]
+[ext_resource type="Texture2D" path="res://art/concepts/engine_room_props/16-Bit Coolant Unit Sprite Sheet-2.png" id="art"]
+
+[sub_resource type="AtlasTexture" id="initial"]
+atlas = ExtResource("art")
+region = Rect2(799, 17, 605, 464)
+filter_clip = true
+
+[node name="CoolantCirculationPump" instance=ExtResource("base")]
+artwork = ExtResource("art")
+atlas_regions = Array[Rect2]([Rect2(132, 17, 605, 464), Rect2(799, 17, 605, 464), Rect2(141, 482, 506, 513), Rect2(885, 482, 510, 513)])
+floor_anchors = PackedVector2Array(301, 434, 302, 434, 245, 479, 257, 479)
+view_names = PackedStringArray("North (rear, motor right)", "South (controls, motor left)", "West (fan left)", "East (fan right)")
+facing_vectors = PackedVector2Array(0, -1, 0, 1, -1, 0, 1, 0)
+direction = 1
+artwork_scale = 0.105
+footprint_size = Vector2(57, 10)
+footprint_side_size = Vector2(43, 11)
+footprint_offset = Vector2(0, -2)
+
+[node name="Sprite2D" parent="." index="0"]
+position = Vector2(-31.709999999999997, -45.57)
+scale = Vector2(0.105, 0.105)
+texture = SubResource("initial")

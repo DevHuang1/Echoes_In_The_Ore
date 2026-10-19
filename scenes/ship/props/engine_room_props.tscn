@@ -1,0 +1,49 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/ship/props/engine_room/turbine_module.tscn" id="turbine"]
+[ext_resource type="PackedScene" path="res://scenes/ship/props/engine_room/coolant_circulation_pump.tscn" id="pump"]
+[ext_resource type="PackedScene" path="res://scenes/ship/props/engine_room/fuel_valve_manifold.tscn" id="manifold"]
+[ext_resource type="PackedScene" path="res://scenes/ship/props/cargo_bay/cargo_locker.tscn" id="locker"]
+
+[node name="EngineRoomProps" type="Node2D"]
+y_sort_enabled = true
+
+[node name="TurbineUpper" parent="." instance=ExtResource("turbine")]
+position = Vector2(69, 126)
+direction = 2
+
+[node name="TurbineLower" parent="." instance=ExtResource("turbine")]
+position = Vector2(69, 269)
+direction = 2
+
+[node name="CoolantPumpUpper" parent="." instance=ExtResource("pump")]
+position = Vector2(154, 109)
+direction = 1
+
+[node name="CoolantPumpLower" parent="." instance=ExtResource("pump")]
+position = Vector2(154, 283)
+direction = 1
+
+[node name="ValveManifoldUpper" parent="." instance=ExtResource("manifold")]
+position = Vector2(73, 62)
+direction = 1
+
+[node name="ValveManifoldLower" parent="." instance=ExtResource("manifold")]
+position = Vector2(73, 228)
+direction = 1
+
+[node name="LockerUpper" parent="." instance=ExtResource("locker")]
+position = Vector2(233, 128)
+direction = 3
+
+[node name="LockerLower" parent="." instance=ExtResource("locker")]
+position = Vector2(201, 244)
+direction = 3
+
+[node name="TurbineMiddleWest" parent="." instance=ExtResource("turbine")]
+position = Vector2(69, 173)
+direction = 2
+
+[node name="TurbineMiddleEast" parent="." instance=ExtResource("turbine")]
+position = Vector2(188, 186)
+direction = 2
