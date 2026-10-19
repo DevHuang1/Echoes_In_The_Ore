@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://tools/validate_engine_room.gd" id="script"]
+
+[node name="EngineRoomValidation" type="Node"]
+script = ExtResource("script")

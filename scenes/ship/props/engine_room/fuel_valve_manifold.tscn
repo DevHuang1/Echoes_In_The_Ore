@@ -1,0 +1,26 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/ship/props/cargo_bay/cargo_bay_prop.tscn" id="base"]
+[ext_resource type="Texture2D" path="res://art/concepts/engine_room_props/Retro 16-bit fuel manifold sprite sheet-3.png" id="art"]
+
+[sub_resource type="AtlasTexture" id="initial"]
+atlas = ExtResource("art")
+region = Rect2(801, 14, 729, 472)
+filter_clip = true
+
+[node name="FuelValveManifold" instance=ExtResource("base")]
+artwork = ExtResource("art")
+atlas_regions = Array[Rect2]([Rect2(46, 14, 721, 472), Rect2(801, 14, 729, 472), Rect2(295, 499, 290, 477), Rect2(949, 499, 294, 477)])
+floor_anchors = PackedVector2Array(363, 453, 366, 453, 121, 460, 173, 460)
+view_names = PackedStringArray("North (rear)", "South (three handwheels)", "East (wheel right)", "West (wheel left)")
+facing_vectors = PackedVector2Array(0, -1, 0, 1, 1, 0, -1, 0)
+direction = 1
+artwork_scale = 0.1
+footprint_size = Vector2(59, 8)
+footprint_side_size = Vector2(22, 10)
+footprint_offset = Vector2(0, -2)
+
+[node name="Sprite2D" parent="." index="0"]
+position = Vector2(-36.6, -45.300000000000004)
+scale = Vector2(0.1, 0.1)
+texture = SubResource("initial")

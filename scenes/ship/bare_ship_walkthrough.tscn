@@ -16,6 +16,8 @@
 [ext_resource type="PackedScene" path="res://scenes/ship/props/ship_vent_network.tscn" id="13_vent_network"]
 [ext_resource type="PackedScene" path="res://scenes/ship/props/ship_fog_halo.tscn" id="14_fog"]
 [ext_resource type="PackedScene" path="res://scenes/ship/props/crew_living_quarter_props.tscn" id="15_crew_quarters"]
+[ext_resource type="PackedScene" path="res://scenes/ship/props/cargo_bay_props.tscn" id="16_cargo"]
+[ext_resource type="PackedScene" path="res://scenes/ship/props/engine_room_props.tscn" id="17_engine"]
 
 [node name="BareShipWalkthrough" type="Node2D" unique_id=1816551452]
 y_sort_enabled = true
@@ -43,6 +45,322 @@ position = Vector2(682, 269)
 
 [node name="ShipVentNetwork" parent="." unique_id=429064525 instance=ExtResource("13_vent_network")]
 
+[node name="CargoBayProps" parent="." unique_id=651911709 instance=ExtResource("16_cargo")]
+position = Vector2(697, 405)
+
+[node name="ElectricPalletMover" parent="CargoBayProps" index="0"]
+position = Vector2(104, 80)
+appearance_names = PackedStringArray()
+crop_outlines = Array[PackedVector2Array]([])
+hide_markers_enabled = false
+appearance = 0
+collision_enabled = true
+fork_north_length = 40.0
+fork_south_length = 31.0
+fork_side_length = 38.0
+fork_width = 6.0
+fork_spacing = 14.0
+fork_side_width = 3.0
+fork_north_offset = 37.0
+fork_south_offset = 18.0
+fork_side_offset = Vector2(27, 32)
+access_distance = 30.0
+access_offset = Vector2(0, 0)
+hide_offset = Vector2(0, 0)
+
+[node name="CargoInspectionScale" parent="CargoBayProps" index="1"]
+position = Vector2(360, 80)
+appearance_names = PackedStringArray()
+crop_outlines = Array[PackedVector2Array]([])
+hide_markers_enabled = false
+appearance = 0
+collision_enabled = true
+fork_north_length = 40.0
+fork_south_length = 31.0
+fork_side_length = 38.0
+fork_width = 6.0
+fork_spacing = 14.0
+fork_side_width = 3.0
+fork_north_offset = 37.0
+fork_south_offset = 18.0
+fork_side_offset = Vector2(27, 32)
+access_distance = 30.0
+access_offset = Vector2(0, 0)
+hide_offset = Vector2(0, 0)
+
+[node name="SecuredCylinderRack" parent="CargoBayProps" index="2"]
+position = Vector2(296, 92)
+appearance_names = PackedStringArray()
+crop_outlines = Array[PackedVector2Array]([])
+hide_markers_enabled = false
+appearance = 0
+collision_enabled = true
+fork_north_length = 40.0
+fork_south_length = 31.0
+fork_side_length = 38.0
+fork_width = 6.0
+fork_spacing = 14.0
+fork_side_width = 3.0
+fork_north_offset = 37.0
+fork_south_offset = 18.0
+fork_side_offset = Vector2(27, 32)
+access_distance = 30.0
+access_offset = Vector2(0, 0)
+hide_offset = Vector2(0, 0)
+
+[node name="MaintenanceTrolley" parent="CargoBayProps" index="3"]
+position = Vector2(248, 211)
+appearance_names = PackedStringArray()
+crop_outlines = Array[PackedVector2Array]([])
+hide_markers_enabled = false
+appearance = 0
+collision_enabled = true
+fork_north_length = 40.0
+fork_south_length = 31.0
+fork_side_length = 38.0
+fork_width = 6.0
+fork_spacing = 14.0
+fork_side_width = 3.0
+fork_north_offset = 37.0
+fork_south_offset = 18.0
+fork_side_offset = Vector2(27, 32)
+access_distance = 30.0
+access_offset = Vector2(0, 0)
+hide_offset = Vector2(0, 0)
+
+[node name="CargoLocker" parent="CargoBayProps" index="4"]
+appearance = 0
+collision_enabled = true
+fork_north_length = 40.0
+fork_south_length = 31.0
+fork_side_length = 38.0
+fork_width = 6.0
+fork_spacing = 14.0
+fork_side_width = 3.0
+fork_north_offset = 37.0
+fork_south_offset = 18.0
+fork_side_offset = Vector2(27, 32)
+access_offset = Vector2(0, 0)
+
+[node name="TiedBoxBundle" parent="CargoBayProps" index="5"]
+position = Vector2(118, 202)
+appearance_names = PackedStringArray()
+crop_outlines = Array[PackedVector2Array]([])
+appearance = 0
+collision_enabled = true
+fork_north_length = 40.0
+fork_south_length = 31.0
+fork_side_length = 38.0
+fork_width = 6.0
+fork_spacing = 14.0
+fork_side_width = 3.0
+fork_north_offset = 37.0
+fork_south_offset = 18.0
+fork_side_offset = Vector2(27, 32)
+access_offset = Vector2(0, 0)
+
+[node name="EngineRoomProps" parent="." unique_id=2077117237 instance=ExtResource("17_engine")]
+position = Vector2(1347, 224)
+
+[node name="TurbineUpper" parent="EngineRoomProps" index="0"]
+position = Vector2(51, 52)
+appearance_names = PackedStringArray()
+crop_outlines = Array[PackedVector2Array]([])
+footprint_kind = 0
+hide_markers_enabled = false
+appearance = 0
+collision_enabled = true
+fork_north_length = 40.0
+fork_south_length = 31.0
+fork_side_length = 38.0
+fork_width = 6.0
+fork_spacing = 14.0
+fork_side_width = 3.0
+fork_north_offset = 37.0
+fork_south_offset = 18.0
+fork_side_offset = Vector2(27, 32)
+access_distance = 30.0
+access_offset = Vector2(0, 0)
+hide_offset = Vector2(0, 0)
+
+[node name="TurbineLower" parent="EngineRoomProps" index="1"]
+position = Vector2(55, 272)
+appearance_names = PackedStringArray()
+crop_outlines = Array[PackedVector2Array]([])
+footprint_kind = 0
+hide_markers_enabled = false
+appearance = 0
+collision_enabled = true
+fork_north_length = 40.0
+fork_south_length = 31.0
+fork_side_length = 38.0
+fork_width = 6.0
+fork_spacing = 14.0
+fork_side_width = 3.0
+fork_north_offset = 37.0
+fork_south_offset = 18.0
+fork_side_offset = Vector2(27, 32)
+access_distance = 30.0
+access_offset = Vector2(0, 0)
+hide_offset = Vector2(0, 0)
+
+[node name="CoolantPumpUpper" parent="EngineRoomProps" index="2"]
+position = Vector2(52, 122)
+appearance_names = PackedStringArray()
+crop_outlines = Array[PackedVector2Array]([])
+footprint_kind = 0
+hide_markers_enabled = false
+appearance = 0
+collision_enabled = true
+fork_north_length = 40.0
+fork_south_length = 31.0
+fork_side_length = 38.0
+fork_width = 6.0
+fork_spacing = 14.0
+fork_side_width = 3.0
+fork_north_offset = 37.0
+fork_south_offset = 18.0
+fork_side_offset = Vector2(27, 32)
+access_distance = 30.0
+access_offset = Vector2(0, 0)
+hide_offset = Vector2(0, 0)
+
+[node name="CoolantPumpLower" parent="EngineRoomProps" index="3"]
+position = Vector2(142, 313)
+appearance_names = PackedStringArray()
+crop_outlines = Array[PackedVector2Array]([])
+footprint_kind = 0
+hide_markers_enabled = false
+appearance = 0
+collision_enabled = true
+fork_north_length = 40.0
+fork_south_length = 31.0
+fork_side_length = 38.0
+fork_width = 6.0
+fork_spacing = 14.0
+fork_side_width = 3.0
+fork_north_offset = 37.0
+fork_south_offset = 18.0
+fork_side_offset = Vector2(27, 32)
+access_distance = 30.0
+access_offset = Vector2(0, 0)
+hide_offset = Vector2(0, 0)
+
+[node name="ValveManifoldUpper" parent="EngineRoomProps" index="4"]
+position = Vector2(120, 57)
+appearance_names = PackedStringArray()
+crop_outlines = Array[PackedVector2Array]([])
+footprint_kind = 0
+hide_markers_enabled = false
+appearance = 0
+collision_enabled = true
+fork_north_length = 40.0
+fork_south_length = 31.0
+fork_side_length = 38.0
+fork_width = 6.0
+fork_spacing = 14.0
+fork_side_width = 3.0
+fork_north_offset = 37.0
+fork_south_offset = 18.0
+fork_side_offset = Vector2(27, 32)
+access_distance = 30.0
+access_offset = Vector2(0, 0)
+hide_offset = Vector2(0, 0)
+artwork_scale = 0.08
+
+[node name="ValveManifoldLower" parent="EngineRoomProps" index="5"]
+position = Vector2(143, 270)
+appearance_names = PackedStringArray()
+crop_outlines = Array[PackedVector2Array]([])
+footprint_kind = 0
+hide_markers_enabled = false
+appearance = 0
+collision_enabled = true
+fork_north_length = 40.0
+fork_south_length = 31.0
+fork_side_length = 38.0
+fork_width = 6.0
+fork_spacing = 14.0
+fork_side_width = 3.0
+fork_north_offset = 37.0
+fork_south_offset = 18.0
+fork_side_offset = Vector2(27, 32)
+access_distance = 30.0
+access_offset = Vector2(0, 0)
+hide_offset = Vector2(0, 0)
+artwork_scale = 0.08
+
+[node name="LockerUpper" parent="EngineRoomProps" index="6"]
+appearance = 0
+collision_enabled = true
+fork_north_length = 40.0
+fork_south_length = 31.0
+fork_side_length = 38.0
+fork_width = 6.0
+fork_spacing = 14.0
+fork_side_width = 3.0
+fork_north_offset = 37.0
+fork_south_offset = 18.0
+fork_side_offset = Vector2(27, 32)
+access_offset = Vector2(0, 0)
+
+[node name="LockerLower" parent="EngineRoomProps" index="7"]
+position = Vector2(233, 179)
+appearance = 0
+collision_enabled = true
+fork_north_length = 40.0
+fork_south_length = 31.0
+fork_side_length = 38.0
+fork_width = 6.0
+fork_spacing = 14.0
+fork_side_width = 3.0
+fork_north_offset = 37.0
+fork_south_offset = 18.0
+fork_side_offset = Vector2(27, 32)
+access_offset = Vector2(0, 0)
+
+[node name="TurbineMiddleWest" parent="EngineRoomProps" index="8"]
+position = Vector2(52, 89)
+appearance_names = PackedStringArray()
+crop_outlines = Array[PackedVector2Array]([])
+footprint_kind = 0
+hide_markers_enabled = false
+appearance = 0
+collision_enabled = true
+fork_north_length = 40.0
+fork_south_length = 31.0
+fork_side_length = 38.0
+fork_width = 6.0
+fork_spacing = 14.0
+fork_side_width = 3.0
+fork_north_offset = 37.0
+fork_south_offset = 18.0
+fork_side_offset = Vector2(27, 32)
+access_distance = 30.0
+access_offset = Vector2(0, 0)
+hide_offset = Vector2(0, 0)
+
+[node name="TurbineMiddleEast" parent="EngineRoomProps" index="9"]
+position = Vector2(55, 232)
+appearance_names = PackedStringArray()
+crop_outlines = Array[PackedVector2Array]([])
+footprint_kind = 0
+hide_markers_enabled = false
+appearance = 0
+collision_enabled = true
+fork_north_length = 40.0
+fork_south_length = 31.0
+fork_side_length = 38.0
+fork_width = 6.0
+fork_spacing = 14.0
+fork_side_width = 3.0
+fork_north_offset = 37.0
+fork_south_offset = 18.0
+fork_side_offset = Vector2(27, 32)
+access_distance = 30.0
+access_offset = Vector2(0, 0)
+hide_offset = Vector2(0, 0)
+
 [node name="HydroponicsRoomProps" parent="." unique_id=1740298104 instance=ExtResource("9_hydroponics_props")]
 
 [node name="BridgeRoomProps" parent="." unique_id=845601708 instance=ExtResource("12_bridge_props")]
@@ -61,7 +379,7 @@ artwork_scale = 0.15000000000000002
 
 [node name="LowerFlightControlStation" parent="BridgeRoomProps" index="3"]
 position = Vector2(213, 426)
-artwork_scale = 0.09999999999999999
+artwork_scale = 0.1
 
 [node name="MainHelmConsole" parent="BridgeRoomProps" index="4"]
 position = Vector2(109, 335)
@@ -148,5 +466,7 @@ position = Vector2(900, 500)
 [node name="AmaraOkoye" parent="." unique_id=136724281 instance=ExtResource("12_amara")]
 position = Vector2(320, 746)
 
+[editable path="CargoBayProps"]
+[editable path="EngineRoomProps"]
 [editable path="BridgeRoomProps"]
 [editable path="CrewLivingQuarterProps"]

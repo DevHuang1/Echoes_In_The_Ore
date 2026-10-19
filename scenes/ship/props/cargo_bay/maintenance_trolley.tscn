@@ -1,0 +1,26 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/ship/props/cargo_bay/cargo_bay_prop.tscn" id="base"]
+[ext_resource type="Texture2D" path="res://art/concepts/cargo_bay_props/Four-view cargo maintenance trolley-4.png" id="art"]
+
+[sub_resource type="AtlasTexture" id="initial"]
+atlas = ExtResource("art")
+region = Rect2(844, 27, 585, 466)
+filter_clip = true
+
+[node name="MaintenanceTrolley" instance=ExtResource("base")]
+artwork = ExtResource("art")
+atlas_regions = Array[Rect2]([Rect2(122, 19, 583, 474), Rect2(844, 27, 585, 466), Rect2(332, 507, 289, 471), Rect2(931, 507, 291, 471)])
+floor_anchors = PackedVector2Array(290, 442, 292, 434, 144, 439, 146, 439)
+view_names = PackedStringArray("North (rear panel)", "South (drawers)", "East (push-handle end)", "West (plain end)")
+facing_vectors = PackedVector2Array(0, -1, 0, 1, 1, 0, -1, 0)
+direction = 1
+artwork_scale = 0.09
+footprint_size = Vector2(48, 14)
+footprint_side_size = Vector2(22, 14)
+footprint_kind = 0
+
+[node name="Sprite2D" parent="." index="0"]
+position = Vector2(-26.279999999999998, -39.059999999999995)
+scale = Vector2(0.09, 0.09)
+texture = SubResource("initial")

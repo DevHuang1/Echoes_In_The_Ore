@@ -1,0 +1,29 @@
+[gd_scene load_steps=7 format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/ship/props/cargo_bay/electric_pallet_mover.tscn" id="1"]
+[ext_resource type="PackedScene" path="res://scenes/ship/props/cargo_bay/cargo_inspection_scale.tscn" id="2"]
+[ext_resource type="PackedScene" path="res://scenes/ship/props/cargo_bay/secured_cylinder_rack.tscn" id="3"]
+[ext_resource type="PackedScene" path="res://scenes/ship/props/cargo_bay/maintenance_trolley.tscn" id="4"]
+[ext_resource type="PackedScene" path="res://scenes/ship/props/cargo_bay/cargo_locker.tscn" id="5"]
+[ext_resource type="PackedScene" path="res://scenes/ship/props/cargo_bay/tied_box_bundle.tscn" id="6"]
+
+[node name="CargoBayProps" type="Node2D"]
+y_sort_enabled = true
+
+[node name="ElectricPalletMover" parent="." instance=ExtResource("1")]
+position = Vector2(263, 173)
+
+[node name="CargoInspectionScale" parent="." instance=ExtResource("2")]
+position = Vector2(363, 147)
+
+[node name="SecuredCylinderRack" parent="." instance=ExtResource("3")]
+position = Vector2(288, 91)
+
+[node name="MaintenanceTrolley" parent="." instance=ExtResource("4")]
+position = Vector2(383, 91)
+
+[node name="CargoLocker" parent="." instance=ExtResource("5")]
+position = Vector2(446, 174)
+
+[node name="TiedBoxBundle" parent="." instance=ExtResource("6")]
+position = Vector2(118, 173)

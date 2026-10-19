@@ -1,0 +1,25 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/ship/props/crew_quarters/crew_quarters_prop.tscn" id="base"]
+[ext_resource type="Script" path="res://scripts/ship/cargo_bay_prop.gd" id="script"]
+
+[sub_resource type="RectangleShape2D" id="placeholder"]
+resource_local_to_scene = true
+size = Vector2(1, 1)
+
+[node name="CargoBayProp" instance=ExtResource("base")]
+script = ExtResource("script")
+
+[node name="ExtraFootprintA" type="CollisionShape2D" parent="StaticBody2D"]
+shape = SubResource("placeholder")
+disabled = true
+
+[node name="ExtraFootprintB" type="CollisionShape2D" parent="StaticBody2D"]
+shape = SubResource("placeholder")
+disabled = true
+
+[node name="AccessPoint" type="Marker2D" parent="."]
+visible = false
+
+[node name="HidePoint" type="Marker2D" parent="."]
+visible = false

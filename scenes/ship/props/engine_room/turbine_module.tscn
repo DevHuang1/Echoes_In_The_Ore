@@ -1,0 +1,26 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/ship/props/cargo_bay/cargo_bay_prop.tscn" id="base"]
+[ext_resource type="Texture2D" path="res://art/concepts/engine_room_props/Chunky 16-bit turbine sprite sheet-1.png" id="art"]
+
+[sub_resource type="AtlasTexture" id="initial"]
+atlas = ExtResource("art")
+region = Rect2(26, 615, 728, 376)
+filter_clip = true
+
+[node name="TurbineModule" instance=ExtResource("base")]
+artwork = ExtResource("art")
+atlas_regions = Array[Rect2]([Rect2(215, 22, 524, 545), Rect2(797, 22, 524, 545), Rect2(26, 615, 728, 376), Rect2(782, 615, 728, 376)])
+floor_anchors = PackedVector2Array(261, 514, 262, 514, 350, 348, 372, 348)
+view_names = PackedStringArray("North (rear end)", "South (coupling forward)", "East (coupling right)", "West (coupling left)")
+facing_vectors = PackedVector2Array(0, -1, 0, 1, 1, 0, -1, 0)
+direction = 2
+artwork_scale = 0.105
+footprint_size = Vector2(46, 14)
+footprint_side_size = Vector2(66, 10)
+footprint_offset = Vector2(0, -2)
+
+[node name="Sprite2D" parent="." index="0"]
+position = Vector2(-36.75, -36.54)
+scale = Vector2(0.105, 0.105)
+texture = SubResource("initial")
