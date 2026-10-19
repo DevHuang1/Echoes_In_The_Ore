@@ -57,7 +57,13 @@ func _run() -> void:
 
 	var level := WALKTHROUGH.instantiate()
 	root.add_child(level)
-	var placed := level.get_node("BridgeRoomProps/NavigationConsole") as Node2D
+	var placed := level.get_node_or_null("BridgeRoomProps/NavigationConsole") as Node2D
+	if placed == null:
+		# The walkthrough console was removed in favour of the flight-control
+		# station; keep validating the reusable scene itself, skip the placement.
+		print("NAVIGATION CONSOLE VALIDATION: SKIP (walkthrough NavigationConsole removed; superseded by FlightControlStation)")
+		quit(0)
+		return
 	var player := level.get_node("Player") as CharacterBody2D
 	player.set_physics_process(false)
 	_check(placed.global_position == Vector2(200, 315), "Unexpected console placement")

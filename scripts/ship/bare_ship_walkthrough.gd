@@ -1,3 +1,4 @@
+@tool
 extends Node2D
 
 const FLOOR_TEXTURE := preload("res://art/overview/asteria_overview_floor.png")
@@ -5,6 +6,9 @@ const ARRIVAL_BRIEFING_SCENE := preload("res://scenes/ui/arrival_briefing.tscn")
 const SERVICE_TASK_CONSOLE_SCENE := preload("res://scenes/ui/service_task_console.tscn")
 const WALK_HUD_SCENE := preload("res://scenes/ui/walk_hud.tscn")
 const CREW_DIALOGUE_SCENE := preload("res://scenes/ui/crew_dialogue.tscn")
+const MOCK_PLANET_SCENE_PATH := "res://scenes/planet/mock_planet_exterior.tscn"
+const AIRLOCK_INTERACTION_RADIUS := 74.0
+const AIRLOCK_RETURN_FLOOR_POS := Vector2(478.5, 294.0)
 const ROOM_TASKS := [
 	{
 		"id": &"auxiliary_power",
@@ -35,7 +39,7 @@ const ROOM_TASKS := [
 ]
 const ROOM_TASK_INTERACTION_RADIUS := 44.0
 const AMARA_INTERACTION_RADIUS := 66.0
-const CREW_TASK_INTERACTION_RADIUS := 48.0
+const CREW_TASK_INTERACTION_RADIUS := 64.0
 # Keep these task points in the clear aisle beside each collidable prop.
 const AMARA_CREW_TASKS := [
 	{
@@ -43,7 +47,7 @@ const AMARA_CREW_TASKS := [
 		"title": "Amara: inspect the nutrient pump",
 		"marker_label": "AMARA / PUMP",
 		"station_path": NodePath("HydroponicsRoomProps/NutrientPump"),
-		"interaction_offset": Vector2(66.0, 14.0),
+		"interaction_offset": Vector2(36.0, 0.0),
 		"prompt": "NUTRIENT PUMP   /   [E] INSPECT",
 		"completion": "The nutrient pump is clear and flowing again.",
 	},
@@ -52,7 +56,7 @@ const AMARA_CREW_TASKS := [
 		"title": "Amara: recalibrate the seedling sensor",
 		"marker_label": "AMARA / SEEDLINGS",
 		"station_path": NodePath("HydroponicsRoomProps/SeedlingRack"),
-		"interaction_offset": Vector2(70.0, 0.0),
+		"interaction_offset": Vector2(44.0, 0.0),
 		"prompt": "SEEDLING RACK   /   [E] CALIBRATE SENSOR",
 		"completion": "The seedling rack humidity sensor is calibrated.",
 	},
@@ -61,6 +65,8 @@ const AMARA_CREW_TASKS := [
 @export var player_spawn: Vector2 = Vector2(900.0, 500.0)
 
 @onready var floor_layer: Sprite2D = $FloorLayer
+@onready var wall_layer: Sprite2D = $WallLayer
+@onready var exterior_airlock: Node2D = $ExteriorAirlockGate
 @onready var player: ShipPlayer = $Player
 @onready var amara: AmaraOkoye = $AmaraOkoye
 
@@ -80,15 +86,45 @@ var _crew_tasks_unlocked := false
 var _completed_crew_tasks: Dictionary = {}
 var _active_amara_interaction := false
 var _active_crew_task_id: StringName = &""
+var _active_airlock_exit := false
+var _transitioning_to_planet := false
+
+
+func _load_sprite_png(sprite: Sprite2D, res_path: String) -> void:
+	if not is_instance_valid(sprite):
+		return
+	var img := Image.load_from_file(ProjectSettings.globalize_path(res_path))
+	if img != null and not img.is_empty():
+		sprite.texture = ImageTexture.create_from_image(img)
 
 
 func _ready() -> void:
+	_load_sprite_png(floor_layer, "res://art/concepts/Refined pixel-art spacecraft floor.png")
+	_load_sprite_png(wall_layer, "res://art/concepts/ship_walls_valkyrie.png")
+	_load_sprite_png(get_node_or_null("CenterRecessRoom/FloorVisual") as Sprite2D, "res://art/overview/floor_modules/rooms/r03_center_recess_floor.png")
+	_load_sprite_png(get_node_or_null("PowerMaintenanceRoomProps/FloorDetail/UpperDeckPanel") as Sprite2D, "res://art/overview/floor_modules/tiles/floor_tile_upper_plate.png")
+	_load_sprite_png(get_node_or_null("PowerMaintenanceRoomProps/FloorDetail/PowerCellCautionInset") as Sprite2D, "res://art/overview/floor_modules/tiles/floor_tile_hazard_zone.png")
+	_load_sprite_png(get_node_or_null("LifeSupportRoomProps/FloorDetail/LifeSupportDeckPanel") as Sprite2D, "res://art/overview/floor_modules/tiles/floor_tile_lower_panel.png")
+	_load_sprite_png(get_node_or_null("LifeSupportRoomProps/FloorDetail/AirflowServiceGrate") as Sprite2D, "res://art/overview/floor_modules/tiles/floor_tile_small_grate.png")
+	if Engine.is_editor_hint():
+		set_process(false)
+		set_physics_process(false)
+		set_process_unhandled_input(false)
+		return
+
 	# Movement samples global positions; include any saved ship-root translation.
 	player.set_walkable_floor_mask(FLOOR_TEXTURE, floor_layer.global_position, 8.0)
 	var map_size: Vector2 = FLOOR_TEXTURE.get_size()
 	var camera_bounds := Rect2(floor_layer.position - map_size * 0.5, map_size * 2.0)
 	player.set_camera_bounds(camera_bounds)
-	player.global_position = player_spawn
+
+	var returning_from_planet := Engine.has_meta(&"returning_from_planet") and bool(Engine.get_meta(&"returning_from_planet"))
+	if returning_from_planet:
+		Engine.remove_meta(&"returning_from_planet")
+		player.global_position = floor_layer.to_global(AIRLOCK_RETURN_FLOOR_POS)
+	else:
+		player.global_position = player_spawn
+
 	player.camera.make_current()
 	player.camera.reset_smoothing()
 	player.set_physics_process(false)
@@ -109,25 +145,48 @@ func _ready() -> void:
 	_walk_hud.setup(player, hud_task_entries, floor_layer.global_position, FLOOR_TEXTURE.get_size())
 	_walk_hud.modal_state_changed.connect(_on_hud_modal_state_changed)
 	add_child(_walk_hud)
-	_walk_hud.set_walking_visible(false)
 	_crew_dialogue = CREW_DIALOGUE_SCENE.instantiate() as CrewDialogue
 	_crew_dialogue.dialogue_finished.connect(_on_amara_dialogue_finished)
 	add_child(_crew_dialogue)
-	var arrival_briefing := ARRIVAL_BRIEFING_SCENE.instantiate()
-	arrival_briefing.connect(&"dismissed", _on_arrival_briefing_dismissed)
-	add_child(arrival_briefing)
+
+	if returning_from_planet:
+		_arrival_briefing_open = false
+		_walk_hud.set_walking_visible(true)
+		_room_task_feedback = "AIRLOCK CYCLE COMPLETE  //  ABOARD ASTERIA-1"
+		_room_task_feedback_timer = 3.5
+		_update_player_walk_state()
+	else:
+		_walk_hud.set_walking_visible(false)
+		var arrival_briefing := ARRIVAL_BRIEFING_SCENE.instantiate()
+		arrival_briefing.connect(&"dismissed", _on_arrival_briefing_dismissed)
+		add_child(arrival_briefing)
 
 
 func _process(delta: float) -> void:
+	if _transitioning_to_planet:
+		return
 	if _room_task_feedback_timer > 0.0:
 		_room_task_feedback_timer = maxf(_room_task_feedback_timer - delta, 0.0)
 		if is_zero_approx(_room_task_feedback_timer):
 			_room_task_feedback = ""
+
+	# Allow walking straight through the huge open airlock door to exit to the planet
+	if not _arrival_briefing_open and not _hud_modal_open and not _task_console_open and not _crew_dialogue_open:
+		if is_instance_valid(exterior_airlock) and exterior_airlock.has_method("is_open") and bool(exterior_airlock.call("is_open")):
+			var local_floor_pos := floor_layer.to_local(player.global_position)
+			if local_floor_pos.x >= 434.0 and local_floor_pos.x <= 523.0 and local_floor_pos.y <= 278.0 and Input.is_action_pressed(&"move_up"):
+				_exit_ship_to_planet()
+				return
+
 	_refresh_room_task_prompt()
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if _arrival_briefing_open or _hud_modal_open or _task_console_open or _crew_dialogue_open or not event.is_action_pressed(&"interact"):
+	if _transitioning_to_planet or _arrival_briefing_open or _hud_modal_open or _task_console_open or _crew_dialogue_open or not event.is_action_pressed(&"interact"):
+		return
+	if _active_airlock_exit:
+		get_viewport().set_input_as_handled()
+		_exit_ship_to_planet()
 		return
 	if _active_amara_interaction:
 		_begin_amara_dialogue()
@@ -138,6 +197,13 @@ func _unhandled_input(event: InputEvent) -> void:
 	else:
 		return
 	get_viewport().set_input_as_handled()
+
+
+func _exit_ship_to_planet() -> void:
+	if _transitioning_to_planet:
+		return
+	_transitioning_to_planet = true
+	get_tree().change_scene_to_file(MOCK_PLANET_SCENE_PATH)
 
 
 func _open_room_task_console(task_id: StringName) -> void:
@@ -182,32 +248,42 @@ func _on_room_task_console_closed() -> void:
 		_room_task_feedback_timer = 3.5
 		_pending_room_task_feedback = ""
 
+
 func _refresh_room_task_prompt() -> void:
 	_active_room_task_id = &""
 	_active_crew_task_id = &""
 	_active_amara_interaction = false
+	_active_airlock_exit = false
 	if _crew_dialogue_open or not _arrival_briefing_open and (_hud_modal_open or _task_console_open):
 		_walk_hud.set_interaction_prompt("", false)
 		return
+	if is_instance_valid(exterior_airlock):
+		var airlock_access_pos := exterior_airlock.global_position + Vector2(0.0, 28.0)
+		if player.global_position.distance_to(airlock_access_pos) <= AIRLOCK_INTERACTION_RADIUS:
+			_active_airlock_exit = true
+			_walk_hud.set_interaction_prompt("EXTERIOR AIRLOCK   /   [E] EXIT TO PLANET SURFACE", true)
+			return
 	if is_instance_valid(amara) and player.global_position.distance_to(amara.global_position) <= AMARA_INTERACTION_RADIUS:
 		_active_amara_interaction = true
 		_walk_hud.set_interaction_prompt("AMARA OKOYE   /   [E] TALK", true)
 		return
 	var closest_crew_task: Dictionary = {}
 	var closest_crew_distance := CREW_TASK_INTERACTION_RADIUS
-	if _crew_tasks_unlocked:
-		for task in AMARA_CREW_TASKS:
-			var task_id: StringName = task["id"]
-			if _completed_crew_tasks.has(task_id):
-				continue
-			var station := get_node_or_null(task["station_path"]) as Node2D
-			if station == null:
-				continue
-			var interaction_position := _crew_task_interaction_position(task, station)
-			var distance := player.global_position.distance_to(interaction_position)
-			if distance <= closest_crew_distance:
-				closest_crew_distance = distance
-				closest_crew_task = task
+	for task in AMARA_CREW_TASKS:
+		var task_id: StringName = task["id"]
+		if _completed_crew_tasks.has(task_id):
+			continue
+		var station := get_node_or_null(task["station_path"]) as Node2D
+		if station == null:
+			continue
+		var interaction_position := _crew_task_interaction_position(task, station)
+		var distance := minf(
+			player.global_position.distance_to(interaction_position),
+			player.global_position.distance_to(station.global_position)
+		)
+		if distance <= closest_crew_distance:
+			closest_crew_distance = distance
+			closest_crew_task = task
 	if not closest_crew_task.is_empty():
 		_active_crew_task_id = closest_crew_task["id"]
 		_walk_hud.set_interaction_prompt(closest_crew_task["prompt"], true)
@@ -224,7 +300,10 @@ func _refresh_room_task_prompt() -> void:
 			continue
 		var interaction_pos := _room_task_interaction_position(task, station)
 		var max_dist: float = task.get("interaction_radius", ROOM_TASK_INTERACTION_RADIUS)
-		var distance := player.global_position.distance_to(interaction_pos)
+		var distance := minf(
+			player.global_position.distance_to(interaction_pos),
+			player.global_position.distance_to(station.global_position)
+		)
 		if distance <= max_dist and distance <= closest_distance:
 			closest_distance = distance
 			closest_task = task
@@ -276,21 +355,27 @@ func _on_amara_dialogue_finished(accepted_tasks: bool) -> void:
 	if is_instance_valid(amara) and amara.has_method("set_in_dialogue"):
 		amara.set_in_dialogue(false)
 	if accepted_tasks and not _crew_tasks_unlocked:
-		_crew_tasks_unlocked = true
-		for task in AMARA_CREW_TASKS:
-			var station := get_node_or_null(task["station_path"]) as Node2D
-			if station == null:
-				continue
-			_walk_hud.add_task_entry({
-				"id": task["id"],
-				"title": task["title"],
-				"marker_label": task["marker_label"],
-				"position": _crew_task_interaction_position(task, station),
-				"marker_position": _task_marker_position(station),
-			})
+		_unlock_crew_tasks_on_hud()
 		_room_task_feedback = "Amara's jobs are marked at reachable service points on your ship map."
 		_room_task_feedback_timer = 4.0
 	_update_player_walk_state()
+
+
+func _unlock_crew_tasks_on_hud() -> void:
+	if _crew_tasks_unlocked:
+		return
+	_crew_tasks_unlocked = true
+	for task in AMARA_CREW_TASKS:
+		var station := get_node_or_null(task["station_path"]) as Node2D
+		if station == null:
+			continue
+		_walk_hud.add_task_entry({
+			"id": task["id"],
+			"title": task["title"],
+			"marker_label": task["marker_label"],
+			"position": _crew_task_interaction_position(task, station),
+			"marker_position": _task_marker_position(station),
+		})
 
 
 func _room_task_interaction_position(task: Dictionary, station: Node2D) -> Vector2:
@@ -323,6 +408,8 @@ func _task_marker_position(station: Node2D, offset: Vector2 = Vector2.ZERO) -> V
 func _complete_crew_task(task_id: StringName) -> void:
 	if _completed_crew_tasks.has(task_id):
 		return
+	if not _crew_tasks_unlocked:
+		_unlock_crew_tasks_on_hud()
 	var completion := "Hydroponics check complete."
 	for task in AMARA_CREW_TASKS:
 		if task["id"] == task_id:

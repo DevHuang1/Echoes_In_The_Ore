@@ -4,6 +4,6 @@
 
 [node name="ShipVentNetwork" type="Node2D"]
 z_index = -2
-modulate = Color(0.84, 0.88, 0.91, 0.7)
-texture_filter = 4
+modulate = Color(1, 1, 1, 1)
+texture_filter = 1
 script = ExtResource("1_network")

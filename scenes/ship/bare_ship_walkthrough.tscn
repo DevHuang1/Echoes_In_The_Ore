@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://ddl36jsnqn5f8"]
 
 [ext_resource type="Script" uid="uid://mxdrvpc6q3b3" path="res://scripts/ship/bare_ship_walkthrough.gd" id="1_walkthrough"]
-[ext_resource type="Texture2D" uid="uid://chi8e3l3w8vc5" path="res://art/overview/asteria_overview_floor.png" id="2_floor"]
+[ext_resource type="Texture2D" uid="uid://cotd2rpnk8syv" path="res://art/concepts/Refined pixel-art spacecraft floor.png" id="2_floor"]
 [ext_resource type="Texture2D" uid="uid://msnfl0l2p2m7" path="res://art/concepts/ship_walls_valkyrie.png" id="3_walls"]
 [ext_resource type="PackedScene" path="res://scenes/player/player.tscn" id="4_player"]
 [ext_resource type="PackedScene" path="res://scenes/ship/space_backdrop.tscn" id="5_space"]
@@ -18,6 +18,9 @@
 [ext_resource type="PackedScene" path="res://scenes/ship/props/crew_living_quarter_props.tscn" id="15_crew_quarters"]
 [ext_resource type="PackedScene" path="res://scenes/ship/props/cargo_bay_props.tscn" id="16_cargo"]
 [ext_resource type="PackedScene" path="res://scenes/ship/props/engine_room_props.tscn" id="17_engine"]
+[ext_resource type="PackedScene" path="res://scenes/ship/props/shuttle_bay_cargo.tscn" id="16_shuttle_cargo"]
+[ext_resource type="PackedScene" path="res://scenes/ship/doors/exterior_airlock_gate.tscn" id="17_airlock_gate"]
+[ext_resource type="PackedScene" path="res://scenes/ship/props/ship_room_lighting.tscn" id="18_room_lighting"]
 
 [node name="BareShipWalkthrough" type="Node2D" unique_id=1816551452]
 y_sort_enabled = true
@@ -31,8 +34,11 @@ position = Vector2(887, 443.5)
 
 [node name="FloorLayer" type="Sprite2D" parent="." unique_id=1971097640]
 z_index = -2
+texture_filter = 1
 texture = ExtResource("2_floor")
 centered = false
+
+[node name="ShipVentNetwork" parent="." unique_id=429064525 instance=ExtResource("13_vent_network")]
 
 [node name="WallLayer" type="Sprite2D" parent="." unique_id=257802278]
 z_index = -1
@@ -40,10 +46,14 @@ texture_filter = 1
 texture = ExtResource("3_walls")
 centered = false
 
+[node name="ExteriorAirlockGate" parent="." instance=ExtResource("17_airlock_gate")]
+position = Vector2(478.5, 242)
+opening_width = 96.0
+wall_depth = 34.0
+activation_distance = 76.0
+
 [node name="CenterRecessRoom" parent="." unique_id=688448454 instance=ExtResource("8_center_recess")]
 position = Vector2(682, 269)
-
-[node name="ShipVentNetwork" parent="." unique_id=429064525 instance=ExtResource("13_vent_network")]
 
 [node name="CargoBayProps" parent="." unique_id=651911709 instance=ExtResource("16_cargo")]
 position = Vector2(697, 405)
@@ -448,9 +458,15 @@ position = Vector2(1058, 263)
 [node name="LifeSupportRoomProps" parent="." unique_id=865870324 instance=ExtResource("11_life_support_props")]
 position = Vector2(1221, 198)
 
+[node name="ShuttleBayCargo" parent="." instance=ExtResource("16_shuttle_cargo")]
+position = Vector2(1340, 656)
+
 [node name="ShipDoors" parent="." unique_id=1388646547 instance=ExtResource("7_doors")]
+y_sort_enabled = true
 position = Vector2(3, -4)
 rotation = 0.00050925
+
+[node name="ShipRoomLighting" parent="." instance=ExtResource("18_room_lighting")]
 
 [node name="UpperAftEnginePlume" parent="." unique_id=1590277352 instance=ExtResource("6_plume")]
 position = Vector2(1661.0001, 168)

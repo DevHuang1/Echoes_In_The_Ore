@@ -6,6 +6,7 @@
 
 [node name="PressureDoor" type="Node2D" groups=["ship_door"]]
 z_index = -2
+y_sort_enabled = true
 script = ExtResource("1_door_script")
 
 [node name="LeftDoorPanel" type="Sprite2D" parent="."]

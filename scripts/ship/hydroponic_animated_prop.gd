@@ -63,8 +63,10 @@ func _create_prop_collision(texture: Texture2D) -> void:
 	if image == null or image.is_empty():
 		push_warning("Could not read hydroponic prop texture for collision: %s" % name)
 		return
+	if image.is_compressed():
+		image.decompress()
 
-	var visible_bounds := image.get_used_rect()
+	var visible_bounds := _get_visible_alpha_bounds(image)
 	if visible_bounds.size.x <= 0 or visible_bounds.size.y <= 0:
 		return
 
@@ -75,15 +77,79 @@ func _create_prop_collision(texture: Texture2D) -> void:
 	var collision := CollisionShape2D.new()
 	collision.name = "VisibleFootprint"
 	var footprint := RectangleShape2D.new()
-	footprint.size = Vector2(visible_bounds.size)
+	footprint.size = Vector2(
+		float(visible_bounds.size.x) * 0.65,
+		float(visible_bounds.size.y) * 0.45
+	)
 	collision.shape = footprint
 	collision.position = (
-		Vector2(visible_bounds.position)
-		+ Vector2(visible_bounds.size) * 0.5
+		Vector2(
+			float(visible_bounds.position.x) + float(visible_bounds.size.x) * 0.5,
+			float(visible_bounds.position.y) + float(visible_bounds.size.y) * 0.72
+		)
 		- Vector2(texture.get_size()) * 0.5
 	)
 	body.add_child(collision)
 	add_child(body)
+
+
+func _get_visible_alpha_bounds(image: Image) -> Rect2i:
+	var used := image.get_used_rect()
+	if used.size.x <= 0 or used.size.y <= 0:
+		return used
+	const ALPHA_THRESHOLD := 0.05
+	var x0 := used.position.x
+	var y0 := used.position.y
+	var x1 := used.end.x - 1
+	var y1 := used.end.y - 1
+
+	var top := y0
+	var found_top := false
+	for y in range(y0, y1 + 1):
+		for x in range(x0, x1 + 1, 2):
+			if image.get_pixel(x, y).a >= ALPHA_THRESHOLD:
+				top = y
+				found_top = true
+				break
+		if found_top:
+			break
+	if not found_top:
+		return used
+
+	var bottom := y1
+	for y in range(y1, top - 1, -1):
+		var row_hit := false
+		for x in range(x0, x1 + 1, 2):
+			if image.get_pixel(x, y).a >= ALPHA_THRESHOLD:
+				bottom = y
+				row_hit = true
+				break
+		if row_hit:
+			break
+
+	var left := x0
+	for x in range(x0, x1 + 1):
+		var col_hit := false
+		for y in range(top, bottom + 1, 2):
+			if image.get_pixel(x, y).a >= ALPHA_THRESHOLD:
+				left = x
+				col_hit = true
+				break
+		if col_hit:
+			break
+
+	var right := x1
+	for x in range(x1, left - 1, -1):
+		var col_hit := false
+		for y in range(top, bottom + 1, 2):
+			if image.get_pixel(x, y).a >= ALPHA_THRESHOLD:
+				right = x
+				col_hit = true
+				break
+		if col_hit:
+			break
+
+	return Rect2i(left, top, right - left + 1, bottom - top + 1)
 
 
 func _process(delta: float) -> void:

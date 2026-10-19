@@ -1,3 +1,4 @@
+@tool
 extends AnimatedSprite2D
 
 const PLUME_SHEET: Texture2D = preload("res://art/vfx/asteria_engine_plume_sheet.png")

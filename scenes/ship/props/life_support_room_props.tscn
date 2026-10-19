@@ -32,6 +32,7 @@ filter_clip = true
 
 [node name="FloorDetail" type="Node2D" parent="."]
 z_index = -2
+texture_filter = 1
 
 [node name="LifeSupportDeckPanel" parent="FloorDetail" instance=ExtResource("6_lower_panel")]
 position = Vector2(13, 8)

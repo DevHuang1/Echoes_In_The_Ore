@@ -1,26 +1,52 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=9 format=3]
 
-[ext_resource type="Texture2D" path="res://art/overview/asteria_overview_floor.png" id="1_floor"]
-[ext_resource type="Texture2D" path="res://art/overview/asteria_overview_walls_2x.png" id="2_walls"]
+[ext_resource type="Texture2D" uid="uid://cotd2rpnk8syv" path="res://art/concepts/Refined pixel-art spacecraft floor.png" id="1_floor"]
+[ext_resource type="Texture2D" uid="uid://msnfl0l2p2m7" path="res://art/concepts/ship_walls_valkyrie.png" id="2_walls"]
 [ext_resource type="PackedScene" path="res://scenes/ship/props/hydroponics_room_props.tscn" id="3_props"]
 [ext_resource type="PackedScene" path="res://scenes/ship/space_backdrop.tscn" id="4_space"]
+[ext_resource type="PackedScene" uid="uid://b4pl2altiig6p" path="res://scenes/ship/doors/ship_door_layout.tscn" id="5_doors"]
+[ext_resource type="PackedScene" path="res://scenes/ship/props/ship_vent_network.tscn" id="6_vents"]
+[ext_resource type="PackedScene" uid="uid://b8lq0lk6k2n0l" path="res://scenes/ship/engine_plume.tscn" id="7_plume"]
+[ext_resource type="PackedScene" path="res://scenes/ship/doors/exterior_airlock_gate.tscn" id="8_airlock_gate"]
 
 [node name="HydroponicsRoomPreview" type="Node2D"]
+y_sort_enabled = true
 
 [node name="SpaceBackdrop" parent="." instance=ExtResource("4_space")]
 position = Vector2(887, 443.5)
 
 [node name="FloorLayer" type="Sprite2D" parent="."]
 z_index = -2
+texture_filter = 1
 texture = ExtResource("1_floor")
 centered = false
 
 [node name="WallLayer" type="Sprite2D" parent="."]
 z_index = -1
-texture_filter = 2
-scale = Vector2(0.5, 0.5)
+texture_filter = 1
 texture = ExtResource("2_walls")
 centered = false
+
+[node name="ExteriorAirlockGate" parent="." instance=ExtResource("8_airlock_gate")]
+position = Vector2(478.5, 242)
+opening_width = 96.0
+wall_depth = 34.0
+activation_distance = 76.0
+
+[node name="ShipVentNetwork" parent="." instance=ExtResource("6_vents")]
+
+[node name="ShipDoors" parent="." instance=ExtResource("5_doors")]
+y_sort_enabled = true
+position = Vector2(3, -4)
+rotation = 0.00050925
+
+[node name="UpperAftEnginePlume" parent="." instance=ExtResource("7_plume")]
+position = Vector2(1661.0001, 168)
+scale = Vector2(0.7, 0.4)
+
+[node name="LowerAftEnginePlume" parent="." instance=ExtResource("7_plume")]
+position = Vector2(1672, 576)
+scale = Vector2(0.62, 0.35)
 
 [node name="HydroponicsRoomProps" parent="." instance=ExtResource("3_props")]
 

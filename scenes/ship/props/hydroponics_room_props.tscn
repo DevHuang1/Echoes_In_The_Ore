@@ -32,17 +32,20 @@
 [ext_resource type="Texture2D" path="res://art/props/floor_decals/algae_film_patch.png" id="30_algae_film"]
 [ext_resource type="Texture2D" path="res://art/props/floor_decals/algae_scatter_cluster.png" id="31_algae_scatter"]
 [ext_resource type="PackedScene" path="res://scenes/ship/props/ambient_gas_mist.tscn" id="32_gas_mist"]
+[ext_resource type="PackedScene" path="res://scenes/ship/props/hydroponics_room_collision.tscn" id="33_wall_collision"]
 
 [node name="HydroponicsRoomProps" type="Node2D"]
 
 [node name="HydroponicsPipes" parent="." instance=ExtResource("27_pipes")]
+
+[node name="WallCollision" parent="." instance=ExtResource("33_wall_collision")]
 
 [node name="FloorDecals" type="Node2D" parent="."]
 z_index = -2
 texture_filter = 2
 
 [node name="MossPatchBroad" type="Sprite2D" parent="FloorDecals"]
-position = Vector2(315, 805)
+position = Vector2(315, 790)
 scale = Vector2(0.04, 0.04)
 texture = ExtResource("28_moss_broad")
 
@@ -75,42 +78,42 @@ energy = 1.0
 texture_scale = 0.4
 
 [node name="NorthGrowTrayLight" parent="HydroponicsLighting" instance=ExtResource("26_warm_light")]
-position = Vector2(190, 675)
+position = Vector2(204, 682)
 energy = 1.15
 texture_scale = 0.34
 
 [node name="SeedlingRackUpperLight" parent="HydroponicsLighting" instance=ExtResource("26_warm_light")]
-position = Vector2(248, 696)
+position = Vector2(272, 690)
 energy = 0.95
 texture_scale = 0.26
 
 [node name="SeedlingRackMiddleLight" parent="HydroponicsLighting" instance=ExtResource("26_warm_light")]
-position = Vector2(248, 736)
+position = Vector2(272, 726)
 energy = 0.95
 texture_scale = 0.26
 
 [node name="SeedlingRackLowerLight" parent="HydroponicsLighting" instance=ExtResource("26_warm_light")]
-position = Vector2(248, 776)
+position = Vector2(272, 762)
 energy = 0.95
 texture_scale = 0.26
 
 [node name="SouthGrowTrayLight" parent="HydroponicsLighting" instance=ExtResource("26_warm_light")]
-position = Vector2(190, 738)
+position = Vector2(204, 726)
 energy = 1.15
 texture_scale = 0.34
 
 [node name="NutrientStationLight" parent="HydroponicsLighting" instance=ExtResource("26_warm_light")]
-position = Vector2(95, 820)
+position = Vector2(168, 778)
 energy = 1.0
 texture_scale = 0.36
 
 [node name="UpperHerbShelfLight" parent="HydroponicsLighting" instance=ExtResource("26_warm_light")]
-position = Vector2(424, 677)
+position = Vector2(425, 688)
 energy = 0.9
 texture_scale = 0.34
 
 [node name="LowerHerbShelfLight" parent="HydroponicsLighting" instance=ExtResource("26_warm_light")]
-position = Vector2(410, 824)
+position = Vector2(376, 794)
 energy = 0.82
 texture_scale = 0.34
 
@@ -125,17 +128,17 @@ energy = 0.95
 texture_scale = 0.35
 
 [node name="LowerWallSconce" parent="HydroponicsLighting" instance=ExtResource("26_warm_light")]
-position = Vector2(280, 835)
+position = Vector2(280, 810)
 energy = 0.9
 texture_scale = 0.36
 
 [node name="PortWallSconce" parent="HydroponicsLighting" instance=ExtResource("26_warm_light")]
-position = Vector2(26, 747)
+position = Vector2(102, 742)
 energy = 0.68
 texture_scale = 0.32
 
 [node name="PortLowerWallSconce" parent="HydroponicsLighting" instance=ExtResource("26_warm_light")]
-position = Vector2(76, 852)
+position = Vector2(126, 796)
 energy = 0.72
 texture_scale = 0.32
 
@@ -150,7 +153,7 @@ energy = 0.68
 texture_scale = 0.32
 
 [node name="BioVapor" parent="." instance=ExtResource("32_gas_mist")]
-position = Vector2(115, 822)
+position = Vector2(180, 778)
 gas_color = Color(0.53, 1, 0.32, 1)
 blob_count = 18
 spread = Vector2(36, 16)
@@ -161,99 +164,99 @@ blob_size = Vector2(34, 27)
 opacity = 0.62
 
 [node name="WallHerbShelf" parent="." instance=ExtResource("1_prop")]
-position = Vector2(436, 677)
+position = Vector2(425, 688)
 scale = Vector2(0.082, 0.068)
 animation_frames = Array[Texture2D]([ExtResource("22_shelf_01"), ExtResource("23_shelf_02"), ExtResource("24_shelf_03"), ExtResource("25_shelf_04")])
 frames_per_second = 3.0
 
 [node name="GrowTrayNorth" parent="." instance=ExtResource("1_prop")]
-position = Vector2(190, 680)
-scale = Vector2(0.112, 0.127)
+position = Vector2(204, 686)
+scale = Vector2(0.105, 0.115)
 animation_frames = Array[Texture2D]([ExtResource("2_tray_01"), ExtResource("3_tray_02"), ExtResource("4_tray_03"), ExtResource("5_tray_04")])
 frames_per_second = 4.0
 
 [node name="GrowTraySouth" parent="." instance=ExtResource("1_prop")]
-position = Vector2(190, 738)
-scale = Vector2(0.112, 0.127)
+position = Vector2(204, 728)
+scale = Vector2(0.105, 0.115)
 animation_frames = Array[Texture2D]([ExtResource("2_tray_01"), ExtResource("3_tray_02"), ExtResource("4_tray_03"), ExtResource("5_tray_04")])
 frames_per_second = 4.0
 
 [node name="SeedlingRack" parent="." instance=ExtResource("1_prop")]
-position = Vector2(248, 736)
-scale = Vector2(0.20, 0.20)
+position = Vector2(272, 726)
+scale = Vector2(0.175, 0.175)
 animation_frames = Array[Texture2D]([ExtResource("6_rack_01"), ExtResource("7_rack_02"), ExtResource("8_rack_03"), ExtResource("9_rack_04")])
 frames_per_second = 3.5
 
 [node name="ControlConsole" parent="." instance=ExtResource("1_prop")]
-position = Vector2(81, 748)
-scale = Vector2(0.12, 0.09)
+position = Vector2(116, 734)
+scale = Vector2(0.115, 0.088)
 animation_frames = Array[Texture2D]([ExtResource("14_console_01"), ExtResource("15_console_02"), ExtResource("16_console_03"), ExtResource("17_console_04")])
 frames_per_second = 3.0
 
 [node name="NutrientPump" parent="." instance=ExtResource("1_prop")]
-position = Vector2(95, 822)
-scale = Vector2(0.12, 0.12)
+position = Vector2(168, 778)
+scale = Vector2(0.115, 0.115)
 animation_frames = Array[Texture2D]([ExtResource("10_pump_01"), ExtResource("11_pump_02"), ExtResource("12_pump_03"), ExtResource("13_pump_04")])
 frames_per_second = 3.5
 phase_offset = 1
 
 [node name="NorthHerbB" parent="." instance=ExtResource("1_prop")]
-position = Vector2(367, 676)
+position = Vector2(365, 691)
 scale = Vector2(0.05, 0.05)
 animation_frames = Array[Texture2D]([ExtResource("18_pot_01"), ExtResource("19_pot_02"), ExtResource("20_pot_03"), ExtResource("21_pot_04")])
 frames_per_second = 3.0
 phase_offset = 1
 
 [node name="NorthHerbC" parent="." instance=ExtResource("1_prop")]
-position = Vector2(390, 676)
+position = Vector2(389, 691)
 scale = Vector2(0.05, 0.05)
 animation_frames = Array[Texture2D]([ExtResource("18_pot_01"), ExtResource("19_pot_02"), ExtResource("20_pot_03"), ExtResource("21_pot_04")])
 frames_per_second = 3.0
 phase_offset = 2
 
 [node name="NorthHerbD" parent="." instance=ExtResource("1_prop")]
-position = Vector2(466, 676)
+position = Vector2(462, 691)
 scale = Vector2(0.05, 0.05)
 animation_frames = Array[Texture2D]([ExtResource("18_pot_01"), ExtResource("19_pot_02"), ExtResource("20_pot_03"), ExtResource("21_pot_04")])
 frames_per_second = 3.0
 phase_offset = 1
 
 [node name="NorthHerbE" parent="." instance=ExtResource("1_prop")]
-position = Vector2(482, 676)
+position = Vector2(462, 715)
 scale = Vector2(0.05, 0.05)
 animation_frames = Array[Texture2D]([ExtResource("18_pot_01"), ExtResource("19_pot_02"), ExtResource("20_pot_03"), ExtResource("21_pot_04")])
 frames_per_second = 3.0
 phase_offset = 3
 
 [node name="SouthHerbA" parent="." instance=ExtResource("1_prop")]
-position = Vector2(348, 824)
+position = Vector2(352, 794)
 scale = Vector2(0.05, 0.05)
 animation_frames = Array[Texture2D]([ExtResource("18_pot_01"), ExtResource("19_pot_02"), ExtResource("20_pot_03"), ExtResource("21_pot_04")])
 frames_per_second = 3.0
 phase_offset = 2
 
 [node name="SouthHerbB" parent="." instance=ExtResource("1_prop")]
-position = Vector2(370, 825)
+position = Vector2(376, 794)
 scale = Vector2(0.05, 0.05)
 animation_frames = Array[Texture2D]([ExtResource("18_pot_01"), ExtResource("19_pot_02"), ExtResource("20_pot_03"), ExtResource("21_pot_04")])
 frames_per_second = 3.0
 phase_offset = 3
 
 [node name="SouthHerbC" parent="." instance=ExtResource("1_prop")]
-position = Vector2(393, 825)
+position = Vector2(400, 794)
 scale = Vector2(0.05, 0.05)
 animation_frames = Array[Texture2D]([ExtResource("18_pot_01"), ExtResource("19_pot_02"), ExtResource("20_pot_03"), ExtResource("21_pot_04")])
 frames_per_second = 3.0
 
 [node name="EastHerbA" parent="." instance=ExtResource("1_prop")]
-position = Vector2(484, 808)
+position = Vector2(462, 773)
 scale = Vector2(0.05, 0.05)
 animation_frames = Array[Texture2D]([ExtResource("18_pot_01"), ExtResource("19_pot_02"), ExtResource("20_pot_03"), ExtResource("21_pot_04")])
 frames_per_second = 3.0
 phase_offset = 1
 
 [node name="EastHerbB" parent="." instance=ExtResource("1_prop")]
-position = Vector2(484, 823)
+position = Vector2(462, 795)
 scale = Vector2(0.05, 0.05)
 animation_frames = Array[Texture2D]([ExtResource("18_pot_01"), ExtResource("19_pot_02"), ExtResource("20_pot_03"), ExtResource("21_pot_04")])
 frames_per_second = 3.0

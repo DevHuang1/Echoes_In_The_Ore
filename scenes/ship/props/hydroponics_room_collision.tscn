@@ -1,0 +1,73 @@
+[gd_scene load_steps=10 format=3]
+
+[sub_resource type="RectangleShape2D" id="TopWestWallShape"]
+size = Vector2(172, 18)
+
+[sub_resource type="RectangleShape2D" id="TopDoorWestPillarShape"]
+size = Vector2(18, 24)
+
+[sub_resource type="RectangleShape2D" id="TopEastWallShape"]
+size = Vector2(160, 38)
+
+[sub_resource type="RectangleShape2D" id="BottomWallShape"]
+size = Vector2(416, 34)
+
+[sub_resource type="RectangleShape2D" id="PortWallShape"]
+size = Vector2(30, 72)
+
+[sub_resource type="RectangleShape2D" id="PortUpperDiagonalShape"]
+size = Vector2(110, 24)
+
+[sub_resource type="RectangleShape2D" id="PortLowerDiagonalShape"]
+size = Vector2(56, 24)
+
+[sub_resource type="RectangleShape2D" id="EastUpperWallShape"]
+size = Vector2(12, 48)
+
+[sub_resource type="RectangleShape2D" id="EastLowerWallShape"]
+size = Vector2(12, 56)
+
+[node name="HydroponicsRoomCollision" type="StaticBody2D"]
+collision_layer = 1
+collision_mask = 0
+
+; These collision shapes follow the inner edges of the Valkyrie wall art around
+; the Hydroponics room while keeping the north doorway (LowerDeckWestEntry2 at
+; x = 320..346) and the east corridor doorway (y = 723..751) open.
+[node name="TopWestWall" type="CollisionShape2D" parent="."]
+position = Vector2(234, 642)
+shape = SubResource("TopWestWallShape")
+
+[node name="TopDoorWestPillar" type="CollisionShape2D" parent="."]
+position = Vector2(311, 649)
+shape = SubResource("TopDoorWestPillarShape")
+
+[node name="TopEastWall" type="CollisionShape2D" parent="."]
+position = Vector2(426, 657)
+shape = SubResource("TopEastWallShape")
+
+[node name="BottomWall" type="CollisionShape2D" parent="."]
+position = Vector2(298, 825)
+shape = SubResource("BottomWallShape")
+
+[node name="PortWall" type="CollisionShape2D" parent="."]
+position = Vector2(87, 740)
+shape = SubResource("PortWallShape")
+
+[node name="PortUpperDiagonal" type="CollisionShape2D" parent="."]
+position = Vector2(131, 671)
+rotation = -0.65
+shape = SubResource("PortUpperDiagonalShape")
+
+[node name="PortLowerDiagonal" type="CollisionShape2D" parent="."]
+position = Vector2(111, 801)
+rotation = 0.785
+shape = SubResource("PortLowerDiagonalShape")
+
+[node name="EastUpperWall" type="CollisionShape2D" parent="."]
+position = Vector2(485, 699)
+shape = SubResource("EastUpperWallShape")
+
+[node name="EastLowerWall" type="CollisionShape2D" parent="."]
+position = Vector2(485, 779)
+shape = SubResource("EastLowerWallShape")

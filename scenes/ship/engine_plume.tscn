@@ -1,9 +1,102 @@
-[gd_scene format=3 uid="uid://b8lq0lk6k2n0l"]
+[gd_scene load_steps=14 format=3 uid="uid://b8lq0lk6k2n0l"]
 
 [ext_resource type="Script" uid="uid://cdnt7nd26t0jf" path="res://scripts/ship/engine_plume.gd" id="1_plume"]
+[ext_resource type="Texture2D" uid="uid://8ytam8xj1hq8" path="res://art/vfx/asteria_engine_plume_sheet.png" id="2_sheet"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_f0"]
+atlas = ExtResource("2_sheet")
+region = Rect2(0, 0, 434, 362)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_f1"]
+atlas = ExtResource("2_sheet")
+region = Rect2(434, 0, 434, 362)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_f2"]
+atlas = ExtResource("2_sheet")
+region = Rect2(868, 0, 434, 362)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_f3"]
+atlas = ExtResource("2_sheet")
+region = Rect2(1302, 0, 434, 362)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_f4"]
+atlas = ExtResource("2_sheet")
+region = Rect2(1736, 0, 434, 362)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_f5"]
+atlas = ExtResource("2_sheet")
+region = Rect2(0, 362, 434, 362)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_f6"]
+atlas = ExtResource("2_sheet")
+region = Rect2(434, 362, 434, 362)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_f7"]
+atlas = ExtResource("2_sheet")
+region = Rect2(868, 362, 434, 362)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_f8"]
+atlas = ExtResource("2_sheet")
+region = Rect2(1302, 362, 434, 362)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_f9"]
+atlas = ExtResource("2_sheet")
+region = Rect2(1736, 362, 434, 362)
+filter_clip = true
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_plume"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_f0")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_f1")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_f2")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_f3")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_f4")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_f5")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_f6")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_f7")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_f8")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_f9")
+}],
+"loop": true,
+"name": &"plume",
+"speed": 12.0
+}]
 
 [node name="EnginePlume" type="AnimatedSprite2D" unique_id=505532081]
 z_index = -2
 texture_filter = 2
-position = Vector2(269, -2293)
+sprite_frames = SubResource("SpriteFrames_plume")
+animation = &"plume"
+autoplay = "plume"
+centered = false
+offset = Vector2(0, -181)
 script = ExtResource("1_plume")

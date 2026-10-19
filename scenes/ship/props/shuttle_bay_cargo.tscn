@@ -1,0 +1,25 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Texture2D" path="res://art/concepts/bridge_room_props/Three-crate pixel-art cargo bundle.png" id="1_cargo"]
+
+[sub_resource type="RectangleShape2D" id="CargoFootprint"]
+resource_local_to_scene = true
+size = Vector2(84, 28)
+
+[node name="ShuttleBayCargo" type="Node2D"]
+y_sort_enabled = true
+
+[node name="SecuredCargoBundle" type="Sprite2D" parent="."]
+texture_filter = 1
+position = Vector2(-63.15, -117.0)
+scale = Vector2(0.093, 0.093)
+texture = ExtResource("1_cargo")
+centered = false
+
+[node name="StaticBody2D" type="StaticBody2D" parent="."]
+collision_layer = 1
+collision_mask = 0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="StaticBody2D"]
+position = Vector2(0, -12)
+shape = SubResource("CargoFootprint")

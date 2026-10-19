@@ -27,7 +27,7 @@ const HYDROPONICS_STATIONS: Array[Dictionary] = [
 	{
 		"id": &"control_console",
 		"name": "Control Console",
-		"target": Vector2(133.0, 748.0),
+		"target": Vector2(122.0, 748.0),
 		"facing": Vector2.LEFT,
 		"tag": "LOGGING CONSOLE",
 		"barks": [
@@ -39,7 +39,7 @@ const HYDROPONICS_STATIONS: Array[Dictionary] = [
 	{
 		"id": &"nutrient_pump",
 		"name": "Nutrient Pump",
-		"target": Vector2(140.0, 796.0),
+		"target": Vector2(204.0, 768.0),
 		"facing": Vector2.LEFT,
 		"tag": "CHECKING PUMP",
 		"barks": [
@@ -63,7 +63,7 @@ const HYDROPONICS_STATIONS: Array[Dictionary] = [
 	{
 		"id": &"grow_tray_north",
 		"name": "North Grow Tray",
-		"target": Vector2(190.0, 645.0),
+		"target": Vector2(195.0, 642.0),
 		"facing": Vector2.DOWN,
 		"tag": "EXAMINING CANOPY",
 		"barks": [
@@ -75,7 +75,7 @@ const HYDROPONICS_STATIONS: Array[Dictionary] = [
 	{
 		"id": &"grow_tray_south",
 		"name": "South Grow Tray",
-		"target": Vector2(190.0, 780.0),
+		"target": Vector2(204.0, 744.0),
 		"facing": Vector2.UP,
 		"tag": "CHECKING CROP TRAY",
 		"barks": [
@@ -87,8 +87,8 @@ const HYDROPONICS_STATIONS: Array[Dictionary] = [
 	{
 		"id": &"wall_herb_shelf",
 		"name": "Wall Herb Shelf",
-		"target": Vector2(410.0, 685.0),
-		"facing": Vector2.RIGHT,
+		"target": Vector2(400.0, 712.0),
+		"facing": Vector2.UP,
 		"tag": "PRUNING HERBS",
 		"barks": [
 			"Pruning dry tips off the medicinal thyme.",
@@ -99,7 +99,7 @@ const HYDROPONICS_STATIONS: Array[Dictionary] = [
 	{
 		"id": &"bio_vapor",
 		"name": "Bio-Vapor Vent",
-		"target": Vector2(170.0, 800.0),
+		"target": Vector2(280.0, 768.0),
 		"facing": Vector2.LEFT,
 		"tag": "CHECKING BIO-MIST",
 		"barks": [
@@ -168,14 +168,16 @@ const PLAYER_GREETING_BARKS: Array[String] = [
 
 enum RoamPhase { HYDROPONICS, SHIP_EXCURSION, RETURNING }
 
-@export_range(20.0, 240.0, 1.0) var move_speed: float = 145.0
-@export var movement_burst_range := Vector2(0.92, 1.15)
-@export var local_idle_seconds := Vector2(2.4, 4.6)
-@export var ship_idle_seconds := Vector2(1.8, 3.4)
+@export_range(20.0, 240.0, 1.0) var move_speed: float = 62.0
+@export var movement_burst_range := Vector2(0.90, 1.05)
+@export var local_idle_seconds := Vector2(5.5, 9.0)
+@export var ship_idle_seconds := Vector2(4.5, 7.5)
 @export var room_roam_stops := Vector2i(10, 15)
 @export var excursion_stops := Vector2i(8, 14)
-@export_range(30.0, 180.0, 1.0) var ship_excursion_max_seconds := 110.0
-@export_range(40.0, 240.0, 1.0) var notice_player_distance: float = 85.0
+@export_range(30.0, 180.0, 1.0) var ship_excursion_max_seconds := 140.0
+@export_range(40.0, 240.0, 1.0) var notice_player_distance: float = 68.0
+@export_range(0.0, 1.0, 0.05) var bark_chance: float = 0.28
+@export_range(5.0, 90.0, 1.0) var routine_bark_cooldown_seconds: float = 26.0
 
 @onready var sprite: AnimatedSprite2D = $AnimatedSprite2D
 
@@ -191,7 +193,7 @@ var _ship_zone_cells: Array = []
 var _path: Array[Vector2] = []
 var _path_index := 0
 var _destination := Vector2.ZERO
-var _current_speed := 145.0
+var _current_speed := 62.0
 var _has_destination := false
 var _idle_remaining := 0.0
 var _phase := RoamPhase.HYDROPONICS
@@ -210,7 +212,8 @@ var _bubble_tag_label: Label
 var _bubble_text_label: Label
 var _bubble_tween: Tween
 var _player_nearby := false
-var _greeting_cooldown := 0.0
+var _greeting_cooldown := 12.0
+var _bark_cooldown := 10.0
 
 
 func _ready() -> void:
@@ -230,7 +233,6 @@ func _ready() -> void:
 			global_position = _cell_to_world(spawn_cell)
 
 	_room_stops_remaining = _random.randi_range(room_roam_stops.x, room_roam_stops.y)
-	_show_overhead_bark("HYDROPONICS SHIFT", "Starting room rounds. Inspecting the grow beds.", 3.5)
 	_choose_next_destination()
 
 
@@ -240,6 +242,8 @@ func _physics_process(delta: float) -> void:
 
 	if _greeting_cooldown > 0.0:
 		_greeting_cooldown = maxf(_greeting_cooldown - delta, 0.0)
+	if _bark_cooldown > 0.0:
+		_bark_cooldown = maxf(_bark_cooldown - delta, 0.0)
 
 	if _phase == RoamPhase.SHIP_EXCURSION:
 		_excursion_seconds += delta
@@ -350,7 +354,7 @@ func _build_overhead_bubble() -> void:
 	_bubble_panel.position = Vector2(-90.0, -42.0)
 
 
-func _show_overhead_bark(tag: String, text: String, duration: float = 3.0) -> void:
+func _show_overhead_bark(tag: String, text: String, duration: float = 2.4) -> void:
 	if not is_instance_valid(_bubble_root):
 		return
 	_bubble_tag_label.text = "AMARA OKOYE  •  " + tag.to_upper()
@@ -361,7 +365,7 @@ func _show_overhead_bark(tag: String, text: String, duration: float = 3.0) -> vo
 
 	_bubble_tween = create_tween()
 	_bubble_tween.tween_property(_bubble_root, "modulate:a", 1.0, 0.20).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
-	_bubble_tween.tween_interval(maxf(duration - 0.5, 1.2))
+	_bubble_tween.tween_interval(maxf(duration - 0.5, 1.1))
 	_bubble_tween.tween_property(_bubble_root, "modulate:a", 0.0, 0.35).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
 
 
@@ -391,9 +395,10 @@ func _check_player_proximity() -> void:
 			_update_facing(direction)
 		if not _player_nearby and _greeting_cooldown <= 0.0:
 			_player_nearby = true
-			_greeting_cooldown = 18.0
+			_greeting_cooldown = 60.0
+			_bark_cooldown = maxf(_bark_cooldown, 18.0)
 			var greeting: String = PLAYER_GREETING_BARKS[_random.randi_range(0, PLAYER_GREETING_BARKS.size() - 1)]
-			_show_overhead_bark("CREW GREETING", greeting, 3.2)
+			_show_overhead_bark("CREW GREETING", greeting, 2.5)
 	else:
 		_player_nearby = false
 
@@ -407,11 +412,6 @@ func _choose_next_destination() -> void:
 				_phase = RoamPhase.SHIP_EXCURSION
 				_excursion_seconds = 0.0
 				_excursion_stops_remaining = _random.randi_range(excursion_stops.x, excursion_stops.y)
-				_show_overhead_bark(
-					"SHIP EXCURSION",
-					"Hydroponics checks complete! Going on ship patrol rounds.",
-					3.5
-				)
 				found_destination = _choose_ship_destination()
 				if not found_destination:
 					_phase = RoamPhase.RETURNING
@@ -421,11 +421,6 @@ func _choose_next_destination() -> void:
 		RoamPhase.SHIP_EXCURSION:
 			if _excursion_stops_remaining <= 0 or _excursion_seconds >= ship_excursion_max_seconds:
 				_phase = RoamPhase.RETURNING
-				_show_overhead_bark(
-					"PATROL FINISHED",
-					"Ship rounds complete. Heading back down to the grow beds.",
-					3.5
-				)
 				found_destination = _choose_local_destination()
 			else:
 				found_destination = _choose_ship_destination()
@@ -433,7 +428,7 @@ func _choose_next_destination() -> void:
 			found_destination = _choose_local_destination()
 
 	if not found_destination:
-		_idle_remaining = 0.15
+		_idle_remaining = 0.25
 
 
 func _choose_hydroponics_station_or_cell() -> bool:
@@ -544,30 +539,30 @@ func _arrive_at_destination() -> void:
 	if _phase == RoamPhase.HYDROPONICS:
 		_room_stops_remaining -= 1
 		_idle_remaining = _random.randf_range(local_idle_seconds.x, local_idle_seconds.y)
-		if not _current_station_info.is_empty():
+		if not _current_station_info.is_empty() and _bark_cooldown <= 0.0 and _random.randf() < bark_chance:
 			var barks: Array = _current_station_info.get("barks", [])
 			var tag: String = _current_station_info.get("tag", "INSPECTING")
 			if not barks.is_empty():
+				_bark_cooldown = routine_bark_cooldown_seconds
 				var bark: String = barks[_random.randi_range(0, barks.size() - 1)]
-				_show_overhead_bark(tag, bark, _idle_remaining)
-		else:
-			_show_overhead_bark("ROOM PATROL", "Checking the grow bed aisle.", _idle_remaining)
+				_show_overhead_bark(tag, bark, 2.4)
 	elif _phase == RoamPhase.SHIP_EXCURSION:
 		_excursion_stops_remaining -= 1
 		_idle_remaining = _random.randf_range(ship_idle_seconds.x, ship_idle_seconds.y)
-		var patrol_info: Dictionary = SHIP_PATROL_BARKS[_random.randi_range(0, SHIP_PATROL_BARKS.size() - 1)]
-		var barks: Array = patrol_info["barks"]
-		var tag: String = patrol_info["tag"]
-		var bark: String = barks[_random.randi_range(0, barks.size() - 1)]
-		_show_overhead_bark(tag, bark, _idle_remaining)
+		if _bark_cooldown <= 0.0 and _random.randf() < bark_chance:
+			_bark_cooldown = routine_bark_cooldown_seconds
+			var patrol_info: Dictionary = SHIP_PATROL_BARKS[_random.randi_range(0, SHIP_PATROL_BARKS.size() - 1)]
+			var barks: Array = patrol_info["barks"]
+			var tag: String = patrol_info["tag"]
+			var bark: String = barks[_random.randi_range(0, barks.size() - 1)]
+			_show_overhead_bark(tag, bark, 2.4)
 	elif _phase == RoamPhase.RETURNING:
 		if HYDROPONICS_AREA.has_point(global_position):
 			_phase = RoamPhase.HYDROPONICS
 			_room_stops_remaining = _random.randi_range(room_roam_stops.x, room_roam_stops.y)
-			_idle_remaining = 3.0
-			_show_overhead_bark("BACK IN HYDROPONICS", "Back at the beds. Starting new maintenance shift.", 3.5)
+			_idle_remaining = 4.5
 		else:
-			_idle_remaining = 0.5
+			_idle_remaining = 0.8
 
 
 func _handle_unmapped_obstacle() -> void:
@@ -616,7 +611,7 @@ func _configure_sprite_animations() -> void:
 	var cell_size := Vector2(float(WALK_ATLAS.get_width()) / 4.0, float(WALK_ATLAS.get_height()) / 4.0)
 	for animation_name in ANIMATION_ROWS:
 		frames.add_animation(animation_name)
-		frames.set_animation_speed(animation_name, 8.0)
+		frames.set_animation_speed(animation_name, 5.0)
 		frames.set_animation_loop(animation_name, true)
 		var row: int = ANIMATION_ROWS[animation_name]
 		for column in range(4):
@@ -725,5 +720,4 @@ func set_in_dialogue(in_dialogue: bool) -> void:
 				if not direction.is_zero_approx():
 					_update_facing(direction)
 	else:
-		_idle_remaining = 1.2
-
+		_idle_remaining = 2.0

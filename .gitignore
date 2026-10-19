@@ -2,3 +2,10 @@
 build/
 .DS_Store
 .agents/
+
+# Local scratch files
+tools/tmp_*.gd
+tools/tmp_*.gd.uid
+*.gd.bak
+*.mp4
+

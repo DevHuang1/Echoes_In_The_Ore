@@ -110,7 +110,7 @@ func _set_open_target(open: bool) -> void:
 	_transition.set_parallel(true)
 	_transition.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	var half_width := opening_width * 0.25
-	var opening_travel := opening_width * 0.9 if open else 0.0
+	var opening_travel := opening_width * 0.55 if open else 0.0
 	_transition.tween_property(
 		left_door_panel,
 		"position",

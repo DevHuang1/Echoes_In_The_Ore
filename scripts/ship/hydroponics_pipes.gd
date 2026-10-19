@@ -1,41 +1,34 @@
 extends Node2D
 
 var _supply_run := PackedVector2Array([
-	Vector2(151, 801),
-	Vector2(162, 801),
-	Vector2(168, 795),
-	Vector2(168, 778),
-	Vector2(142, 778),
-	Vector2(130, 766),
-	Vector2(130, 691),
-	Vector2(139, 682),
-	Vector2(139, 671),
-	Vector2(153, 657),
-	Vector2(272, 657),
-	Vector2(286, 671),
-	Vector2(286, 681),
+	Vector2(168, 796),
+	Vector2(154, 796),
+	Vector2(148, 790),
+	Vector2(148, 688),
+	Vector2(166, 670),
+	Vector2(188, 660),
+	Vector2(264, 660),
+	Vector2(272, 668),
+	Vector2(272, 682),
 ])
 
 var _supply_branches: Array[PackedVector2Array] = [
-	PackedVector2Array([Vector2(130, 696), Vector2(142, 696)]),
-	PackedVector2Array([Vector2(130, 749), Vector2(142, 749)]),
+	PackedVector2Array([Vector2(148, 688), Vector2(168, 688)]),
+	PackedVector2Array([Vector2(148, 728), Vector2(168, 728)]),
 ]
 
 var _return_run := PackedVector2Array([
-	Vector2(42, 680),
-	Vector2(51, 680),
-	Vector2(56, 685),
-	Vector2(56, 791),
-	Vector2(69, 804),
-	Vector2(82, 804),
+	Vector2(128, 700),
+	Vector2(110, 714),
+	Vector2(110, 768),
+	Vector2(132, 790),
+	Vector2(148, 790),
 ])
 
 var _return_branch := PackedVector2Array([
-	Vector2(56, 680),
-	Vector2(111, 680),
-	Vector2(113, 682),
-	Vector2(113, 704),
-	Vector2(106, 711),
+	Vector2(128, 700),
+	Vector2(140, 700),
+	Vector2(148, 708),
 ])
 
 const PIPE_SHADOW := Color(0.025, 0.031, 0.034, 0.88)
@@ -69,11 +62,11 @@ func _draw() -> void:
 	_draw_pipe(_return_run, COOL_FLUID, COOL_GLINT, _flow_distance, true)
 	_draw_pipe(_return_branch, COOL_FLUID, COOL_GLINT, _flow_distance + 5.0, true)
 
-	_draw_clamp(Vector2(205, 657), Vector2.UP)
-	_draw_clamp(Vector2(245, 657), Vector2.UP)
-	_draw_clamp(Vector2(130, 729), Vector2.RIGHT)
-	_draw_clamp(Vector2(56, 733), Vector2.RIGHT)
-	_draw_clamp(Vector2(56, 772), Vector2.RIGHT)
+	_draw_clamp(Vector2(215, 660), Vector2.UP)
+	_draw_clamp(Vector2(250, 660), Vector2.UP)
+	_draw_clamp(Vector2(148, 712), Vector2.RIGHT)
+	_draw_clamp(Vector2(110, 728), Vector2.RIGHT)
+	_draw_clamp(Vector2(110, 756), Vector2.RIGHT)
 
 
 func _create_pipe_collisions() -> void:
@@ -86,11 +79,11 @@ func _create_pipe_collisions() -> void:
 		_add_path_collision(body, branch)
 	_add_path_collision(body, _return_run)
 	_add_path_collision(body, _return_branch)
-	_add_collision_segment(body, Vector2(205, 661.5), Vector2(205, 652.5))
-	_add_collision_segment(body, Vector2(245, 661.5), Vector2(245, 652.5))
-	_add_collision_segment(body, Vector2(125.5, 729), Vector2(134.5, 729))
-	_add_collision_segment(body, Vector2(51.5, 733), Vector2(60.5, 733))
-	_add_collision_segment(body, Vector2(51.5, 772), Vector2(60.5, 772))
+	_add_collision_segment(body, Vector2(215, 664.5), Vector2(215, 655.5))
+	_add_collision_segment(body, Vector2(250, 664.5), Vector2(250, 655.5))
+	_add_collision_segment(body, Vector2(143.5, 712), Vector2(152.5, 712))
+	_add_collision_segment(body, Vector2(105.5, 728), Vector2(114.5, 728))
+	_add_collision_segment(body, Vector2(105.5, 756), Vector2(114.5, 756))
 	add_child(body)
 
 

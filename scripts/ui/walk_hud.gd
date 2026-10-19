@@ -102,6 +102,12 @@ class PixelIcon extends Control:
 				_block(origin, unit, 15, 15, 4, 4, tint)
 				_block(origin, unit, 8, 8, 8, 8, ICON_PALE, false)
 				_block(origin, unit, 10, 10, 4, 4, tint.darkened(0.3))
+			&"dev":
+				_block(origin, unit, 3, 4, 18, 16, tint.darkened(0.42), false)
+				_block(origin, unit, 5, 6, 14, 12, tint.darkened(0.65))
+				_block(origin, unit, 11, 6, 4, 4, ICON_PALE)
+				_block(origin, unit, 9, 10, 6, 3, tint)
+				_block(origin, unit, 10, 13, 4, 5, ICON_PALE)
 	func _block(origin: Vector2, unit: float, x: int, y: int, width: int, height: int, color: Color, filled := true) -> void:
 		var rect := Rect2(origin + Vector2(float(x), float(y)) * unit, Vector2(float(width), float(height)) * unit)
 		if filled:
@@ -370,6 +376,18 @@ var _operator_panel: PanelContainer
 var _cargo_grid: GridContainer
 var _previous_focus: Control
 var _resize_queued := false
+var _dev_panel: PanelContainer
+var _dev_current_room_label: Label
+var _dev_room_name_label: Label
+var _dev_flicker_here_btn: Button
+var _dev_flicker_all_btn: Button
+var _dev_style_btn: Button
+var _dev_speed_btn: Button
+var _dev_room_flicker_btn: Button
+var _dev_force_lights_btn: Button
+var _dev_selected_room_index := 0
+const DEV_FLICKER_STYLES: Array[StringName] = [&"erratic", &"strobe", &"brownout", &"pulse"]
+const DEV_FLICKER_SPEEDS: Array[float] = [0.5, 1.0, 1.5, 2.5]
 
 
 func setup(player: ShipPlayer, task_entries: Array[Dictionary], map_world_origin: Vector2, map_world_size: Vector2) -> void:
@@ -406,6 +424,8 @@ func _process(_delta: float) -> void:
 	_update_world_task_markers()
 	if _active_overlay == &"map":
 		_update_map_markers()
+	if is_instance_valid(_dev_panel) and _dev_panel.visible:
+		_refresh_dev_menu()
 
 
 func _build_ui() -> void:
@@ -423,6 +443,7 @@ func _build_ui() -> void:
 	_root.add_child(_world_task_marker_layer)
 	_build_mission_panel()
 	_build_top_controls()
+	_build_dev_menu_panel()
 	_build_context_prompt()
 	_build_hotbar()
 	_create_map_overlay()
@@ -518,7 +539,7 @@ func _build_top_controls() -> void:
 	var controls := HBoxContainer.new()
 	controls.name = "TopRightControls"
 	controls.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
-	controls.offset_left = -496.0
+	controls.offset_left = -626.0
 	controls.offset_top = 18.0
 	controls.offset_right = -18.0
 	controls.offset_bottom = 82.0
@@ -527,6 +548,7 @@ func _build_top_controls() -> void:
 	controls.add_child(_navigation_button(&"map", "SHIP MAP", "M", _open_map))
 	controls.add_child(_navigation_button(&"inventory", "INVENTORY", "I", _open_inventory))
 	controls.add_child(_navigation_button(&"settings", "SETTINGS", "ESC", _open_settings))
+	controls.add_child(_navigation_button(&"dev", "DEV MENU", "F3", _toggle_dev_menu))
 
 func _build_context_prompt() -> void:
 	_context_prompt = PanelContainer.new()
@@ -541,8 +563,6 @@ func _build_context_prompt() -> void:
 	_context_prompt.offset_bottom = -112.0
 	_context_prompt.visible = false
 	var prompt_style := _panel_style(Color(0.012, 0.025, 0.038, 0.95), ORANGE, 7.0)
-	prompt_style.border_width_left = 3
-	prompt_style.border_width_right = 3
 	_context_prompt.add_theme_stylebox_override("panel", prompt_style)
 	_root.add_child(_context_prompt)
 	var prompt_box := HBoxContainer.new()
@@ -1149,7 +1169,7 @@ func _on_master_volume_changed(value: float) -> void:
 func _navigation_button(icon_kind: StringName, title: String, shortcut: String, callback: Callable) -> Button:
 	var button := Button.new()
 	button.name = title.replace(" ", "")
-	button.custom_minimum_size = Vector2(154, 64)
+	button.custom_minimum_size = Vector2(146, 64)
 	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	button.tooltip_text = "%s / %s" % [title, shortcut]
 	button.focus_mode = Control.FOCUS_ALL
@@ -1275,6 +1295,10 @@ func _unhandled_input(event: InputEvent) -> void:
 func _unhandled_key_input(event: InputEvent) -> void:
 	if not _walking_visible or not (event is InputEventKey) or not event.pressed or event.echo:
 		return
+	if event.keycode == KEY_F3 or event.keycode == KEY_QUOTELEFT or event.keycode == KEY_F1:
+		_toggle_dev_menu()
+		get_viewport().set_input_as_handled()
+		return
 	if event.keycode == KEY_ESCAPE:
 		if _active_overlay != &"":
 			_close_overlay()
@@ -1300,6 +1324,269 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	if hotbar_index >= 0:
 		_select_hotbar(hotbar_index)
 		get_viewport().set_input_as_handled()
+
+
+func _get_room_lighting() -> Node2D:
+	var nodes := get_tree().get_nodes_in_group("ship_room_lighting")
+	if not nodes.is_empty():
+		return nodes[0] as Node2D
+	if is_instance_valid(_player) and _player.get_parent() != null:
+		return _player.get_parent().get_node_or_null("ShipRoomLighting") as Node2D
+	return null
+
+
+func _build_dev_menu_panel() -> void:
+	_dev_panel = PanelContainer.new()
+	_dev_panel.name = "DevMenuPanel"
+	_dev_panel.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
+	_dev_panel.offset_left = -410.0
+	_dev_panel.offset_top = 88.0
+	_dev_panel.offset_right = -18.0
+	_dev_panel.offset_bottom = 458.0
+	_dev_panel.visible = false
+	_dev_panel.add_theme_stylebox_override("panel", _panel_style(SURFACE, GOLD, 12.0))
+	_root.add_child(_dev_panel)
+
+	var stack := VBoxContainer.new()
+	stack.add_theme_constant_override("separation", 8)
+	_dev_panel.add_child(stack)
+
+	var header := HBoxContainer.new()
+	header.add_theme_constant_override("separation", 8)
+	var title := _label("DEV MENU // LIGHTING TEST", 12, GOLD)
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	header.add_child(title)
+	var close_btn := Button.new()
+	close_btn.name = "DevClose"
+	close_btn.text = "X"
+	close_btn.theme_type_variation = &"CloseButton"
+	close_btn.custom_minimum_size = Vector2(36, 36)
+	close_btn.pressed.connect(func(): _dev_panel.visible = false)
+	header.add_child(close_btn)
+	stack.add_child(header)
+	stack.add_child(HSeparator.new())
+
+	_dev_current_room_label = _label("OCCUPIED: HALLWAY", 12, CYAN)
+	_dev_current_room_label.clip_text = true
+	stack.add_child(_dev_current_room_label)
+
+	var row1 := HBoxContainer.new()
+	row1.add_theme_constant_override("separation", 8)
+	_dev_flicker_here_btn = _button("FLICKER HERE: OFF", Vector2(176, 38), ORANGE)
+	_dev_flicker_here_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_dev_flicker_here_btn.pressed.connect(_on_dev_toggle_flicker_here)
+	row1.add_child(_dev_flicker_here_btn)
+	_dev_flicker_all_btn = _button("FLICKER ALL: OFF", Vector2(176, 38), ORANGE)
+	_dev_flicker_all_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_dev_flicker_all_btn.pressed.connect(_on_dev_toggle_flicker_all)
+	row1.add_child(_dev_flicker_all_btn)
+	stack.add_child(row1)
+
+	var row2 := HBoxContainer.new()
+	row2.add_theme_constant_override("separation", 8)
+	_dev_style_btn = _button("MODE: ERRATIC", Vector2(176, 38), CYAN)
+	_dev_style_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_dev_style_btn.pressed.connect(_on_dev_cycle_style)
+	row2.add_child(_dev_style_btn)
+	_dev_speed_btn = _button("SPEED: 1.0X", Vector2(176, 38), CYAN)
+	_dev_speed_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_dev_speed_btn.pressed.connect(_on_dev_cycle_speed)
+	row2.add_child(_dev_speed_btn)
+	stack.add_child(row2)
+
+	stack.add_child(HSeparator.new())
+	stack.add_child(_label("TARGET ROOM FLICKER & WARP", 12, GOLD))
+
+	var room_nav := HBoxContainer.new()
+	room_nav.add_theme_constant_override("separation", 8)
+	var prev_btn := _button("<", Vector2(44, 38), CYAN)
+	prev_btn.pressed.connect(func(): _step_dev_room(-1))
+	room_nav.add_child(prev_btn)
+	_dev_room_name_label = _label("R01 Bridge", 12, PALE)
+	_dev_room_name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_dev_room_name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_dev_room_name_label.clip_text = true
+	room_nav.add_child(_dev_room_name_label)
+	var next_btn := _button(">", Vector2(44, 38), CYAN)
+	next_btn.pressed.connect(func(): _step_dev_room(1))
+	room_nav.add_child(next_btn)
+	stack.add_child(room_nav)
+
+	var room_actions := HBoxContainer.new()
+	room_actions.add_theme_constant_override("separation", 8)
+	_dev_room_flicker_btn = _button("ROOM FLICKER: OFF", Vector2(176, 38), ORANGE)
+	_dev_room_flicker_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_dev_room_flicker_btn.pressed.connect(_on_dev_toggle_selected_room_flicker)
+	room_actions.add_child(_dev_room_flicker_btn)
+	var warp_btn := _button("WARP TO ROOM", Vector2(176, 38), GREEN)
+	warp_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	warp_btn.pressed.connect(_on_dev_warp_to_selected_room)
+	room_actions.add_child(warp_btn)
+	stack.add_child(room_actions)
+
+	var row3 := HBoxContainer.new()
+	row3.add_theme_constant_override("separation", 8)
+	_dev_force_lights_btn = _button("ALL LIT: OFF", Vector2(176, 38), GOLD)
+	_dev_force_lights_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_dev_force_lights_btn.pressed.connect(_on_dev_toggle_force_lights)
+	row3.add_child(_dev_force_lights_btn)
+	var reset_btn := _button("RESET LIGHTS", Vector2(176, 38), MUTED)
+	reset_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	reset_btn.pressed.connect(_on_dev_reset_lights)
+	row3.add_child(reset_btn)
+	stack.add_child(row3)
+
+
+func _toggle_dev_menu() -> void:
+	if not _walking_visible or not is_instance_valid(_dev_panel):
+		return
+	if _active_overlay != &"":
+		_close_overlay()
+	_dev_panel.visible = not _dev_panel.visible
+	if _dev_panel.visible:
+		_refresh_dev_menu()
+
+
+func _step_dev_room(delta_idx: int) -> void:
+	var lighting: Node2D = _get_room_lighting()
+	if lighting == null or not lighting.has_method("get_room_definitions"):
+		return
+	var defs: Array = lighting.call("get_room_definitions")
+	if defs.is_empty():
+		return
+	_dev_selected_room_index = posmod(_dev_selected_room_index + delta_idx, defs.size())
+	_refresh_dev_menu()
+
+
+func _on_dev_toggle_flicker_here() -> void:
+	var lighting: Node2D = _get_room_lighting()
+	if lighting == null or not lighting.has_method("set_flicker_current_room"):
+		return
+	var cur_state: bool = bool(lighting.call("is_flicker_current_room"))
+	lighting.call("set_flicker_current_room", not cur_state)
+	_refresh_dev_menu()
+
+
+func _on_dev_toggle_flicker_all() -> void:
+	var lighting: Node2D = _get_room_lighting()
+	if lighting == null or not lighting.has_method("set_flicker_all_rooms"):
+		return
+	var cur_state: bool = bool(lighting.call("is_flicker_all_rooms"))
+	lighting.call("set_flicker_all_rooms", not cur_state)
+	_refresh_dev_menu()
+
+
+func _on_dev_cycle_style() -> void:
+	var lighting: Node2D = _get_room_lighting()
+	if lighting == null or not lighting.has_method("get_flicker_style"):
+		return
+	var cur_style: StringName = StringName(lighting.call("get_flicker_style"))
+	var idx: int = DEV_FLICKER_STYLES.find(cur_style)
+	var next_style: StringName = DEV_FLICKER_STYLES[(idx + 1) % DEV_FLICKER_STYLES.size()]
+	lighting.call("set_flicker_style", next_style)
+	_refresh_dev_menu()
+
+
+func _on_dev_cycle_speed() -> void:
+	var lighting: Node2D = _get_room_lighting()
+	if lighting == null or not lighting.has_method("get_flicker_speed"):
+		return
+	var current: float = float(lighting.call("get_flicker_speed"))
+	var next_speed: float = DEV_FLICKER_SPEEDS[0]
+	for i in range(DEV_FLICKER_SPEEDS.size()):
+		if is_equal_approx(current, DEV_FLICKER_SPEEDS[i]):
+			next_speed = DEV_FLICKER_SPEEDS[(i + 1) % DEV_FLICKER_SPEEDS.size()]
+			break
+	lighting.call("set_flicker_speed", next_speed)
+	_refresh_dev_menu()
+
+
+func _on_dev_toggle_selected_room_flicker() -> void:
+	var lighting: Node2D = _get_room_lighting()
+	if lighting == null or not lighting.has_method("get_room_definitions"):
+		return
+	var defs: Array = lighting.call("get_room_definitions")
+	if defs.is_empty():
+		return
+	_dev_selected_room_index = clampi(_dev_selected_room_index, 0, defs.size() - 1)
+	var sel_def: Dictionary = defs[_dev_selected_room_index]
+	var room_id: StringName = sel_def["id"]
+	lighting.call("toggle_room_flicker", room_id)
+	_refresh_dev_menu()
+
+
+func _on_dev_warp_to_selected_room() -> void:
+	var lighting: Node2D = _get_room_lighting()
+	if lighting == null or not is_instance_valid(_player) or not lighting.has_method("get_room_definitions"):
+		return
+	var defs: Array = lighting.call("get_room_definitions")
+	if defs.is_empty():
+		return
+	_dev_selected_room_index = clampi(_dev_selected_room_index, 0, defs.size() - 1)
+	var def: Dictionary = defs[_dev_selected_room_index]
+	var floor_pos: Vector2 = def.get("teleport_pos", Vector2(900.0, 500.0))
+	var parent_node := lighting.get_parent() as Node2D
+	var floor_layer: Node2D = null
+	if parent_node != null:
+		floor_layer = parent_node.get_node_or_null("FloorLayer") as Node2D
+	if floor_layer != null:
+		_player.global_position = floor_layer.to_global(floor_pos)
+	else:
+		_player.global_position = lighting.to_global(floor_pos)
+	if _player.camera != null:
+		_player.camera.reset_smoothing()
+	_refresh_dev_menu()
+
+
+func _on_dev_toggle_force_lights() -> void:
+	var lighting: Node2D = _get_room_lighting()
+	if lighting == null or not lighting.has_method("set_force_all_lights_on"):
+		return
+	var cur_state: bool = bool(lighting.call("is_force_all_lights_on"))
+	lighting.call("set_force_all_lights_on", not cur_state)
+	_refresh_dev_menu()
+
+
+func _on_dev_reset_lights() -> void:
+	var lighting: Node2D = _get_room_lighting()
+	if lighting == null or not lighting.has_method("clear_all_flicker"):
+		return
+	lighting.call("clear_all_flicker")
+	lighting.call("set_force_all_lights_on", false)
+	lighting.call("set_flicker_style", &"erratic")
+	lighting.call("set_flicker_speed", 1.0)
+	_refresh_dev_menu()
+
+
+func _refresh_dev_menu() -> void:
+	var lighting: Node2D = _get_room_lighting()
+	if lighting == null or not is_instance_valid(_dev_panel) or not lighting.has_method("get_room_definitions"):
+		return
+	var defs: Array = lighting.call("get_room_definitions")
+	var cur_id: StringName = StringName(lighting.call("get_current_player_room_id"))
+	var cur_label := "HALLWAY / CORRIDOR"
+	for def in defs:
+		if def["id"] == cur_id:
+			cur_label = str(def.get("label", String(cur_id))).to_upper()
+			break
+	_dev_current_room_label.text = "OCCUPIED: " + cur_label
+	var here_on: bool = bool(lighting.call("is_flicker_current_room"))
+	var all_on: bool = bool(lighting.call("is_flicker_all_rooms"))
+	var cur_style: String = String(lighting.call("get_flicker_style")).to_upper()
+	var cur_speed: float = float(lighting.call("get_flicker_speed"))
+	var all_lit: bool = bool(lighting.call("is_force_all_lights_on"))
+	_dev_flicker_here_btn.text = "FLICKER HERE: " + ("ON" if here_on else "OFF")
+	_dev_flicker_all_btn.text = "FLICKER ALL: " + ("ON" if all_on else "OFF")
+	_dev_style_btn.text = "MODE: " + cur_style
+	_dev_speed_btn.text = "SPEED: %.1fX" % cur_speed
+	_dev_force_lights_btn.text = "ALL LIT: " + ("ON" if all_lit else "OFF")
+	if not defs.is_empty():
+		_dev_selected_room_index = clampi(_dev_selected_room_index, 0, defs.size() - 1)
+		var sel_def: Dictionary = defs[_dev_selected_room_index]
+		var sel_id: StringName = sel_def["id"]
+		_dev_room_name_label.text = str(sel_def.get("label", String(sel_id)))
+		var room_on: bool = bool(lighting.call("is_room_flickering", sel_id))
+		_dev_room_flicker_btn.text = "ROOM FLICKER: " + ("ON" if room_on else "OFF")
 
 
 func _select_hotbar(index: int) -> void:

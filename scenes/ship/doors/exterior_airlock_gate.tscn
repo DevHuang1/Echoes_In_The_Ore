@@ -1,0 +1,31 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/ship/exterior_airlock_gate.gd" id="1_airlock_script"]
+[ext_resource type="Texture2D" uid="uid://cvalkairlockdoor1" path="res://art/concepts/exterior_airlock_door_valkyrie.png" id="2_door_texture"]
+[ext_resource type="AudioStreamMP3" path="res://audio/sfx/pressure_door_open.mp3" id="3_open_sfx"]
+
+[node name="ExteriorAirlockGate" type="Node2D"]
+z_index = 0
+texture_filter = 1
+script = ExtResource("1_airlock_script")
+
+[node name="LeftDoorPanel" type="Sprite2D" parent="."]
+texture_filter = 1
+position = Vector2(-24, 0)
+scale = Vector2(0.25, 0.283333)
+texture = ExtResource("2_door_texture")
+region_enabled = true
+region_rect = Rect2(0, 0, 192, 120)
+
+[node name="RightDoorPanel" type="Sprite2D" parent="."]
+texture_filter = 1
+position = Vector2(24, 0)
+scale = Vector2(0.25, 0.283333)
+texture = ExtResource("2_door_texture")
+region_enabled = true
+region_rect = Rect2(192, 0, 192, 120)
+
+[node name="OpenSFX" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource("3_open_sfx")
+volume_db = -2.0
+max_distance = 520.0
