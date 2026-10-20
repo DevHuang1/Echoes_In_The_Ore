@@ -15,13 +15,10 @@
 [ext_resource type="PackedScene" path="res://scenes/ship/props/bridge_room_props.tscn" id="12_bridge_props"]
 [ext_resource type="PackedScene" path="res://scenes/ship/props/ship_vent_network.tscn" id="13_vent_network"]
 [ext_resource type="PackedScene" path="res://scenes/ship/props/ship_fog_halo.tscn" id="14_fog"]
-<<<<<<< HEAD
 [ext_resource type="PackedScene" path="res://scenes/ship/lab_room.tscn" id="15_lab"]
-=======
 [ext_resource type="PackedScene" path="res://scenes/ship/props/crew_living_quarter_props.tscn" id="15_crew_quarters"]
 [ext_resource type="PackedScene" path="res://scenes/ship/props/cargo_bay_props.tscn" id="16_cargo"]
 [ext_resource type="PackedScene" path="res://scenes/ship/props/engine_room_props.tscn" id="17_engine"]
->>>>>>> origin/kaung
 
 [node name="BareShipWalkthrough" type="Node2D" unique_id=1816551452]
 y_sort_enabled = true
