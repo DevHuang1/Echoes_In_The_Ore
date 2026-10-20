@@ -640,8 +640,11 @@ var _lab_scan_gain: HSlider
 var _lab_archive_search: LineEdit
 var _lab_archive_records: ItemList
 var _lab_archive_detail: Label
+var _lab_open_record_button: Button
 var _lab_archive_data: Array[Dictionary] = []
 var _lab_axis_sliders: Array[HSlider] = []
+var _lab_axis_names: Array[String] = []
+var _lab_axis_value_labels: Array[Label] = []
 var _lab_lock_buttons: Array[Button] = []
 
 
@@ -900,6 +903,10 @@ func _build_lab_device_ui() -> Control:
 	device_heading.add_child(_label("LOCAL EQUIPMENT PANEL", 10, GOLD))
 	device_heading.add_spacer(false)
 	_lab_device_status = _label("LOCKS ENGAGED  /  READY" if _task_id == &"lab_containment" else "IDLE  /  READY", 10, GREEN)
+	_lab_device_status.clip_text = true
+	_lab_device_status.custom_minimum_size.x = 200.0
+	_lab_device_status.size_flags_horizontal = Control.SIZE_SHRINK_END
+	_lab_device_status.tooltip_text = "Device status and the result of your last action."
 	device_heading.add_child(_lab_device_status)
 	workspace.add_child(device_heading)
 
@@ -942,20 +949,20 @@ func _build_lab_device_ui() -> Control:
 
 func _build_spectrometer_controls(parent: VBoxContainer) -> void:
 	parent.add_child(_label("SPECTROMETER SETUP", 11, GOLD))
-	parent.add_child(_label("Select a specimen, choose an acquisition mode, and set detector gain.", 11, MUTED))
-	parent.add_child(_label("SAMPLE TRAY", 9, CYAN))
+	parent.add_child(_label("1. Choose a sample   →   2. Set scan   →   3. Acquire", 10, MUTED))
+	parent.add_child(_label("SAMPLE", 9, CYAN))
 	_lab_sample_slot = OptionButton.new()
 	_lab_sample_slot.add_item("Paired tray  /  ERE-07 + ERE-08")
 	_lab_sample_slot.add_item("Sample vial  /  ERE-07")
 	_lab_sample_slot.add_item("Sample vial  /  ERE-08")
 	parent.add_child(_lab_sample_slot)
-	parent.add_child(_label("ACQUISITION MODE", 9, CYAN))
+	parent.add_child(_label("SCAN TYPE", 9, CYAN))
 	_lab_scan_mode = OptionButton.new()
 	_lab_scan_mode.add_item("X-ray fluorescence")
 	_lab_scan_mode.add_item("Reflectance spectrum")
 	_lab_scan_mode.add_item("Electromagnetic survey")
 	parent.add_child(_lab_scan_mode)
-	_lab_gain_label = _label("DETECTOR GAIN  /  64%", 9, CYAN)
+	_lab_gain_label = _label("SENSOR SENSITIVITY  /  64%", 9, CYAN)
 	parent.add_child(_lab_gain_label)
 	_lab_scan_gain = HSlider.new()
 	_lab_scan_gain.min_value = 0.0
@@ -967,9 +974,11 @@ func _build_spectrometer_controls(parent: VBoxContainer) -> void:
 	_style_task_slider(_lab_scan_gain, CYAN)
 	_lab_scan_gain.value_changed.connect(_on_spectrometer_gain_changed)
 	parent.add_child(_lab_scan_gain)
+	_lab_scan_gain.tooltip_text = "Increase sensitivity to reveal weaker readings."
 	_lab_baseline_checkbox = CheckBox.new()
-	_lab_baseline_checkbox.text = "Subtract detector baseline"
+	_lab_baseline_checkbox.text = "Correct background noise"
 	_lab_baseline_checkbox.button_pressed = true
+	_lab_baseline_checkbox.tooltip_text = "Recommended: remove the detector's normal background signal."
 	parent.add_child(_lab_baseline_checkbox)
 	parent.add_spacer(false)
 	var run_button := _button("ACQUIRE SPECTRUM", Vector2(0.0, 46.0), CYAN)
@@ -980,7 +989,7 @@ func _build_spectrometer_controls(parent: VBoxContainer) -> void:
 
 
 func _on_spectrometer_gain_changed(value: float) -> void:
-	_lab_gain_label.text = "DETECTOR GAIN  /  %02d%%" % roundi(value)
+	_lab_gain_label.text = "SENSOR SENSITIVITY  /  %02d%%" % roundi(value)
 
 
 func _on_spectrometer_scan() -> void:
@@ -996,7 +1005,7 @@ func _on_spectrometer_scan() -> void:
 
 func _build_research_console_controls(parent: VBoxContainer) -> void:
 	parent.add_child(_label("RESEARCH DATA TERMINAL", 11, GOLD))
-	parent.add_child(_label("Browse local reference data and open an instrument or specimen record.", 11, MUTED))
+	parent.add_child(_label("Search, select a record, then open it to read the full entry.", 10, MUTED))
 	_lab_archive_search = LineEdit.new()
 	_lab_archive_search.placeholder_text = "Search reference catalog…"
 	_lab_archive_search.clear_button_enabled = true
@@ -1026,14 +1035,16 @@ func _build_research_console_controls(parent: VBoxContainer) -> void:
 		{"title": "Lab handbook", "detail": "Bench procedures for microscopy, containment, and specimen handling."},
 	]
 	_refresh_lab_archive_list()
-	var open_button := _button("OPEN SELECTED ENTRY", Vector2(0.0, 42.0), CYAN)
-	open_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	open_button.pressed.connect(_on_research_record_open)
+	_lab_open_record_button = _button("OPEN SELECTED ENTRY", Vector2(0.0, 46.0), CYAN)
+	_lab_open_record_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_lab_open_record_button.disabled = true
+	_lab_open_record_button.pressed.connect(_on_research_record_open)
 	_lab_primary_control = _lab_archive_search
-	parent.add_child(open_button)
+	parent.add_child(_lab_open_record_button)
 
 
 func _on_research_search_changed(_value: String) -> void:
+	_lab_archive_detail.text = "Choose a result to preview its contents."
 	_refresh_lab_archive_list()
 
 
@@ -1041,11 +1052,13 @@ func _on_research_record_selected(index: int) -> void:
 	var record := _visible_archive_record(index)
 	if not record.is_empty():
 		_lab_archive_detail.text = str(record["detail"])
+		_lab_open_record_button.disabled = false
+		_set_lab_device_status("ENTRY SELECTED  /  READY TO OPEN", CYAN)
 
 
 func _on_research_record_open() -> void:
 	var selected := _lab_archive_records.get_selected_items()
-	if selected.is_empty():
+	if selected.is_empty() or _visible_archive_record(selected[0]).is_empty():
 		_set_lab_device_status("SELECT A CATALOG ENTRY", GOLD)
 		return
 	var record: Dictionary = _visible_archive_record(selected[0])
@@ -1055,7 +1068,7 @@ func _on_research_record_open() -> void:
 
 func _build_containment_controls(parent: VBoxContainer) -> void:
 	parent.add_child(_label("CONTAINMENT CONTROL", 11, GOLD))
-	parent.add_child(_label("Pressure vessel  /  Chamber 04", 11, MUTED))
+	parent.add_child(_label("Secure both locks and set pressure to 1.00 ATM, then run the test.", 10, MUTED))
 	var lock_row := HBoxContainer.new()
 	lock_row.add_theme_constant_override("separation", 8)
 	for index in range(2):
@@ -1078,6 +1091,7 @@ func _build_containment_controls(parent: VBoxContainer) -> void:
 	pressure_slider.custom_minimum_size.y = 30.0
 	pressure_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_style_task_slider(pressure_slider, CYAN)
+	pressure_slider.tooltip_text = "Target: 0.97–1.03 ATM. Use the arrow keys for fine adjustment."
 	pressure_slider.value_changed.connect(_on_containment_pressure_changed)
 	parent.add_child(pressure_slider)
 	var test_button := _button("RUN PRESSURE-HOLD TEST", Vector2(0.0, 44.0), GOLD)
@@ -1086,7 +1100,7 @@ func _build_containment_controls(parent: VBoxContainer) -> void:
 	_lab_primary_control = test_button
 	parent.add_child(test_button)
 	parent.add_spacer(false)
-	parent.add_child(_label("Interlocks prevent release while either lock is engaged.", 10, MUTED))
+	parent.add_child(_label("PASS CHECK: both locks engaged and pressure within 0.03 ATM of target.", 9, MUTED))
 
 
 func _on_containment_lock_toggled(is_engaged: bool, index: int) -> void:
@@ -1125,15 +1139,15 @@ func _on_containment_test() -> void:
 
 func _build_trolley_controls(parent: VBoxContainer) -> void:
 	parent.add_child(_label("PORTABLE INSTRUMENTS", 11, GOLD))
-	parent.add_child(_label("Configure the microscope and zero the sample reader.", 11, MUTED))
-	parent.add_child(_label("MICROSCOPE OBJECTIVE", 9, CYAN))
+	parent.add_child(_label("Choose magnification and focus, then zero the selected vial.", 10, MUTED))
+	parent.add_child(_label("1  /  MAGNIFICATION", 9, CYAN))
 	var objective := OptionButton.new()
 	objective.add_item("4×  /  Locator")
 	objective.add_item("10×  /  Survey")
 	objective.add_item("40×  /  Detail")
 	objective.item_selected.connect(_on_trolley_objective_changed)
 	parent.add_child(objective)
-	parent.add_child(_label("FOCUS ADJUSTMENT  /  0.00 MM", 9, CYAN))
+	parent.add_child(_label("2  /  FOCUS  —  0.00 MM", 9, CYAN))
 	_lab_focus_label = parent.get_child(parent.get_child_count() - 1) as Label
 	var focus_slider := HSlider.new()
 	focus_slider.min_value = -5.0
@@ -1144,19 +1158,19 @@ func _build_trolley_controls(parent: VBoxContainer) -> void:
 	_style_task_slider(focus_slider, CYAN)
 	focus_slider.value_changed.connect(_on_trolley_focus_changed)
 	parent.add_child(focus_slider)
-	parent.add_child(_label("SAMPLE READER", 9, CYAN))
+	parent.add_child(_label("3  /  SAMPLE READER", 9, CYAN))
 	var reader_row := HBoxContainer.new()
 	var vial := OptionButton.new()
 	vial.add_item("Vial  /  ERE-07")
 	vial.add_item("Vial  /  ERE-08")
 	vial.item_selected.connect(_on_trolley_vial_changed)
 	reader_row.add_child(vial)
-	var zero_button := _button("ZERO BASELINE", Vector2(145.0, 38.0), GOLD)
+	var zero_button := _button("ZERO SELECTED VIAL", Vector2(170.0, 42.0), GOLD)
 	zero_button.pressed.connect(_on_trolley_zero)
 	reader_row.add_child(zero_button)
 	parent.add_child(reader_row)
 	parent.add_spacer(false)
-	_lab_primary_control = objective
+	_lab_primary_control = zero_button
 
 
 func _on_trolley_objective_changed(index: int) -> void:
@@ -1166,7 +1180,7 @@ func _on_trolley_objective_changed(index: int) -> void:
 
 
 func _on_trolley_focus_changed(value: float) -> void:
-	_lab_focus_label.text = "FOCUS ADJUSTMENT  /  %.2f MM" % value
+	_lab_focus_label.text = "2  /  FOCUS  —  %.2f MM" % value
 	_lab_station_display.focus_position = value
 	_lab_station_display.status_text = "FOCUS %.2f MM" % value
 	_lab_station_display.queue_redraw()
@@ -1186,7 +1200,7 @@ func _on_trolley_vial_changed(index: int) -> void:
 
 func _build_archive_controls(parent: VBoxContainer) -> void:
 	parent.add_child(_label("ARCHIVE BROWSER", 11, GOLD))
-	parent.add_child(_label("Search records stored on this archive node.", 11, MUTED))
+	parent.add_child(_label("Type to filter. Select a record to preview it, then open it.", 10, MUTED))
 	_lab_archive_search = LineEdit.new()
 	_lab_archive_search.placeholder_text = "Filter by title or keyword…"
 	_lab_archive_search.clear_button_enabled = true
@@ -1211,11 +1225,12 @@ func _build_archive_controls(parent: VBoxContainer) -> void:
 	parent.add_child(split)
 	_lab_archive_data = _archive_records_for_device()
 	_refresh_lab_archive_list()
-	var open_button := _button("OPEN RECORD", Vector2(0.0, 42.0), CYAN)
-	open_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	open_button.pressed.connect(_on_archive_record_open)
+	_lab_open_record_button = _button("OPEN SELECTED RECORD", Vector2(0.0, 46.0), CYAN)
+	_lab_open_record_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_lab_open_record_button.disabled = true
+	_lab_open_record_button.pressed.connect(_on_archive_record_open)
 	_lab_primary_control = _lab_archive_search
-	parent.add_child(open_button)
+	parent.add_child(_lab_open_record_button)
 
 
 func _archive_records_for_device() -> Array[Dictionary]:
@@ -1242,24 +1257,31 @@ func _on_archive_search_changed(_value: String) -> void:
 func _refresh_lab_archive_list() -> void:
 	if not is_instance_valid(_lab_archive_records):
 		return
+	if is_instance_valid(_lab_open_record_button):
+		_lab_open_record_button.disabled = true
 	_lab_archive_records.clear()
+	if is_instance_valid(_lab_archive_detail):
+		_lab_archive_detail.text = "Choose a record to preview its contents."
 	var query := _lab_archive_search.text.strip_edges().to_lower() if is_instance_valid(_lab_archive_search) else ""
 	for record in _lab_archive_data:
 		var searchable := (str(record["title"]) + " " + str(record["detail"])).to_lower()
 		if query.is_empty() or searchable.contains(query):
 			_lab_archive_records.add_item(str(record["title"]))
+	if _lab_archive_records.item_count == 0 and is_instance_valid(_lab_archive_detail):
+		_lab_archive_detail.text = "No matching records. Try another search."
 
 
 func _on_archive_record_selected(index: int) -> void:
 	var record := _visible_archive_record(index)
 	if not record.is_empty():
 		_lab_archive_detail.text = str(record["detail"])
+		_lab_open_record_button.disabled = false
 		_set_lab_device_status("RECORD SELECTED  /  LOCAL COPY", CYAN)
 
 
 func _on_archive_record_open() -> void:
 	var selected := _lab_archive_records.get_selected_items()
-	if selected.is_empty():
+	if selected.is_empty() or _visible_archive_record(selected[0]).is_empty():
 		_set_lab_device_status("SELECT A RECORD TO OPEN", GOLD)
 		return
 	var record := _visible_archive_record(selected[0])
@@ -1278,11 +1300,14 @@ func _visible_archive_record(visible_index: int) -> Dictionary:
 
 func _build_manipulator_controls(parent: VBoxContainer) -> void:
 	parent.add_child(_label("ARM POSITION CONTROL", 11, GOLD))
-	parent.add_child(_label("Adjust each joint in degrees. Movement remains inside the sample bay envelope.", 11, MUTED))
+	parent.add_child(_label("Move a joint with its slider. HOME ARM restores the safe pose.", 10, MUTED))
 	var axis_names := ["BASE ROTATION", "ELBOW PITCH", "WRIST PITCH"]
 	var defaults := [0.0, 55.0, -35.0]
 	for index in range(axis_names.size()):
-		parent.add_child(_label(axis_names[index], 9, CYAN))
+		var value_label := _label("%s  /  %d°" % [axis_names[index], roundi(defaults[index])], 9, CYAN)
+		parent.add_child(value_label)
+		_lab_axis_names.append(axis_names[index])
+		_lab_axis_value_labels.append(value_label)
 		var axis := HSlider.new()
 		axis.min_value = -90.0
 		axis.max_value = 90.0
@@ -1290,6 +1315,7 @@ func _build_manipulator_controls(parent: VBoxContainer) -> void:
 		axis.value = defaults[index]
 		axis.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		_style_task_slider(axis, CYAN)
+		axis.tooltip_text = "Range: −90° to +90°. Use arrow keys for precise movement."
 		axis.value_changed.connect(_on_manipulator_axis_changed.bind(index))
 		_lab_axis_sliders.append(axis)
 		parent.add_child(axis)
@@ -1312,6 +1338,7 @@ func _build_manipulator_controls(parent: VBoxContainer) -> void:
 
 func _on_manipulator_axis_changed(value: float, index: int) -> void:
 	_lab_station_display.joint_angles[index] = value
+	_lab_axis_value_labels[index].text = "%s  /  %d°" % [_lab_axis_names[index], roundi(value)]
 	_lab_station_display.status_text = "JOINT POSITION UPDATED"
 	_lab_station_display.queue_redraw()
 	_set_lab_device_status("JOINT %d  /  %03d°" % [index + 1, roundi(value)], CYAN)
@@ -1336,6 +1363,7 @@ func _on_manipulator_grip_toggled(is_closed: bool) -> void:
 func _set_lab_device_status(text: String, color: Color) -> void:
 	if is_instance_valid(_lab_device_status):
 		_lab_device_status.text = text
+		_lab_device_status.tooltip_text = text
 		_lab_device_status.add_theme_color_override("font_color", color)
 	if is_instance_valid(_lab_station_display):
 		_lab_station_display.status_text = text

@@ -1,4 +1,4 @@
-[gd_scene load_steps=14 format=3]
+[gd_scene load_steps=25 format=3]
 
 [ext_resource type="Texture2D" path="res://art/concepts/lab_props/specimen_analysis_table.png" id="1_table"]
 [ext_resource type="Texture2D" path="res://art/concepts/lab_props/research_console.png" id="2_console"]
@@ -7,6 +7,12 @@
 [ext_resource type="Texture2D" path="res://art/concepts/lab_props/data_archive.png" id="5_archive"]
 [ext_resource type="Texture2D" path="res://art/concepts/lab_props/sample_robot_arm.png" id="6_robot"]
 [ext_resource type="PackedScene" path="res://scenes/ship/props/warm_ship_light.tscn" id="7_light"]
+[ext_resource type="Texture2D" path="res://art/concepts/lab_props/room_additions/sample_cabinet_user_4dir.png" id="8_cabinet"]
+[ext_resource type="Texture2D" path="res://art/concepts/lab_props/room_additions/ppe_rack_user_4dir.png" id="9_ppe"]
+[ext_resource type="Texture2D" path="res://art/concepts/lab_props/room_additions/decon_sink_user_4dir.png" id="10_decon"]
+[ext_resource type="Texture2D" path="res://art/concepts/lab_props/room_additions/lab_waste_user_4dir.png" id="11_waste"]
+[ext_resource type="Texture2D" path="res://art/concepts/lab_props/room_additions/wash_sink_user_4dir.png" id="14_sink"]
+[ext_resource type="Texture2D" path="res://art/concepts/lab_props/room_additions/analysis_table_user_4dir.png" id="15_side_analysis"]
 
 [sub_resource type="RectangleShape2D" id="TableFootprint"]
 size = Vector2(445, 350)
@@ -25,6 +31,21 @@ size = Vector2(280, 385)
 
 [sub_resource type="RectangleShape2D" id="RobotFootprint"]
 size = Vector2(350, 365)
+
+[sub_resource type="RectangleShape2D" id="PpeRackFootprint"]
+size = Vector2(450, 400)
+
+[sub_resource type="RectangleShape2D" id="DeconFootprint"]
+size = Vector2(420, 440)
+
+[sub_resource type="RectangleShape2D" id="WasteBinsFootprint"]
+size = Vector2(540, 380)
+
+[sub_resource type="RectangleShape2D" id="StorageFootprint"]
+size = Vector2(430, 500)
+
+[sub_resource type="RectangleShape2D" id="WashSinkFootprint"]
+size = Vector2(360, 400)
 
 [node name="LabRoom" type="Node2D"]
 y_sort_enabled = true
@@ -141,6 +162,108 @@ collision_mask = 0
 
 [node name="Footprint" type="CollisionShape2D" parent="SampleManipulator/Collision"]
 shape = SubResource("RobotFootprint")
+
+[node name="PpeRack" type="Node2D" parent="."]
+position = Vector2(143, 68)
+scale = Vector2(0.08, 0.08)
+
+[node name="Sprite" type="Sprite2D" parent="PpeRack"]
+texture = ExtResource("9_ppe")
+hframes = 2
+vframes = 2
+frame = 1
+
+[node name="Collision" type="StaticBody2D" parent="PpeRack"]
+collision_layer = 1
+collision_mask = 0
+
+[node name="Footprint" type="CollisionShape2D" parent="PpeRack/Collision"]
+shape = SubResource("PpeRackFootprint")
+
+[node name="LeftStorageCabinet" type="Node2D" parent="."]
+position = Vector2(112, 68)
+scale = Vector2(0.075, 0.075)
+
+[node name="Sprite" type="Sprite2D" parent="LeftStorageCabinet"]
+texture = ExtResource("8_cabinet")
+hframes = 2
+vframes = 2
+frame = 0
+
+[node name="Collision" type="StaticBody2D" parent="LeftStorageCabinet"]
+collision_layer = 1
+collision_mask = 0
+
+[node name="Footprint" type="CollisionShape2D" parent="LeftStorageCabinet/Collision"]
+shape = SubResource("StorageFootprint")
+
+[node name="SideAnalysisStation" type="Node2D" parent="."]
+position = Vector2(174, 68)
+scale = Vector2(0.065, 0.065)
+
+[node name="Sprite" type="Sprite2D" parent="SideAnalysisStation"]
+texture = ExtResource("15_side_analysis")
+hframes = 2
+vframes = 2
+frame = 0
+
+[node name="Collision" type="StaticBody2D" parent="SideAnalysisStation"]
+collision_layer = 1
+collision_mask = 0
+
+[node name="Footprint" type="CollisionShape2D" parent="SideAnalysisStation/Collision"]
+shape = SubResource("TableFootprint")
+
+[node name="DecontaminationStation" type="Node2D" parent="."]
+position = Vector2(430, 141)
+scale = Vector2(0.06, 0.06)
+
+[node name="Sprite" type="Sprite2D" parent="DecontaminationStation"]
+texture = ExtResource("10_decon")
+hframes = 2
+vframes = 2
+frame = 3
+
+[node name="Collision" type="StaticBody2D" parent="DecontaminationStation"]
+collision_layer = 1
+collision_mask = 0
+
+[node name="Footprint" type="CollisionShape2D" parent="DecontaminationStation/Collision"]
+shape = SubResource("DeconFootprint")
+
+[node name="LabWasteBins" type="Node2D" parent="."]
+position = Vector2(438, 64)
+scale = Vector2(0.055, 0.055)
+
+[node name="Sprite" type="Sprite2D" parent="LabWasteBins"]
+texture = ExtResource("11_waste")
+hframes = 2
+vframes = 2
+frame = 3
+
+[node name="Collision" type="StaticBody2D" parent="LabWasteBins"]
+collision_layer = 1
+collision_mask = 0
+
+[node name="Footprint" type="CollisionShape2D" parent="LabWasteBins/Collision"]
+shape = SubResource("WasteBinsFootprint")
+
+[node name="WashSink" type="Node2D" parent="."]
+position = Vector2(416, 154)
+scale = Vector2(0.06, 0.06)
+
+[node name="Sprite" type="Sprite2D" parent="WashSink"]
+texture = ExtResource("14_sink")
+hframes = 2
+vframes = 2
+frame = 1
+
+[node name="Collision" type="StaticBody2D" parent="WashSink"]
+collision_layer = 1
+collision_mask = 0
+
+[node name="Footprint" type="CollisionShape2D" parent="WashSink/Collision"]
+shape = SubResource("WashSinkFootprint")
 
 [node name="CableRuns" type="Node2D" parent="."]
 z_index = -1
