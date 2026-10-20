@@ -1,0 +1,25 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/ship/props/crew_quarters/crew_quarters_prop.tscn" id="1_base"]
+[ext_resource type="Texture2D" path="res://art/concepts/crew_living_quarter_props/Four-Way Crew Wardrobe Sprite Sheet.png" id="2_artwork"]
+
+[sub_resource type="AtlasTexture" id="Atlas_initial"]
+atlas = ExtResource("2_artwork")
+region = Rect2(843, 35, 308, 425)
+filter_clip = true
+
+[node name="StorageCabinet" instance=ExtResource("1_base")]
+artwork = ExtResource("2_artwork")
+atlas_regions = Array[Rect2]([Rect2(386, 35, 307, 425), Rect2(843, 35, 308, 425), Rect2(472, 526, 164, 438), Rect2(901, 526, 163, 438)])
+floor_anchors = PackedVector2Array(154, 360, 154, 360, 81, 374, 81, 374)
+view_names = PackedStringArray("North (rear)", "South (doors)", "East (handles right)", "West (handles left)")
+direction = 1
+artwork_scale = 0.12
+footprint_size = Vector2(32, 14)
+footprint_side_size = Vector2(14, 14)
+
+[node name="Sprite2D" parent="." index="0"]
+position = Vector2(-18.48, -43.2)
+scale = Vector2(0.12, 0.12)
+texture = SubResource("Atlas_initial")
+

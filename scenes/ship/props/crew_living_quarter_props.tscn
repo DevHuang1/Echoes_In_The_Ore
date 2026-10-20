@@ -1,0 +1,58 @@
+[gd_scene load_steps=7 format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/ship/props/crew_quarters/stacked_capsule_bed.tscn" id="1_bed"]
+[ext_resource type="PackedScene" path="res://scenes/ship/props/crew_quarters/personal_computer_desk.tscn" id="2_desk"]
+[ext_resource type="PackedScene" path="res://scenes/ship/props/crew_quarters/blue_crew_chair.tscn" id="3_chair"]
+[ext_resource type="PackedScene" path="res://scenes/ship/props/crew_quarters/communal_table_with_plant.tscn" id="4_table"]
+[ext_resource type="PackedScene" path="res://scenes/ship/props/crew_quarters/storage_cabinet.tscn" id="5_cabinet"]
+[ext_resource type="PackedScene" path="res://scenes/ship/props/crew_quarters/three_drawer_chest.tscn" id="6_chest"]
+
+[node name="CrewLivingQuarterProps" type="Node2D"]
+y_sort_enabled = true
+
+[node name="StackedCapsuleUnit" parent="." instance=ExtResource("1_bed")]
+position = Vector2(44, 118)
+
+[node name="PersonalComputerDesk" parent="." instance=ExtResource("2_desk")]
+position = Vector2(158, 28)
+
+[node name="DeskChair" parent="." instance=ExtResource("3_chair")]
+position = Vector2(158, 63)
+
+[node name="CommunalTable" parent="." instance=ExtResource("4_table")]
+position = Vector2(185, 124)
+
+[node name="TableChairNorth" parent="." instance=ExtResource("3_chair")]
+position = Vector2(185, 88)
+direction = 1
+
+[node name="TableChairSouth" parent="." instance=ExtResource("3_chair")]
+position = Vector2(185, 161)
+
+[node name="TableChairWest" parent="." instance=ExtResource("3_chair")]
+position = Vector2(127, 128)
+direction = 3
+
+[node name="TableChairEast" parent="." instance=ExtResource("3_chair")]
+position = Vector2(243, 128)
+direction = 2
+
+[node name="ThreeDrawerChest" parent="." instance=ExtResource("6_chest")]
+position = Vector2(98, 30)
+
+[node name="StorageCabinet02" parent="." instance=ExtResource("5_cabinet")]
+position = Vector2(308, 43)
+
+[node name="ThreeDrawerChest02" parent="." instance=ExtResource("6_chest")]
+position = Vector2(127, 63)
+
+[node name="StackedCapsuleUnit02" parent="." instance=ExtResource("1_bed")]
+position = Vector2(91, 158)
+artwork_scale = 0.07
+footprint_size = Vector2(36, 12)
+
+[node name="StackedCapsuleUnit03" parent="." instance=ExtResource("1_bed")]
+position = Vector2(282, 158)
+artwork_scale = 0.07
+footprint_size = Vector2(36, 12)
+

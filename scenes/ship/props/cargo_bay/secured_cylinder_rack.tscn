@@ -1,0 +1,26 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/ship/props/cargo_bay/cargo_bay_prop.tscn" id="base"]
+[ext_resource type="Texture2D" path="res://art/concepts/cargo_bay_props/Four-view industrial cylinder rack sprite sheet-3.png" id="art"]
+
+[sub_resource type="AtlasTexture" id="initial"]
+atlas = ExtResource("art")
+region = Rect2(822, 48, 549, 420)
+filter_clip = true
+
+[node name="SecuredCylinderRack" instance=ExtResource("base")]
+artwork = ExtResource("art")
+atlas_regions = Array[Rect2]([Rect2(166, 48, 557, 420), Rect2(822, 48, 549, 420), Rect2(336, 526, 255, 441), Rect2(938, 526, 256, 441)])
+floor_anchors = PackedVector2Array(279, 394, 275, 394, 127, 414, 128, 414)
+view_names = PackedStringArray("North (cross-braced rear)", "South (restraint straps)", "West (cylinders left)", "East (cylinders right)")
+facing_vectors = PackedVector2Array(0, -1, 0, 1, -1, 0, 1, 0)
+direction = 1
+artwork_scale = 0.11
+footprint_size = Vector2(57, 12)
+footprint_side_size = Vector2(24, 14)
+footprint_kind = 0
+
+[node name="Sprite2D" parent="." index="0"]
+position = Vector2(-30.25, -43.34)
+scale = Vector2(0.11, 0.11)
+texture = SubResource("initial")

@@ -132,7 +132,8 @@ var _active_crew_task_id: StringName = &""
 
 
 func _ready() -> void:
-	player.set_walkable_floor_mask(FLOOR_TEXTURE, floor_layer.position, 8.0)
+	# Movement samples global positions; include any saved ship-root translation.
+	player.set_walkable_floor_mask(FLOOR_TEXTURE, floor_layer.global_position, 8.0)
 	var map_size: Vector2 = FLOOR_TEXTURE.get_size()
 	var camera_bounds := Rect2(floor_layer.position - map_size * 0.5, map_size * 2.0)
 	player.set_camera_bounds(camera_bounds)

@@ -1,5 +1,7 @@
 extends Control
 
+const SKIN := preload("res://scripts/ui/pixel_ui.gd")
+
 const INTRO_SCENE := "res://scenes/ui/earth_years_montage.tscn"
 const HERO_IMAGE := preload("res://art/storyboards/thura_earth/07_astronaut_selected.png")
 const FADE_SECONDS := 0.85
@@ -10,6 +12,7 @@ var _fade_overlay: ColorRect
 
 
 func _ready() -> void:
+	SKIN.apply(self)
 	_build_screen()
 	_start_button.grab_focus()
 	_play_ambient_zoom()
@@ -30,12 +33,12 @@ func _build_screen() -> void:
 	scene_tint.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(scene_tint)
 
-	var title_panel := ColorRect.new()
+	var title_panel := Panel.new()
 	title_panel.anchor_left = 0.57
 	title_panel.anchor_top = 0.0
 	title_panel.anchor_right = 1.0
 	title_panel.anchor_bottom = 1.0
-	title_panel.color = Color(0.008, 0.018, 0.033, 0.76)
+	title_panel.add_theme_stylebox_override("panel", SKIN.panel())
 	title_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(title_panel)
 
@@ -50,17 +53,18 @@ func _build_screen() -> void:
 
 	var eyebrow := Label.new()
 	eyebrow.text = "ASTERIA-1  /  A STORY OF HOME AND DISTANCE"
-	eyebrow.add_theme_font_size_override("font_size", 15)
+	eyebrow.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	eyebrow.add_theme_font_size_override("font_size", 12)
 	eyebrow.add_theme_color_override("font_color", Color(0.88, 0.70, 0.39))
-	eyebrow.add_theme_constant_override("outline_size", 3)
+	eyebrow.add_theme_constant_override("outline_size", 0)
 	eyebrow.add_theme_color_override("font_outline_color", Color(0.01, 0.018, 0.03, 0.8))
 	content.add_child(eyebrow)
 
 	var title := Label.new()
 	title.text = "ECHOES\nIN THE ORE"
-	title.add_theme_font_size_override("font_size", 62)
+	title.add_theme_font_size_override("font_size", 48)
 	title.add_theme_color_override("font_color", Color(0.97, 0.95, 0.89))
-	title.add_theme_constant_override("outline_size", 6)
+	title.add_theme_constant_override("outline_size", 0)
 	title.add_theme_color_override("font_outline_color", Color(0.015, 0.025, 0.04, 0.95))
 	title.add_theme_constant_override("line_spacing", -5)
 	content.add_child(title)
@@ -68,7 +72,7 @@ func _build_screen() -> void:
 	var tagline := Label.new()
 	tagline.text = "Some discoveries are worth leaving behind."
 	tagline.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	tagline.add_theme_font_size_override("font_size", 20)
+	tagline.add_theme_font_size_override("font_size", 16)
 	tagline.add_theme_color_override("font_color", Color(0.85, 0.88, 0.9))
 	content.add_child(tagline)
 
@@ -81,13 +85,7 @@ func _build_screen() -> void:
 	_start_button.custom_minimum_size = Vector2(230, 62)
 	_start_button.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	_start_button.focus_mode = Control.FOCUS_ALL
-	_start_button.add_theme_font_size_override("font_size", 21)
-	_start_button.add_theme_color_override("font_color", Color(0.98, 0.96, 0.9))
-	_start_button.add_theme_color_override("font_hover_color", Color(0.08, 0.07, 0.05))
-	_start_button.add_theme_stylebox_override("normal", _button_style(Color(0.07, 0.13, 0.19, 0.92), Color(0.78, 0.61, 0.32)))
-	_start_button.add_theme_stylebox_override("hover", _button_style(Color(0.84, 0.68, 0.4, 0.98), Color(0.98, 0.83, 0.57)))
-	_start_button.add_theme_stylebox_override("pressed", _button_style(Color(0.62, 0.46, 0.22, 1.0), Color(0.98, 0.83, 0.57)))
-	_start_button.add_theme_stylebox_override("focus", _button_style(Color(0.07, 0.13, 0.19, 0.92), Color(0.98, 0.83, 0.57)))
+	_start_button.add_theme_font_size_override("font_size", 20)
 	_start_button.pressed.connect(_on_start_pressed)
 	content.add_child(_start_button)
 
@@ -106,22 +104,6 @@ func _build_screen() -> void:
 	_fade_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_fade_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_fade_overlay)
-
-
-func _button_style(background: Color, border: Color) -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = background
-	style.border_color = border
-	style.set_border_width_all(1)
-	style.corner_radius_top_left = 3
-	style.corner_radius_top_right = 3
-	style.corner_radius_bottom_left = 3
-	style.corner_radius_bottom_right = 3
-	style.content_margin_left = 26.0
-	style.content_margin_right = 26.0
-	style.content_margin_top = 12.0
-	style.content_margin_bottom = 12.0
-	return style
 
 
 func _play_ambient_zoom() -> void:

@@ -1,0 +1,26 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/ship/props/cargo_bay/cargo_bay_prop.tscn" id="base"]
+[ext_resource type="Texture2D" path="res://art/concepts/cargo_bay_props/Cargo inspection weighing station atlas-1.png" id="art"]
+
+[sub_resource type="AtlasTexture" id="initial"]
+atlas = ExtResource("art")
+region = Rect2(923, 54, 459, 476)
+filter_clip = true
+
+[node name="CargoInspectionScale" instance=ExtResource("base")]
+artwork = ExtResource("art")
+atlas_regions = Array[Rect2]([Rect2(154, 47, 460, 483), Rect2(923, 54, 459, 476), Rect2(75, 628, 638, 343), Rect2(823, 629, 638, 342)])
+floor_anchors = PackedVector2Array(230, 358, 229, 351, 319, 272, 319, 271)
+view_names = PackedStringArray("North (display rear)", "South (display front)", "West (display left)", "East (display right)")
+facing_vectors = PackedVector2Array(0, -1, 0, 1, -1, 0, 1, 0)
+direction = 1
+artwork_scale = 0.115
+footprint_size = Vector2(49, 27)
+footprint_side_size = Vector2(68, 16)
+footprint_kind = 0
+
+[node name="Sprite2D" parent="." index="0"]
+position = Vector2(-26.335, -40.365)
+scale = Vector2(0.115, 0.115)
+texture = SubResource("initial")

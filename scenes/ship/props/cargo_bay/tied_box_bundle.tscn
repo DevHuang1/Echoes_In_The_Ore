@@ -1,0 +1,29 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/ship/props/cargo_bay/cargo_bay_prop.tscn" id="base"]
+[ext_resource type="Texture2D" path="res://art/concepts/cargo_bay_props/Three-crate pixel-art cargo bundle.png" id="art"]
+
+[sub_resource type="AtlasTexture" id="initial"]
+atlas = ExtResource("art")
+region = Rect2(129, 65, 1005, 1141)
+filter_clip = true
+
+[node name="TiedBoxBundle" instance=ExtResource("base")]
+artwork = ExtResource("art")
+atlas_regions = Array[Rect2]([Rect2(129, 65, 1005, 1141)])
+floor_anchors = PackedVector2Array(502, 970)
+view_names = PackedStringArray("As drawn")
+facing_vectors = PackedVector2Array(0, 1)
+direction = 0
+artwork_scale = 0.07
+footprint_size = Vector2(64, 26)
+footprint_side_size = Vector2(64, 26)
+footprint_kind = 2
+hide_markers_enabled = true
+access_distance = 34.0
+hide_offset = Vector2(0, -28)
+
+[node name="Sprite2D" parent="." index="0"]
+position = Vector2(-35.14, -67.9)
+scale = Vector2(0.07, 0.07)
+texture = SubResource("initial")

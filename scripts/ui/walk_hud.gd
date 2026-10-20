@@ -3,17 +3,18 @@ extends CanvasLayer
 
 signal modal_state_changed(is_open: bool)
 
-const MAP_TEXTURE := preload("res://art/overview/asteria_overview.png")
+const PIXEL_THEME := preload("res://themes/ship_pixel_theme.tres")
+const MAP_CONTENT_VISIBLE := false
 const THURA_ATLAS := preload("res://art/characters/runtime/thura_walk_4dir.png")
 const CHARACTER_FRAME_SIZE := Vector2(313.5, 313.5)
 
 const GOLD := Color(1.0, 0.78, 0.38)
-const PALE := Color(0.96, 0.985, 1.0)
+const PALE := Color(0.94, 0.91, 0.82)
 const MUTED := Color(0.7, 0.8, 0.83)
 const CYAN := Color(0.36, 0.9, 1.0)
 const ORANGE := Color(1.0, 0.68, 0.32)
 const GREEN := Color(0.48, 0.93, 0.64)
-const SURFACE := Color(0.025, 0.055, 0.074)
+const SURFACE := Color(0.035, 0.055, 0.085)
 const SURFACE_RAISED := Color(0.042, 0.084, 0.103)
 const SURFACE_HOVER := Color(0.068, 0.125, 0.141)
 const EDGE := Color(0.34, 0.51, 0.55)
@@ -75,8 +76,8 @@ class PixelIcon extends Control:
 	func _draw() -> void:
 		if size.x <= 0.0 or size.y <= 0.0:
 			return
-		var unit := minf(size.x, size.y) / 24.0
-		var origin := (size - Vector2.ONE * unit * 24.0) * 0.5
+		var unit := maxf(1, floorf(minf(size.x, size.y) / 24.0))
+		var origin := ((size - Vector2.ONE * unit * 24.0) * 0.5).floor()
 		match icon_kind:
 			&"map":
 				_block(origin, unit, 2, 5, 20, 14, tint.darkened(0.45), false)
@@ -151,6 +152,8 @@ class TaskLocationMarker extends Control:
 	func _ready() -> void:
 		custom_minimum_size = MARKER_SIZE
 		size = MARKER_SIZE
+		theme = PIXEL_THEME
+		texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
 		set_process(true)
 
@@ -173,7 +176,7 @@ class TaskLocationMarker extends Control:
 		draw_colored_polygon(outline, DARK)
 		draw_circle(center, 11.0, ACCENT)
 		draw_circle(center, 7.5, DARK)
-		draw_string(ThemeDB.fallback_font, Vector2(18.0, 23.0), "!", HORIZONTAL_ALIGNMENT_LEFT, -1.0, 14, PALE)
+		draw_string(get_theme_font("font", "Label"), Vector2(15.0, 23.0), "!", HORIZONTAL_ALIGNMENT_LEFT, -1.0, 14, PALE)
 
 
 class InventoryCell extends PanelContainer:
@@ -197,6 +200,7 @@ class InventoryCell extends PanelContainer:
 	var _badge: Label
 	var _icon: TextureRect
 	var _name: Label
+	var _hovered := false
 
 	func configure(kind: StringName, index: int, item: StringName, item_short: String, tint: Color, selected: bool, label_override := "", texture: Texture2D = null) -> void:
 		slot_kind = kind
@@ -214,12 +218,15 @@ class InventoryCell extends PanelContainer:
 	func _ready() -> void:
 		mouse_filter = Control.MOUSE_FILTER_STOP
 		mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+		mouse_entered.connect(func(): _hovered = true; _refresh())
+		mouse_exited.connect(func(): _hovered = false; _refresh())
+		resized.connect(_resize_icon)
 		var stack := VBoxContainer.new()
 		stack.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		stack.add_theme_constant_override("separation", 0)
 		add_child(stack)
 		_badge = Label.new()
-		_badge.add_theme_font_size_override("font_size", 9)
+		_badge.add_theme_font_size_override("font_size", 12)
 		_badge.add_theme_color_override("font_color", CELL_MUTED)
 		_badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 		stack.add_child(_badge)
@@ -229,18 +236,25 @@ class InventoryCell extends PanelContainer:
 		_icon = TextureRect.new()
 		_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		_icon.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+		_icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 		_icon.custom_minimum_size = Vector2.ONE * icon_size
 		_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		icon_center.add_child(_icon)
 		stack.add_child(icon_center)
 		_name = Label.new()
-		_name.add_theme_font_size_override("font_size", 8)
+		_name.add_theme_font_size_override("font_size", 12)
 		_name.add_theme_color_override("font_color", CELL_PALE)
 		_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		_name.clip_text = true
+		_name.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 		stack.add_child(_name)
 		_refresh()
+		_resize_icon.call_deferred()
+
+	func _resize_icon() -> void:
+		if is_instance_valid(_icon):
+			var limit := 40.0 if slot_kind == &"hotbar" else 64.0
+			_icon.custom_minimum_size = Vector2.ONE * maxf(20, minf(limit, minf(size.x - 16, size.y - 32)))
 
 	func set_item(item: StringName, item_short: String, tint: Color, selected: bool, texture: Texture2D = null) -> void:
 		item_id = item
@@ -251,16 +265,8 @@ class InventoryCell extends PanelContainer:
 		_refresh()
 
 	func _refresh() -> void:
-		var style := StyleBoxFlat.new()
-		style.bg_color = CELL_SURFACE if not is_selected else Color(0.105, 0.148, 0.151)
-		style.border_color = CELL_GOLD if is_selected else CELL_EDGE
-		style.set_border_width_all(1 if not is_selected else 2)
-		style.set_corner_radius_all(0)
-		style.content_margin_left = 3.0
-		style.content_margin_right = 3.0
-		style.content_margin_top = 2.0
-		style.content_margin_bottom = 2.0
-		add_theme_stylebox_override("panel", style)
+		var style_name := "selected" if is_selected else "hover" if _hovered else "normal"
+		add_theme_stylebox_override("panel", get_theme_stylebox(style_name, "InventorySlot"))
 		if _badge == null:
 			return
 		_badge.text = slot_label if not slot_label.is_empty() else str(slot_index + 1) if slot_kind == &"hotbar" else "%02d" % (slot_index + 1)
@@ -281,18 +287,16 @@ class InventoryCell extends PanelContainer:
 		if item_id == &"":
 			return null
 		var preview := PanelContainer.new()
-		preview.custom_minimum_size = Vector2(116.0, 48.0)
-		var preview_style := StyleBoxFlat.new()
-		preview_style.bg_color = Color(0.025, 0.055, 0.074, 0.98)
-		preview_style.border_color = icon_color
-		preview_style.set_border_width_all(1)
-		preview_style.set_corner_radius_all(0)
+		preview.custom_minimum_size = Vector2(156.0, 48.0)
+		preview.theme = PIXEL_THEME
+		preview.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		var preview_style := PIXEL_THEME.get_stylebox("panel", "PanelContainer")
 		preview.add_theme_stylebox_override("panel", preview_style)
 		var preview_label := Label.new()
 		preview_label.text = short_label
 		preview_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		preview_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		preview_label.add_theme_font_size_override("font_size", 10)
+		preview_label.add_theme_font_size_override("font_size", 12)
 		preview_label.add_theme_color_override("font_color", CELL_PALE)
 		preview.add_child(preview_label)
 		set_drag_preview(preview)
@@ -340,6 +344,11 @@ var _world_task_markers: Dictionary = {}
 var _volume_slider: HSlider
 var _volume_label: Label
 var _walking_visible := true
+var _modal_frames: Dictionary = {}
+var _operator_panel: PanelContainer
+var _cargo_grid: GridContainer
+var _previous_focus: Control
+var _resize_queued := false
 
 
 func setup(player: ShipPlayer, task_entries: Array[Dictionary], map_world_origin: Vector2, map_world_size: Vector2) -> void:
@@ -368,6 +377,8 @@ func _ready() -> void:
 	_build_ui()
 	set_process_unhandled_input(true)
 	set_process_unhandled_key_input(true)
+	get_viewport().size_changed.connect(_queue_resize)
+	_queue_resize()
 
 
 func _process(_delta: float) -> void:
@@ -379,7 +390,10 @@ func _process(_delta: float) -> void:
 func _build_ui() -> void:
 	_root = Control.new()
 	_root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_root.mouse_filter = Control.MOUSE_FILTER_PASS
+	_root.name = "HUD"
+	_root.theme = PIXEL_THEME
+	_root.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_root)
 	_world_task_marker_layer = Control.new()
 	_world_task_marker_layer.name = "WorldTaskMarkers"
@@ -413,7 +427,6 @@ func _build_mission_panel() -> void:
 	panel.offset_right = 360.0
 	panel.offset_bottom = 198.0 + maxi(_task_entries.size() - 3, 0) * 32.0
 	var mission_style := _panel_style(SURFACE, Color(1.0, 0.78, 0.38, 0.94), 13.0)
-	mission_style.border_width_left = 3
 	panel.add_theme_stylebox_override("panel", mission_style)
 	_root.add_child(panel)
 	var stack := VBoxContainer.new()
@@ -473,20 +486,16 @@ func add_task_entry(entry: Dictionary) -> void:
 func _build_top_controls() -> void:
 	var controls := HBoxContainer.new()
 	controls.name = "TopRightControls"
-	controls.anchor_left = 1.0
-	controls.anchor_right = 1.0
-	controls.anchor_top = 0.0
-	controls.anchor_bottom = 0.0
-	controls.offset_left = -318.0
+	controls.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
+	controls.offset_left = -496.0
 	controls.offset_top = 18.0
 	controls.offset_right = -18.0
-	controls.offset_bottom = 70.0
-	controls.add_theme_constant_override("separation", 6)
+	controls.offset_bottom = 82.0
+	controls.add_theme_constant_override("separation", 8)
 	_root.add_child(controls)
 	controls.add_child(_navigation_button(&"map", "SHIP MAP", "M", _open_map))
 	controls.add_child(_navigation_button(&"inventory", "INVENTORY", "I", _open_inventory))
 	controls.add_child(_navigation_button(&"settings", "SETTINGS", "ESC", _open_settings))
-
 
 func _build_context_prompt() -> void:
 	_context_prompt = PanelContainer.new()
@@ -496,9 +505,9 @@ func _build_context_prompt() -> void:
 	_context_prompt.anchor_top = 1.0
 	_context_prompt.anchor_bottom = 1.0
 	_context_prompt.offset_left = -280.0
-	_context_prompt.offset_top = -128.0
+	_context_prompt.offset_top = -152.0
 	_context_prompt.offset_right = 280.0
-	_context_prompt.offset_bottom = -88.0
+	_context_prompt.offset_bottom = -112.0
 	_context_prompt.visible = false
 	_context_prompt.add_theme_stylebox_override("panel", _panel_style(SURFACE, ORANGE, 9.0))
 	_root.add_child(_context_prompt)
@@ -511,68 +520,61 @@ func _build_context_prompt() -> void:
 func _build_hotbar() -> void:
 	var bar := HBoxContainer.new()
 	bar.name = "Hotbar"
-	bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	bar.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	bar.alignment = BoxContainer.ALIGNMENT_CENTER
-	bar.add_theme_constant_override("separation", 5)
+	bar.add_theme_constant_override("separation", 4)
 	var frame := PanelContainer.new()
 	frame.name = "QuickbarFrame"
-	frame.anchor_left = 0.5
-	frame.anchor_right = 0.5
-	frame.anchor_top = 1.0
-	frame.anchor_bottom = 1.0
-	frame.offset_left = -275.0
-	frame.offset_top = -82.0
-	frame.offset_right = 275.0
-	frame.offset_bottom = -12.0
-	frame.add_theme_stylebox_override("panel", _panel_style(SURFACE, EDGE, 6.0))
+	frame.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
+	frame.offset_left = -334.0
+	frame.offset_right = 334.0
+	frame.offset_top = -102.0
+	frame.offset_bottom = -14.0
+	frame.add_theme_stylebox_override("panel", _panel_style(SURFACE, EDGE, 10.0))
 	_root.add_child(frame)
 	frame.add_child(bar)
 	for index in range(9):
 		var cell := InventoryCell.new()
-		cell.custom_minimum_size = Vector2(54.0, 54.0)
+		cell.name = "QuickSlot%d" % (index + 1)
+		cell.custom_minimum_size = Vector2(68, 68)
+		cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		cell.configure(&"hotbar", index, _hotbar_items[index], _short_item_name(_hotbar_items[index]), _item_color(_hotbar_items[index]), index == _selected_hotbar_index, "", _item_icon_texture(_hotbar_items[index]))
 		cell.activated.connect(_on_inventory_cell_activated)
 		cell.drop_requested.connect(_on_inventory_drop_requested)
 		bar.add_child(cell)
 		_hotbar_slots.append(cell)
 
-
 func _create_map_overlay() -> void:
-	var modal := _create_modal_shell("SHIP MAP", Vector2(1060.0, 620.0))
+	var modal := _create_modal_shell("SHIP MAP", Vector2(1140, 660))
 	_overlay_nodes[&"map"] = modal["root"]
 	var content: VBoxContainer = modal["content"]
-	var map_wrapper := CenterContainer.new()
-	map_wrapper.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	map_wrapper.custom_minimum_size = Vector2(1000.0, 500.0)
-	content.add_child(map_wrapper)
-	_map_surface = Control.new()
-	_map_surface.custom_minimum_size = Vector2(980.0, 490.0)
+	_map_surface = PanelContainer.new()
+	_map_surface.name = "BlankMapViewport"
+	_map_surface.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_map_surface.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	map_wrapper.add_child(_map_surface)
-	var image := TextureRect.new()
-	image.texture = MAP_TEXTURE
-	image.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	image.stretch_mode = TextureRect.STRETCH_SCALE
-	image.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
-	image.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	image.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_map_surface.add_child(image)
+	_map_surface.add_theme_stylebox_override("panel", PIXEL_THEME.get_stylebox("panel", "MapViewport"))
+	content.add_child(_map_surface)
+	# Retain marker nodes/data for later, without rendering or receiving input.
 	_map_player_marker = _map_marker(GOLD, true)
+	_map_player_marker.hide()
 	_map_surface.add_child(_map_player_marker)
 	for entry in _task_entries:
 		_add_map_task_marker(entry)
-	var map_legend := HBoxContainer.new()
-	map_legend.add_theme_constant_override("separation", 14)
-	map_legend.add_child(_label("THURA  /  CURRENT POSITION", 10, GOLD))
-	map_legend.add_child(_label("OPEN TASK", 10, ORANGE))
-	map_legend.add_child(_label("COMPLETE", 10, GREEN))
-	map_legend.add_child(_label("HOVER PINS FOR DETAILS", 9, MUTED))
-	map_legend.add_spacer(false)
-	map_legend.add_child(_label("M OR ESC  /  CLOSE", 10, MUTED))
-	content.add_child(map_legend)
-	_update_map_markers()
-
+	var legend := HFlowContainer.new()
+	legend.name = "MapLegend"
+	legend.add_theme_constant_override("h_separation", 24)
+	legend.add_theme_constant_override("v_separation", 8)
+	for item in [["CURRENT POSITION", CYAN], ["OPEN TASK", ORANGE], ["COMPLETE", GREEN]]:
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 8)
+		var swatch := ColorRect.new()
+		swatch.color = item[1]
+		swatch.custom_minimum_size = Vector2(8, 8)
+		swatch.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		swatch.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row.add_child(swatch)
+		row.add_child(_label(item[0], 12, PALE))
+		legend.add_child(row)
+	legend.add_child(_label("M / ESC  CLOSE", 12, MUTED))
+	content.add_child(legend)
 
 func _add_map_task_marker(entry: Dictionary) -> void:
 	if not is_instance_valid(_map_surface):
@@ -584,8 +586,9 @@ func _add_map_task_marker(entry: Dictionary) -> void:
 	marker.custom_minimum_size = Vector2(20.0, 28.0)
 	marker.pin_color = ORANGE
 	marker.tooltip_text = str(entry.get("title", "Ship task"))
-	marker.mouse_filter = Control.MOUSE_FILTER_STOP
-	marker.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	marker.visible = MAP_CONTENT_VISIBLE
+	marker.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	marker.focus_mode = Control.FOCUS_NONE
 	_map_surface.add_child(marker)
 	_map_task_markers[task_id] = {"marker": marker}
 
@@ -604,192 +607,220 @@ func _add_world_task_marker(entry: Dictionary) -> void:
 
 
 func _create_inventory_overlay() -> void:
-	var modal := _create_modal_shell("PERSONAL LOADOUT  /  INVENTORY", Vector2(1140.0, 620.0))
+	var modal := _create_modal_shell("PERSONAL LOADOUT / INVENTORY", Vector2(1232, 672))
 	_overlay_nodes[&"inventory"] = modal["root"]
 	var content: VBoxContainer = modal["content"]
 	var columns := HBoxContainer.new()
+	columns.name = "InventoryColumns"
 	columns.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	columns.add_theme_constant_override("separation", 14)
+	columns.add_theme_constant_override("separation", 12)
 	content.add_child(columns)
 
-	var character_panel := PanelContainer.new()
-	character_panel.custom_minimum_size.x = 360.0
-	character_panel.add_theme_stylebox_override("panel", _panel_style(SURFACE_RAISED, EDGE_SOFT, 10.0))
-	columns.add_child(character_panel)
+	_operator_panel = PanelContainer.new()
+	_operator_panel.custom_minimum_size.x = 300
+	_operator_panel.add_theme_stylebox_override("panel", _panel_style(SURFACE_RAISED, EDGE_SOFT, 10))
+	columns.add_child(_operator_panel)
 	var character_stack := VBoxContainer.new()
-	character_stack.add_theme_constant_override("separation", 8)
-	character_panel.add_child(character_stack)
-	character_stack.add_child(_label("OPERATOR  /  THURA MIN", 11, GOLD))
+	character_stack.add_theme_constant_override("separation", 12)
+	_operator_panel.add_child(character_stack)
+	character_stack.add_child(_label("OPERATOR / THURA MIN", 12, GOLD))
+	character_stack.add_child(HSeparator.new())
 	var character_row := HBoxContainer.new()
-	character_row.add_theme_constant_override("separation", 8)
+	character_row.add_theme_constant_override("separation", 6)
 	character_row.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	character_stack.add_child(character_row)
+	var left_slots := VBoxContainer.new()
+	var right_slots := VBoxContainer.new()
+	for slot_stack in [left_slots, right_slots]:
+		slot_stack.alignment = BoxContainer.ALIGNMENT_CENTER
+		slot_stack.add_theme_constant_override("separation", 24)
+	character_row.add_child(left_slots)
 	var portrait := TextureRect.new()
+	portrait.name = "OperatorPortrait"
 	var portrait_texture := AtlasTexture.new()
 	portrait_texture.atlas = THURA_ATLAS
-	portrait_texture.region = Rect2(Vector2.ZERO, CHARACTER_FRAME_SIZE)
+	portrait_texture.region = Rect2(79, 43, 157, 267)
+	portrait_texture.filter_clip = true
 	portrait.texture = portrait_texture
 	portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	portrait.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	portrait.custom_minimum_size = Vector2(174.0, 244.0)
-	portrait.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	portrait.custom_minimum_size = Vector2(80, 160)
+	portrait.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	character_row.add_child(portrait)
-	var equipment_stack := VBoxContainer.new()
-	equipment_stack.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	equipment_stack.add_theme_constant_override("separation", 7)
-	character_row.add_child(equipment_stack)
+	character_row.add_child(right_slots)
 	for index in range(EQUIPMENT_SLOTS.size()):
 		var cell := InventoryCell.new()
-		cell.custom_minimum_size = Vector2(146.0, 48.0)
+		cell.name = "Equipment_%s" % EQUIPMENT_SLOTS[index]
+		cell.custom_minimum_size = Vector2(76, 108)
 		var slot_id: StringName = EQUIPMENT_SLOTS[index]
 		var item_id: StringName = _equipment_items[slot_id]
 		cell.configure(&"equipment", index, item_id, _short_item_name(item_id), _item_color(item_id), false, String(EQUIPMENT_LABELS[index]), _item_icon_texture(item_id))
 		cell.drop_requested.connect(_on_inventory_drop_requested)
-		equipment_stack.add_child(cell)
+		(left_slots if index % 2 == 0 else right_slots).add_child(cell)
 		_equipment_cells.append(cell)
 
 	var inventory_panel := PanelContainer.new()
+	inventory_panel.name = "CargoPanel"
 	inventory_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	inventory_panel.add_theme_stylebox_override("panel", _panel_style(SURFACE_RAISED, EDGE_SOFT, 10.0))
+	inventory_panel.add_theme_stylebox_override("panel", _panel_style(SURFACE_RAISED, EDGE_SOFT, 10))
 	columns.add_child(inventory_panel)
-	var inventory_stack := VBoxContainer.new()
-	inventory_stack.add_theme_constant_override("separation", 8)
-	inventory_panel.add_child(inventory_stack)
+	var stack := VBoxContainer.new()
+	stack.add_theme_constant_override("separation", 8)
+	inventory_panel.add_child(stack)
 	var cargo_heading := HBoxContainer.new()
-	cargo_heading.add_child(_label("CARGO HOLD", 11, GOLD))
+	cargo_heading.add_child(_label("CARGO HOLD", 16, GOLD))
 	cargo_heading.add_spacer(false)
-	_cargo_count_label = _label("08 / 27 USED", 9, CYAN)
+	_cargo_count_label = _label("08 / 27 USED", 12, CYAN)
 	cargo_heading.add_child(_cargo_count_label)
-	inventory_stack.add_child(cargo_heading)
-	inventory_stack.add_child(_label("DRAG ITEMS TO QUICK ACCESS OR A COMPATIBLE SLOT", 9, MUTED))
-	var cargo_grid := GridContainer.new()
-	cargo_grid.columns = 9
-	cargo_grid.add_theme_constant_override("h_separation", 5)
-	cargo_grid.add_theme_constant_override("v_separation", 5)
-	inventory_stack.add_child(cargo_grid)
+	stack.add_child(cargo_heading)
+	_cargo_grid = GridContainer.new()
+	_cargo_grid.name = "CargoGrid"
+	_cargo_grid.columns = 9
+	_cargo_grid.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_cargo_grid.add_theme_constant_override("h_separation", 6)
+	_cargo_grid.add_theme_constant_override("v_separation", 6)
+	stack.add_child(_cargo_grid)
 	for index in range(27):
 		var cell := InventoryCell.new()
-		cell.custom_minimum_size = Vector2(72.0, 72.0)
+		cell.name = "CargoSlot%02d" % (index + 1)
+		cell.custom_minimum_size = Vector2(90, 80)
+		cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		cell.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		cell.configure(&"storage", index, _storage_items[index], _short_item_name(_storage_items[index]), _item_color(_storage_items[index]), false, "", _item_icon_texture(_storage_items[index]))
 		cell.activated.connect(_on_inventory_cell_activated)
 		cell.drop_requested.connect(_on_inventory_drop_requested)
-		cargo_grid.add_child(cell)
+		_cargo_grid.add_child(cell)
 		_storage_cells.append(cell)
-	inventory_stack.add_child(_label("QUICK ACCESS  /  1–9", 10, GOLD))
+	stack.add_child(_label("QUICK ACCESS / 1-9", 16, GOLD))
 	var quick_grid := GridContainer.new()
+	quick_grid.name = "InventoryQuickAccess"
 	quick_grid.columns = 9
-	quick_grid.add_theme_constant_override("h_separation", 5)
-	inventory_stack.add_child(quick_grid)
+	quick_grid.add_theme_constant_override("h_separation", 6)
+	stack.add_child(quick_grid)
 	for index in range(9):
 		var cell := InventoryCell.new()
-		cell.custom_minimum_size = Vector2(72.0, 72.0)
+		cell.name = "InventoryQuickSlot%d" % (index + 1)
+		cell.custom_minimum_size = Vector2(90, 76)
+		cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		cell.configure(&"hotbar", index, _hotbar_items[index], _short_item_name(_hotbar_items[index]), _item_color(_hotbar_items[index]), index == _selected_hotbar_index, "", _item_icon_texture(_hotbar_items[index]))
 		cell.activated.connect(_on_inventory_cell_activated)
 		cell.drop_requested.connect(_on_inventory_drop_requested)
 		quick_grid.add_child(cell)
 		_inventory_hotbar_cells.append(cell)
-	content.add_child(_label("Equipment is session-only. Suit Flashlight fits SUIT; handheld gear fits TOOL.", 10, MUTED))
+	var hint := _label("DRAG ITEMS TO QUICK ACCESS OR A COMPATIBLE SLOT.  /  ESC CLOSE", 12, MUTED)
+	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	content.add_child(hint)
 	_refresh_inventory_cells()
 
-
 func _create_settings_overlay() -> void:
-	var modal := _create_modal_shell("SHIP SETTINGS", Vector2(500.0, 390.0))
+	var modal := _create_modal_shell("SHIP SETTINGS", Vector2(860, 548))
 	_overlay_nodes[&"settings"] = modal["root"]
 	var content: VBoxContainer = modal["content"]
-	content.add_theme_constant_override("separation", 12)
-	content.add_child(_label("AUDIO OUTPUT", 11, GOLD))
+	content.add_theme_constant_override("separation", 18)
+	content.add_child(_label("AUDIO OUTPUT", 16, GOLD))
 	var volume_row := HBoxContainer.new()
-	volume_row.add_theme_constant_override("separation", 12)
-	volume_row.add_child(_label("MASTER VOLUME", 11, PALE))
+	volume_row.add_theme_constant_override("separation", 18)
+	volume_row.add_child(_label("MASTER VOLUME", 16, PALE))
 	_volume_slider = HSlider.new()
-	_volume_slider.min_value = 0.0
-	_volume_slider.max_value = 100.0
-	_volume_slider.step = 1.0
+	_volume_slider.name = "MasterVolume"
+	_volume_slider.min_value = 0
+	_volume_slider.max_value = 100
+	_volume_slider.step = 1
 	_volume_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_volume_slider.custom_minimum_size.y = 24.0
+	_volume_slider.custom_minimum_size = Vector2(180, 32)
 	var master_bus_index := AudioServer.get_bus_index("Master")
-	_volume_slider.value = 100.0
+	_volume_slider.value = 100
 	if master_bus_index >= 0:
 		_volume_slider.value = 0.0 if AudioServer.is_bus_mute(master_bus_index) else AudioServer.get_bus_volume_linear(master_bus_index) * 100.0
 	_volume_slider.value_changed.connect(_on_master_volume_changed)
 	volume_row.add_child(_volume_slider)
-	_volume_label = _label("%d%%" % roundi(_volume_slider.value), 11, CYAN)
-	_volume_label.custom_minimum_size.x = 36.0
+	_volume_label = _label("%d%%" % roundi(_volume_slider.value), 16, CYAN)
+	_volume_label.custom_minimum_size.x = 52
 	_volume_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	volume_row.add_child(_volume_label)
 	content.add_child(volume_row)
 	content.add_child(HSeparator.new())
-	content.add_child(_label("CONTROLS", 11, GOLD))
+	content.add_child(_label("CONTROLS", 16, GOLD))
 	var hints := GridContainer.new()
+	hints.name = "ControlHints"
 	hints.columns = 2
-	hints.add_theme_constant_override("h_separation", 16)
-	hints.add_theme_constant_override("v_separation", 9)
-	hints.add_child(_key_hint("MOVE", "WASD / ARROWS"))
-	hints.add_child(_key_hint("INTERACT", "E"))
-	hints.add_child(_key_hint("QUICK SLOT", "1–9 / WHEEL"))
-	hints.add_child(_key_hint("INVENTORY", "I"))
-	hints.add_child(_key_hint("SHIP MAP", "M"))
-	hints.add_child(_key_hint("SETTINGS / CLOSE", "ESC"))
+	hints.add_theme_constant_override("h_separation", 24)
+	hints.add_theme_constant_override("v_separation", 14)
+	for pair in [["MOVE", "WASD / ARROWS"], ["INTERACT", "E"], ["QUICK SLOT", "1-9 / WHEEL"], ["INVENTORY", "I"], ["SHIP MAP", "M"], ["SETTINGS / CLOSE", "ESC"]]:
+		hints.add_child(_key_hint(pair[0], pair[1]))
 	content.add_child(hints)
 	content.add_spacer(false)
-	content.add_child(_label("Walking pauses while these panels are open.", 10, MUTED))
-
+	content.add_child(HSeparator.new())
+	content.add_child(_label("WALKING PAUSES WHILE THESE PANELS ARE OPEN.", 12, MUTED))
 
 func _key_hint(action_name: String, key_name: String) -> Control:
 	var row := HBoxContainer.new()
-	row.custom_minimum_size = Vector2(208.0, 28.0)
-	row.add_theme_constant_override("separation", 5)
-	row.add_child(_label(action_name, 10, PALE))
+	row.custom_minimum_size = Vector2(370, 40)
+	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_theme_constant_override("separation", 10)
+	row.add_child(_label(action_name, 12, PALE))
 	row.add_spacer(false)
 	var keycap := PanelContainer.new()
-	keycap.add_theme_stylebox_override("panel", _panel_style(SURFACE, EDGE, 5.0))
-	var key_label := _label(key_name, 9, CYAN)
+	keycap.custom_minimum_size = Vector2(164 if key_name.length() > 4 else 64, 40)
+	keycap.add_theme_stylebox_override("panel", _panel_style(SURFACE, EDGE, 8))
+	var key_label := _label(key_name, 12, CYAN)
 	key_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	keycap.add_child(key_label)
 	row.add_child(keycap)
 	return row
 
-
-func _create_modal_shell(title: String, minimum_size: Vector2) -> Dictionary:
+func _create_modal_shell(title: String, desired_size: Vector2) -> Dictionary:
 	var overlay := Control.new()
+	overlay.name = title.replace(" / ", "_").replace(" ", "_")
 	overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
 	overlay.visible = false
 	_root.add_child(overlay)
 	var dimmer := ColorRect.new()
-	dimmer.color = Color(0.008, 0.018, 0.032, 0.78)
+	dimmer.color = Color(0.008, 0.014, 0.025, 0.86)
 	dimmer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	dimmer.mouse_filter = Control.MOUSE_FILTER_STOP
 	overlay.add_child(dimmer)
-	var center := CenterContainer.new()
-	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	overlay.add_child(center)
 	var frame := PanelContainer.new()
-	frame.custom_minimum_size = minimum_size
-	frame.add_theme_stylebox_override("panel", _panel_style(Color(0.031, 0.067, 0.086, 0.99), Color(1.0, 0.78, 0.38, 0.94), 14.0))
-	center.add_child(frame)
+	frame.name = "WindowFrame"
+	frame.minimum_size_changed.connect(_queue_resize)
+	frame.add_theme_stylebox_override("panel", PIXEL_THEME.get_stylebox("panel", "PanelContainer"))
+	overlay.add_child(frame)
+	_modal_frames[overlay] = {"frame": frame, "desired": desired_size}
 	var layout := VBoxContainer.new()
 	layout.add_theme_constant_override("separation", 10)
 	frame.add_child(layout)
 	var heading := HBoxContainer.new()
-	var title_label := _label(title, 18, PALE)
+	heading.add_theme_constant_override("separation", 12)
+	var icon := PixelIcon.new()
+	icon.icon_kind = &"map" if title == "SHIP MAP" else &"settings" if title == "SHIP SETTINGS" else &"inventory"
+	icon.tint = GOLD
+	icon.custom_minimum_size = Vector2(32, 32)
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	heading.add_child(icon)
+	var title_label := _label(title, 24, PALE)
+	title_label.name = "WindowTitle"
+	title_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	title_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	heading.add_child(title_label)
-	heading.add_spacer(false)
-	var close_button := _button("×", Vector2(38.0, 36.0), GOLD)
-	close_button.add_theme_font_size_override("font_size", 20)
+	var close_button := Button.new()
+	close_button.text = "X"
+	close_button.theme_type_variation = &"CloseButton"
+	close_button.custom_minimum_size = Vector2(48, 48)
+	close_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	close_button.name = "Close"
+	close_button.tooltip_text = "Close / Esc"
+	close_button.add_theme_font_size_override("font_size", 24)
 	close_button.pressed.connect(_close_overlay)
 	heading.add_child(close_button)
 	layout.add_child(heading)
-	var separator := HSeparator.new()
-	separator.add_theme_color_override("separator_color", Color(1.0, 0.78, 0.38, 0.52))
-	layout.add_child(separator)
+	layout.add_child(HSeparator.new())
 	var content := VBoxContainer.new()
+	content.name = "Content"
+	content.add_theme_constant_override("separation", 10)
 	content.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	layout.add_child(content)
 	return {"root": overlay, "content": content}
-
 
 func _map_marker(color: Color, _is_player: bool) -> Control:
 	var marker := MapDot.new()
@@ -801,7 +832,7 @@ func _map_marker(color: Color, _is_player: bool) -> Control:
 
 
 func _update_map_markers() -> void:
-	if not is_instance_valid(_map_surface):
+	if not MAP_CONTENT_VISIBLE or not is_instance_valid(_map_surface):
 		return
 	if is_instance_valid(_player) and _map_world_size.x > 0.0 and _map_world_size.y > 0.0:
 		_set_marker_position(_map_player_marker, (_player.global_position - _map_world_origin) / _map_world_size)
@@ -1017,12 +1048,17 @@ func _open_overlay(overlay_name: StringName) -> void:
 	for name in _overlay_nodes:
 		_overlay_nodes[name].visible = name == overlay_name
 	var was_closed := _active_overlay == &""
+	if was_closed:
+		_previous_focus = get_viewport().gui_get_focus_owner()
 	_active_overlay = overlay_name
 	if was_closed:
 		_context_prompt.visible = false
 		modal_state_changed.emit(true)
 	if overlay_name == &"map":
 		_update_map_markers()
+	var close := _overlay_nodes[overlay_name].find_child("Close", true, false) as Button
+	close.grab_focus()
+	_queue_resize()
 
 
 func _close_overlay() -> void:
@@ -1033,6 +1069,8 @@ func _close_overlay() -> void:
 	_active_overlay = &""
 	_context_prompt.visible = false
 	modal_state_changed.emit(false)
+	if is_instance_valid(_previous_focus) and _previous_focus.is_visible_in_tree():
+		_previous_focus.grab_focus()
 
 
 func _on_master_volume_changed(value: float) -> void:
@@ -1049,58 +1087,53 @@ func _on_master_volume_changed(value: float) -> void:
 
 func _navigation_button(icon_kind: StringName, title: String, shortcut: String, callback: Callable) -> Button:
 	var button := Button.new()
-	button.custom_minimum_size = Vector2(92.0, 52.0)
-	button.tooltip_text = "%s  /  %s" % [title, shortcut]
+	button.name = title.replace(" ", "")
+	button.custom_minimum_size = Vector2(154, 64)
+	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	button.tooltip_text = "%s / %s" % [title, shortcut]
 	button.focus_mode = Control.FOCUS_ALL
-	button.add_theme_stylebox_override("normal", _nav_button_style(GOLD, false))
-	button.add_theme_stylebox_override("hover", _nav_button_style(CYAN, true))
-	button.add_theme_stylebox_override("pressed", _nav_button_style(CYAN, true))
-	button.add_theme_stylebox_override("focus", _nav_button_style(GOLD, true))
+	button.add_theme_stylebox_override("normal", PIXEL_THEME.get_stylebox("normal", "Button"))
+	button.add_theme_stylebox_override("hover", PIXEL_THEME.get_stylebox("hover", "Button"))
+	button.add_theme_stylebox_override("pressed", PIXEL_THEME.get_stylebox("pressed", "Button"))
+	button.add_theme_stylebox_override("focus", PIXEL_THEME.get_stylebox("focus", "Button"))
 	var layout := HBoxContainer.new()
 	layout.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	layout.offset_left = 12
+	layout.offset_right = -12
 	layout.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	layout.alignment = BoxContainer.ALIGNMENT_CENTER
-	layout.add_theme_constant_override("separation", 5)
+	layout.add_theme_constant_override("separation", 10)
 	var icon := PixelIcon.new()
 	icon.icon_kind = icon_kind
 	icon.tint = GOLD
-	icon.custom_minimum_size = Vector2(19.0, 19.0)
+	icon.custom_minimum_size = Vector2(24, 24)
 	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	layout.add_child(icon)
 	var labels := VBoxContainer.new()
-	labels.add_theme_constant_override("separation", 0)
+	labels.alignment = BoxContainer.ALIGNMENT_CENTER
+	labels.add_theme_constant_override("separation", 4)
 	labels.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var title_label := _label(title, 10, PALE)
-	var shortcut_label := _label(shortcut, 8, MUTED)
+	var title_label := _label(title, 12, PALE)
+	var shortcut_label := _label(shortcut, 12, CYAN)
 	labels.add_child(title_label)
 	labels.add_child(shortcut_label)
 	layout.add_child(labels)
 	button.add_child(layout)
+	button.mouse_entered.connect(func(): title_label.add_theme_color_override("font_color", GOLD))
+	button.mouse_exited.connect(func(): title_label.add_theme_color_override("font_color", PALE))
 	button.pressed.connect(callback)
 	return button
 
-
-func _nav_button_style(accent: Color, highlighted: bool) -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = SURFACE if not highlighted else SURFACE_HOVER
-	style.border_color = Color(accent.r, accent.g, accent.b, 1.0 if highlighted else 0.82)
-	style.set_border_width_all(1)
-	style.border_width_left = 3
-	style.set_corner_radius_all(0)
-	style.content_margin_left = 6.0
-	style.content_margin_right = 5.0
-	style.content_margin_top = 4.0
-	style.content_margin_bottom = 4.0
-	return style
-
+func _nav_button_style(_accent: Color, highlighted: bool) -> StyleBox:
+	return PIXEL_THEME.get_stylebox("hover" if highlighted else "normal", "Button")
 
 func _label(text: String, font_size: int, color: Color) -> Label:
 	var label := Label.new()
 	label.text = text
-	label.add_theme_font_size_override("font_size", font_size)
+	label.add_theme_font_size_override("font_size", maxi(font_size, 12))
 	label.add_theme_color_override("font_color", color)
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return label
-
 
 func _button(text: String, minimum_size: Vector2, accent: Color) -> Button:
 	var button := Button.new()
@@ -1117,32 +1150,23 @@ func _button(text: String, minimum_size: Vector2, accent: Color) -> Button:
 	return button
 
 
-func _button_style(accent: Color, highlighted: bool) -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = SURFACE_RAISED if not highlighted else SURFACE_HOVER
-	style.border_color = accent if highlighted else Color(accent.r, accent.g, accent.b, 0.86)
-	style.set_border_width_all(1)
-	style.border_width_left = 3
-	style.set_corner_radius_all(0)
-	style.content_margin_left = 7.0
-	style.content_margin_right = 7.0
-	style.content_margin_top = 5.0
-	style.content_margin_bottom = 5.0
-	return style
+func _button_style(_accent: Color, highlighted: bool) -> StyleBox:
+	return PIXEL_THEME.get_stylebox("hover" if highlighted else "normal", "Button")
 
-
-func _panel_style(background: Color, border: Color, padding: float) -> StyleBoxFlat:
+func _panel_style(background: Color, border: Color, padding: float) -> StyleBox:
+	if padding >= 5:
+		var frame := PIXEL_THEME.get_stylebox("panel", "PanelContainer").duplicate() as StyleBoxTexture
+		frame.content_margin_left = padding
+		frame.content_margin_right = padding
+		frame.content_margin_top = padding
+		frame.content_margin_bottom = padding
+		return frame
 	var style := StyleBoxFlat.new()
 	style.bg_color = background
 	style.border_color = border
 	style.set_border_width_all(1)
-	style.set_corner_radius_all(0)
-	style.content_margin_left = padding
-	style.content_margin_right = padding
-	style.content_margin_top = padding
-	style.content_margin_bottom = padding
+	style.anti_aliasing = false
 	return style
-
 
 func _short_item_name(item_id: StringName) -> String:
 	if item_id == &"" or not ITEM_DATA.has(item_id):
@@ -1162,9 +1186,15 @@ func _item_icon_texture(item_id: StringName) -> Texture2D:
 	if _item_icon_cache.has(item_id):
 		return _item_icon_cache[item_id]
 	var item: Dictionary = ITEM_DATA[item_id]
-	var icon := AtlasTexture.new()
-	icon.atlas = item["texture"]
-	icon.region = item["icon_region"]
+	# Downsample the existing poster crop once. Nearest display then preserves
+	# readable icon pixels instead of aliasing a thousand-pixel source each frame.
+	var source: Image = item["texture"].get_image()
+	if source.is_compressed():
+		source.decompress()
+	var thumbnail := source.get_region(Rect2i(item["icon_region"]))
+	var ratio := 64.0 / maxf(thumbnail.get_width(), thumbnail.get_height())
+	thumbnail.resize(maxi(1, roundi(thumbnail.get_width() * ratio)), maxi(1, roundi(thumbnail.get_height() * ratio)), Image.INTERPOLATE_LANCZOS)
+	var icon := ImageTexture.create_from_image(thumbnail)
 	_item_icon_cache[item_id] = icon
 	return icon
 
@@ -1191,6 +1221,10 @@ func _unhandled_key_input(event: InputEvent) -> void:
 			_open_settings()
 		get_viewport().set_input_as_handled()
 		return
+	if event.keycode == KEY_M and _active_overlay == &"map":
+		_close_overlay()
+		get_viewport().set_input_as_handled()
+		return
 	if _active_overlay != &"":
 		return
 	if event.keycode == KEY_I:
@@ -1213,3 +1247,30 @@ func _select_hotbar(index: int) -> void:
 	_selected_hotbar_index = index
 	_refresh_hotbar()
 	_refresh_inventory_cells()
+
+
+
+func _queue_resize() -> void:
+	if not _resize_queued:
+		_resize_queued = true
+		_resize_ui.call_deferred()
+
+
+func _resize_ui() -> void:
+	_resize_queued = false
+	if not is_instance_valid(_root):
+		return
+	var viewport_size := get_viewport().get_visible_rect().size
+	var inventory_width := minf(1232, viewport_size.x - 32)
+	_operator_panel.custom_minimum_size.x = 300 if inventory_width >= 1100 else 264
+	var cell_width := maxf(48, floorf((inventory_width - 64 - 12 - _operator_panel.custom_minimum_size.x - 48) / 9.0))
+	var cell_height := 80.0 if viewport_size.y >= 680 else 64.0
+	for cell in _storage_cells:
+		cell.custom_minimum_size = Vector2(cell_width, cell_height)
+	for cell in _inventory_hotbar_cells:
+		cell.custom_minimum_size = Vector2(cell_width, 72)
+	for data in _modal_frames.values():
+		var frame: PanelContainer = data["frame"]
+		var desired: Vector2 = data["desired"]
+		frame.size = Vector2(minf(desired.x, viewport_size.x - 32), minf(desired.y, viewport_size.y - 32)).floor()
+		frame.position = ((viewport_size - frame.size) * 0.5).floor()
