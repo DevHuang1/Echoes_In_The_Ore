@@ -1,5 +1,5 @@
 @tool
-extends Node2D
+extends "res://scripts/ship/ship_mission_walkthrough.gd"
 
 const FLOOR_TEXTURE := preload("res://art/overview/asteria_overview_floor.png")
 const ARRIVAL_BRIEFING_SCENE := preload("res://scenes/ui/arrival_briefing.tscn")
@@ -199,6 +199,7 @@ func _ready() -> void:
 	_crew_dialogue = CREW_DIALOGUE_SCENE.instantiate() as CrewDialogue
 	_crew_dialogue.dialogue_finished.connect(_on_amara_dialogue_finished)
 	add_child(_crew_dialogue)
+	ship_begin(_walk_hud,player)
 
 	if returning_from_planet:
 		_arrival_briefing_open = false
@@ -214,6 +215,10 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
+	ship_process(delta)
+	if ship_control_locked():
+		ship_refresh_prompt()
+		return
 	if _transitioning_to_planet:
 		return
 	if _room_task_feedback_timer > 0.0:
@@ -233,7 +238,11 @@ func _process(delta: float) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventKey and event.echo:
+		return
 	if _transitioning_to_planet or _arrival_briefing_open or _hud_modal_open or _task_console_open or _crew_dialogue_open or not event.is_action_pressed(&"interact"):
+		return
+	if ship_handle_interact(event):
 		return
 	if _active_airlock_exit:
 		get_viewport().set_input_as_handled()
@@ -256,6 +265,7 @@ func _exit_ship_to_planet() -> void:
 	if _transitioning_to_planet:
 		return
 	_transitioning_to_planet = true
+	ship_store_transit()
 	get_tree().change_scene_to_file(MOCK_PLANET_SCENE_PATH)
 
 
@@ -286,12 +296,16 @@ func _open_room_task_console(task_id: StringName) -> void:
 	_update_player_walk_state()
 	var console := SERVICE_TASK_CONSOLE_SCENE.instantiate() as ServiceTaskConsole
 	console.setup(task_id, _completed_room_tasks.size(), ROOM_TASKS.size())
+	if ship_is_initialized(): ship_attach_service_console(console,task_id)
 	console.task_completed.connect(_on_room_task_completed)
 	console.console_closed.connect(_on_room_task_console_closed)
 	add_child(console)
 
 
 func _on_room_task_completed(task_id: StringName) -> void:
+	if ship_is_initialized():
+		ship_legacy_completed(task_id)
+		return
 	if _completed_room_tasks.has(task_id):
 		return
 	var completion := "Service task complete."
@@ -312,6 +326,7 @@ func _on_room_task_completed(task_id: StringName) -> void:
 
 
 func _on_room_task_console_closed() -> void:
+	ship_service_closed()
 	_task_console_open = false
 	_walk_hud.set_walking_visible(not _arrival_briefing_open)
 	_update_player_walk_state()
@@ -322,6 +337,9 @@ func _on_room_task_console_closed() -> void:
 
 
 func _refresh_room_task_prompt() -> void:
+	if ship_is_initialized():
+		ship_refresh_prompt()
+		return
 	_active_room_task_id = &""
 	_active_lab_device_id = &""
 	_active_crew_task_id = &""
@@ -423,7 +441,7 @@ func _begin_amara_dialogue() -> void:
 			lines.append("The nutrient pump needs an inspection, and the seedling rack's humidity sensor needs recalibrating.")
 		else:
 			lines.append("I've got two hydroponics jobs that could use another set of hands: the nutrient pump and the seedling rack sensor.")
-		lines.append("Want to take them? I'll mark a reachable service point beside each station on your ship map.")
+		lines.append("Want to take them? I'll add both jobs to your duty tracker. Use the clear service point beside each station.")
 	else:
 		var completed_count := _completed_crew_tasks.size()
 		if completed_count >= AMARA_CREW_TASKS.size():
@@ -434,7 +452,9 @@ func _begin_amara_dialogue() -> void:
 					lines.append("Good work on the first job. %s still needs attention when you have a moment." % str(task["title"]).replace("Amara: ", ""))
 					break
 		else:
-			lines.append("The nutrient pump and seedling sensor are both marked on your ship map. Check in with me if anything looks off.")
+			lines.append("The nutrient pump and seedling sensor are both in your duty tracker. Check in with me if anything looks off.")
+	var observation := ship_amara_observation()
+	if not observation.is_empty(): lines.append(observation)
 	_crew_dialogue.start_dialogue(lines, offer_tasks)
 
 
@@ -444,7 +464,7 @@ func _on_amara_dialogue_finished(accepted_tasks: bool) -> void:
 		amara.set_in_dialogue(false)
 	if accepted_tasks and not _crew_tasks_unlocked:
 		_unlock_crew_tasks_on_hud()
-		_room_task_feedback = "Amara's jobs are marked at reachable service points on your ship map."
+		_room_task_feedback = "Amara's jobs are in your duty tracker. Approach each station's clear service point."
 		_room_task_feedback_timer = 4.0
 	_update_player_walk_state()
 
@@ -460,7 +480,8 @@ func _unlock_crew_tasks_on_hud() -> void:
 		_walk_hud.add_task_entry({
 			"id": task["id"],
 			"title": task["title"],
-			"marker_label": task["marker_label"],
+			"description": "Optional / "+str(task["title"]),
+			"marker_label": "OPTIONAL",
 			"position": _crew_task_interaction_position(task, station),
 			"marker_position": _task_marker_position(station),
 		})
@@ -475,6 +496,9 @@ func _room_task_interaction_position(task: Dictionary, station: Node2D) -> Vecto
 
 
 func _crew_task_interaction_position(task: Dictionary, station: Node2D) -> Vector2:
+	if ship_is_initialized():
+		for entry in _ship_points.values():
+			if entry.host==station and is_instance_valid(entry.marker): return entry.marker.global_position
 	var offset: Vector2 = task.get("interaction_offset", Vector2.ZERO)
 	var parent := station.get_parent() as Node2D
 	if parent == null:
@@ -521,4 +545,4 @@ func _on_hud_modal_state_changed(is_open: bool) -> void:
 
 
 func _update_player_walk_state() -> void:
-	player.set_physics_process(not (_arrival_briefing_open or _hud_modal_open or _task_console_open or _crew_dialogue_open))
+	player.set_physics_process(not (_arrival_briefing_open or _hud_modal_open or _task_console_open or _crew_dialogue_open or ship_control_locked()))

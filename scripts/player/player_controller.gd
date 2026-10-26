@@ -1,5 +1,8 @@
 class_name ShipPlayer
 extends CharacterBody2D
+signal concealment_changed(concealed: bool, source_id: String)
+var is_concealed := false
+var concealment_source := ""
 
 const THURA_ATLAS := preload("res://art/characters/runtime/thura_walk_4dir.png")
 const CELL_SIZE := Vector2(313.5, 313.5)
@@ -34,6 +37,7 @@ func _ready() -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if is_concealed: return
 	var direction := Input.get_vector(&"move_left", &"move_right", &"move_up", &"move_down")
 	var movement := direction * move_speed * delta
 	if _has_walkable_floor_mask():
@@ -68,6 +72,15 @@ func face_toward(target_position: Vector2) -> void:
 	sprite.frame = 0
 
 
+func set_concealment(value: bool, source_id: String) -> void:
+	is_concealed=value;concealment_source=source_id if value else ""
+	if is_instance_valid(sprite): sprite.visible=not value
+	if value: add_to_group("concealed_players")
+	elif is_in_group("concealed_players"): remove_from_group("concealed_players")
+	set_meta("concealed",value);set_meta("concealment_source",concealment_source)
+	concealment_changed.emit(value,concealment_source)
+
+
 func set_walkable_floor_mask(floor_texture: Texture2D, floor_origin: Vector2 = Vector2.ZERO, body_margin: float = 8.0) -> void:
 	_walkable_floor_mask = floor_texture.get_image()
 	if _walkable_floor_mask.is_compressed():
@@ -95,10 +108,11 @@ func _move_on_walkable_floor(movement: Vector2) -> void:
 			move_and_collide(Vector2(0.0, movement.y))
 
 
-func _is_body_over_floor(center: Vector2) -> bool:
-	for door in get_tree().get_nodes_in_group("ship_door"):
-		if door.has_method("blocks_position") and bool(door.call("blocks_position", center, _walkable_body_margin)):
-			return false
+func _is_body_over_floor(center: Vector2, ignore_doors_for_access_planning := false) -> bool:
+	if not ignore_doors_for_access_planning:
+		for door in get_tree().get_nodes_in_group("ship_door"):
+			if door.has_method("blocks_position") and bool(door.call("blocks_position", center, _walkable_body_margin)):
+				return false
 	var diagonal := _walkable_body_margin * 0.70710678
 	var offsets: Array[Vector2] = [
 		Vector2.ZERO,

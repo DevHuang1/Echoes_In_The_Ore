@@ -616,6 +616,7 @@ var _filter_pressure_button: Button
 var _filter_stage := 0
 var _filter_rotation := 0
 var _filter_airflow := 18.0
+var _resume_progress := {}
 
 var _nutrient_diagram: NutrientDiagram
 var _nutrient_rotations: Array[int] = []
@@ -658,6 +659,7 @@ func setup(task_id: StringName, completed_count: int, task_total: int) -> void:
 func _ready() -> void:
 	layer = 20
 	_build_ui()
+	_restore_service_progress()
 	_root.modulate = Color(1.0, 1.0, 1.0, 0.0)
 	var tween := create_tween()
 	tween.tween_property(_root, "modulate", Color.WHITE, 0.22).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
@@ -1851,3 +1853,35 @@ func _close_console() -> void:
 	await tween.finished
 	console_closed.emit()
 	queue_free()
+
+
+func set_resume_progress(data: Dictionary) -> void:
+	_resume_progress=data.duplicate(true)
+
+
+func progress_snapshot() -> Dictionary:
+	var charges: Array=[]
+	for slider in _power_sliders: charges.append(slider.value)
+	return {"task":str(_task_id),"power":charges,"filter_stage":_filter_stage,"filter_rotation":_filter_rotation,"filter_airflow":_filter_airflow,"nutrient_rotations":Array(_nutrient_rotations),"complete":_task_complete}
+
+
+func _restore_service_progress() -> void:
+	if _resume_progress.is_empty() or _resume_progress.get("task","")!=str(_task_id): return
+	if _task_id==&"auxiliary_power":
+		var values: Array=_resume_progress.get("power",[])
+		for i in range(mini(values.size(),_power_sliders.size())): _power_sliders[i].value=clampf(float(values[i]),0,100)
+	elif _task_id==&"air_filter":
+		var stage := clampi(int(_resume_progress.get("filter_stage",0)),0,2)
+		if stage>=1:
+			_on_filter_release_pressed()
+			var rotations := 2 if stage==2 else clampi(int(_resume_progress.get("filter_rotation",0)),0,3)
+			for i in range(rotations): _on_filter_rotate_pressed()
+		if stage==2:
+			_on_filter_seat_pressed()
+			_filter_pressure_slider.value=clampf(float(_resume_progress.get("filter_airflow",18)),0,100)
+	elif _task_id==&"nutrient_flow":
+		var rotations: Array=_resume_progress.get("nutrient_rotations",[])
+		for i in range(mini(rotations.size(),_nutrient_rotations.size())):
+			_nutrient_rotations[i]=posmod(int(rotations[i]),4)
+			_nutrient_diagram.rotations[i]=_nutrient_rotations[i]
+		_nutrient_diagram.queue_redraw();_update_nutrient_readouts()
