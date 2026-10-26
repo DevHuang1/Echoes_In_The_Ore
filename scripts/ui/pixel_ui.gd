@@ -25,4 +25,3 @@ static func close_button(button: Button) -> void:
 	button.custom_minimum_size = Vector2(48, 48)
 	button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	button.add_theme_font_size_override("font_size", 24)
-

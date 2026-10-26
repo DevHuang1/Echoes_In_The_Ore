@@ -1,0 +1,341 @@
+[gd_scene format=3 uid="uid://c35r5u53w78sd"]
+
+[ext_resource type="Texture2D" uid="uid://dd43244b3rjoa" path="res://art/concepts/lab_props/specimen_analysis_table.png" id="4_7rqh1"]
+[ext_resource type="Texture2D" uid="uid://c4uvyxixblu2f" path="res://art/concepts/lab_props/research_console.png" id="5_4eh5h"]
+[ext_resource type="Texture2D" uid="uid://bnb6t0ynejvq1" path="res://art/concepts/lab_props/room_additions/sample_cabinet_user_4dir.png" id="6_olual"]
+[ext_resource type="Texture2D" uid="uid://blfd8c7f661ye" path="res://art/planet/modern_ore_containment_empty.png" id="6_tvoha"]
+[ext_resource type="Texture2D" uid="uid://bmfdt33es080j" path="res://art/concepts/lab_props/instrument_trolley.png" id="7_p828v"]
+[ext_resource type="Texture2D" uid="uid://fwxbrbbqgw5j" path="res://art/concepts/lab_props/data_archive.png" id="8_ccyey"]
+[ext_resource type="Texture2D" uid="uid://drfkyfl1eq63u" path="res://art/concepts/lab_props/room_additions/lab_waste_user_4dir.png" id="9_4eh5h"]
+[ext_resource type="Texture2D" uid="uid://ctrwsq48xqhv3" path="res://art/concepts/lab_props/sample_robot_arm.png" id="9_lqu3j"]
+[ext_resource type="Texture2D" uid="uid://ct46wmgde2fa7" path="res://art/concepts/lab_props/room_additions/wash_sink_user_4dir.png" id="10_tvoha"]
+[ext_resource type="PackedScene" path="res://scenes/ship/props/warm_ship_light.tscn" id="13_xv44b"]
+[ext_resource type="Texture2D" uid="uid://c2acgxvqdmbq0" path="res://art/concepts/lab_props/manual_placement/storage_cabinet_trimmed.png" id="30_manual_cabinet"]
+
+[sub_resource type="RectangleShape2D" id="TableFootprint"]
+size = Vector2(445, 350)
+
+[sub_resource type="RectangleShape2D" id="ConsoleFootprint"]
+size = Vector2(410, 375)
+
+[sub_resource type="RectangleShape2D" id="ContainmentFootprint"]
+size = Vector2(2100, 650)
+
+[sub_resource type="RectangleShape2D" id="TrolleyFootprint"]
+size = Vector2(420, 370)
+
+[sub_resource type="RectangleShape2D" id="ArchiveFootprint"]
+size = Vector2(280, 385)
+
+[sub_resource type="RectangleShape2D" id="RobotFootprint"]
+size = Vector2(350, 365)
+
+[sub_resource type="RectangleShape2D" id="StorageFootprint"]
+size = Vector2(357.50024, 450)
+
+[sub_resource type="RectangleShape2D" id="WasteBinsFootprint"]
+size = Vector2(525.34766, 361.4453)
+
+[sub_resource type="RectangleShape2D" id="WashSinkFootprint"]
+size = Vector2(360, 400)
+
+[node name="LabRoom" type="Node2D" unique_id=313947013]
+y_sort_enabled = true
+
+[node name="NorthWorkstation" type="Node2D" parent="." unique_id=1368505635]
+position = Vector2(290, 158)
+scale = Vector2(0.17, 0.17)
+
+[node name="SpecimenAnalysisTable" type="Sprite2D" parent="NorthWorkstation" unique_id=1552454480]
+texture = ExtResource("4_7rqh1")
+
+[node name="Collision" type="StaticBody2D" parent="NorthWorkstation" unique_id=219685145]
+collision_mask = 0
+
+[node name="Footprint" type="CollisionShape2D" parent="NorthWorkstation/Collision" unique_id=1759625236]
+shape = SubResource("TableFootprint")
+
+[node name="ConsoleStation" type="Node2D" parent="." unique_id=933753415]
+position = Vector2(355, 158)
+scale = Vector2(0.105, 0.105)
+
+[node name="ResearchConsole" type="Sprite2D" parent="ConsoleStation" unique_id=1048483201]
+texture = ExtResource("5_4eh5h")
+
+[node name="Collision" type="StaticBody2D" parent="ConsoleStation" unique_id=1389511620]
+collision_mask = 0
+
+[node name="Footprint" type="CollisionShape2D" parent="ConsoleStation/Collision" unique_id=1667818769]
+shape = SubResource("ConsoleFootprint")
+
+[node name="OreContainment" type="Node2D" parent="." unique_id=1046440818]
+position = Vector2(236, 74)
+scale = Vector2(0.056, 0.056)
+
+[node name="SampleContainment" type="Sprite2D" parent="OreContainment" unique_id=1555799032]
+texture_filter = 2
+position = Vector2(214.28564, 35.714333)
+scale = Vector2(0.8535255, 1.0426204)
+texture = ExtResource("6_tvoha")
+
+[node name="Collision" type="StaticBody2D" parent="OreContainment" unique_id=1805201815]
+collision_mask = 0
+
+[node name="Footprint" type="CollisionShape2D" parent="OreContainment/Collision" unique_id=573122558]
+position = Vector2(375, 35.714233)
+shape = SubResource("ContainmentFootprint")
+
+[node name="MicroscopeCart" type="Node2D" parent="." unique_id=160558792]
+position = Vector2(290, 205)
+scale = Vector2(0.095, 0.095)
+
+[node name="InstrumentTrolley" type="Sprite2D" parent="MicroscopeCart" unique_id=828949422]
+texture = ExtResource("7_p828v")
+
+[node name="Collision" type="StaticBody2D" parent="MicroscopeCart" unique_id=642233894]
+collision_mask = 0
+
+[node name="Footprint" type="CollisionShape2D" parent="MicroscopeCart/Collision" unique_id=2006880101]
+shape = SubResource("TrolleyFootprint")
+
+[node name="ArchiveStationLeft" type="Node2D" parent="." unique_id=1164111139]
+position = Vector2(313, 76)
+scale = Vector2(0.105, 0.105)
+
+[node name="DataArchive" type="Sprite2D" parent="ArchiveStationLeft" unique_id=2001349213]
+texture = ExtResource("8_ccyey")
+
+[node name="Collision" type="StaticBody2D" parent="ArchiveStationLeft" unique_id=2097207205]
+collision_mask = 0
+
+[node name="Footprint" type="CollisionShape2D" parent="ArchiveStationLeft/Collision" unique_id=109107887]
+shape = SubResource("ArchiveFootprint")
+
+[node name="ArchiveStationCenter" type="Node2D" parent="." unique_id=1808247976]
+position = Vector2(350, 76)
+scale = Vector2(0.105, 0.105)
+
+[node name="DataArchive" type="Sprite2D" parent="ArchiveStationCenter" unique_id=1146061939]
+texture = ExtResource("8_ccyey")
+
+[node name="Collision" type="StaticBody2D" parent="ArchiveStationCenter" unique_id=717372264]
+collision_mask = 0
+
+[node name="Footprint" type="CollisionShape2D" parent="ArchiveStationCenter/Collision" unique_id=1326854185]
+shape = SubResource("ArchiveFootprint")
+
+[node name="ArchiveStationRight" type="Node2D" parent="." unique_id=238098819]
+position = Vector2(387, 76)
+scale = Vector2(0.105, 0.105)
+
+[node name="DataArchive" type="Sprite2D" parent="ArchiveStationRight" unique_id=157495687]
+texture = ExtResource("8_ccyey")
+
+[node name="Collision" type="StaticBody2D" parent="ArchiveStationRight" unique_id=1385246661]
+collision_mask = 0
+
+[node name="Footprint" type="CollisionShape2D" parent="ArchiveStationRight/Collision" unique_id=589927906]
+shape = SubResource("ArchiveFootprint")
+
+[node name="SampleManipulator" type="Node2D" parent="." unique_id=867327186]
+z_index = 1
+position = Vector2(312, 146)
+scale = Vector2(0.08, 0.08)
+
+[node name="RoboticSampleArm" type="Sprite2D" parent="SampleManipulator" unique_id=423228395]
+texture = ExtResource("9_lqu3j")
+
+[node name="Collision" type="StaticBody2D" parent="SampleManipulator" unique_id=1031213849]
+collision_mask = 0
+
+[node name="Footprint" type="CollisionShape2D" parent="SampleManipulator/Collision" unique_id=765050822]
+shape = SubResource("RobotFootprint")
+
+[node name="LeftStorageCabinet" type="Node2D" parent="." unique_id=1976085040]
+position = Vector2(134, 72)
+scale = Vector2(0.08, 0.08)
+
+[node name="Sprite" type="Sprite2D" parent="LeftStorageCabinet" unique_id=125982567]
+position = Vector2(-100, 0)
+texture = ExtResource("6_olual")
+hframes = 2
+vframes = 2
+
+[node name="Collision" type="StaticBody2D" parent="LeftStorageCabinet" unique_id=495874665]
+collision_mask = 0
+
+[node name="Footprint" type="CollisionShape2D" parent="LeftStorageCabinet/Collision" unique_id=972698153]
+position = Vector2(-83.74988, -25)
+shape = SubResource("StorageFootprint")
+
+[node name="LabWasteBins" type="Node2D" parent="." unique_id=1216705761]
+position = Vector2(467, 82)
+scale = Vector2(0.07, 0.07)
+skew = 0.013962634
+
+[node name="Sprite" type="Sprite2D" parent="LabWasteBins" unique_id=347688518]
+texture = ExtResource("9_4eh5h")
+hframes = 2
+vframes = 2
+frame = 3
+
+[node name="Collision" type="StaticBody2D" parent="LabWasteBins" unique_id=68706647]
+collision_mask = 0
+
+[node name="Footprint" type="CollisionShape2D" parent="LabWasteBins/Collision" unique_id=1076996977]
+position = Vector2(7.3222656, -9.277344)
+rotation = 0.44331363
+shape = SubResource("WasteBinsFootprint")
+
+[node name="WashSink" type="Node2D" parent="." unique_id=1369072223]
+position = Vector2(468, 155)
+scale = Vector2(0.06, 0.06)
+
+[node name="Sprite" type="Sprite2D" parent="WashSink" unique_id=889454476]
+texture = ExtResource("10_tvoha")
+hframes = 2
+vframes = 2
+frame = 1
+
+[node name="Collision" type="StaticBody2D" parent="WashSink" unique_id=881421628]
+collision_mask = 0
+
+[node name="Footprint" type="CollisionShape2D" parent="WashSink/Collision" unique_id=516924516]
+shape = SubResource("WashSinkFootprint")
+
+[node name="CableRuns" type="Node2D" parent="." unique_id=854669181]
+z_index = -1
+
+[node name="ContainmentToAnalysisSleeve" type="Line2D" parent="CableRuns" unique_id=210999901]
+points = PackedVector2Array(248, 92, 255, 98, 255, 113, 250, 121, 246, 132, 246, 158)
+width = 3.2
+default_color = Color(0.075, 0.09, 0.11, 0.95)
+joint_mode = 2
+begin_cap_mode = 2
+end_cap_mode = 2
+
+[node name="ContainmentToAnalysisSignal" type="Line2D" parent="CableRuns" unique_id=316027944]
+points = PackedVector2Array(248, 92, 255, 98, 255, 113, 250, 121, 246, 132, 246, 158)
+width = 1.15
+default_color = Color(0.22, 0.68, 0.78, 0.95)
+joint_mode = 2
+begin_cap_mode = 2
+end_cap_mode = 2
+
+[node name="AnalysisToConsoleSleeve" type="Line2D" parent="CableRuns" unique_id=57817791]
+points = PackedVector2Array(326, 188, 326, 198, 338, 198, 338, 181)
+width = 2.8
+default_color = Color(0.075, 0.09, 0.11, 0.95)
+joint_mode = 2
+begin_cap_mode = 2
+end_cap_mode = 2
+
+[node name="AnalysisToConsolePower" type="Line2D" parent="CableRuns" unique_id=2069182638]
+points = PackedVector2Array(326, 188, 326, 198, 338, 198, 338, 181)
+width = 1.1
+default_color = Color(0.85, 0.52, 0.22, 0.95)
+joint_mode = 2
+begin_cap_mode = 2
+end_cap_mode = 2
+
+[node name="AnalysisToMicroscopeCable" type="Line2D" parent="CableRuns" unique_id=2140118887]
+points = PackedVector2Array(326, 184, 321, 190, 314, 193, 310, 185)
+width = 2.4
+default_color = Color(0.075, 0.09, 0.11, 0.95)
+joint_mode = 2
+begin_cap_mode = 2
+end_cap_mode = 2
+
+[node name="ArchiveDataTrunk" type="Line2D" parent="CableRuns" unique_id=1186791597]
+points = PackedVector2Array(313, 53, 313, 48, 387, 48, 387, 53)
+width = 2.8
+default_color = Color(0.075, 0.09, 0.11, 0.95)
+joint_mode = 2
+begin_cap_mode = 2
+end_cap_mode = 2
+
+[node name="ArchiveDataCore" type="Line2D" parent="CableRuns" unique_id=2105978932]
+points = PackedVector2Array(313, 53, 313, 48, 387, 48, 387, 53)
+width = 1.05
+default_color = Color(0.32, 0.69, 0.73, 0.95)
+joint_mode = 2
+begin_cap_mode = 2
+end_cap_mode = 2
+
+[node name="ArchiveCenterLeadSleeve" type="Line2D" parent="CableRuns" unique_id=925679339]
+points = PackedVector2Array(350, 48, 350, 53)
+width = 2.8
+default_color = Color(0.075, 0.09, 0.11, 0.95)
+joint_mode = 2
+begin_cap_mode = 2
+end_cap_mode = 2
+
+[node name="ArchiveCenterLeadCore" type="Line2D" parent="CableRuns" unique_id=1213624759]
+points = PackedVector2Array(350, 48, 350, 53)
+width = 1.05
+default_color = Color(0.32, 0.69, 0.73, 0.95)
+joint_mode = 2
+begin_cap_mode = 2
+end_cap_mode = 2
+
+[node name="StationLighting" type="Node2D" parent="." unique_id=359963808]
+z_index = -1
+
+[node name="AnalysisGlow" parent="StationLighting" unique_id=1750790807 instance=ExtResource("13_xv44b")]
+position = Vector2(293, 165)
+color = Color(0.2, 0.77, 1, 1)
+energy = 0.62
+texture_scale = 0.28
+
+[node name="ConsoleGlow" parent="StationLighting" unique_id=1448036691 instance=ExtResource("13_xv44b")]
+position = Vector2(355, 158)
+color = Color(0.2, 0.77, 1, 1)
+energy = 0.4
+texture_scale = 0.2
+
+[node name="ContainmentGlow" parent="StationLighting" unique_id=1246166048 instance=ExtResource("13_xv44b")]
+position = Vector2(242, 77)
+scale = Vector2(1.0060369, 1.0504261)
+color = Color(0.2, 0.77, 1, 1)
+energy = 0.48
+texture_scale = 0.22
+
+[node name="CartWorklight" parent="StationLighting" unique_id=2025796433 instance=ExtResource("13_xv44b")]
+position = Vector2(290, 205)
+energy = 0.34
+texture_scale = 0.15
+
+[node name="ArchiveGlowLeft" parent="StationLighting" unique_id=373993112 instance=ExtResource("13_xv44b")]
+position = Vector2(313, 76)
+color = Color(0.2, 0.77, 1, 1)
+energy = 0.28
+texture_scale = 0.15
+
+[node name="ArchiveGlowCenter" parent="StationLighting" unique_id=374609228 instance=ExtResource("13_xv44b")]
+position = Vector2(350, 76)
+color = Color(0.2, 0.77, 1, 1)
+energy = 0.32
+texture_scale = 0.17
+
+[node name="ArchiveGlowRight" parent="StationLighting" unique_id=1245523282 instance=ExtResource("13_xv44b")]
+position = Vector2(387, 76)
+color = Color(0.2, 0.77, 1, 1)
+energy = 0.28
+texture_scale = 0.15
+
+[node name="StorageCabinetRightView" type="Node2D" parent="." unique_id=560775376]
+position = Vector2(410, 155)
+scale = Vector2(0.043, 0.043)
+
+[node name="Sprite" type="Sprite2D" parent="StorageCabinetRightView" unique_id=1522971010]
+position = Vector2(-7441.8594, -1766.988)
+scale = Vector2(1, 1.0007235)
+texture = ExtResource("30_manual_cabinet")
+
+[node name="Collision" type="StaticBody2D" parent="StorageCabinetRightView" unique_id=1635742186]
+position = Vector2(465.11624, 883.7209)
+collision_mask = 0
+
+[node name="Footprint" type="CollisionPolygon2D" parent="StorageCabinetRightView/Collision" unique_id=894729976]
+position = Vector2(-7860.4653, -3000)
+polygon = PackedVector2Array(-395.3496, 744.1865, -372.09375, 0, 348.83594, -93.02344, 395.34766, 581.3955)

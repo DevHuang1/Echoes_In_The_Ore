@@ -16,11 +16,11 @@ const ORE_SITES := [
 	},
 	{
 		"id": &"north_viridian_ore",
-		"title": "Scan north crater resonance core",
+		"title": "Collect north viridian resonance core",
 		"marker_label": "CORE VEIN",
 		"position": Vector2(800.0, 320.0),
-		"prompt": "VIRIDIAN RESONANCE VEIN   /   [E] SCAN ECHO",
-		"completion": "Subsurface harmonic echo recorded from the northern crater.",
+		"prompt": "VIRIDIAN RESONANCE ORE   /   [E] EXTRACT SAMPLE",
+		"completion": "Viridian resonance core secured. No organic structures detected.",
 	},
 	{
 		"id": &"east_amber_ore",
@@ -155,7 +155,13 @@ func _sample_ore(site_id: StringName) -> void:
 			break
 	_sampled_sites[site_id] = true
 	_walk_hud.set_task_completed(site_id)
-	_feedback_text = "%s\nSURFACE SAMPLES  %d / %d COMPLETE" % [completion, _sampled_sites.size(), ORE_SITES.size()]
+	if _sampled_sites.size() >= ORE_SITES.size():
+		Engine.set_meta(&"resonance_ore_sample_collected", true)
+		if is_instance_valid(_walk_hud) and _walk_hud.has_method("grant_hotbar_item"):
+			_walk_hud.grant_hotbar_item(&"resonance_ore_sample")
+		_feedback_text = "ORE SURVEY COMPLETE // RESONANCE ORE ADDED TO INVENTORY FOR LAB CONTAINMENT"
+	else:
+		_feedback_text = "%s\nSURFACE SAMPLES  %d / %d COMPLETE" % [completion, _sampled_sites.size(), ORE_SITES.size()]
 	_feedback_timer = 4.0
 
 

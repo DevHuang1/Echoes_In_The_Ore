@@ -1,0 +1,19 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/ship/resonance_ore_villain.gd" id="1_villain"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_villain"]
+radius = 7.0
+
+[node name="ResonanceOreVillain" type="CharacterBody2D"]
+collision_layer = 4
+collision_mask = 1
+script = ExtResource("1_villain")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_villain")
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
+position = Vector2(0, -6)
+texture_filter = 1
+z_index = 3

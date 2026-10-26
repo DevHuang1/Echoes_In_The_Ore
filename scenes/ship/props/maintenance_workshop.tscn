@@ -1,0 +1,321 @@
+[gd_scene format=3 uid="uid://boso1q5hwbkj8"]
+
+[ext_resource type="Texture2D" uid="uid://da0wcaxijtvcb" path="res://art/concepts/ship_room_props/power_converter.png" id="converter"]
+[ext_resource type="Script" uid="uid://cp6asntp1fges" path="res://scripts/ship/workshop_floor.gd" id="floor"]
+[ext_resource type="Texture2D" uid="uid://j7fnp2fdc1tp" path="res://art/concepts/ship_room_props/power_maintenance_animation_sheet.png" id="kit"]
+[ext_resource type="PackedScene" path="res://scenes/ship/props/cargo_bay/cargo_locker.tscn" id="locker"]
+[ext_resource type="PackedScene" path="res://scenes/ship/props/hydroponic_anchored_prop.tscn" id="prop"]
+[ext_resource type="Texture2D" uid="uid://f6sughrxao68" path="res://art/concepts/hydroponics_animation_frames/anchored/nutrient_pump_bubbles_frames/nutrient_pump_bubbles_frame_01.png" id="pump"]
+[ext_resource type="PackedScene" path="res://scenes/ship/props/cargo_bay/maintenance_trolley.tscn" id="trolley"]
+
+[sub_resource type="AtlasTexture" id="bench"]
+atlas = ExtResource("kit")
+region = Rect2(278, 105, 263, 325)
+filter_clip = true
+
+[sub_resource type="SpriteFrames" id="preview_3"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("bench")
+}],
+"loop": 1,
+"name": &"default",
+"speed": 1.0
+}]
+
+[sub_resource type="SpriteFrames" id="preview_4"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("converter")
+}],
+"loop": 1,
+"name": &"default",
+"speed": 1.0
+}]
+
+[sub_resource type="AtlasTexture" id="case"]
+atlas = ExtResource("kit")
+region = Rect2(58, 438, 246, 167)
+filter_clip = true
+
+[sub_resource type="SpriteFrames" id="preview_5"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("case")
+}],
+"loop": 1,
+"name": &"default",
+"speed": 1.0
+}]
+
+[sub_resource type="SpriteFrames" id="preview_6"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("case")
+}],
+"loop": 1,
+"name": &"default",
+"speed": 1.0
+}]
+
+[sub_resource type="AtlasTexture" id="cell"]
+atlas = ExtResource("kit")
+region = Rect2(337, 432, 177, 190)
+filter_clip = true
+
+[sub_resource type="SpriteFrames" id="preview_7"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("cell")
+}],
+"loop": 1,
+"name": &"default",
+"speed": 1.0
+}]
+
+[sub_resource type="SpriteFrames" id="preview_8"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("pump")
+}],
+"loop": 1,
+"name": &"default",
+"speed": 1.0
+}]
+
+[sub_resource type="AtlasTexture" id="breaker"]
+atlas = ExtResource("kit")
+region = Rect2(56, 31, 220, 407)
+filter_clip = true
+
+[sub_resource type="SpriteFrames" id="preview_12"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("breaker")
+}],
+"loop": 1,
+"name": &"default",
+"speed": 1.0
+}]
+
+[sub_resource type="SpriteFrames" id="preview_13"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("cell")
+}],
+"loop": 1,
+"name": &"default",
+"speed": 1.0
+}]
+
+[sub_resource type="SpriteFrames" id="preview_14"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("case")
+}],
+"loop": 1,
+"name": &"default",
+"speed": 1.0
+}]
+
+[sub_resource type="SpriteFrames" id="preview_15"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("case")
+}],
+"loop": 1,
+"name": &"default",
+"speed": 1.0
+}]
+
+[node name="MaintenanceWorkshop" type="Node2D" unique_id=397761961]
+y_sort_enabled = true
+
+[node name="ServiceMarkings" type="Node2D" parent="." unique_id=21226378]
+z_index = -2
+script = ExtResource("floor")
+
+[node name="RepairWorkbench" parent="." unique_id=252664969 instance=ExtResource("prop")]
+position = Vector2(85, 37)
+scale = Vector2(0.19, 0.19)
+sprite_frames = SubResource("preview_3")
+animation_frames = Array[Texture2D]([SubResource("bench")])
+indicator_base_energy = 0.12
+indicator_pulse_amount = 0.05
+
+[node name="AuxiliaryConverter" parent="." unique_id=1460234007 instance=ExtResource("prop")]
+position = Vector2(370, 72)
+scale = Vector2(0.025, 0.025)
+sprite_frames = SubResource("preview_4")
+animation_frames = Array[Texture2D]([ExtResource("converter")])
+indicator_base_energy = 0.12
+indicator_pulse_amount = 0.05
+
+[node name="SpareFilters" parent="." unique_id=209173117 instance=ExtResource("prop")]
+position = Vector2(90, 139)
+scale = Vector2(0.16, 0.16)
+sprite_frames = SubResource("preview_5")
+animation_frames = Array[Texture2D]([SubResource("case")])
+indicator_base_energy = 0.12
+indicator_pulse_amount = 0.05
+
+[node name="PartsCase" parent="." unique_id=1994930061 instance=ExtResource("prop")]
+position = Vector2(140, 139)
+scale = Vector2(0.16, 0.16)
+sprite_frames = SubResource("preview_6")
+animation_frames = Array[Texture2D]([SubResource("case")])
+indicator_base_energy = 0.12
+indicator_pulse_amount = 0.05
+
+[node name="DamagedPowerCell" parent="." unique_id=1754411103 instance=ExtResource("prop")]
+position = Vector2(232, 83)
+scale = Vector2(0.19, 0.19)
+sprite_frames = SubResource("preview_7")
+animation_frames = Array[Texture2D]([SubResource("cell")])
+indicator_base_energy = 0.12
+indicator_pulse_amount = 0.05
+
+[node name="NutrientPump" parent="." unique_id=1434620604 instance=ExtResource("prop")]
+position = Vector2(35, 123)
+scale = Vector2(0.085, 0.085)
+sprite_frames = SubResource("preview_8")
+animation_frames = Array[Texture2D]([ExtResource("pump")])
+indicator_base_energy = 0.12
+indicator_pulse_amount = 0.05
+
+[node name="ToolTrolley" parent="." unique_id=1461189411 instance=ExtResource("trolley")]
+position = Vector2(158, 48)
+appearance_names = PackedStringArray()
+crop_outlines = Array[PackedVector2Array]([])
+hide_markers_enabled = false
+appearance = 0
+collision_enabled = true
+fork_north_length = 40.0
+fork_south_length = 31.0
+fork_side_length = 38.0
+fork_width = 6.0
+fork_spacing = 14.0
+fork_side_width = 3.0
+fork_north_offset = 37.0
+fork_south_offset = 18.0
+fork_side_offset = Vector2(27, 32)
+access_distance = 30.0
+access_offset = Vector2(0, 0)
+hide_offset = Vector2(0, 0)
+artwork_scale = 0.065
+footprint_size = Vector2(34, 12)
+
+[node name="PartsLocker" parent="." unique_id=829513951 instance=ExtResource("locker")]
+position = Vector2(310, 148)
+appearance = 0
+collision_enabled = true
+fork_north_length = 40.0
+fork_south_length = 31.0
+fork_side_length = 38.0
+fork_width = 6.0
+fork_spacing = 14.0
+fork_side_width = 3.0
+fork_north_offset = 37.0
+fork_south_offset = 18.0
+fork_side_offset = Vector2(27, 32)
+access_offset = Vector2(0, 0)
+direction = 1
+artwork_scale = 0.11
+
+[node name="FilterLocker" parent="." unique_id=1835812959 instance=ExtResource("locker")]
+position = Vector2(340, 148)
+appearance = 0
+collision_enabled = true
+fork_north_length = 40.0
+fork_south_length = 31.0
+fork_side_length = 38.0
+fork_width = 6.0
+fork_spacing = 14.0
+fork_side_width = 3.0
+fork_north_offset = 37.0
+fork_south_offset = 18.0
+fork_side_offset = Vector2(27, 32)
+access_offset = Vector2(0, 0)
+direction = 1
+artwork_scale = 0.11
+
+[node name="BreakerCabinet" parent="." unique_id=2118491775 instance=ExtResource("prop")]
+position = Vector2(290, 40)
+scale = Vector2(0.13, 0.13)
+sprite_frames = SubResource("preview_12")
+animation_frames = Array[Texture2D]([SubResource("breaker")])
+indicator_base_energy = 0.12
+indicator_pulse_amount = 0.05
+
+[node name="SparePowerCell" parent="." unique_id=213933427 instance=ExtResource("prop")]
+position = Vector2(330, 55)
+scale = Vector2(0.14, 0.14)
+sprite_frames = SubResource("preview_13")
+animation_frames = Array[Texture2D]([SubResource("cell")])
+indicator_base_energy = 0.12
+indicator_pulse_amount = 0.05
+
+[node name="ElectricalPartsCase" parent="." unique_id=883359110 instance=ExtResource("prop")]
+position = Vector2(205, 140)
+scale = Vector2(0.14, 0.14)
+sprite_frames = SubResource("preview_14")
+animation_frames = Array[Texture2D]([SubResource("case")])
+indicator_base_energy = 0.12
+indicator_pulse_amount = 0.05
+
+[node name="FilterSupplyCase" parent="." unique_id=455679611 instance=ExtResource("prop")]
+position = Vector2(250, 140)
+scale = Vector2(0.14, 0.14)
+sprite_frames = SubResource("preview_15")
+animation_frames = Array[Texture2D]([SubResource("case")])
+indicator_base_energy = 0.12
+indicator_pulse_amount = 0.05
+
+[node name="SpareToolTrolley" parent="." unique_id=1040814610 instance=ExtResource("trolley")]
+position = Vector2(165, 105)
+appearance_names = PackedStringArray()
+crop_outlines = Array[PackedVector2Array]([])
+hide_markers_enabled = false
+appearance = 0
+collision_enabled = true
+fork_north_length = 40.0
+fork_south_length = 31.0
+fork_side_length = 38.0
+fork_width = 6.0
+fork_spacing = 14.0
+fork_side_width = 3.0
+fork_north_offset = 37.0
+fork_south_offset = 18.0
+fork_side_offset = Vector2(27, 32)
+access_distance = 30.0
+access_offset = Vector2(0, 0)
+hide_offset = Vector2(0, 0)
+artwork_scale = 0.065
+footprint_size = Vector2(34, 12)
+
+[node name="EquipmentLocker" parent="." unique_id=1351680059 instance=ExtResource("locker")]
+position = Vector2(375, 135)
+appearance = 0
+collision_enabled = true
+fork_north_length = 40.0
+fork_south_length = 31.0
+fork_side_length = 38.0
+fork_width = 6.0
+fork_spacing = 14.0
+fork_side_width = 3.0
+fork_north_offset = 37.0
+fork_south_offset = 18.0
+fork_side_offset = Vector2(27, 32)
+access_offset = Vector2(0, 0)
+direction = 1
+artwork_scale = 0.11

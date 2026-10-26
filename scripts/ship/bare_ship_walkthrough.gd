@@ -2,6 +2,11 @@
 extends Node2D
 
 const FLOOR_TEXTURE := preload("res://art/overview/asteria_overview_floor.png")
+const RESONANCE_ORE_TANK_STORED_TEXTURE := preload("res://art/planet/modern_ore_containment_stored.png")
+const RESONANCE_ORE_TANK_CRACKING_TEXTURE := preload("res://art/planet/modern_ore_containment_cracking.png")
+const RESONANCE_ORE_TANK_ARM_BREAKOUT_TEXTURE := preload("res://art/planet/modern_ore_containment_arm_breakout.png")
+const RESONANCE_ORE_TANK_HATCHED_TEXTURE := preload("res://art/planet/modern_ore_containment_hatched.png")
+const RESONANCE_ORE_VILLAIN_SCENE := preload("res://scenes/ship/crew/resonance_ore_villain.tscn")
 const ARRIVAL_BRIEFING_SCENE := preload("res://scenes/ui/arrival_briefing.tscn")
 const SERVICE_TASK_CONSOLE_SCENE := preload("res://scenes/ui/service_task_console.tscn")
 const WALK_HUD_SCENE := preload("res://scenes/ui/walk_hud.tscn")
@@ -35,6 +40,56 @@ const ROOM_TASKS := [
 		"interaction_radius": 65.0,
 		"prompt": "HYDROPONICS CONSOLE   /   [E] ROUTE NUTRIENTS",
 		"completion": "Nutrient manifold aligned. The grow beds are irrigating.",
+	},
+]
+const LAB_DEVICES := [
+	{
+		"id": &"lab_specimen",
+		"station_path": NodePath("LabRoom/NorthWorkstation"),
+		"interaction_offset": Vector2(-34.0, 27.0),
+		"prompt": "SPECIMEN ANALYSIS TABLE   /   [E] OPEN ANALYZER",
+	},
+	{
+		"id": &"lab_earth_comms",
+		"station_path": NodePath("LabRoom/ConsoleStation"),
+		"interaction_offset": Vector2(39.0, 18.0),
+		"prompt": "RESEARCH CONSOLE   /   [E] OPEN TERMINAL",
+	},
+	{
+		"id": &"lab_containment",
+		"station_path": NodePath("LabRoom/OreContainment"),
+		"interaction_offset": Vector2(0.0, 38.0),
+		"prompt": "SAMPLE CONTAINMENT   /   [E] OPEN CONTROLS",
+	},
+	{
+		"id": &"lab_trolley",
+		"station_path": NodePath("LabRoom/MicroscopeCart"),
+		"interaction_offset": Vector2(0.0, 38.0),
+		"prompt": "INSTRUMENT TROLLEY   /   [E] OPEN INSTRUMENTS",
+	},
+	{
+		"id": &"lab_archive_01",
+		"station_path": NodePath("LabRoom/ArchiveStationLeft"),
+		"interaction_offset": Vector2(-18.0, 34.0),
+		"prompt": "PERSONNEL ARCHIVE   /   [E] BROWSE RECORDS",
+	},
+	{
+		"id": &"lab_archive_02",
+		"station_path": NodePath("LabRoom/ArchiveStationCenter"),
+		"interaction_offset": Vector2(0.0, 34.0),
+		"prompt": "SPECIMEN ARCHIVE   /   [E] BROWSE RECORDS",
+	},
+	{
+		"id": &"lab_archive_03",
+		"station_path": NodePath("LabRoom/ArchiveStationRight"),
+		"interaction_offset": Vector2(18.0, 34.0),
+		"prompt": "CONTAINMENT ARCHIVE   /   [E] BROWSE RECORDS",
+	},
+	{
+		"id": &"lab_robot_arm",
+		"station_path": NodePath("LabRoom/SampleManipulator"),
+		"interaction_offset": Vector2(0.0, 36.0),
+		"prompt": "SAMPLE MANIPULATOR   /   [E] OPEN CONTROLS",
 	},
 ]
 const ROOM_TASK_INTERACTION_RADIUS := 44.0
@@ -72,6 +127,7 @@ const AMARA_CREW_TASKS := [
 
 var _completed_room_tasks: Dictionary = {}
 var _active_room_task_id: StringName = &""
+var _active_lab_device_id: StringName = &""
 var _task_console_open := false
 var _arrival_briefing_open := true
 var _hud_modal_open := false
@@ -98,6 +154,154 @@ func _load_sprite_png(sprite: Sprite2D, res_path: String) -> void:
 		sprite.texture = ImageTexture.create_from_image(img)
 
 
+func _is_ore_sample_collected() -> bool:
+	return Engine.has_meta(&"resonance_ore_sample_collected") and bool(Engine.get_meta(&"resonance_ore_sample_collected"))
+
+
+func _is_ore_sample_stored() -> bool:
+	return Engine.has_meta(&"resonance_ore_sample_stored") and bool(Engine.get_meta(&"resonance_ore_sample_stored"))
+
+
+func _is_ore_sample_evolved() -> bool:
+	return Engine.has_meta(&"resonance_ore_sample_evolved") and bool(Engine.get_meta(&"resonance_ore_sample_evolved"))
+
+
+func _is_ore_villain_spawned() -> bool:
+	return Engine.has_meta(&"resonance_ore_villain_spawned") and bool(Engine.get_meta(&"resonance_ore_villain_spawned"))
+
+
+func _spawn_resonance_ore_villain(play_breakout_fx: bool) -> void:
+	Engine.set_meta(&"resonance_ore_villain_spawned", true)
+	var containment := get_node_or_null("LabRoom/OreContainment") as Node2D
+	if containment == null:
+		return
+	var tank_sprite := containment.get_node_or_null("SampleContainment") as Sprite2D
+	if tank_sprite != null:
+		_load_sprite_png(tank_sprite, "res://art/planet/modern_ore_containment_empty.png")
+		tank_sprite.modulate = Color(1.0, 0.86, 0.82)
+	var containment_glow := get_node_or_null("LabRoom/StationLighting/ContainmentGlow") as PointLight2D
+	if containment_glow != null:
+		containment_glow.visible = true
+		containment_glow.color = Color(1.0, 0.36, 0.22, 1.0)
+		containment_glow.energy = 0.62
+	var room_lighting := get_node_or_null("ShipRoomLighting")
+	if room_lighting != null and room_lighting.has_method("set_room_flicker"):
+		room_lighting.call("set_room_flicker", &"r08_central_bay", true)
+	if get_node_or_null("ResonanceOreVillain") != null:
+		return
+	var villain := RESONANCE_ORE_VILLAIN_SCENE.instantiate() as Node2D
+	villain.name = "ResonanceOreVillain"
+	var landing_pos := containment.global_position + Vector2(0.0, 42.0)
+	add_child(villain)
+	if play_breakout_fx:
+		villain.global_position = containment.global_position + Vector2(0.0, 6.0)
+		villain.scale = Vector2(0.55, 0.55)
+		var leap := create_tween().set_parallel(true)
+		leap.tween_property(villain, "global_position", landing_pos, 0.48).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		leap.tween_property(villain, "scale", Vector2.ONE, 0.48).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		_room_task_feedback = "ALERT: CONTAINMENT BREACHED — RESONANCE ENTITY LOOSE IN LAB!"
+		_room_task_feedback_timer = 5.5
+	else:
+		villain.global_position = landing_pos
+
+
+func _display_contained_ore_sample() -> void:
+	var containment := get_node_or_null("LabRoom/OreContainment") as Node2D
+	if containment == null:
+		return
+	containment.scale = Vector2(0.056, 0.056)
+	var containment_glow := get_node_or_null("LabRoom/StationLighting/ContainmentGlow") as CanvasItem
+	var tank_sprite := containment.get_node_or_null("SampleContainment") as Sprite2D
+	if tank_sprite == null:
+		return
+	var is_stored := _is_ore_sample_stored()
+	if is_instance_valid(containment_glow):
+		containment_glow.visible = is_stored
+	if not is_stored:
+		_load_sprite_png(tank_sprite, "res://art/planet/modern_ore_containment_empty.png")
+		tank_sprite.set_meta(&"hatched", false)
+		return
+	if _is_ore_villain_spawned():
+		tank_sprite.set_meta(&"hatched", true)
+		_spawn_resonance_ore_villain(false)
+		return
+	var is_evolved := _is_ore_sample_evolved()
+	if is_evolved:
+		tank_sprite.texture = RESONANCE_ORE_TANK_HATCHED_TEXTURE
+		_load_sprite_png(tank_sprite, "res://art/planet/modern_ore_containment_hatched.png")
+	else:
+		tank_sprite.texture = RESONANCE_ORE_TANK_STORED_TEXTURE
+		_load_sprite_png(tank_sprite, "res://art/planet/modern_ore_containment_stored.png")
+	tank_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+	tank_sprite.set_meta(&"hatched", is_evolved)
+
+
+func _deposit_ore_into_containment() -> void:
+	Engine.set_meta(&"resonance_ore_sample_stored", true)
+	if is_instance_valid(_walk_hud) and _walk_hud.has_method("consume_item"):
+		_walk_hud.consume_item(&"resonance_ore_sample")
+	_display_contained_ore_sample()
+	var tank_sprite := get_node_or_null("LabRoom/OreContainment/SampleContainment") as Sprite2D
+	if tank_sprite != null:
+		tank_sprite.scale = Vector2(0.94, 0.94)
+		var place_tween := create_tween().set_parallel(true)
+		place_tween.tween_property(tank_sprite, "scale", Vector2.ONE, 0.45).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		place_tween.tween_property(tank_sprite, "modulate", Color(0.82, 1.0, 1.0), 0.2).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+		place_tween.tween_property(tank_sprite, "modulate", Color.WHITE, 0.25).set_delay(0.2).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	_room_task_feedback = "RESONANCE ORE PLACED IN CONTAINMENT TANK  //  [E] OPEN CONTROLS"
+	_room_task_feedback_timer = 4.0
+
+
+func _update_contained_ore_sample() -> void:
+	if _is_ore_sample_stored() and is_instance_valid(_walk_hud) and _walk_hud.has_method("consume_item"):
+		_walk_hud.consume_item(&"resonance_ore_sample")
+	_display_contained_ore_sample()
+	if not _is_ore_sample_evolved():
+		return
+	var tank_sprite := get_node_or_null("LabRoom/OreContainment/SampleContainment") as Sprite2D
+	if tank_sprite == null or bool(tank_sprite.get_meta(&"hatched", false)):
+		return
+	tank_sprite.set_meta(&"hatched", true)
+	tank_sprite.texture = RESONANCE_ORE_TANK_STORED_TEXTURE
+	_load_sprite_png(tank_sprite, "res://art/planet/modern_ore_containment_stored.png")
+	_room_task_feedback = "STAGE 1/4: RESONANCE ORE PULSING IN CONTAINMENT..."
+	_room_task_feedback_timer = 5.5
+
+	var seq := create_tween()
+	seq.tween_interval(1.0)
+	seq.tween_callback(func() -> void:
+		tank_sprite.texture = RESONANCE_ORE_TANK_CRACKING_TEXTURE
+		_load_sprite_png(tank_sprite, "res://art/planet/modern_ore_containment_cracking.png")
+		tank_sprite.modulate = Color(1.12, 0.96, 0.78)
+		_room_task_feedback = "STAGE 2/4: SILICATE SHELL FRACTURING — CLAW EMERGING!"
+		_room_task_feedback_timer = 4.5
+	)
+	seq.tween_interval(1.2)
+	seq.tween_callback(func() -> void:
+		tank_sprite.texture = RESONANCE_ORE_TANK_ARM_BREAKOUT_TEXTURE
+		_load_sprite_png(tank_sprite, "res://art/planet/modern_ore_containment_arm_breakout.png")
+		tank_sprite.modulate = Color(1.18, 0.9, 0.72)
+		_room_task_feedback = "STAGE 3/4: ARMORED LIMB & TENDRILS BREACHING SHELL!"
+		_room_task_feedback_timer = 4.0
+	)
+	seq.tween_interval(1.3)
+	seq.tween_callback(func() -> void:
+		tank_sprite.texture = RESONANCE_ORE_TANK_HATCHED_TEXTURE
+		_load_sprite_png(tank_sprite, "res://art/planet/modern_ore_containment_hatched.png")
+		tank_sprite.scale = Vector2(0.92, 0.92)
+		var hatch := create_tween().set_parallel(true)
+		hatch.tween_property(tank_sprite, "scale", Vector2.ONE, 0.8).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		hatch.tween_property(tank_sprite, "modulate", Color(0.78, 1.0, 1.0), 0.35).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+		hatch.tween_property(tank_sprite, "modulate", Color.WHITE, 0.45).set_delay(0.35).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+		_room_task_feedback = "STAGE 4/4: RESONANCE ENTITY HATCHED IN CONTAINMENT!"
+		_room_task_feedback_timer = 4.5
+	)
+	seq.tween_interval(1.4)
+	seq.tween_callback(func() -> void:
+		_spawn_resonance_ore_villain(true)
+	)
+
+
 func _ready() -> void:
 	_load_sprite_png(floor_layer, "res://art/concepts/Refined pixel-art spacecraft floor.png")
 	_load_sprite_png(wall_layer, "res://art/concepts/ship_walls_valkyrie.png")
@@ -111,6 +315,7 @@ func _ready() -> void:
 		set_physics_process(false)
 		set_process_unhandled_input(false)
 		return
+	_display_contained_ore_sample()
 
 	# Movement samples global positions; include any saved ship-root translation.
 	player.set_walkable_floor_mask(FLOOR_TEXTURE, floor_layer.global_position, 8.0)
@@ -192,6 +397,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		_begin_amara_dialogue()
 	elif _active_crew_task_id != &"":
 		_complete_crew_task(_active_crew_task_id)
+	elif _active_lab_device_id != &"":
+		_open_lab_device_console(_active_lab_device_id)
 	elif _active_room_task_id != &"":
 		_open_room_task_console(_active_room_task_id)
 	else:
@@ -204,6 +411,28 @@ func _exit_ship_to_planet() -> void:
 		return
 	_transitioning_to_planet = true
 	get_tree().change_scene_to_file(MOCK_PLANET_SCENE_PATH)
+
+
+func _open_lab_device_console(device_id: StringName) -> void:
+	if _task_console_open:
+		return
+	for device in LAB_DEVICES:
+		if device["id"] != device_id:
+			continue
+		var station := get_node_or_null(device["station_path"]) as Node2D
+		if station != null:
+			player.face_toward(station.global_position)
+		break
+	if device_id == &"lab_containment" and _is_ore_sample_collected() and not _is_ore_sample_stored():
+		_deposit_ore_into_containment()
+		return
+	_task_console_open = true
+	_walk_hud.set_walking_visible(false)
+	_update_player_walk_state()
+	var console := SERVICE_TASK_CONSOLE_SCENE.instantiate() as ServiceTaskConsole
+	console.setup(device_id, 0, 1)
+	console.console_closed.connect(_on_room_task_console_closed)
+	add_child(console)
 
 
 func _open_room_task_console(task_id: StringName) -> void:
@@ -241,6 +470,7 @@ func _on_room_task_completed(task_id: StringName) -> void:
 
 func _on_room_task_console_closed() -> void:
 	_task_console_open = false
+	_update_contained_ore_sample()
 	_walk_hud.set_walking_visible(not _arrival_briefing_open)
 	_update_player_walk_state()
 	if not _pending_room_task_feedback.is_empty():
@@ -251,6 +481,7 @@ func _on_room_task_console_closed() -> void:
 
 func _refresh_room_task_prompt() -> void:
 	_active_room_task_id = &""
+	_active_lab_device_id = &""
 	_active_crew_task_id = &""
 	_active_amara_interaction = false
 	_active_airlock_exit = false
@@ -287,6 +518,24 @@ func _refresh_room_task_prompt() -> void:
 	if not closest_crew_task.is_empty():
 		_active_crew_task_id = closest_crew_task["id"]
 		_walk_hud.set_interaction_prompt(closest_crew_task["prompt"], true)
+		return
+	var closest_device: Dictionary = {}
+	var closest_device_distance := ROOM_TASK_INTERACTION_RADIUS
+	for device in LAB_DEVICES:
+		var station := get_node_or_null(device["station_path"]) as Node2D
+		if station == null:
+			continue
+		var interaction_position := _room_task_interaction_position(device, station)
+		var distance := player.global_position.distance_to(interaction_position)
+		if distance <= closest_device_distance:
+			closest_device_distance = distance
+			closest_device = device
+	if not closest_device.is_empty():
+		_active_lab_device_id = closest_device["id"]
+		var prompt_text: String = closest_device["prompt"]
+		if _active_lab_device_id == &"lab_containment" and _is_ore_sample_collected() and not _is_ore_sample_stored():
+			prompt_text = "SAMPLE CONTAINMENT   /   [E] PLACE RESONANCE ORE IN TANK"
+		_walk_hud.set_interaction_prompt(prompt_text, true)
 		return
 	var closest_task: Dictionary = {}
 	var closest_distance := 999999.0

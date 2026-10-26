@@ -61,6 +61,10 @@ const ITEM_DATA := {
 		"name": "Electrical Discharge Tool", "short": "DISCHARGE", "color": CYAN, "equip_slot": &"tool",
 		"texture": preload("res://art/tools/electrical_discharge_tool.png"), "icon_region": Rect2(100.0, 410.0, 860.0, 710.0),
 	},
+	&"resonance_ore_sample": {
+		"name": "Resonance Ore Sample", "short": "RES ORE", "color": GOLD, "equip_slot": &"pack",
+		"texture": preload("res://art/planet/resonance_ore_intact.png"), "icon_region": Rect2(140.0, 120.0, 974.0, 1014.0),
+	},
 }
 
 const EQUIPMENT_SLOTS: Array[StringName] = [&"head", &"suit", &"pack", &"tool"]
@@ -409,6 +413,37 @@ func setup(player: ShipPlayer, task_entries: Array[Dictionary], map_world_origin
 	_storage_items[5] = &"pressure_sealant"
 	_storage_items[6] = &"medical_injector"
 	_storage_items[7] = &"electrical_discharge_tool"
+	var ore_collected := Engine.has_meta(&"resonance_ore_sample_collected") and bool(Engine.get_meta(&"resonance_ore_sample_collected"))
+	var ore_stored := Engine.has_meta(&"resonance_ore_sample_stored") and bool(Engine.get_meta(&"resonance_ore_sample_stored"))
+	if ore_collected and not ore_stored:
+		_hotbar_items[0] = &"resonance_ore_sample"
+
+
+func grant_hotbar_item(item_id: StringName) -> void:
+	if _hotbar_items.has(item_id):
+		return
+	for i in range(_hotbar_items.size()):
+		if _hotbar_items[i] == &"":
+			_hotbar_items[i] = item_id
+			_refresh_hotbar()
+			_refresh_inventory_cells()
+			return
+
+
+func consume_item(item_id: StringName) -> bool:
+	for i in range(_hotbar_items.size()):
+		if _hotbar_items[i] == item_id:
+			_hotbar_items[i] = &""
+			_refresh_hotbar()
+			_refresh_inventory_cells()
+			return true
+	for i in range(_storage_items.size()):
+		if _storage_items[i] == item_id:
+			_storage_items[i] = &""
+			_refresh_hotbar()
+			_refresh_inventory_cells()
+			return true
+	return false
 
 
 func _ready() -> void:

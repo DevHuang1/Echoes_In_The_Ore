@@ -55,6 +55,19 @@ func set_camera_bounds(bounds: Rect2) -> void:
 	camera.reset_smoothing()
 
 
+func face_toward(target_position: Vector2) -> void:
+	var direction := target_position - global_position
+	if direction.is_zero_approx():
+		return
+	if absf(direction.x) > absf(direction.y):
+		_facing_animation = &"walk_right" if direction.x > 0.0 else &"walk_left"
+	else:
+		_facing_animation = &"walk_down" if direction.y > 0.0 else &"walk_up"
+	sprite.animation = _facing_animation
+	sprite.stop()
+	sprite.frame = 0
+
+
 func set_walkable_floor_mask(floor_texture: Texture2D, floor_origin: Vector2 = Vector2.ZERO, body_margin: float = 8.0) -> void:
 	_walkable_floor_mask = floor_texture.get_image()
 	if _walkable_floor_mask.is_compressed():
