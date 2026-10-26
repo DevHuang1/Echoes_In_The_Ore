@@ -23,8 +23,17 @@ recent log. Seven rooms provide those objectives; the bridge provides two.
 
 Measurements are labelled gameplay simulations, not operating instructions for
 real machinery. Action prerequisites and unavailable-action reasons appear at
-each station. Both columns scroll when necessary. All diagnostics and clues are
+each station. Detailed records scroll when necessary. All diagnostics and clues are
 available in the game; the steps below are a solution guide.
+
+Station interfaces use live equipment diagrams, primary readings and stage tabs.
+Select **INSPECT**, **SERVICE** or **VERIFY** (task-specific names appear at the
+bridge, cargo and crew stations). **RECORDS** contains the procedure, crew note,
+recorded evidence, history and retained report. Hover or focus a control for its
+individual interlock. Supply stores show stock/carried counts, **SUPPLIES** and
+**RETURN** pages; use the page arrows if more than four entries are available.
+Unsubmitted settings are retained during live refresh; reopening initializes
+controls from the actual mission state. The ship map remains blank.
 
 ## Outbound duty sequence
 
@@ -171,3 +180,7 @@ are preserved. The blank map remains blank.
 Verification scripts and actual results are recorded in
 `ship_missions_validation.md`; screenshots are under the ignored
 `.godot/mission_validation/screenshots/` directory.
+
+The equipment-interface redesign, final two-size screenshot gallery and current
+UI validation results are in `ship_interface_validation.md`. Its visual
+specification and completed rollout checklist are in `ship_interface_redesign.md`.

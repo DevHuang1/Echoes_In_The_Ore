@@ -101,6 +101,11 @@ func narrative(room: String) -> String:
 	}
 	return returning.get(room,"Post-incident record; details not confirmed by existing canon.")
 
+func hydro_environment() -> Dictionary:
+	# Existing diagnostic observations, shared by prose and instrument widgets.
+	# These are simulation constants, not UI-only successful readings.
+	return {"pump_capacity":100.0,"humidity":62.0}
+
 func readings(room: String) -> String:
 	match room:
 		"engine":
@@ -114,8 +119,9 @@ func readings(room: String) -> String:
 			return "Oxygen %.1f%% (20-22) | CO2 %.3f%% (<= 0.10)\nAirflow %.0f%% (62-72) | scrubber performance %.0f%%\nOxygen reserve %.0f%% (routine issue threshold 50%%). Topping up reserve does not fix CO2 removal or airflow.\nReplacement filter: FILTER-A, scrubber medium: SCRUB-A. O2-01 is not coolant." % [l.oxygen,l.co2,l.airflow,l.scrubber*100,l.reserve]
 		"hydro":
 			var h: Dictionary=systems.hydro
+			var environment := hydro_environment()
 			var condition := "Recovering with normal irrigation" if h.flow>=90 and h.ec>=1.8 and h.ec<=2.4 else "Reservoir imbalance / wilt warning" if h.ec>2.4 else "Dry root-zone warning / inadequate delivery"
-			return "Reservoir EC %.2f (1.8-2.4) | delivery %.0f%% (>= 90)\nPump capacity 100%% / healthy | bay humidity 62%% (55-70)\nPlant condition: %s\nPump service isolation: %s | manifold verified: %s\nOne BUFFER-A dose reduces the simulated EC reading by 1.6. Plant condition recovers only with restored delivery." % [h.ec,h.flow,condition,str(h.isolated),str(h.aligned)]
+			return "Reservoir EC %.2f (1.8-2.4) | delivery %.0f%% (>= 90)\nPump capacity %.0f%% / healthy | bay humidity %.0f%% (55-70)\nPlant condition: %s\nPump service isolation: %s | manifold verified: %s\nOne BUFFER-A dose reduces the simulated EC reading by 1.6. Plant condition recovers only with restored delivery." % [h.ec,h.flow,environment.pump_capacity,environment.humidity,condition,str(h.isolated),str(h.aligned)]
 		"cargo":
 			var c: Dictionary=systems.cargo
 			return "Manifest %s | expected %.1f kg (+/- 0.5)\nScale: %s | measured: %s | load position: %s\nCOOL-02: sealed service coolant; O2-01: oxygen; N2-03: inert purge. These cylinders are not interchangeable." % [c.id,c.manifest_mass,"zeroed" if c.tare else "not zeroed",str(c.measured_mass)+" kg" if c.weighed else "not measured",c.location]

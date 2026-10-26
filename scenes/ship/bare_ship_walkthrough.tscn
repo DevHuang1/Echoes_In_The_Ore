@@ -53,7 +53,7 @@ region = Rect2(194, 99, 637, 1312)
 filter_clip = true
 
 [sub_resource type="ConvexPolygonShape2D" id="ConvexPolygonShape2D_r2wwa"]
-points = PackedVector2Array(-17, -81, 15, -81, 18, -78, 19, 3, 16, 6, -16, 6, -19, 3, -19, -78)
+points = PackedVector2Array(-16, -6, 16, -6, 19, -3, 19, 3, 16, 6, -16, 6, -19, 3, -19, -3)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_rtbpg"]
 atlas = ExtResource("13_e12q1")
@@ -663,6 +663,7 @@ scale = Vector2(0.07, 0.07)
 texture = SubResource("AtlasTexture_37xbg")
 
 [node name="CollisionShape2D" parent="CrewLivingQuarterProps/StackedCapsuleUnit/StaticBody2D" index="0"]
+visible = false
 shape = SubResource("ConvexPolygonShape2D_r2wwa")
 
 [node name="PersonalComputerDesk" parent="CrewLivingQuarterProps" index="1"]
@@ -753,13 +754,13 @@ rotation = 0.00050925
 position = Vector2(1661.0001, 168)
 scale = Vector2(0.7, 0.4)
 sprite_frames = SubResource("SpriteFrames_gkx25")
-frame_progress = 0.31854415
+frame_progress = 0.4
 
 [node name="LowerAftEnginePlume" parent="." unique_id=922350946 instance=ExtResource("6_plume")]
 position = Vector2(1672, 576)
 scale = Vector2(0.62, 0.35)
 sprite_frames = SubResource("SpriteFrames_wtx6w")
-frame_progress = 0.31854415
+frame_progress = 0.4
 
 [node name="Player" parent="." unique_id=184995048 instance=ExtResource("4_player")]
 position = Vector2(900, 500)
