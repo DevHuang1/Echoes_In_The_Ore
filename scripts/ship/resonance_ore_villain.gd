@@ -1,6 +1,9 @@
 class_name ResonanceOreVillain
 extends CharacterBody2D
 
+signal rampage_station_hit(station_index: int)
+signal rampage_finished
+
 const WALK_ATLAS_PATH := "res://art/characters/runtime/ore_monster_walk_4dir.png"
 const WALK_ATLAS := preload("res://art/characters/runtime/ore_monster_walk_4dir.png")
 const WARM_LIGHT_SCENE := preload("res://scenes/ship/props/warm_ship_light.tscn")
@@ -27,23 +30,23 @@ const THREAT_BARKS: Array[Dictionary] = [
 	{
 		"tag": "CONTAINMENT BREACH",
 		"barks": [
-			" Chitinous silicate plates resonate with a low sub-harmonic hum...",
-			" Golden bio-luminescent tendrils lash across the deck plates.",
-			" The entity's obsidian visor locks onto nearby thermal signatures.",
+			"Chitinous silicate plates resonate with a low sub-harmonic hum...",
+			"Golden bio-luminescent tendrils lash across the wrecked Lab deck.",
+			"The xenomorph's obsidian visor locks onto nearby thermal signatures.",
 		]
 	},
 	{
-		"tag": "RESONANCE PULSE",
+		"tag": "LAB DESTROYED",
 		"barks": [
-			" High-frequency acoustic spikes echo through the bulkhead.",
-			" Claws scrape against the hull plating, drawing ambient power.",
-			" Crystalline spores drift from the fractured ore shell.",
+			"High-frequency acoustic spikes echo through the shattered lab consoles.",
+			"Claws scrape against the hull plating, drawing ambient power from severed cables.",
+			"Crystalline spores drift from the fractured ore shell.",
 		]
 	},
 ]
 
-@export_range(30.0, 240.0, 1.0) var move_speed: float = 72.0
-@export_range(40.0, 260.0, 1.0) var stalk_player_distance: float = 175.0
+@export_range(30.0, 240.0, 1.0) var move_speed: float = 76.0
+@export_range(40.0, 260.0, 1.0) var stalk_player_distance: float = 185.0
 
 @onready var sprite: AnimatedSprite2D = $AnimatedSprite2D
 
@@ -58,12 +61,16 @@ var _path: Array[Vector2] = []
 var _path_index := 0
 var _destination := Vector2.ZERO
 var _has_destination := false
-var _idle_remaining := 0.6
+var _idle_remaining := 0.4
 var _facing_animation: StringName = &"walk_down"
 var _bark_cooldown := 4.0
 var _repath_timer := 0.0
 var _pulse_time := 0.0
 var _aura_light: PointLight2D
+
+var _rampage_targets: Array[Vector2] = []
+var _rampage_index := 0
+var _in_rampage := false
 
 var _bubble_root: Node2D
 var _bubble_panel: PanelContainer
@@ -79,24 +86,37 @@ func _ready() -> void:
 	_configure_sprite_animations()
 	_build_aura_light()
 	_build_overhead_bubble()
-	_show_overhead_bark("CONTAINMENT BREACH", "The Resonance Entity shatters the bio-chamber and drops onto the Lab deck!", 3.6)
+	_show_overhead_bark("XENOMORPH BREACH", "The Xenomorph shatters the bio-tank and rampages through the Lab!", 4.2)
 	await get_tree().physics_frame
 	_build_navigation()
-	if not _navigation_ready:
+	if not _navigation_ready and not _in_rampage:
 		set_physics_process(false)
 		return
-	var spawn_cell := _world_to_cell(global_position)
-	if _grid_region.has_point(spawn_cell) and _grid.is_point_solid(spawn_cell):
-		spawn_cell = _find_nearest_clear_cell(spawn_cell)
-		if _grid_region.has_point(spawn_cell) and not _grid.is_point_solid(spawn_cell):
-			global_position = _cell_to_world(spawn_cell)
-	_choose_next_destination()
+	if not _in_rampage:
+		var spawn_cell := _world_to_cell(global_position)
+		if _grid_region.has_point(spawn_cell) and _grid.is_point_solid(spawn_cell):
+			spawn_cell = _find_nearest_clear_cell(spawn_cell)
+			if _grid_region.has_point(spawn_cell) and not _grid.is_point_solid(spawn_cell):
+				global_position = _cell_to_world(spawn_cell)
+		_choose_next_destination()
+
+
+func start_lab_rampage(targets: Array[Vector2]) -> void:
+	_rampage_targets = targets.duplicate()
+	_rampage_index = 0
+	_in_rampage = not _rampage_targets.is_empty()
+	set_physics_process(true)
 
 
 func _physics_process(delta: float) -> void:
 	_pulse_time += delta
 	if is_instance_valid(_aura_light):
-		_aura_light.energy = 0.28 + 0.10 * sin(_pulse_time * 4.2)
+		var base_e := 0.42 if _in_rampage else 0.28
+		_aura_light.energy = base_e + 0.12 * sin(_pulse_time * (8.5 if _in_rampage else 4.2))
+
+	if _in_rampage:
+		_process_rampage(delta)
+		return
 
 	if not _navigation_ready:
 		return
@@ -151,11 +171,43 @@ func _physics_process(delta: float) -> void:
 		sprite.play(_facing_animation)
 
 
+func _process_rampage(delta: float) -> void:
+	if _rampage_index >= _rampage_targets.size():
+		_in_rampage = false
+		_show_overhead_bark("LAB DESTROYED", "Every console and containment rack in the Lab lies in ruins!", 3.8)
+		rampage_finished.emit()
+		if _navigation_ready:
+			_choose_next_destination()
+		return
+
+	var target := _rampage_targets[_rampage_index]
+	var to_target := target - global_position
+	var dist := to_target.length()
+	var rampage_speed := 155.0
+	if dist <= 6.0:
+		global_position = target
+		var strike_idx := _rampage_index
+		_rampage_index += 1
+		# Violent lunge & slash animation on impact
+		if is_instance_valid(sprite):
+			sprite.scale = Vector2.ONE * (DISPLAY_SCALE * 1.24)
+			var slash_tween := create_tween()
+			slash_tween.tween_property(sprite, "scale", Vector2.ONE * DISPLAY_SCALE, 0.22).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		rampage_station_hit.emit(strike_idx)
+		return
+
+	var dir := to_target / dist
+	_update_facing(dir)
+	global_position += dir * minf(rampage_speed * delta, dist)
+	if not sprite.is_playing():
+		sprite.play(_facing_animation)
+
+
 func _build_aura_light() -> void:
 	_aura_light = WARM_LIGHT_SCENE.instantiate() as PointLight2D
-	_aura_light.color = Color(1.0, 0.52, 0.22, 1.0)
-	_aura_light.energy = 0.30
-	_aura_light.texture_scale = 0.26
+	_aura_light.color = Color(1.0, 0.38, 0.18, 1.0)
+	_aura_light.energy = 0.32
+	_aura_light.texture_scale = 0.28
 	add_child(_aura_light)
 
 
@@ -173,7 +225,7 @@ func _build_overhead_bubble() -> void:
 
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(0.05, 0.015, 0.02, 0.92)
-	style.border_color = Color(1.0, 0.48, 0.22, 0.92)
+	style.border_color = Color(1.0, 0.42, 0.20, 0.92)
 	style.set_border_width_all(1)
 	style.corner_radius_top_left = 5
 	style.corner_radius_top_right = 5
@@ -191,7 +243,7 @@ func _build_overhead_bubble() -> void:
 
 	_bubble_tag_label = Label.new()
 	_bubble_tag_label.add_theme_font_size_override("font_size", 9)
-	_bubble_tag_label.add_theme_color_override("font_color", Color(1.0, 0.62, 0.28))
+	_bubble_tag_label.add_theme_color_override("font_color", Color(1.0, 0.56, 0.24))
 	vbox.add_child(_bubble_tag_label)
 
 	_bubble_text_label = Label.new()
@@ -208,7 +260,7 @@ func _build_overhead_bubble() -> void:
 func _show_overhead_bark(tag: String, text: String, duration: float = 2.8) -> void:
 	if not is_instance_valid(_bubble_root):
 		return
-	_bubble_tag_label.text = "RESONANCE ENTITY  •  " + tag.to_upper()
+	_bubble_tag_label.text = "XENOMORPH  •  " + tag.to_upper()
 	_bubble_text_label.text = text
 
 	if is_instance_valid(_bubble_tween) and _bubble_tween.is_running():
