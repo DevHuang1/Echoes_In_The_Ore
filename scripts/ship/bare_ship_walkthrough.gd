@@ -207,15 +207,22 @@ class LabWreckageLayer extends Node2D:
 			draw_colored_polygon(pts, Color(0.38, 0.86, 0.96, 0.72) if idx % 2 == 0 else Color(0.92, 0.58, 0.22, 0.72))
 
 	func _draw_spark(pos: Vector2, phase: float) -> void:
+		# Animated bubbling green bio-fluid droplets near the breached tank
+		for b_idx in range(4):
+			var b_phase := fposmod(spark_time * 0.9 + float(b_idx) * 0.25 + phase * 0.1, 1.0)
+			var b_pos := Vector2(222.0 + float(b_idx) * 11.0, 98.0 - b_phase * 8.0)
+			draw_circle(b_pos, 1.4 + sin(b_phase * PI) * 1.4, Color(0.42, 0.98, 0.72, 0.55 * (1.0 - b_phase)))
 		var pulse := sin(spark_time * 24.0 + phase * 5.0)
 		if pulse < 0.15:
 			return
-		var col := Color(1.0, 0.84, 0.36, 0.95) if pulse > 0.55 else Color(0.38, 0.92, 1.0, 0.88)
-		for idx in range(4):
-			var angle := phase + spark_time * 15.0 + float(idx) * PI * 0.5
-			var tip := pos + Vector2(cos(angle), sin(angle)) * (5.0 + 4.0 * pulse)
-			draw_line(pos, tip, col, 1.5, false)
-		draw_circle(pos, 2.2, Color(1.0, 0.98, 0.9, 0.95))
+		var col := Color(1.0, 0.88, 0.32, 0.95) if pulse > 0.55 else Color(0.38, 0.92, 1.0, 0.88)
+		for idx in range(5):
+			var angle := phase + spark_time * 15.0 + float(idx) * 1.25
+			var mid := pos + Vector2(cos(angle + 0.28), sin(angle + 0.28)) * (3.5 + 2.5 * pulse)
+			var tip := pos + Vector2(cos(angle), sin(angle)) * (7.0 + 5.5 * pulse)
+			draw_line(pos, mid, col, 1.6, false)
+			draw_line(mid, tip, col, 1.2, false)
+		draw_circle(pos, 2.4, Color(1.0, 0.98, 0.9, 0.95))
 
 
 @export var player_spawn: Vector2 = Vector2(900.0, 500.0)
