@@ -37,3 +37,13 @@ Regenerate the assets with `tools/split_floor_into_modules.py`, `tools/prepare_w
 ## Web export
 
 The project uses the Compatibility renderer. A Web build can be exported with the `Web` preset after installing the matching Godot 4.7.2 export templates.
+
+## Deploy to Railway
+
+The root `Dockerfile` exports the `Web` preset with Godot 4.7.2, then serves the generated files with Caddy. Railway detects the `Dockerfile`; the Godot build tools are kept out of the final runtime image. The Caddy server listens on Railway's `PORT` and provides `/healthz` for a deployment health check.
+
+1. Commit the project state you want to publish and push it to the connected GitHub repository.
+2. In Railway, create a project from that GitHub repository. Leave the build and start commands unset so Railway uses the root `Dockerfile`.
+3. Set the service health check path to `/healthz`, then generate a public domain under Networking.
+
+The current Web preset exports all project resources. A fresh local export is about 433 MB, including a 381 MB game pack, so expect a long first load; review the preset's resource filters before a public release, taking care to include assets loaded dynamically by path.

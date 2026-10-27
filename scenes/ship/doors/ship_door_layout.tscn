@@ -59,6 +59,12 @@ door_id = &"lower_deck_center_entry_2"
 opening_width = 30.0
 wall_depth = 28.0
 
+[node name="CenterRecessSouthEntry" parent="." unique_id=1648293014 instance=ExtResource("1_pressure_door")]
+position = Vector2(858, 371.5)
+door_id = &"center_recess_south_entry"
+opening_width = 38.0
+wall_depth = 28.0
+
 [node name="LowerDeckCenterEntry3" parent="." unique_id=1410419336 instance=ExtResource("1_pressure_door")]
 position = Vector2(1111.5, 442)
 door_id = &"lower_deck_center_entry_3"

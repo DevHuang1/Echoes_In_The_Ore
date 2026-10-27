@@ -1,0 +1,53 @@
+[gd_scene load_steps=7 format=3]
+
+[ext_resource type="Script" path="res://scripts/ship/second_floor_subdeck.gd" id="1_subdeck"]
+[ext_resource type="PackedScene" path="res://scenes/player/player.tscn" id="2_player"]
+[ext_resource type="Script" path="res://scripts/ship/subdeck_machinery_backdrop.gd" id="3_machinery_backdrop"]
+[ext_resource type="Script" path="res://scripts/ship/ship_ambient_fx.gd" id="6_ambient_fx"]
+[ext_resource type="Texture2D" path="res://art/overview/subdeck_02_floor_pre_arrival.png" id="7_subdeck_floor"]
+[ext_resource type="Texture2D" path="res://art/overview/subdeck_02_walls_pre_arrival.png" id="8_subdeck_walls"]
+
+[node name="SecondFloorSubdeck" type="Node2D"]
+y_sort_enabled = true
+script = ExtResource("1_subdeck")
+
+[node name="SubdeckMachineryBackdrop" type="Node2D" parent="."]
+z_index = -3
+script = ExtResource("3_machinery_backdrop")
+
+[node name="FloorLayer" type="Sprite2D" parent="."]
+z_index = -2
+texture_filter = 1
+texture = ExtResource("7_subdeck_floor")
+centered = false
+
+[node name="SubdeckFloorComponents" type="Node2D" parent="."]
+z_index = -2
+texture_filter = 1
+
+[node name="SubdeckPipeNetwork" type="Node2D" parent="."]
+z_index = -1
+
+[node name="WallLayer" type="Node2D" parent="."]
+z_index = -1
+texture_filter = 1
+
+[node name="WallsSprite" type="Sprite2D" parent="WallLayer"]
+texture_filter = 1
+texture = ExtResource("8_subdeck_walls")
+centered = false
+
+[node name="SubdeckProps" type="Node2D" parent="."]
+y_sort_enabled = true
+
+[node name="SubdeckDoors" type="Node2D" parent="."]
+y_sort_enabled = true
+
+[node name="SubdeckLighting" type="Node2D" parent="."]
+
+[node name="ShipAmbientFx" type="Node2D" parent="."]
+script = ExtResource("6_ambient_fx")
+is_subdeck = true
+
+[node name="Player" parent="." instance=ExtResource("2_player")]
+position = Vector2(882, 306)

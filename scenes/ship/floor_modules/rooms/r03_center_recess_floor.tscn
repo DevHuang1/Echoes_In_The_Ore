@@ -1,8 +1,9 @@
-[gd_scene load_steps=9 format=3]
+[gd_scene load_steps=10 format=3]
 
 [ext_resource type="Texture2D" path="res://art/overview/floor_modules/rooms/r03_center_recess_floor.png" id="1_texture"]
 [ext_resource type="PackedScene" path="res://scenes/ship/props/warm_ship_light.tscn" id="2_warm_light"]
 [ext_resource type="PackedScene" path="res://scenes/ship/props/ambient_gas_mist.tscn" id="3_gas_mist"]
+[ext_resource type="Script" path="res://scripts/ship/subdeck_access_lift.gd" id="4_subdeck_lift"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_top"]
 size = Vector2(197, 14)
@@ -26,6 +27,10 @@ z_index = -2
 texture_filter = 1
 centered = false
 texture = ExtResource("1_texture")
+
+[node name="SubDeckAccessLift" type="Node2D" parent="."]
+position = Vector2(180, 52)
+script = ExtResource("4_subdeck_lift")
 
 [node name="WallCollision" type="StaticBody2D" parent="."]
 collision_layer = 1
