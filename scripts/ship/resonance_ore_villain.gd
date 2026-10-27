@@ -4,13 +4,14 @@ extends CharacterBody2D
 signal rampage_station_hit(station_index: int)
 signal rampage_finished
 
-const WALK_ATLAS_PATH := "res://art/characters/runtime/ore_monster_walk_4dir.png"
-const WALK_ATLAS := preload("res://art/characters/runtime/ore_monster_walk_4dir.png")
+const LIQUID_ATLAS_PATH := "res://art/characters/runtime/echo_liquid_walk_4dir.png"
+const FUSED_ATLAS_PATH := "res://art/characters/runtime/echo_amara_fused_walk_4dir.png"
 const WARM_LIGHT_SCENE := preload("res://scenes/ship/props/warm_ship_light.tscn")
 const FLOOR_ALPHA_THRESHOLD := 0.15
 const NAV_CELL_SIZE := 24.0
 const BODY_RADIUS := 7.0
 const DISPLAY_SCALE := 0.165
+const LIQUID_DISPLAY_SCALE := 0.125
 
 const LAB_AREA := Rect2(Vector2(760.0, 465.0), Vector2(390.0, 155.0))
 const SHIP_ROAM_AREAS := [
@@ -25,25 +26,6 @@ const ANIMATION_ROWS := {
 	&"walk_right": 2,
 	&"walk_up": 3,
 }
-
-const THREAT_BARKS: Array[Dictionary] = [
-	{
-		"tag": "CONTAINMENT BREACH",
-		"barks": [
-			"Chitinous silicate plates resonate with a low sub-harmonic hum...",
-			"Golden bio-luminescent tendrils lash across the wrecked Lab deck.",
-			"The xenomorph's obsidian visor locks onto nearby thermal signatures.",
-		]
-	},
-	{
-		"tag": "LAB DESTROYED",
-		"barks": [
-			"High-frequency acoustic spikes echo through the shattered lab consoles.",
-			"Claws scrape against the hull plating, drawing ambient power from severed cables.",
-			"Crystalline spores drift from the fractured ore shell.",
-		]
-	},
-]
 
 @export_range(30.0, 240.0, 1.0) var move_speed: float = 76.0
 @export_range(40.0, 260.0, 1.0) var stalk_player_distance: float = 185.0
@@ -63,30 +45,29 @@ var _destination := Vector2.ZERO
 var _has_destination := false
 var _idle_remaining := 0.4
 var _facing_animation: StringName = &"walk_down"
-var _bark_cooldown := 4.0
 var _repath_timer := 0.0
 var _pulse_time := 0.0
 var _aura_light: PointLight2D
+var _is_fused_form := false
 
 var _rampage_targets: Array[Vector2] = []
 var _rampage_index := 0
 var _in_rampage := false
 
-var _bubble_root: Node2D
-var _bubble_panel: PanelContainer
-var _bubble_tag_label: Label
-var _bubble_text_label: Label
-var _bubble_tween: Tween
-
-
 func _ready() -> void:
 	_random.randomize()
+	_is_fused_form = Engine.has_meta(&"resonance_ore_fused_with_amara") and bool(Engine.get_meta(&"resonance_ore_fused_with_amara"))
 	add_to_group("ship_crew")
 	add_to_group("ship_villain")
-	_configure_sprite_animations()
+	_configure_sprite_animations(FUSED_ATLAS_PATH if _is_fused_form else LIQUID_ATLAS_PATH)
+	if not _is_fused_form:
+		move_speed = 48.0
+		var collision_shape := get_node_or_null("CollisionShape2D") as CollisionShape2D
+		if collision_shape != null and collision_shape.shape is CircleShape2D:
+			collision_shape.shape = collision_shape.shape.duplicate()
+			var liquid_shape := collision_shape.shape as CircleShape2D
+			liquid_shape.radius = 4.0
 	_build_aura_light()
-	_build_overhead_bubble()
-	_show_overhead_bark("XENOMORPH BREACH", "The Xenomorph shatters the bio-tank and rampages through the Lab!", 4.2)
 	await get_tree().physics_frame
 	_build_navigation()
 	if not _navigation_ready and not _in_rampage:
@@ -108,6 +89,41 @@ func start_lab_rampage(targets: Array[Vector2]) -> void:
 	set_physics_process(true)
 
 
+func fuse_with_amara() -> void:
+	if _is_fused_form:
+		return
+	await get_tree().create_timer(2.8).timeout
+	if not is_inside_tree():
+		return
+	_is_fused_form = true
+	Engine.set_meta(&"resonance_ore_fused_with_amara", true)
+	Engine.set_meta(&"resonance_ore_sample_evolved", true)
+	move_speed = 88.0
+	var collision_shape := get_node_or_null("CollisionShape2D") as CollisionShape2D
+	if collision_shape != null and collision_shape.shape is CircleShape2D:
+		var fused_shape := collision_shape.shape as CircleShape2D
+		fused_shape.radius = BODY_RADIUS
+	_configure_sprite_animations(FUSED_ATLAS_PATH)
+	if is_instance_valid(_aura_light):
+		_aura_light.color = Color(0.96, 0.34, 0.16, 1.0)
+
+
+func disappear_into_ducts() -> void:
+	_in_rampage = false
+	_has_destination = false
+	velocity = Vector2.ZERO
+	set_physics_process(false)
+	var fade := create_tween().set_parallel(true)
+	fade.tween_property(self, "modulate:a", 0.0, 1.15).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+	fade.tween_property(self, "scale", Vector2.ONE * 0.18, 1.15).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+	if is_instance_valid(_aura_light):
+		fade.tween_property(_aura_light, "energy", 0.0, 1.15).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+	await fade.finished
+	if is_inside_tree():
+		visible = false
+		Engine.set_meta(&"echo_disappeared_into_ducts", true)
+
+
 func _physics_process(delta: float) -> void:
 	_pulse_time += delta
 	if is_instance_valid(_aura_light):
@@ -121,8 +137,6 @@ func _physics_process(delta: float) -> void:
 	if not _navigation_ready:
 		return
 
-	if _bark_cooldown > 0.0:
-		_bark_cooldown = maxf(_bark_cooldown - delta, 0.0)
 	if _repath_timer > 0.0:
 		_repath_timer = maxf(_repath_timer - delta, 0.0)
 
@@ -174,7 +188,6 @@ func _physics_process(delta: float) -> void:
 func _process_rampage(delta: float) -> void:
 	if _rampage_index >= _rampage_targets.size():
 		_in_rampage = false
-		_show_overhead_bark("LAB DESTROYED", "Every console and containment rack in the Lab lies in ruins!", 3.8)
 		rampage_finished.emit()
 		if _navigation_ready:
 			_choose_next_destination()
@@ -188,7 +201,7 @@ func _process_rampage(delta: float) -> void:
 		global_position = target
 		var strike_idx := _rampage_index
 		_rampage_index += 1
-		# Violent lunge & slash animation on impact
+		# Violent lunge and slash animation on impact.
 		if is_instance_valid(sprite):
 			sprite.scale = Vector2.ONE * (DISPLAY_SCALE * 1.24)
 			var slash_tween := create_tween()
@@ -211,67 +224,6 @@ func _build_aura_light() -> void:
 	add_child(_aura_light)
 
 
-func _build_overhead_bubble() -> void:
-	_bubble_root = Node2D.new()
-	_bubble_root.name = "OverheadBubble"
-	_bubble_root.position = Vector2(0.0, -42.0)
-	_bubble_root.modulate = Color(1.0, 1.0, 1.0, 0.0)
-	_bubble_root.z_index = 10
-	add_child(_bubble_root)
-
-	_bubble_panel = PanelContainer.new()
-	_bubble_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_bubble_panel.custom_minimum_size = Vector2(170.0, 0.0)
-
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.05, 0.015, 0.02, 0.92)
-	style.border_color = Color(1.0, 0.42, 0.20, 0.92)
-	style.set_border_width_all(1)
-	style.corner_radius_top_left = 5
-	style.corner_radius_top_right = 5
-	style.corner_radius_bottom_left = 5
-	style.corner_radius_bottom_right = 5
-	style.content_margin_left = 10.0
-	style.content_margin_right = 10.0
-	style.content_margin_top = 5.0
-	style.content_margin_bottom = 5.0
-	_bubble_panel.add_theme_stylebox_override("panel", style)
-
-	var vbox := VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 2)
-	_bubble_panel.add_child(vbox)
-
-	_bubble_tag_label = Label.new()
-	_bubble_tag_label.add_theme_font_size_override("font_size", 9)
-	_bubble_tag_label.add_theme_color_override("font_color", Color(1.0, 0.56, 0.24))
-	vbox.add_child(_bubble_tag_label)
-
-	_bubble_text_label = Label.new()
-	_bubble_text_label.add_theme_font_size_override("font_size", 11)
-	_bubble_text_label.add_theme_color_override("font_color", Color(0.98, 0.93, 0.88))
-	_bubble_text_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_bubble_text_label.custom_minimum_size = Vector2(170.0, 0.0)
-	vbox.add_child(_bubble_text_label)
-
-	_bubble_root.add_child(_bubble_panel)
-	_bubble_panel.position = Vector2(-95.0, -44.0)
-
-
-func _show_overhead_bark(tag: String, text: String, duration: float = 2.8) -> void:
-	if not is_instance_valid(_bubble_root):
-		return
-	_bubble_tag_label.text = "XENOMORPH  •  " + tag.to_upper()
-	_bubble_text_label.text = text
-
-	if is_instance_valid(_bubble_tween) and _bubble_tween.is_running():
-		_bubble_tween.kill()
-
-	_bubble_tween = create_tween()
-	_bubble_tween.tween_property(_bubble_root, "modulate:a", 1.0, 0.20).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
-	_bubble_tween.tween_interval(maxf(duration - 0.5, 1.2))
-	_bubble_tween.tween_property(_bubble_root, "modulate:a", 0.0, 0.35).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
-
-
 func _check_player_stalking() -> void:
 	var players := get_tree().get_nodes_in_group("ship_player")
 	if players.is_empty():
@@ -292,11 +244,6 @@ func _check_player_stalking() -> void:
 				if _grid.is_point_solid(target_cell):
 					target_cell = _find_nearest_clear_cell(target_cell)
 				_set_destination(target_cell)
-		if _bark_cooldown <= 0.0:
-			_bark_cooldown = 14.0
-			var info: Dictionary = THREAT_BARKS[_random.randi_range(0, THREAT_BARKS.size() - 1)]
-			var barks: Array = info["barks"]
-			_show_overhead_bark(info["tag"], barks[_random.randi_range(0, barks.size() - 1)], 2.8)
 
 
 func _choose_next_destination() -> void:
@@ -385,11 +332,11 @@ func _cell_to_world(cell: Vector2i) -> Vector2:
 	return _floor_origin + Vector2((float(cell.x) + 0.5) * NAV_CELL_SIZE, (float(cell.y) + 0.5) * NAV_CELL_SIZE)
 
 
-func _configure_sprite_animations() -> void:
-	var atlas_tex: Texture2D = WALK_ATLAS
-	var raw_img := Image.load_from_file(ProjectSettings.globalize_path(WALK_ATLAS_PATH))
-	if raw_img != null and not raw_img.is_empty():
-		atlas_tex = ImageTexture.create_from_image(raw_img)
+func _configure_sprite_animations(atlas_path: String) -> void:
+	var raw_img := Image.load_from_file(ProjectSettings.globalize_path(atlas_path))
+	if raw_img == null or raw_img.is_empty():
+		return
+	var atlas_tex: Texture2D = ImageTexture.create_from_image(raw_img)
 	var frames := SpriteFrames.new()
 	frames.remove_animation(&"default")
 	var cell_size := Vector2(float(atlas_tex.get_width()) / 4.0, float(atlas_tex.get_height()) / 4.0)
@@ -398,13 +345,17 @@ func _configure_sprite_animations() -> void:
 		frames.set_animation_speed(animation_name, 5.5)
 		frames.set_animation_loop(animation_name, true)
 		var row: int = ANIMATION_ROWS[animation_name]
+		if _is_fused_form and animation_name == &"walk_right":
+			row = ANIMATION_ROWS[&"walk_left"]
 		for column in range(4):
 			var atlas_frame := AtlasTexture.new()
 			atlas_frame.atlas = atlas_tex
 			atlas_frame.region = Rect2(Vector2(column * cell_size.x, row * cell_size.y), cell_size)
 			frames.add_frame(animation_name, atlas_frame)
 	sprite.sprite_frames = frames
-	sprite.scale = Vector2.ONE * DISPLAY_SCALE
+	sprite.scale = Vector2.ONE * (DISPLAY_SCALE if _is_fused_form else LIQUID_DISPLAY_SCALE)
+	sprite.position = Vector2(0.0, -6.0 if _is_fused_form else -1.0)
+	sprite.flip_h = _is_fused_form and _facing_animation == &"walk_right"
 	sprite.animation = _facing_animation
 	sprite.play(_facing_animation)
 
@@ -414,6 +365,7 @@ func _update_facing(direction: Vector2) -> void:
 		_facing_animation = &"walk_right" if direction.x > 0.0 else &"walk_left"
 	else:
 		_facing_animation = &"walk_down" if direction.y > 0.0 else &"walk_up"
+	sprite.flip_h = _is_fused_form and _facing_animation == &"walk_right"
 	if sprite.animation != _facing_animation or not sprite.is_playing():
 		sprite.play(_facing_animation)
 

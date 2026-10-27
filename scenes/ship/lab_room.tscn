@@ -11,6 +11,7 @@
 [ext_resource type="Texture2D" uid="uid://ct46wmgde2fa7" path="res://art/concepts/lab_props/room_additions/wash_sink_user_4dir.png" id="10_tvoha"]
 [ext_resource type="PackedScene" path="res://scenes/ship/props/warm_ship_light.tscn" id="13_xv44b"]
 [ext_resource type="Texture2D" uid="uid://c2acgxvqdmbq0" path="res://art/concepts/lab_props/manual_placement/storage_cabinet_trimmed.png" id="30_manual_cabinet"]
+[ext_resource type="Script" path="res://scripts/ship/ore_containment_visual.gd" id="31_containment_visual"]
 
 [sub_resource type="RectangleShape2D" id="TableFootprint"]
 size = Vector2(445, 350)
@@ -71,6 +72,7 @@ shape = SubResource("ConsoleFootprint")
 [node name="OreContainment" type="Node2D" parent="." unique_id=1046440818]
 position = Vector2(236, 74)
 scale = Vector2(0.056, 0.056)
+script = ExtResource("31_containment_visual")
 
 [node name="SampleContainment" type="Sprite2D" parent="OreContainment" unique_id=1555799032]
 texture_filter = 2

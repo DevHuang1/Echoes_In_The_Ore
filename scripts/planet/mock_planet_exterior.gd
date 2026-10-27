@@ -2,33 +2,43 @@
 extends Node2D
 
 const SHIP_SCENE_PATH := "res://scenes/ship/bare_ship_walkthrough.tscn"
-const PLANET_TEXTURE_PATH := "res://art/planet/mock_planet_surface.png"
+const EREBOS_SURFACE := preload("res://art/planet/erebos_extraction_surface.png")
+const ORE_EXTRACTION_CONSOLE := preload("res://scripts/ui/ore_extraction_console.gd")
 const WALK_HUD_SCENE := preload("res://scenes/ui/walk_hud.tscn")
 
 const ORE_SITES := [
 	{
-		"id": &"west_cyan_ore",
-		"title": "Sample west cyan crystal vein",
-		"marker_label": "CYAN ORE",
+		"id": &"west_ore_cut",
+		"title": "Extract ore from the western cut",
+		"marker_label": "WEST CUT",
 		"position": Vector2(420.0, 420.0),
-		"prompt": "CRYSTALLINE CYAN ORE VEIN   /   [E] EXTRACT SAMPLE",
-		"completion": "Cyan crystal core logged. High resonance readings detected.",
+		"machine": "WESTERN CORE DRILL",
+		"depth_m": 42,
+		"pressure_mpa": "1.8",
+		"prompt": "WESTERN DRILL FACE   /   [E] EXTRACT CORE SAMPLE",
+		"completion": "Western cut sampled. Mineral seam continues below the surface.",
 	},
 	{
-		"id": &"north_viridian_ore",
-		"title": "Collect north viridian resonance core",
-		"marker_label": "CORE VEIN",
+		"id": &"north_ore_ridge",
+		"title": "Drill the northern ridge seam",
+		"marker_label": "NORTH RIDGE",
 		"position": Vector2(800.0, 320.0),
-		"prompt": "VIRIDIAN RESONANCE ORE   /   [E] EXTRACT SAMPLE",
-		"completion": "Viridian resonance core secured. No organic structures detected.",
+		"machine": "NORTH RIDGE BORER",
+		"depth_m": 67,
+		"pressure_mpa": "2.3",
+		"prompt": "NORTHERN BORING STATION   /   [E] EXTRACT CORE SAMPLE",
+		"completion": "North ridge sample secured. Resonance remains stable.",
 	},
 	{
-		"id": &"east_amber_ore",
-		"title": "Collect east amber silicate sample",
-		"marker_label": "AMBER ORE",
+		"id": &"east_ore_face",
+		"title": "Sample the eastern drill face",
+		"marker_label": "EASTERN FACE",
 		"position": Vector2(1180.0, 440.0),
-		"prompt": "AMBER SILICATE OUTCROP   /   [E] COLLECT SAMPLE",
-		"completion": "Heavy amber ore sample stored in suit containment.",
+		"machine": "EASTERN CUTTER RIG",
+		"depth_m": 51,
+		"pressure_mpa": "1.9",
+		"prompt": "EASTERN EXCAVATION   /   [E] EXTRACT CORE SAMPLE",
+		"completion": "Eastern drill sample stored in suit containment.",
 	},
 ]
 
@@ -45,15 +55,14 @@ var _hud_modal_open := false
 var _sampled_sites: Dictionary = {}
 var _active_ore_id: StringName = &""
 var _near_ship_airlock := false
-var _feedback_text := "EXITED ASTERIA-1  //  VESPERA-IV SURFACE LANDING ZONE"
+var _feedback_text := "EXITED ASTERIA-1  //  EREBOS MINING ZONE"
 var _feedback_timer := 4.0
 var _transitioning := false
 
 
 func _ready() -> void:
-	var planet_img := Image.load_from_file(ProjectSettings.globalize_path(PLANET_TEXTURE_PATH))
-	if planet_img != null and not planet_img.is_empty():
-		surface_layer.texture = ImageTexture.create_from_image(planet_img)
+	surface_layer.texture = EREBOS_SURFACE
+	surface_layer.scale = Vector2(1600.0 / float(EREBOS_SURFACE.get_width()), 1000.0 / float(EREBOS_SURFACE.get_height()))
 	if Engine.is_editor_hint():
 		set_process(false)
 		set_physics_process(false)
@@ -99,7 +108,7 @@ func _process(delta: float) -> void:
 
 	# Check walk-in re-entry through the huge open ship airlock door
 	if is_instance_valid(airlock_gate) and airlock_gate.has_method("is_open") and bool(airlock_gate.call("is_open")):
-		if absf(player.global_position.x - AIRLOCK_ENTRY_POS.x) <= 46.0 and player.global_position.y >= 736.0 and Input.is_action_pressed(&"move_down"):
+		if absf(player.global_position.x - AIRLOCK_ENTRY_POS.x) <= 46.0 and player.global_position.y >= 736.0 and Input.is_action_just_pressed(&"move_down"):
 			_board_ship()
 			return
 
@@ -111,10 +120,14 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if _near_ship_airlock:
 		get_viewport().set_input_as_handled()
-		_board_ship()
+		if _sampled_sites.size() >= ORE_SITES.size():
+			_board_ship()
+		else:
+			_feedback_text = "EXTRACTION INCOMPLETE  //  VISIT EACH MINING RIG"
+			_feedback_timer = 3.5
 	elif _active_ore_id != &"":
 		get_viewport().set_input_as_handled()
-		_sample_ore(_active_ore_id)
+		_open_extraction_console(_active_ore_id)
 
 
 func _refresh_prompt() -> void:
@@ -126,7 +139,8 @@ func _refresh_prompt() -> void:
 
 	if player.global_position.distance_to(AIRLOCK_ENTRY_POS) <= AIRLOCK_INTERACT_RADIUS:
 		_near_ship_airlock = true
-		_walk_hud.set_interaction_prompt("ASTERIA-1 EXTERIOR AIRLOCK   /   [E] ENTER SHIP", true)
+		var return_prompt := "ASTERIA-1 AIRLOCK   /   [E] RETURN WITH CORE SAMPLES" if _sampled_sites.size() >= ORE_SITES.size() else "ASTERIA-1 AIRLOCK   /   EXTRACT ALL CORE SAMPLES FIRST"
+		_walk_hud.set_interaction_prompt(return_prompt, true)
 		return
 
 	for site in ORE_SITES:
@@ -136,7 +150,7 @@ func _refresh_prompt() -> void:
 		var pos: Vector2 = site["position"]
 		if player.global_position.distance_to(pos) <= ORE_INTERACT_RADIUS:
 			_active_ore_id = site_id
-			_walk_hud.set_interaction_prompt(site["prompt"], true)
+			_walk_hud.set_interaction_prompt("%s   /   [E] OPEN MACHINE CONSOLE" % str(site.get("machine", "MINING RIG")), true)
 			return
 
 	if _feedback_timer > 0.0 and not _feedback_text.is_empty():
@@ -159,14 +173,42 @@ func _sample_ore(site_id: StringName) -> void:
 		Engine.set_meta(&"resonance_ore_sample_collected", true)
 		if is_instance_valid(_walk_hud) and _walk_hud.has_method("grant_hotbar_item"):
 			_walk_hud.grant_hotbar_item(&"resonance_ore_sample")
-		_feedback_text = "ORE SURVEY COMPLETE // RESONANCE ORE ADDED TO INVENTORY FOR LAB CONTAINMENT"
+		_feedback_text = "ORE EXTRACTION COMPLETE // CORE SAMPLE ADDED TO SUIT CONTAINMENT"
 	else:
 		_feedback_text = "%s\nSURFACE SAMPLES  %d / %d COMPLETE" % [completion, _sampled_sites.size(), ORE_SITES.size()]
 	_feedback_timer = 4.0
 
 
+func _open_extraction_console(site_id: StringName) -> void:
+	for site in ORE_SITES:
+		if site["id"] != site_id:
+			continue
+		var console := ORE_EXTRACTION_CONSOLE.new() as OreExtractionConsole
+		console.extraction_completed.connect(_on_ore_extraction_completed)
+		console.modal_state_changed.connect(_on_extraction_console_modal_changed)
+		add_child(console)
+		console.open(site)
+		_walk_hud.set_walking_visible(false)
+		return
+
+
+func _on_ore_extraction_completed(site_id: StringName) -> void:
+	_sample_ore(site_id)
+
+
+func _on_extraction_console_modal_changed(is_open: bool) -> void:
+	_hud_modal_open = is_open
+	player.set_physics_process(not is_open)
+	if not is_open and is_instance_valid(_walk_hud):
+		_walk_hud.set_walking_visible(true)
+
+
 func _board_ship() -> void:
 	if _transitioning:
+		return
+	if _sampled_sites.size() < ORE_SITES.size():
+		_feedback_text = "EXTRACTION INCOMPLETE  //  VISIT EACH MINING RIG"
+		_feedback_timer = 3.5
 		return
 	_transitioning = true
 	Engine.set_meta(&"returning_from_planet", true)

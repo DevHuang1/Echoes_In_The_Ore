@@ -98,10 +98,10 @@ func _build_ui() -> void:
 	_bubble.anchor_right = 0.5
 	_bubble.anchor_top = 1.0
 	_bubble.anchor_bottom = 1.0
-	_bubble.offset_left = -430.0
-	_bubble.offset_top = -266.0
-	_bubble.offset_right = 430.0
-	_bubble.offset_bottom = -106.0
+	_bubble.offset_left = -520.0
+	_bubble.offset_top = -190.0
+	_bubble.offset_right = 520.0
+	_bubble.offset_bottom = -22.0
 	_bubble.add_theme_stylebox_override("panel", _bubble_style())
 	_root.add_child(_bubble)
 
@@ -109,7 +109,7 @@ func _build_ui() -> void:
 	content.add_theme_constant_override("separation", 7)
 	_bubble.add_child(content)
 	_speaker_label = Label.new()
-	_speaker_label.text = "AMARA OKOYE   /   HYDROPONICS"
+	_speaker_label.text = "DR. AMARA OKOYE   /   ASTROBIOLOGY LAB"
 	_speaker_label.add_theme_font_size_override("font_size", 12)
 	_speaker_label.add_theme_color_override("font_color", GOLD)
 	content.add_child(_speaker_label)

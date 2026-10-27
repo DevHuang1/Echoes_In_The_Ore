@@ -1,7 +1,7 @@
 [gd_scene load_steps=8 format=3]
 
 [ext_resource type="Script" path="res://scripts/planet/mock_planet_exterior.gd" id="1_planet_script"]
-[ext_resource type="Texture2D" uid="uid://cplanetmocktex01" path="res://art/planet/mock_planet_surface.png" id="2_surface_tex"]
+[ext_resource type="Texture2D" path="res://art/planet/erebos_extraction_surface.png" id="2_surface_tex"]
 [ext_resource type="PackedScene" path="res://scenes/player/player.tscn" id="3_player"]
 [ext_resource type="PackedScene" path="res://scenes/ship/doors/exterior_airlock_gate.tscn" id="4_airlock_gate"]
 [ext_resource type="Script" path="res://scripts/planet/landed_ship_hull_visual.gd" id="5_hull_visual"]
@@ -23,20 +23,20 @@ z_index = -1
 
 [node name="WestOreGlow" parent="PlanetAtmosphere" instance=ExtResource("6_warm_light")]
 position = Vector2(420, 420)
-color = Color(0.24, 0.9, 1, 1)
-energy = 1.15
+color = Color(0.48, 0.61, 0.69, 1)
+energy = 0.34
 texture_scale = 0.55
 
 [node name="NorthCoreGlow" parent="PlanetAtmosphere" instance=ExtResource("6_warm_light")]
 position = Vector2(800, 320)
-color = Color(0.45, 1, 0.72, 1)
-energy = 1.25
+color = Color(0.48, 0.61, 0.69, 1)
+energy = 0.34
 texture_scale = 0.6
 
 [node name="EastOreGlow" parent="PlanetAtmosphere" instance=ExtResource("6_warm_light")]
 position = Vector2(1180, 440)
-color = Color(1, 0.76, 0.28, 1)
-energy = 1.15
+color = Color(0.48, 0.61, 0.69, 1)
+energy = 0.34
 texture_scale = 0.55
 
 [node name="LandingPadFloodWest" parent="PlanetAtmosphere" instance=ExtResource("6_warm_light")]
@@ -51,25 +51,25 @@ texture_scale = 0.45
 
 [node name="WestCraterVapor" parent="PlanetAtmosphere" instance=ExtResource("7_gas_mist")]
 position = Vector2(420, 420)
-gas_color = Color(0.32, 0.92, 1, 1)
+gas_color = Color(0.48, 0.58, 0.62, 1)
 blob_count = 16
 spread = Vector2(42, 24)
 drift_direction = Vector2(0.15, -1)
 drift_speed = 4.0
 lifetime = 7.5
 blob_size = Vector2(38, 28)
-opacity = 0.52
+opacity = 0.22
 
 [node name="NorthCraterVapor" parent="PlanetAtmosphere" instance=ExtResource("7_gas_mist")]
 position = Vector2(800, 320)
-gas_color = Color(0.48, 1, 0.75, 1)
+gas_color = Color(0.48, 0.58, 0.62, 1)
 blob_count = 18
 spread = Vector2(48, 26)
 drift_direction = Vector2(-0.1, -1)
 drift_speed = 4.2
 lifetime = 8.0
 blob_size = Vector2(42, 30)
-opacity = 0.56
+opacity = 0.22
 
 [node name="LandedShipHull" type="Node2D" parent="."]
 z_index = -1

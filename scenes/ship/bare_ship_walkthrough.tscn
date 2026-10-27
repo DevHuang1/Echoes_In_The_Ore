@@ -693,7 +693,7 @@ artwork_scale = 0.11
 position = Vector2(900, 500)
 
 [node name="AmaraOkoye" parent="." unique_id=136724281 instance=ExtResource("12_amara")]
-position = Vector2(320, 746)
+position = Vector2(1049, 559)
 
 [editable path="EngineRoomProps"]
 [editable path="BridgeRoomProps"]

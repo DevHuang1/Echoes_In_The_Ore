@@ -5,6 +5,7 @@ const SKIN := preload("res://scripts/ui/pixel_ui.gd")
 
 signal task_completed(task_id: StringName)
 signal console_closed
+signal containment_stimulated
 
 const GOLD := Color(1.0, 0.77, 0.34)
 const PALE := Color(0.94, 0.91, 0.82)
@@ -413,6 +414,7 @@ class LabStationDisplay extends Control:
 	var clamp_closed := false
 	var chamber_pressure := 1.0
 	var containment_locks: Array[bool] = [true, true]
+	var containment_view := 0
 	var focus_position := 0.0
 	var objective_magnification := 4
 
@@ -426,7 +428,10 @@ class LabStationDisplay extends Control:
 			&"lab_specimen":
 				_draw_spectrum()
 			&"lab_containment":
-				_draw_containment()
+				match containment_view:
+					1: _draw_ore_analysis()
+					2: _draw_research_log()
+					_: _draw_containment()
 			&"lab_trolley":
 				_draw_instruments()
 			&"lab_earth_comms":
@@ -442,7 +447,7 @@ class LabStationDisplay extends Control:
 	func _station_name() -> String:
 		match task_id:
 			&"lab_specimen": return "ORE SPECTROMETER  /  SAMPLES 07 + 08"
-			&"lab_containment": return "SEALED CHAMBER  /  PRESSURE LOCKS"
+			&"lab_containment": return "RESEARCH COMPUTER  /  CHAMBER PRESSURE"
 			&"lab_trolley": return "FIELD INSTRUMENTS  /  CALIBRATION"
 			&"lab_archive_01": return "DATA ARCHIVE 01  /  PERSONNEL LOG"
 			&"lab_archive_02": return "DATA ARCHIVE 02  /  SPECIMEN INDEX"
@@ -493,7 +498,61 @@ class LabStationDisplay extends Control:
 			draw_rect(lock, GREEN if containment_locks[index] else ORANGE, true)
 			draw_string(ThemeDB.fallback_font, Vector2(18.0, y + 4.0), "NORTH LOCK" if index == 0 else "SOUTH LOCK", HORIZONTAL_ALIGNMENT_LEFT, 83.0, 8, PALE)
 		draw_string(ThemeDB.fallback_font, Vector2(chamber.end.x + 15.0, chamber.position.y + 13.0), "PRESSURE", HORIZONTAL_ALIGNMENT_LEFT, 65.0, 8, MUTED)
-		draw_string(ThemeDB.fallback_font, Vector2(chamber.end.x + 15.0, chamber.position.y + 30.0), "%.2f ATM" % chamber_pressure, HORIZONTAL_ALIGNMENT_LEFT, 70.0, 10, GREEN if status_text.contains("SECURE") or status_text.contains("PASSED") else CYAN)
+		var pressure_in_range := absf(chamber_pressure - 1.0) <= 0.03
+		var pressure_verified := status_text.contains("PASSED") or status_text.contains("STIMULUS APPLIED")
+		var pressure_color := GREEN if pressure_verified else CYAN if pressure_in_range else GOLD
+		draw_string(ThemeDB.fallback_font, Vector2(chamber.end.x + 15.0, chamber.position.y + 30.0), "%.2f ATM" % chamber_pressure, HORIZONTAL_ALIGNMENT_LEFT, 70.0, 10, pressure_color)
+		draw_string(ThemeDB.fallback_font, Vector2(chamber.end.x + 15.0, chamber.position.y + 46.0), "TARGET 1.00 ATM", HORIZONTAL_ALIGNMENT_LEFT, 82.0, 8, MUTED)
+
+	func _draw_ore_analysis() -> void:
+		var panel := Rect2(18.0, 48.0, size.x - 36.0, size.y - 84.0)
+		draw_rect(panel, Color(0.012, 0.03, 0.04), true)
+		draw_rect(panel, Color(0.25, 0.41, 0.44), false, 1.0)
+		var has_ore := Engine.has_meta(&"resonance_ore_sample_stored") and bool(Engine.get_meta(&"resonance_ore_sample_stored"))
+		var stimulated := Engine.has_meta(&"resonance_ore_stimulated") and bool(Engine.get_meta(&"resonance_ore_stimulated"))
+		draw_string(ThemeDB.fallback_font, panel.position + Vector2(12.0, 20.0), "SPECIMEN PROFILE  /  RESONANCE ORE", HORIZONTAL_ALIGNMENT_LEFT, panel.size.x - 24.0, 10, CYAN)
+		draw_string(ThemeDB.fallback_font, panel.position + Vector2(12.0, 42.0), "CORE STATUS  /  %s" % ("SEALED IN CHAMBER" if has_ore else "AWAITING SAMPLE"), HORIZONTAL_ALIGNMENT_LEFT, panel.size.x - 24.0, 9, GREEN if has_ore else GOLD)
+		var chart := Rect2(panel.position + Vector2(12.0, 58.0), Vector2(panel.size.x - 24.0, panel.size.y - 104.0))
+		_draw_chart_grid(chart)
+		if stimulated:
+			var trace := PackedVector2Array()
+			for index in range(65):
+				var t := float(index) / 64.0
+				var pulse := 0.0
+				for pulse_center in [0.12, 0.18, 0.24, 0.30]:
+					pulse += exp(-pow((t - pulse_center) * 150.0, 2.0)) * 0.72
+				var harmonic := sin(t * TAU * 18.0) * 0.035
+				trace.append(Vector2(chart.position.x + t * chart.size.x, chart.get_center().y - (pulse + harmonic) * chart.size.y))
+			draw_polyline(trace, MINT, 2.0, true)
+			draw_string(ThemeDB.fallback_font, Vector2(panel.position.x + 12.0, chart.end.y + 18.0), "4 PULSES  /  7-SECOND PAUSE", HORIZONTAL_ALIGNMENT_LEFT, panel.size.x - 24.0, 9, GREEN)
+		else:
+			draw_line(Vector2(chart.position.x + 4.0, chart.get_center().y), Vector2(chart.end.x - 4.0, chart.get_center().y), MUTED, 1.0)
+			draw_string(ThemeDB.fallback_font, Vector2(panel.position.x + 12.0, chart.end.y + 18.0), "NO RESONANCE CAPTURED  /  APPLY TEST PULSE", HORIZONTAL_ALIGNMENT_LEFT, panel.size.x - 24.0, 9, MUTED)
+
+	func _draw_research_log() -> void:
+		var panel := Rect2(18.0, 48.0, size.x - 36.0, size.y - 84.0)
+		draw_rect(panel, Color(0.012, 0.03, 0.04), true)
+		draw_rect(panel, Color(0.25, 0.41, 0.44), false, 1.0)
+		draw_string(ThemeDB.fallback_font, panel.position + Vector2(12.0, 20.0), "EXPERIMENT RECORD  /  LOCAL COPY", HORIZONTAL_ALIGNMENT_LEFT, panel.size.x - 24.0, 10, CYAN)
+		var ore_collected := Engine.has_meta(&"resonance_ore_sample_collected") and bool(Engine.get_meta(&"resonance_ore_sample_collected"))
+		var ore_stored := Engine.has_meta(&"resonance_ore_sample_stored") and bool(Engine.get_meta(&"resonance_ore_sample_stored"))
+		var atmosphere_passed := Engine.has_meta(&"resonance_ore_atmosphere_test_passed") and bool(Engine.get_meta(&"resonance_ore_atmosphere_test_passed"))
+		var stimulated := Engine.has_meta(&"resonance_ore_stimulated") and bool(Engine.get_meta(&"resonance_ore_stimulated"))
+		_draw_research_log_row(panel, 52.0, "01  SURFACE SAMPLE", "RECOVERED" if ore_collected else "PENDING", ore_collected)
+		_draw_research_log_row(panel, 84.0, "02  CHAMBER LOAD", "SEALED" if ore_stored else "PENDING", ore_stored)
+		_draw_research_log_row(panel, 116.0, "03  ATMOSPHERE HOLD", "1.00 ATM VERIFIED" if atmosphere_passed else "PENDING", atmosphere_passed)
+		_draw_research_log_row(panel, 148.0, "04  ELECTRICAL TEST", "RESPONSE ACTIVE" if stimulated else "PENDING", stimulated)
+		if stimulated:
+			draw_string(ThemeDB.fallback_font, Vector2(panel.position.x + 12.0, panel.end.y - 16.0), "OBSERVED PATTERN  /  FOUR PULSES, SEVEN-SECOND INTERVAL", HORIZONTAL_ALIGNMENT_LEFT, panel.size.x - 24.0, 8, GOLD)
+		else:
+			draw_string(ThemeDB.fallback_font, Vector2(panel.position.x + 12.0, panel.end.y - 16.0), "RESEARCH DATA SAVED TO ASTERIA-1 LOCAL ARCHIVE", HORIZONTAL_ALIGNMENT_LEFT, panel.size.x - 24.0, 8, MUTED)
+
+	func _draw_research_log_row(panel: Rect2, y_offset: float, title: String, state: String, complete: bool) -> void:
+		var row := Rect2(panel.position + Vector2(10.0, y_offset), Vector2(panel.size.x - 20.0, 24.0))
+		draw_rect(row, Color(0.035, 0.075, 0.088), true)
+		draw_circle(Vector2(row.position.x + 10.0, row.get_center().y), 3.0, GREEN if complete else MUTED)
+		draw_string(ThemeDB.fallback_font, Vector2(row.position.x + 20.0, row.position.y + 16.0), title, HORIZONTAL_ALIGNMENT_LEFT, row.size.x - 130.0, 8, PALE)
+		draw_string(ThemeDB.fallback_font, Vector2(row.end.x - 108.0, row.position.y + 16.0), state, HORIZONTAL_ALIGNMENT_RIGHT, 100.0, 8, GREEN if complete else MUTED)
 
 	func _draw_research_console() -> void:
 		var screen := Rect2(22.0, 49.0, size.x - 44.0, size.y - 88.0)
@@ -635,9 +694,12 @@ var _nutrient_step_labels: Array[Label] = []
 var _lab_station_display: LabStationDisplay
 var _lab_device_status: Label
 var _lab_primary_control: Control
+var _lab_stimulate_button: Button
 var _lab_gain_label: Label
 var _lab_focus_label: Label
 var _lab_pressure_label: Label
+var _lab_research_readout: Label
+var _lab_research_status_label: Label
 var _lab_baseline_checkbox: CheckBox
 var _lab_clamp_button: Button
 var _lab_selected_vial := "ERE-07"
@@ -653,6 +715,8 @@ var _lab_axis_sliders: Array[HSlider] = []
 var _lab_axis_names: Array[String] = []
 var _lab_axis_value_labels: Array[Label] = []
 var _lab_lock_buttons: Array[Button] = []
+var _lab_containment_steps: Array[Label] = []
+var _lab_research_tabs: Array[Button] = []
 
 
 func setup(task_id: StringName, completed_count: int, task_total: int) -> void:
@@ -678,6 +742,7 @@ func _ready() -> void:
 
 
 func _build_ui() -> void:
+	var is_research_computer := _task_id == &"lab_containment"
 	_root = Control.new()
 	SKIN.apply(_root)
 	_root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -697,7 +762,8 @@ func _build_ui() -> void:
 
 	var frame := PanelContainer.new()
 	frame.custom_minimum_size = Vector2(1232.0, 672.0)
-	var frame_style := _panel_style(Color(0.031, 0.067, 0.086, 0.99), Color(1.0, 0.78, 0.38, 0.94), 16.0)
+	var frame_border := Color(0.36, 0.9, 1.0, 0.88) if is_research_computer else Color(1.0, 0.78, 0.38, 0.94)
+	var frame_style := _panel_style(Color(0.024, 0.055, 0.074, 0.995) if is_research_computer else Color(0.031, 0.067, 0.086, 0.99), frame_border, 16.0)
 	frame.add_theme_stylebox_override("panel", frame_style)
 	center.add_child(frame)
 
@@ -706,21 +772,23 @@ func _build_ui() -> void:
 	frame.add_child(layout)
 	layout.add_child(_build_header())
 	var divider := HSeparator.new()
-	divider.add_theme_color_override("separator_color", Color(1.0, 0.78, 0.38, 0.52))
+	divider.add_theme_color_override("separator_color", Color(0.36, 0.9, 1.0, 0.42) if is_research_computer else Color(1.0, 0.78, 0.38, 0.52))
 	layout.add_child(divider)
 	layout.add_child(_build_body())
 	layout.add_child(_build_footer())
 
 
 func _build_header() -> Control:
+	var is_research_computer := _task_id == &"lab_containment"
 	var row := HBoxContainer.new()
 	row.custom_minimum_size.y = 48.0
 	row.add_theme_constant_override("separation", 14)
 
 	var badge := PanelContainer.new()
 	badge.custom_minimum_size = Vector2(48.0, 48.0)
-	badge.add_theme_stylebox_override("panel", _panel_style(Color(0.09, 0.16, 0.17), GOLD, 4.0))
-	var badge_label := _label("SYS", 14, GOLD)
+	var header_accent := CYAN if is_research_computer else GOLD
+	badge.add_theme_stylebox_override("panel", _panel_style(Color(0.07, 0.15, 0.17), header_accent, 4.0))
+	var badge_label := _label("SCI" if is_research_computer else "SYS", 14, header_accent)
 	badge_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	badge_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	badge.add_child(badge_label)
@@ -730,7 +798,8 @@ func _build_header() -> Control:
 	heading.add_theme_constant_override("separation", 1)
 	heading.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	var header_title_text := _lab_device_name() if _is_labroom_task() else "SHIP MAINTENANCE TERMINAL"
-	heading.add_child(_label("ASTERIA-1 // SCIENCE LAB" if _is_labroom_task() else "ASTERIA-1 // ENGINEERING TELEMETRY", 10, GOLD))
+	var header_kicker := "ASTERIA-1  /  SCIENCE TERMINAL  /  MISSION DAY 184" if is_research_computer else "ASTERIA-1 // SCIENCE LAB" if _is_labroom_task() else "ASTERIA-1 // ENGINEERING TELEMETRY"
+	heading.add_child(_label(header_kicker, 10, header_accent))
 	var header_title := _label(header_title_text, 20, PALE)
 	heading.add_child(header_title)
 	row.add_child(heading)
@@ -743,7 +812,7 @@ func _build_header() -> Control:
 	_status_light.color = GREEN
 	_status_light.custom_minimum_size = Vector2(8.0, 8.0)
 	status_group.add_child(_centered(_status_light))
-	_status_label = _label("DEVICE ONLINE" if _is_labroom_task() else "TERMINAL LINK SECURE", 10, GREEN)
+	_status_label = _label("LIVE DATA LINK" if is_research_computer else "DEVICE ONLINE" if _is_labroom_task() else "TERMINAL LINK SECURE", 10, GREEN)
 	status_group.add_child(_centered(_status_label))
 	row.add_child(status_group)
 
@@ -890,7 +959,7 @@ func _lab_device_name() -> String:
 	match _task_id:
 		&"lab_specimen": return "SPECIMEN ANALYSIS TABLE"
 		&"lab_earth_comms": return "RESEARCH CONSOLE"
-		&"lab_containment": return "SAMPLE CONTAINMENT"
+		&"lab_containment": return "ORE RESEARCH COMPUTER"
 		&"lab_trolley": return "INSTRUMENT TROLLEY"
 		&"lab_archive_01": return "DATA ARCHIVE  /  PERSONNEL"
 		&"lab_archive_02": return "DATA ARCHIVE  /  SPECIMENS"
@@ -904,7 +973,7 @@ func _build_lab_device_ui() -> Control:
 	workspace.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	workspace.add_theme_constant_override("separation", 10)
 	var device_heading := HBoxContainer.new()
-	device_heading.add_child(_label("LOCAL EQUIPMENT PANEL", 10, GOLD))
+	device_heading.add_child(_label("ORE RESEARCH  /  LIVE CHAMBER MONITOR", 10, GOLD) if _task_id == &"lab_containment" else _label("LOCAL EQUIPMENT PANEL", 10, GOLD))
 	device_heading.add_spacer(false)
 	_lab_device_status = _label("LOCKS ENGAGED  /  READY" if _task_id == &"lab_containment" else "IDLE  /  READY", 10, GREEN)
 	_lab_device_status.clip_text = true
@@ -913,6 +982,22 @@ func _build_lab_device_ui() -> Control:
 	_lab_device_status.tooltip_text = "Device status and the result of your last action."
 	device_heading.add_child(_lab_device_status)
 	workspace.add_child(device_heading)
+	if _task_id == &"lab_containment":
+		var navigation := PanelContainer.new()
+		navigation.add_theme_stylebox_override("panel", _panel_style(Color(0.018, 0.042, 0.055), Color(0.21, 0.43, 0.48), 5.0))
+		var navigation_row := HBoxContainer.new()
+		navigation_row.add_theme_constant_override("separation", 6)
+		for index in range(3):
+			var tab_text: String = ["CHAMBER MONITOR", "ORE ANALYSIS", "EVENT LOG"][index]
+			var tab := _button(tab_text, Vector2(0.0, 36.0), CYAN)
+			tab.toggle_mode = true
+			tab.button_pressed = index == 0
+			tab.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			tab.pressed.connect(_select_research_view.bind(index))
+			_lab_research_tabs.append(tab)
+			navigation_row.add_child(tab)
+		navigation.add_child(navigation_row)
+		workspace.add_child(navigation)
 
 	var device_body := HBoxContainer.new()
 	device_body.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -949,6 +1034,15 @@ func _build_lab_device_ui() -> Control:
 	device_body.add_child(controls_panel)
 	workspace.add_child(device_body)
 	return workspace
+
+
+func _select_research_view(index: int) -> void:
+	if not is_instance_valid(_lab_station_display):
+		return
+	_lab_station_display.containment_view = clampi(index, 0, 2)
+	_lab_station_display.queue_redraw()
+	for tab_index in range(_lab_research_tabs.size()):
+		_lab_research_tabs[tab_index].button_pressed = tab_index == _lab_station_display.containment_view
 
 
 func _build_spectrometer_controls(parent: VBoxContainer) -> void:
@@ -1071,78 +1165,153 @@ func _on_research_record_open() -> void:
 
 
 func _build_containment_controls(parent: VBoxContainer) -> void:
-	parent.add_child(_label("CONTAINMENT CONTROL", 11, GOLD))
+	parent.add_child(_label("Ore research & containment", 16, PALE))
 	var ore_collected := Engine.has_meta(&"resonance_ore_sample_collected") and bool(Engine.get_meta(&"resonance_ore_sample_collected"))
 	var ore_stored := Engine.has_meta(&"resonance_ore_sample_stored") and bool(Engine.get_meta(&"resonance_ore_sample_stored"))
+	var atmosphere_passed := Engine.has_meta(&"resonance_ore_atmosphere_test_passed") and bool(Engine.get_meta(&"resonance_ore_atmosphere_test_passed"))
+	var stimulated := Engine.has_meta(&"resonance_ore_stimulated") and bool(Engine.get_meta(&"resonance_ore_stimulated"))
+	var step_row := HBoxContainer.new()
+	step_row.add_theme_constant_override("separation", 4)
+	var step_texts := ["01  SAMPLE", "02  PRESSURE", "03  STIMULUS"]
+	for index in range(step_texts.size()):
+		var step := _label(step_texts[index], 10, MUTED)
+		step.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		step.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		_lab_containment_steps.append(step)
+		step_row.add_child(step)
+	parent.add_child(step_row)
+	_refresh_containment_steps()
+	var research_panel := PanelContainer.new()
+	research_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.018, 0.042, 0.055), Color(0.21, 0.43, 0.48), 8.0))
+	var research_stack := VBoxContainer.new()
+	research_stack.add_theme_constant_override("separation", 5)
+	var research_header := HBoxContainer.new()
+	research_header.add_child(_label("LIVE RESEARCH TELEMETRY", 10, CYAN))
+	research_header.add_spacer(false)
+	_lab_research_status_label = _label("LINK ACTIVE", 9, GREEN)
+	research_header.add_child(_lab_research_status_label)
+	research_stack.add_child(research_header)
+	_lab_research_readout = _label("", 11, CYAN)
+	_lab_research_readout.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	research_stack.add_child(_lab_research_readout)
+	research_panel.add_child(research_stack)
+	parent.add_child(research_panel)
+	_refresh_ore_research_readout()
 	if not ore_stored:
 		if ore_collected:
-			parent.add_child(_label("Place the collected Resonance Ore into the chamber first, then run the pressure test.", 10, GOLD))
-			var deposit_btn := _button("PLACE RESONANCE ORE IN CHAMBER", Vector2(0.0, 42.0), GOLD)
-			deposit_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			deposit_btn.pressed.connect(func() -> void:
-				Engine.set_meta(&"resonance_ore_sample_stored", true)
-				deposit_btn.text = "RESONANCE ORE LOADED IN CHAMBER"
-				deposit_btn.disabled = true
-				_lab_station_display.status_text = "SPECIMEN LOADED"
-				_lab_station_display.queue_redraw()
-				_set_lab_device_status("RESONANCE ORE PLACED IN CONTAINMENT", GREEN)
-			)
-			parent.add_child(deposit_btn)
+			parent.add_child(_label("Place the sample in the tank, then return here to set its pressure.", 11, MUTED))
+			parent.add_child(_label("NEXT STEP  /  LOAD SAMPLE AT THE TANK", 10, GOLD))
 		else:
-			parent.add_child(_label("Chamber is empty. Collect the Resonance Ore sample on the planet surface first.", 10, ORANGE))
+			parent.add_child(_label("The chamber is empty. Collect the ore sample and load it into the tank first.", 11, ORANGE))
+	elif stimulated:
+		parent.add_child(_label("The sample is reacting. Keep the chamber sealed.", 11, ORANGE))
+	elif atmosphere_passed:
+		parent.add_child(_label("Pressure is stable. Apply the pulse to continue.", 11, GREEN))
 	else:
-		parent.add_child(_label("Secure both locks and set pressure to 1.00 ATM, then run the test.", 10, MUTED))
+		parent.add_child(_label("Set pressure to 1.00 ATM, secure both locks, then verify the hold.", 11, MUTED))
 	var lock_row := HBoxContainer.new()
 	lock_row.add_theme_constant_override("separation", 8)
 	for index in range(2):
-		var lock_button := _button("NORTH LOCK  /  ENGAGED" if index == 0 else "SOUTH LOCK  /  ENGAGED", Vector2(0.0, 48.0), CYAN)
+		var lock_button := _button("North lock: engaged" if index == 0 else "South lock: engaged", Vector2(0.0, 44.0), CYAN)
 		lock_button.toggle_mode = true
 		lock_button.button_pressed = true
+		lock_button.disabled = not ore_stored or atmosphere_passed or stimulated
 		lock_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		lock_button.toggled.connect(_on_containment_lock_toggled.bind(index))
 		_lab_lock_buttons.append(lock_button)
 		lock_row.add_child(lock_button)
 	_lab_station_display.containment_locks = [true, true]
 	parent.add_child(lock_row)
-	_lab_pressure_label = _label("CHAMBER PRESSURE  /  %.2f ATM" % CONTAINMENT_START_PRESSURE, 9, CYAN)
+	var chamber_pressure := 1.0 if atmosphere_passed or stimulated else float(Engine.get_meta(&"resonance_ore_chamber_pressure", CONTAINMENT_START_PRESSURE))
+	_lab_pressure_label = _label("Chamber pressure: %.2f ATM" % chamber_pressure, 12, CYAN)
 	parent.add_child(_lab_pressure_label)
 	var pressure_slider := HSlider.new()
 	pressure_slider.min_value = 0.7
 	pressure_slider.max_value = 1.3
 	pressure_slider.step = 0.01
-	pressure_slider.value = CONTAINMENT_START_PRESSURE
+	pressure_slider.value = chamber_pressure
 	pressure_slider.custom_minimum_size.y = 30.0
 	pressure_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	pressure_slider.editable = ore_stored and not atmosphere_passed and not stimulated
 	_style_task_slider(pressure_slider, CYAN)
-	pressure_slider.tooltip_text = "Target: 0.97–1.03 ATM. Use the arrow keys for fine adjustment."
+	pressure_slider.tooltip_text = "Use the slider or arrow keys. Safe target: 0.97–1.03 ATM."
 	pressure_slider.value_changed.connect(_on_containment_pressure_changed)
 	parent.add_child(pressure_slider)
-	_lab_station_display.chamber_pressure = CONTAINMENT_START_PRESSURE
+	parent.add_child(_label("Safe target: 0.97–1.03 ATM", 10, MUTED))
+	_lab_station_display.chamber_pressure = chamber_pressure
 	_lab_station_display.queue_redraw()
-	var test_button := _button("RUN PRESSURE-HOLD TEST", Vector2(0.0, 44.0), GOLD)
+	var test_button := _button("Verify pressure is stable", Vector2(0.0, 44.0), GOLD)
 	test_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	test_button.disabled = not ore_stored or atmosphere_passed or stimulated
 	test_button.pressed.connect(_on_containment_test)
-	_lab_primary_control = test_button
 	parent.add_child(test_button)
-	parent.add_spacer(false)
-	parent.add_child(_label("PASS CHECK: both locks engaged and pressure within 0.03 ATM of target.", 9, MUTED))
+	_lab_stimulate_button = _button("Apply low-frequency pulse", Vector2(0.0, 44.0), ORANGE)
+	_lab_stimulate_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_lab_stimulate_button.disabled = not atmosphere_passed or stimulated
+	_lab_stimulate_button.text = "Pulse applied  /  sample reacting" if stimulated else "Apply low-frequency pulse"
+	_lab_stimulate_button.pressed.connect(_on_containment_stimulate)
+	parent.add_child(_lab_stimulate_button)
+	_lab_primary_control = _lab_stimulate_button if atmosphere_passed else test_button
+	_refresh_containment_steps()
+
+
+func _refresh_containment_steps() -> void:
+	if _lab_containment_steps.size() != 3:
+		return
+	var ore_stored := Engine.has_meta(&"resonance_ore_sample_stored") and bool(Engine.get_meta(&"resonance_ore_sample_stored"))
+	var atmosphere_passed := Engine.has_meta(&"resonance_ore_atmosphere_test_passed") and bool(Engine.get_meta(&"resonance_ore_atmosphere_test_passed"))
+	var stimulated := Engine.has_meta(&"resonance_ore_stimulated") and bool(Engine.get_meta(&"resonance_ore_stimulated"))
+	var states := [ore_stored, atmosphere_passed, stimulated]
+	for index in range(3):
+		var step := _lab_containment_steps[index]
+		var done: bool = states[index]
+		var current := (index == 0 and not ore_stored) or (index == 1 and ore_stored and not atmosphere_passed) or (index == 2 and atmosphere_passed and not stimulated)
+		step.text = "%02d  %s%s" % [index + 1, ["SAMPLE", "PRESSURE", "STIMULUS"][index], "  DONE" if done else ""]
+		step.add_theme_color_override("font_color", GREEN if done else GOLD if current else MUTED)
+
+
+func _refresh_ore_research_readout() -> void:
+	if not is_instance_valid(_lab_research_readout):
+		return
+	var ore_collected := Engine.has_meta(&"resonance_ore_sample_collected") and bool(Engine.get_meta(&"resonance_ore_sample_collected"))
+	var ore_stored := Engine.has_meta(&"resonance_ore_sample_stored") and bool(Engine.get_meta(&"resonance_ore_sample_stored"))
+	var atmosphere_passed := Engine.has_meta(&"resonance_ore_atmosphere_test_passed") and bool(Engine.get_meta(&"resonance_ore_atmosphere_test_passed"))
+	var stimulated := Engine.has_meta(&"resonance_ore_stimulated") and bool(Engine.get_meta(&"resonance_ore_stimulated"))
+	var pressure := float(Engine.get_meta(&"resonance_ore_chamber_pressure", CONTAINMENT_START_PRESSURE))
+	if atmosphere_passed or stimulated:
+		pressure = 1.0
+	var sample_status := "SEALED IN CHAMBER" if ore_stored else "RECOVERED / LOAD INTO TANK" if ore_collected else "NOT YET RECOVERED"
+	var pressure_status := "HOLD VERIFIED" if atmosphere_passed else "ADJUSTING" if ore_stored else "AWAITING SAMPLE"
+	var signal_status := "4 PULSES / 7-SECOND PAUSE — RESPONSE ACTIVE" if stimulated else "AWAITING ELECTRICAL TEST"
+	_lab_research_readout.text = "SAMPLE  /  RESONANCE ORE: %s\nATM  /  %.2f (TARGET 1.00)  ·  %s\nSIGNAL  /  %s" % [sample_status, pressure, pressure_status, signal_status]
+	if stimulated:
+		_lab_research_status_label.text = "RESPONSE DETECTED"
+		_lab_research_status_label.add_theme_color_override("font_color", ORANGE)
+	elif atmosphere_passed:
+		_lab_research_status_label.text = "ATM HOLD VERIFIED"
+		_lab_research_status_label.add_theme_color_override("font_color", GREEN)
+	else:
+		_lab_research_status_label.text = "MONITORING"
+		_lab_research_status_label.add_theme_color_override("font_color", CYAN)
 
 
 func _on_containment_lock_toggled(is_engaged: bool, index: int) -> void:
-	var lock_name := "NORTH" if index == 0 else "SOUTH"
-	_lab_lock_buttons[index].text = "%s LOCK  /  %s" % [lock_name, "ENGAGED" if is_engaged else "RELEASED"]
+	var lock_name := "North" if index == 0 else "South"
+	_lab_lock_buttons[index].text = "%s lock: %s" % [lock_name, "engaged" if is_engaged else "released"]
 	_lab_station_display.containment_locks[index] = is_engaged
 	var both_engaged := _lab_lock_buttons[0].button_pressed and _lab_lock_buttons[1].button_pressed
-	_lab_station_display.status_text = "VESSEL SECURE" if both_engaged else "INTERLOCK OPEN"
+	_lab_station_display.status_text = "LOCKS ENGAGED" if both_engaged else "INTERLOCK OPEN"
 	_lab_station_display.queue_redraw()
 	_set_lab_device_status("BOTH INTERLOCKS ENGAGED" if both_engaged else "%s LOCK %s" % [lock_name, "ENGAGED" if is_engaged else "RELEASED"], GREEN if both_engaged else GOLD)
 
 
 func _on_containment_pressure_changed(value: float) -> void:
-	_lab_pressure_label.text = "CHAMBER PRESSURE  /  %.2f ATM" % value
+	_lab_pressure_label.text = "Chamber pressure: %.2f ATM" % value
 	_lab_station_display.chamber_pressure = value
 	_lab_station_display.queue_redraw()
-	_set_lab_device_status("CHAMBER PRESSURE  /  %.2f ATM" % value, CYAN)
+	Engine.set_meta(&"resonance_ore_chamber_pressure", value)
+	_set_lab_device_status("Pressure set to %.2f ATM" % value, CYAN)
+	_refresh_ore_research_readout()
 
 
 func _on_containment_test() -> void:
@@ -1164,10 +1333,32 @@ func _on_containment_test() -> void:
 		_lab_station_display.queue_redraw()
 		_set_lab_device_status("TEST FAILED  /  PRESSURE OUT OF RANGE", ORANGE)
 		return
-	_lab_station_display.status_text = "VESSEL SECURE"
+	_lab_station_display.status_text = "PRESSURE HOLD PASSED"
 	_lab_station_display.queue_redraw()
-	_set_lab_device_status("PRESSURE-HOLD TEST PASSED  /  1.0 ATM", GREEN)
-	Engine.set_meta(&"resonance_ore_sample_evolved", true)
+	Engine.set_meta(&"resonance_ore_atmosphere_test_passed", true)
+	Engine.set_meta(&"resonance_ore_chamber_pressure", _lab_station_display.chamber_pressure)
+	_set_lab_device_status("EARTH ATMOSPHERE RECREATED  /  1.00 ATM HOLD PASSED", GREEN)
+	_refresh_containment_steps()
+	_refresh_ore_research_readout()
+	if is_instance_valid(_lab_stimulate_button):
+		_lab_stimulate_button.disabled = false
+		_lab_primary_control = _lab_stimulate_button
+
+
+func _on_containment_stimulate() -> void:
+	var atmosphere_passed := Engine.has_meta(&"resonance_ore_atmosphere_test_passed") and bool(Engine.get_meta(&"resonance_ore_atmosphere_test_passed"))
+	if not atmosphere_passed:
+		_set_lab_device_status("STIMULUS LOCKED  /  MATCH EARTH ATMOSPHERE FIRST", ORANGE)
+		return
+	Engine.set_meta(&"resonance_ore_stimulated", true)
+	_lab_station_display.status_text = "STIMULUS APPLIED"
+	_lab_station_display.queue_redraw()
+	_lab_stimulate_button.text = "Pulse applied  /  sample reacting"
+	_lab_stimulate_button.disabled = true
+	_set_lab_device_status("ELECTRICAL STIMULUS APPLIED  /  SPECIMEN RESPONDING", ORANGE)
+	_refresh_containment_steps()
+	_refresh_ore_research_readout()
+	containment_stimulated.emit()
 
 
 func _build_trolley_controls(parent: VBoxContainer) -> void:

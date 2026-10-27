@@ -1,7 +1,11 @@
 class_name AmaraOkoye
 extends CharacterBody2D
 
-const WALK_ATLAS := preload("res://art/characters/runtime/amara_walk_4dir.png")
+signal sample_study_started
+
+const WALK_ATLAS := preload("res://art/characters/runtime/amara_okoye_lab_walk_4dir.png")
+const SAMPLE_ATLAS := preload("res://art/planet/resonance_ore_intact.png")
+const SEATED_POSE_PATH := "res://art/characters/runtime/amara_okoye_seated_console.png"
 const FLOOR_ALPHA_THRESHOLD := 0.15
 const NAV_CELL_SIZE := 24.0
 const BODY_RADIUS := 7.0
@@ -214,6 +218,13 @@ var _bubble_tween: Tween
 var _player_nearby := false
 var _greeting_cooldown := 12.0
 var _bark_cooldown := 10.0
+var _sample_watch_active := false
+var _sample_watch_timer := 0.0
+var _is_missing := false
+var _lab_route_active := false
+var _is_seated_at_console := false
+var _carried_sample_sprite: Sprite2D
+var _seated_pose_sprite: Sprite2D
 
 
 func _ready() -> void:
@@ -221,23 +232,184 @@ func _ready() -> void:
 	add_to_group("ship_crew")
 	_configure_sprite_animations()
 	_build_overhead_bubble()
+	var console_station := get_parent().get_node_or_null("LabRoom/ConsoleStation") as Node2D
+	if console_station != null:
+		global_position = console_station.global_position + Vector2(0.0, 18.0)
+	var returning_to_ship := Engine.has_meta(&"returning_from_planet") and bool(Engine.get_meta(&"returning_from_planet"))
+	if returning_to_ship and Engine.has_meta(&"lab_doctor_missing") and bool(Engine.get_meta(&"lab_doctor_missing")):
+		visible = false
+		set_physics_process(false)
+		set_process(false)
+		collision_layer = 0
+		collision_mask = 0
+		remove_from_group("ship_crew")
+		return
 	await get_tree().physics_frame
 	_build_navigation()
-	if not _navigation_ready:
-		set_physics_process(false)
-		return
-	var spawn_cell := _world_to_cell(global_position)
-	if _grid_region.has_point(spawn_cell) and _hydroponics_grid.is_point_solid(spawn_cell):
-		spawn_cell = _find_nearest_clear_cell(spawn_cell, true)
-		if _grid_region.has_point(spawn_cell) and not _hydroponics_grid.is_point_solid(spawn_cell):
-			global_position = _cell_to_world(spawn_cell)
+	set_physics_process(false)
+	_show_seated_pose()
 
-	_room_stops_remaining = _random.randi_range(room_roam_stops.x, room_roam_stops.y)
-	_choose_next_destination()
+
+func begin_sample_watch() -> void:
+	_sample_watch_active = true
+	_sample_watch_timer = 11.0
+	set_process(true)
+	_show_overhead_bark("SAMPLE WATCH ACTIVE", "Ore secured. I'm monitoring the chamber and maintaining its pressure.", 5.0)
+
+
+func carry_sample_to_tank(tank_position: Vector2) -> void:
+	var sample_texture := AtlasTexture.new()
+	sample_texture.atlas = SAMPLE_ATLAS
+	sample_texture.region = Rect2(140.0, 120.0, 974.0, 1014.0)
+	_carried_sample_sprite = Sprite2D.new()
+	_carried_sample_sprite.name = "CarriedErebosSample"
+	_carried_sample_sprite.texture = sample_texture
+	_carried_sample_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+	_carried_sample_sprite.scale = Vector2.ONE * 0.012
+	_carried_sample_sprite.position = Vector2(13.0, -8.0)
+	_carried_sample_sprite.z_index = 4
+	add_child(_carried_sample_sprite)
+	_show_overhead_bark("SAMPLE TRANSFER", "I'll secure the ore in containment.", 2.5)
+	await _walk_to_lab_point(tank_position)
+	if not is_inside_tree():
+		return
+	if is_instance_valid(_carried_sample_sprite):
+		_carried_sample_sprite.queue_free()
+	_carried_sample_sprite = null
+	_show_overhead_bark("CONTAINMENT LOADED", "Sample secured. Starting the chamber watch.", 3.0)
+	await get_tree().create_timer(0.8).timeout
+
+
+func walk_to_research_console_and_sit(console_position: Vector2) -> void:
+	await _walk_to_lab_point(console_position)
+	if not is_inside_tree():
+		return
+	_show_seated_pose()
+	_show_overhead_bark("RESEARCH CONSOLE", "I'm running the ore telemetry from here.", 4.0)
+	Engine.set_meta(&"resonance_ore_chamber_pressure", 1.0)
+	Engine.set_meta(&"resonance_ore_atmosphere_test_passed", true)
+	_show_overhead_bark("ATMOSPHERE SET", "Earth-normal pressure verified. Applying the study pulse.", 4.0)
+	await get_tree().create_timer(1.2).timeout
+	if is_inside_tree():
+		Engine.set_meta(&"resonance_ore_stimulated", true)
+		sample_study_started.emit()
+
+
+func _show_seated_pose() -> void:
+	_is_seated_at_console = true
+	set_physics_process(false)
+	collision_layer = 0
+	collision_mask = 0
+	_stop_walking()
+	if not is_instance_valid(_seated_pose_sprite):
+		var pose_image := Image.load_from_file(ProjectSettings.globalize_path(SEATED_POSE_PATH))
+		if pose_image != null and not pose_image.is_empty():
+			_seated_pose_sprite = Sprite2D.new()
+			_seated_pose_sprite.name = "AmaraSeatedAtResearchConsole"
+			_seated_pose_sprite.texture = ImageTexture.create_from_image(pose_image)
+			_seated_pose_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+			_seated_pose_sprite.scale = Vector2.ONE * 0.045
+			_seated_pose_sprite.position = Vector2(0.0, -1.0)
+			_seated_pose_sprite.z_index = 3
+			add_child(_seated_pose_sprite)
+	if is_instance_valid(_seated_pose_sprite):
+		sprite.visible = false
+		_seated_pose_sprite.visible = true
+
+
+func _walk_to_lab_point(target_position: Vector2) -> void:
+	if _is_seated_at_console:
+		_is_seated_at_console = false
+		collision_layer = 4
+		collision_mask = 1
+		if is_instance_valid(_seated_pose_sprite):
+			_seated_pose_sprite.visible = false
+		sprite.visible = true
+	if not _navigation_ready:
+		return
+	var target_cell := _world_to_cell(target_position)
+	if _grid_region.has_point(target_cell) and _grid.is_point_solid(target_cell):
+		target_cell = _find_nearest_clear_cell(target_cell)
+	if not _set_destination(target_cell):
+		return
+	_lab_route_active = true
+	set_physics_process(true)
+	while _lab_route_active and is_inside_tree():
+		await get_tree().physics_frame
+	set_physics_process(false)
+
+
+func _process_lab_route(delta: float) -> void:
+	if _path_index >= _path.size():
+		global_position = _destination
+		_lab_route_active = false
+		_has_destination = false
+		velocity = Vector2.ZERO
+		_stop_walking()
+		return
+	var target := _path[_path_index]
+	var direction := target - global_position
+	if direction.length() <= 2.5:
+		_path_index += 1
+		if _path_index >= _path.size():
+			global_position = _destination
+			_lab_route_active = false
+			_has_destination = false
+			velocity = Vector2.ZERO
+			_stop_walking()
+			return
+		target = _path[_path_index]
+		direction = target - global_position
+	_update_facing(direction)
+	velocity = direction.normalized() * move_speed
+	var collision := move_and_collide(velocity * delta)
+	if collision != null:
+		_handle_unmapped_obstacle()
+
+
+func become_missing() -> void:
+	if _is_missing:
+		return
+	_is_missing = true
+	_sample_watch_active = false
+	Engine.set_meta(&"lab_doctor_missing", true)
+	_show_overhead_bark("DR OKOYE / SIGNAL LOST", "Thura—the Echo is inside my suit!", 2.0)
+	await get_tree().create_timer(1.6).timeout
+	if not is_inside_tree():
+		return
+	remove_from_group("ship_crew")
+	set_physics_process(false)
+	set_process(false)
+	var fade := create_tween()
+	fade.tween_property(self, "modulate:a", 0.0, 0.55).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+	await fade.finished
+	if is_inside_tree():
+		visible = false
+		collision_layer = 0
+		collision_mask = 0
+
+
+func _process(delta: float) -> void:
+	if not _sample_watch_active or _is_missing:
+		return
+	_sample_watch_timer -= delta
+	if _sample_watch_timer > 0.0:
+		return
+	_sample_watch_timer = 17.0
+	var watch_lines: Array[String] = [
+		"Chamber pressure is holding. I'm checking the seal readings.",
+		"The ore is reacting to the power cycle. Keep the sample under observation.",
+		"Atmosphere stable for now. I'm logging each change.",
+	]
+	var line := watch_lines[_random.randi_range(0, watch_lines.size() - 1)]
+	_show_overhead_bark("SAMPLE WATCH", line, 3.8)
 
 
 func _physics_process(delta: float) -> void:
 	if not _navigation_ready:
+		return
+	if _lab_route_active:
+		_process_lab_route(delta)
 		return
 
 	if _greeting_cooldown > 0.0:
@@ -574,10 +746,12 @@ func _handle_unmapped_obstacle() -> void:
 			_grid.set_point_solid(blocked_cell, true)
 			_hydroponics_grid.set_point_solid(blocked_cell, true)
 	var target_cell := _world_to_cell(_destination)
-	var local_only := _should_use_hydroponics_grid()
+	var local_only := _should_use_hydroponics_grid() and not _lab_route_active
 	if not _set_destination(target_cell, local_only):
 		_has_destination = false
 		_idle_remaining = 0.25
+		if _lab_route_active:
+			_lab_route_active = false
 
 
 func _is_blocked_by_closed_door(position_to_check: Vector2) -> bool:
@@ -630,7 +804,7 @@ func _update_facing(direction: Vector2) -> void:
 		_facing_animation = &"walk_right" if direction.x > 0.0 else &"walk_left"
 	else:
 		_facing_animation = &"walk_down" if direction.y > 0.0 else &"walk_up"
-	if sprite.animation != _facing_animation:
+	if sprite.animation != _facing_animation or not sprite.is_playing():
 		sprite.play(_facing_animation)
 
 
@@ -676,6 +850,14 @@ func _build_navigation() -> void:
 		Vector2(0.0, BODY_RADIUS),
 		Vector2(0.0, -BODY_RADIUS),
 	]
+	var obstacle_shape := CircleShape2D.new()
+	obstacle_shape.radius = BODY_RADIUS + 3.0
+	var obstacle_query := PhysicsShapeQueryParameters2D.new()
+	obstacle_query.shape = obstacle_shape
+	obstacle_query.collision_mask = collision_mask
+	obstacle_query.collide_with_bodies = true
+	obstacle_query.collide_with_areas = false
+	var space_state := get_world_2d().direct_space_state
 	_ship_zone_cells.clear()
 	for _zone in SHIP_ROAM_AREAS:
 		_ship_zone_cells.append([])
@@ -689,6 +871,9 @@ func _build_navigation() -> void:
 				if not _position_is_walkable(center + sample_offset):
 					clear = false
 					break
+			if clear:
+				obstacle_query.transform = Transform2D(0.0, center)
+				clear = space_state.intersect_shape(obstacle_query, 1).is_empty()
 			if not clear:
 				_grid.set_point_solid(cell, true)
 				_hydroponics_grid.set_point_solid(cell, true)
