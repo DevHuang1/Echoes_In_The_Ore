@@ -1,5 +1,5 @@
 @tool
-extends Node2D
+extends "res://scripts/ship/ship_mission_walkthrough.gd"
 
 const FLOOR_TEXTURE := preload("res://art/overview/asteria_overview_floor.png")
 const ARRIVAL_BRIEFING_SCENE := preload("res://scenes/ui/arrival_briefing.tscn")
@@ -37,6 +37,56 @@ const ROOM_TASKS := [
 		"completion": "Nutrient manifold aligned. The grow beds are irrigating.",
 	},
 ]
+const LAB_DEVICES := [
+	{
+		"id": &"lab_specimen",
+		"station_path": NodePath("LabRoom/NorthWorkstation"),
+		"interaction_offset": Vector2(-34.0, 27.0),
+		"prompt": "SPECIMEN ANALYSIS TABLE   /   [E] OPEN ANALYZER",
+	},
+	{
+		"id": &"lab_earth_comms",
+		"station_path": NodePath("LabRoom/ConsoleStation"),
+		"interaction_offset": Vector2(39.0, 18.0),
+		"prompt": "RESEARCH CONSOLE   /   [E] OPEN TERMINAL",
+	},
+	{
+		"id": &"lab_containment",
+		"station_path": NodePath("LabRoom/OreContainment"),
+		"interaction_offset": Vector2(-28.0, 28.0),
+		"prompt": "SAMPLE CONTAINMENT   /   [E] OPEN CONTROLS",
+	},
+	{
+		"id": &"lab_trolley",
+		"station_path": NodePath("LabRoom/MicroscopeCart"),
+		"interaction_offset": Vector2(0.0, 38.0),
+		"prompt": "INSTRUMENT TROLLEY   /   [E] OPEN INSTRUMENTS",
+	},
+	{
+		"id": &"lab_archive_01",
+		"station_path": NodePath("LabRoom/ArchiveStationLeft"),
+		"interaction_offset": Vector2(-18.0, 34.0),
+		"prompt": "PERSONNEL ARCHIVE   /   [E] BROWSE RECORDS",
+	},
+	{
+		"id": &"lab_archive_02",
+		"station_path": NodePath("LabRoom/ArchiveStationCenter"),
+		"interaction_offset": Vector2(0.0, 34.0),
+		"prompt": "SPECIMEN ARCHIVE   /   [E] BROWSE RECORDS",
+	},
+	{
+		"id": &"lab_archive_03",
+		"station_path": NodePath("LabRoom/ArchiveStationRight"),
+		"interaction_offset": Vector2(18.0, 34.0),
+		"prompt": "CONTAINMENT ARCHIVE   /   [E] BROWSE RECORDS",
+	},
+	{
+		"id": &"lab_robot_arm",
+		"station_path": NodePath("LabRoom/SampleManipulator"),
+		"interaction_offset": Vector2(0.0, 36.0),
+		"prompt": "SAMPLE MANIPULATOR   /   [E] OPEN CONTROLS",
+	},
+]
 const ROOM_TASK_INTERACTION_RADIUS := 44.0
 const AMARA_INTERACTION_RADIUS := 66.0
 const CREW_TASK_INTERACTION_RADIUS := 64.0
@@ -49,7 +99,7 @@ const AMARA_CREW_TASKS := [
 		"station_path": NodePath("HydroponicsRoomProps/NutrientPump"),
 		"interaction_offset": Vector2(36.0, 0.0),
 		"prompt": "NUTRIENT PUMP   /   [E] INSPECT",
-		"completion": "The nutrient pump is clear and flowing again.",
+		"completion": "Pump inspection recorded. Verify actual delivery separately at the console.",
 	},
 	{
 		"id": &"amara_seedling_sensor",
@@ -58,11 +108,12 @@ const AMARA_CREW_TASKS := [
 		"station_path": NodePath("HydroponicsRoomProps/SeedlingRack"),
 		"interaction_offset": Vector2(44.0, 0.0),
 		"prompt": "SEEDLING RACK   /   [E] CALIBRATE SENSOR",
-		"completion": "The seedling rack humidity sensor is calibrated.",
+		"completion": "Seedling sensor check recorded; the irrigation repair remains a separate procedure.",
 	},
 ]
 
 @export var player_spawn: Vector2 = Vector2(900.0, 500.0)
+@export_file("*.tscn") var mock_planet_scene_path := MOCK_PLANET_SCENE_PATH
 
 @onready var floor_layer: Sprite2D = $FloorLayer
 @onready var wall_layer: Sprite2D = $WallLayer
@@ -72,6 +123,7 @@ const AMARA_CREW_TASKS := [
 
 var _completed_room_tasks: Dictionary = {}
 var _active_room_task_id: StringName = &""
+var _active_lab_device_id: StringName = &""
 var _task_console_open := false
 var _arrival_briefing_open := true
 var _hud_modal_open := false
@@ -148,8 +200,9 @@ func _ready() -> void:
 	_crew_dialogue = CREW_DIALOGUE_SCENE.instantiate() as CrewDialogue
 	_crew_dialogue.dialogue_finished.connect(_on_amara_dialogue_finished)
 	add_child(_crew_dialogue)
+	ship_begin(_walk_hud,player)
 
-	if returning_from_planet:
+	if returning_from_planet or ship_story_continuing():
 		_arrival_briefing_open = false
 		_walk_hud.set_walking_visible(true)
 		_room_task_feedback = "AIRLOCK CYCLE COMPLETE  //  ABOARD ASTERIA-1"
@@ -163,6 +216,10 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
+	ship_process(delta)
+	if ship_control_locked():
+		ship_refresh_prompt()
+		return
 	if _transitioning_to_planet:
 		return
 	if _room_task_feedback_timer > 0.0:
@@ -182,7 +239,11 @@ func _process(delta: float) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventKey and event.echo:
+		return
 	if _transitioning_to_planet or _arrival_briefing_open or _hud_modal_open or _task_console_open or _crew_dialogue_open or not event.is_action_pressed(&"interact"):
+		return
+	if ship_handle_interact(event):
 		return
 	if _active_airlock_exit:
 		get_viewport().set_input_as_handled()
@@ -192,6 +253,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		_begin_amara_dialogue()
 	elif _active_crew_task_id != &"":
 		_complete_crew_task(_active_crew_task_id)
+	elif _active_lab_device_id != &"":
+		_open_lab_device_console(_active_lab_device_id)
 	elif _active_room_task_id != &"":
 		_open_room_task_console(_active_room_task_id)
 	else:
@@ -202,8 +265,38 @@ func _unhandled_input(event: InputEvent) -> void:
 func _exit_ship_to_planet() -> void:
 	if _transitioning_to_planet:
 		return
+	if ship_story_active():
+		_ship_status = "Await the Erebos survey briefing. This watch does not authorize surface deployment."
+		_ship_status_time = 7.0
+		return
 	_transitioning_to_planet = true
-	get_tree().change_scene_to_file(MOCK_PLANET_SCENE_PATH)
+	ship_store_transit()
+	var result := get_tree().change_scene_to_file(mock_planet_scene_path)
+	if result != OK:
+		_transitioning_to_planet = false
+		Engine.remove_meta("ship_mission_transit"); Engine.remove_meta("ship_mission_transit_save_path")
+		_ship_status = "The development surface could not load. You remain aboard; retry when its scene is available."
+		_ship_status_time = 8.0
+		_update_player_walk_state()
+
+
+func _open_lab_device_console(device_id: StringName) -> void:
+	if _task_console_open:
+		return
+	for device in LAB_DEVICES:
+		if device["id"] != device_id:
+			continue
+		var station := get_node_or_null(device["station_path"]) as Node2D
+		if station != null:
+			player.face_toward(station.global_position)
+		break
+	_task_console_open = true
+	_walk_hud.set_walking_visible(false)
+	_update_player_walk_state()
+	var console := SERVICE_TASK_CONSOLE_SCENE.instantiate() as ServiceTaskConsole
+	console.setup(device_id, 0, 1)
+	console.console_closed.connect(_on_room_task_console_closed)
+	add_child(console)
 
 
 func _open_room_task_console(task_id: StringName) -> void:
@@ -214,12 +307,16 @@ func _open_room_task_console(task_id: StringName) -> void:
 	_update_player_walk_state()
 	var console := SERVICE_TASK_CONSOLE_SCENE.instantiate() as ServiceTaskConsole
 	console.setup(task_id, _completed_room_tasks.size(), ROOM_TASKS.size())
+	if ship_is_initialized(): ship_attach_service_console(console,task_id)
 	console.task_completed.connect(_on_room_task_completed)
 	console.console_closed.connect(_on_room_task_console_closed)
 	add_child(console)
 
 
 func _on_room_task_completed(task_id: StringName) -> void:
+	if ship_is_initialized():
+		ship_legacy_completed(task_id)
+		return
 	if _completed_room_tasks.has(task_id):
 		return
 	var completion := "Service task complete."
@@ -240,6 +337,7 @@ func _on_room_task_completed(task_id: StringName) -> void:
 
 
 func _on_room_task_console_closed() -> void:
+	ship_service_closed()
 	_task_console_open = false
 	_walk_hud.set_walking_visible(not _arrival_briefing_open)
 	_update_player_walk_state()
@@ -250,7 +348,11 @@ func _on_room_task_console_closed() -> void:
 
 
 func _refresh_room_task_prompt() -> void:
+	if ship_is_initialized():
+		ship_refresh_prompt()
+		return
 	_active_room_task_id = &""
+	_active_lab_device_id = &""
 	_active_crew_task_id = &""
 	_active_amara_interaction = false
 	_active_airlock_exit = false
@@ -288,6 +390,21 @@ func _refresh_room_task_prompt() -> void:
 		_active_crew_task_id = closest_crew_task["id"]
 		_walk_hud.set_interaction_prompt(closest_crew_task["prompt"], true)
 		return
+	var closest_device: Dictionary = {}
+	var closest_device_distance := ROOM_TASK_INTERACTION_RADIUS
+	for device in LAB_DEVICES:
+		var station := get_node_or_null(device["station_path"]) as Node2D
+		if station == null:
+			continue
+		var interaction_position := _room_task_interaction_position(device, station)
+		var distance := player.global_position.distance_to(interaction_position)
+		if distance <= closest_device_distance:
+			closest_device_distance = distance
+			closest_device = device
+	if not closest_device.is_empty():
+		_active_lab_device_id = closest_device["id"]
+		_walk_hud.set_interaction_prompt(closest_device["prompt"], true)
+		return
 	var closest_task: Dictionary = {}
 	var closest_distance := 999999.0
 	for task in ROOM_TASKS:
@@ -320,6 +437,7 @@ func _refresh_room_task_prompt() -> void:
 func _begin_amara_dialogue() -> void:
 	if _crew_dialogue_open:
 		return
+	if ship_story_amara_dialogue(): return
 	var first_meeting := not _amara_intro_seen
 	_crew_dialogue_open = true
 	_amara_intro_seen = true
@@ -331,22 +449,24 @@ func _begin_amara_dialogue() -> void:
 	var offer_tasks := not _crew_tasks_unlocked
 	if offer_tasks:
 		if first_meeting:
-			lines.append("I'm Amara Okoye. I keep the grow beds alive, and I know this section of the ship inside out.")
+			lines.append("I'm Amara Okoye, the medic. I also tend the grow beds, and I know this section of the ship inside out.")
 			lines.append("The nutrient pump needs an inspection, and the seedling rack's humidity sensor needs recalibrating.")
 		else:
 			lines.append("I've got two hydroponics jobs that could use another set of hands: the nutrient pump and the seedling rack sensor.")
-		lines.append("Want to take them? I'll mark a reachable service point beside each station on your ship map.")
+		lines.append("Want to take them? I'll add both jobs to your duty tracker. Use the clear service point beside each station.")
 	else:
 		var completed_count := _completed_crew_tasks.size()
 		if completed_count >= AMARA_CREW_TASKS.size():
-			lines.append("The pump is flowing and the seedling sensor is steady. The beds should be in good shape now. Thank you.")
+			lines.append("Thank you for recording those checks. Delivery is currently in range." if _ship_state.systems.hydro.flow>=90 else "Thank you for recording those checks. Delivery is still low; those observations do not replace the irrigation repair.")
 		elif completed_count == 1:
 			for task in AMARA_CREW_TASKS:
 				if not _completed_crew_tasks.has(task["id"]):
 					lines.append("Good work on the first job. %s still needs attention when you have a moment." % str(task["title"]).replace("Amara: ", ""))
 					break
 		else:
-			lines.append("The nutrient pump and seedling sensor are both marked on your ship map. Check in with me if anything looks off.")
+			lines.append("The nutrient pump and seedling sensor are both in your duty tracker. Check in with me if anything looks off.")
+	var observation := ship_amara_observation()
+	if not observation.is_empty(): lines.append(observation)
 	_crew_dialogue.start_dialogue(lines, offer_tasks)
 
 
@@ -356,7 +476,7 @@ func _on_amara_dialogue_finished(accepted_tasks: bool) -> void:
 		amara.set_in_dialogue(false)
 	if accepted_tasks and not _crew_tasks_unlocked:
 		_unlock_crew_tasks_on_hud()
-		_room_task_feedback = "Amara's jobs are marked at reachable service points on your ship map."
+		_room_task_feedback = "Amara's jobs are in your duty tracker. Approach each station's clear service point."
 		_room_task_feedback_timer = 4.0
 	_update_player_walk_state()
 
@@ -372,7 +492,8 @@ func _unlock_crew_tasks_on_hud() -> void:
 		_walk_hud.add_task_entry({
 			"id": task["id"],
 			"title": task["title"],
-			"marker_label": task["marker_label"],
+			"description": "Optional / "+str(task["title"]),
+			"marker_label": "OPTIONAL",
 			"position": _crew_task_interaction_position(task, station),
 			"marker_position": _task_marker_position(station),
 		})
@@ -387,6 +508,9 @@ func _room_task_interaction_position(task: Dictionary, station: Node2D) -> Vecto
 
 
 func _crew_task_interaction_position(task: Dictionary, station: Node2D) -> Vector2:
+	if ship_is_initialized():
+		for entry in _ship_points.values():
+			if entry.host==station and is_instance_valid(entry.marker): return entry.marker.global_position
 	var offset: Vector2 = task.get("interaction_offset", Vector2.ZERO)
 	var parent := station.get_parent() as Node2D
 	if parent == null:
@@ -423,6 +547,8 @@ func _complete_crew_task(task_id: StringName) -> void:
 
 func _on_arrival_briefing_dismissed() -> void:
 	_arrival_briefing_open = false
+	if ship_story_active() and _ship_cue_active.get("cue_id") == "cue.asteria.arrival":
+		ship_finish_story_cue("cue.asteria.arrival", str(_ship_cue_active.request_token), "completed")
 	_walk_hud.set_walking_visible(true)
 	_update_player_walk_state()
 
@@ -433,4 +559,4 @@ func _on_hud_modal_state_changed(is_open: bool) -> void:
 
 
 func _update_player_walk_state() -> void:
-	player.set_physics_process(not (_arrival_briefing_open or _hud_modal_open or _task_console_open or _crew_dialogue_open))
+	player.set_physics_process(not (_arrival_briefing_open or _hud_modal_open or _task_console_open or _crew_dialogue_open or ship_control_locked()))

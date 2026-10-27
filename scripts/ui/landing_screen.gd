@@ -1,6 +1,8 @@
 extends Control
 
 const SKIN := preload("res://scripts/ui/pixel_ui.gd")
+const STORY_SAVE := preload("res://scripts/ship/ship_story_save.gd")
+const STORY := preload("res://scripts/ship/first_watch_story.gd")
 
 const INTRO_SCENE := "res://scenes/ui/earth_years_montage.tscn"
 const HERO_IMAGE := preload("res://art/storyboards/thura_earth/07_astronaut_selected.png")
@@ -9,12 +11,15 @@ const FADE_SECONDS := 0.85
 var _background: TextureRect
 var _start_button: Button
 var _fade_overlay: ColorRect
+var _continue_button: Button
+var _continue_path := ""
 
 
 func _ready() -> void:
 	SKIN.apply(self)
 	_build_screen()
-	_start_button.grab_focus()
+	if is_instance_valid(_continue_button): _continue_button.grab_focus()
+	else: _start_button.grab_focus()
 	_play_ambient_zoom()
 
 
@@ -108,6 +113,17 @@ func _build_screen() -> void:
 	_start_button.add_theme_font_size_override("font_size", 20)
 	_start_button.pressed.connect(_on_start_pressed)
 	content.add_child(_start_button)
+	_continue_path = STORY_SAVE.continue_path()
+	if not _continue_path.is_empty():
+		_start_button.text = "[ START A NEW WATCH  → ]"
+		_start_button.tooltip_text = "Start separately. Your existing campaign file will be preserved."
+		_continue_button = Button.new()
+		_continue_button.text = "[ CONTINUE WATCH  → ]"
+		_continue_button.custom_minimum_size = Vector2(280, 48)
+		_continue_button.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+		_continue_button.add_theme_font_size_override("font_size", 18)
+		_continue_button.pressed.connect(_on_continue_pressed)
+		content.add_child(_continue_button)
 
 	var footer := Label.new()
 	footer.text = "ASTERIA-1 TACTICAL INTERFACE // SCI-FI SURVIVAL HORROR"
@@ -138,11 +154,25 @@ func _on_start_pressed() -> void:
 	if _start_button.disabled:
 		return
 	_start_button.disabled = true
+	Engine.set_meta("ship_story_bootstrap", STORY.new().snapshot())
 	await _fade_to_black()
 	var result := get_tree().change_scene_to_file(INTRO_SCENE)
 	if result != OK:
 		push_error("Could not open the Earth-years montage: %s" % INTRO_SCENE)
 		_start_button.disabled = false
+		await _fade_from_black()
+
+func _on_continue_pressed() -> void:
+	if _start_button.disabled: return
+	if STORY_SAVE.read(_continue_path).is_empty():
+		_continue_button.disabled = true; _continue_button.text = "SAVE UNAVAILABLE / START A NEW WATCH"; return
+	_start_button.disabled = true; _continue_button.disabled = true
+	Engine.set_meta("ship_story_continue_path", _continue_path)
+	await _fade_to_black()
+	var result := get_tree().change_scene_to_file("res://scenes/ship/bare_ship_walkthrough.tscn")
+	if result != OK:
+		Engine.remove_meta("ship_story_continue_path")
+		_start_button.disabled = false; _continue_button.disabled = false
 		await _fade_from_black()
 
 

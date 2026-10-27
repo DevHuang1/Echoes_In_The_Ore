@@ -1,0 +1,385 @@
+[gd_scene load_steps=25 format=3]
+
+[ext_resource type="Texture2D" path="res://art/concepts/lab_props/specimen_analysis_table.png" id="1_table"]
+[ext_resource type="Texture2D" path="res://art/concepts/lab_props/research_console.png" id="2_console"]
+[ext_resource type="Texture2D" path="res://art/concepts/lab_props/sample_containment.png" id="3_containment"]
+[ext_resource type="Texture2D" path="res://art/concepts/lab_props/instrument_trolley.png" id="4_trolley"]
+[ext_resource type="Texture2D" path="res://art/concepts/lab_props/data_archive.png" id="5_archive"]
+[ext_resource type="Texture2D" path="res://art/concepts/lab_props/sample_robot_arm.png" id="6_robot"]
+[ext_resource type="PackedScene" path="res://scenes/ship/props/warm_ship_light.tscn" id="7_light"]
+[ext_resource type="Texture2D" path="res://art/concepts/lab_props/room_additions/sample_cabinet_user_4dir.png" id="8_cabinet"]
+[ext_resource type="Texture2D" path="res://art/concepts/lab_props/room_additions/ppe_rack_user_4dir.png" id="9_ppe"]
+[ext_resource type="Texture2D" path="res://art/concepts/lab_props/room_additions/decon_sink_user_4dir.png" id="10_decon"]
+[ext_resource type="Texture2D" path="res://art/concepts/lab_props/room_additions/lab_waste_user_4dir.png" id="11_waste"]
+[ext_resource type="Texture2D" path="res://art/concepts/lab_props/room_additions/wash_sink_user_4dir.png" id="14_sink"]
+[ext_resource type="Texture2D" path="res://art/concepts/lab_props/room_additions/analysis_table_user_4dir.png" id="15_side_analysis"]
+
+[sub_resource type="RectangleShape2D" id="TableFootprint"]
+size = Vector2(445, 350)
+
+[sub_resource type="RectangleShape2D" id="ConsoleFootprint"]
+size = Vector2(410, 375)
+
+[sub_resource type="RectangleShape2D" id="ContainmentFootprint"]
+size = Vector2(350, 385)
+
+[sub_resource type="RectangleShape2D" id="TrolleyFootprint"]
+size = Vector2(420, 370)
+
+[sub_resource type="RectangleShape2D" id="ArchiveFootprint"]
+size = Vector2(280, 385)
+
+[sub_resource type="RectangleShape2D" id="RobotFootprint"]
+size = Vector2(350, 365)
+
+[sub_resource type="RectangleShape2D" id="PpeRackFootprint"]
+size = Vector2(450, 400)
+
+[sub_resource type="RectangleShape2D" id="DeconFootprint"]
+size = Vector2(420, 440)
+
+[sub_resource type="RectangleShape2D" id="WasteBinsFootprint"]
+size = Vector2(540, 380)
+
+[sub_resource type="RectangleShape2D" id="StorageFootprint"]
+size = Vector2(430, 500)
+
+[sub_resource type="RectangleShape2D" id="WashSinkFootprint"]
+size = Vector2(360, 400)
+
+[node name="LabRoom" type="Node2D"]
+y_sort_enabled = true
+
+[node name="NorthWorkstation" type="Node2D" parent="."]
+position = Vector2(290, 158)
+scale = Vector2(0.17, 0.17)
+
+[node name="SpecimenAnalysisTable" type="Sprite2D" parent="NorthWorkstation"]
+texture = ExtResource("1_table")
+
+[node name="Collision" type="StaticBody2D" parent="NorthWorkstation"]
+collision_layer = 1
+collision_mask = 0
+
+[node name="Footprint" type="CollisionShape2D" parent="NorthWorkstation/Collision"]
+shape = SubResource("TableFootprint")
+
+[node name="ConsoleStation" type="Node2D" parent="."]
+position = Vector2(355, 158)
+scale = Vector2(0.105, 0.105)
+
+[node name="ResearchConsole" type="Sprite2D" parent="ConsoleStation"]
+texture = ExtResource("2_console")
+
+[node name="Collision" type="StaticBody2D" parent="ConsoleStation"]
+collision_layer = 1
+collision_mask = 0
+
+[node name="Footprint" type="CollisionShape2D" parent="ConsoleStation/Collision"]
+shape = SubResource("ConsoleFootprint")
+
+[node name="OreContainment" type="Node2D" parent="."]
+position = Vector2(230, 76)
+scale = Vector2(0.1, 0.1)
+
+[node name="SampleContainment" type="Sprite2D" parent="OreContainment"]
+texture = ExtResource("3_containment")
+
+[node name="Collision" type="StaticBody2D" parent="OreContainment"]
+collision_layer = 1
+collision_mask = 0
+
+[node name="Footprint" type="CollisionShape2D" parent="OreContainment/Collision"]
+shape = SubResource("ContainmentFootprint")
+
+[node name="MicroscopeCart" type="Node2D" parent="."]
+position = Vector2(290, 205)
+scale = Vector2(0.095, 0.095)
+
+[node name="InstrumentTrolley" type="Sprite2D" parent="MicroscopeCart"]
+texture = ExtResource("4_trolley")
+
+[node name="Collision" type="StaticBody2D" parent="MicroscopeCart"]
+collision_layer = 1
+collision_mask = 0
+
+[node name="Footprint" type="CollisionShape2D" parent="MicroscopeCart/Collision"]
+shape = SubResource("TrolleyFootprint")
+
+[node name="ArchiveStationLeft" type="Node2D" parent="."]
+position = Vector2(295, 76)
+scale = Vector2(0.105, 0.105)
+
+[node name="DataArchive" type="Sprite2D" parent="ArchiveStationLeft"]
+texture = ExtResource("5_archive")
+
+[node name="Collision" type="StaticBody2D" parent="ArchiveStationLeft"]
+collision_layer = 1
+collision_mask = 0
+
+[node name="Footprint" type="CollisionShape2D" parent="ArchiveStationLeft/Collision"]
+shape = SubResource("ArchiveFootprint")
+
+[node name="ArchiveStationCenter" type="Node2D" parent="."]
+position = Vector2(332, 76)
+scale = Vector2(0.105, 0.105)
+
+[node name="DataArchive" type="Sprite2D" parent="ArchiveStationCenter"]
+texture = ExtResource("5_archive")
+
+[node name="Collision" type="StaticBody2D" parent="ArchiveStationCenter"]
+collision_layer = 1
+collision_mask = 0
+
+[node name="Footprint" type="CollisionShape2D" parent="ArchiveStationCenter/Collision"]
+shape = SubResource("ArchiveFootprint")
+
+[node name="ArchiveStationRight" type="Node2D" parent="."]
+position = Vector2(369, 76)
+scale = Vector2(0.105, 0.105)
+
+[node name="DataArchive" type="Sprite2D" parent="ArchiveStationRight"]
+texture = ExtResource("5_archive")
+
+[node name="Collision" type="StaticBody2D" parent="ArchiveStationRight"]
+collision_layer = 1
+collision_mask = 0
+
+[node name="Footprint" type="CollisionShape2D" parent="ArchiveStationRight/Collision"]
+shape = SubResource("ArchiveFootprint")
+
+[node name="SampleManipulator" type="Node2D" parent="."]
+position = Vector2(312, 146)
+scale = Vector2(0.08, 0.08)
+z_index = 1
+
+[node name="RoboticSampleArm" type="Sprite2D" parent="SampleManipulator"]
+texture = ExtResource("6_robot")
+
+[node name="Collision" type="StaticBody2D" parent="SampleManipulator"]
+collision_layer = 1
+collision_mask = 0
+
+[node name="Footprint" type="CollisionShape2D" parent="SampleManipulator/Collision"]
+shape = SubResource("RobotFootprint")
+
+[node name="PpeRack" type="Node2D" parent="."]
+position = Vector2(143, 68)
+scale = Vector2(0.08, 0.08)
+
+[node name="Sprite" type="Sprite2D" parent="PpeRack"]
+texture = ExtResource("9_ppe")
+hframes = 2
+vframes = 2
+frame = 1
+
+[node name="Collision" type="StaticBody2D" parent="PpeRack"]
+collision_layer = 1
+collision_mask = 0
+
+[node name="Footprint" type="CollisionShape2D" parent="PpeRack/Collision"]
+shape = SubResource("PpeRackFootprint")
+
+[node name="LeftStorageCabinet" type="Node2D" parent="."]
+position = Vector2(112, 68)
+scale = Vector2(0.075, 0.075)
+
+[node name="Sprite" type="Sprite2D" parent="LeftStorageCabinet"]
+texture = ExtResource("8_cabinet")
+hframes = 2
+vframes = 2
+frame = 0
+
+[node name="Collision" type="StaticBody2D" parent="LeftStorageCabinet"]
+collision_layer = 1
+collision_mask = 0
+
+[node name="Footprint" type="CollisionShape2D" parent="LeftStorageCabinet/Collision"]
+shape = SubResource("StorageFootprint")
+
+[node name="SideAnalysisStation" type="Node2D" parent="."]
+position = Vector2(174, 68)
+scale = Vector2(0.065, 0.065)
+
+[node name="Sprite" type="Sprite2D" parent="SideAnalysisStation"]
+texture = ExtResource("15_side_analysis")
+hframes = 2
+vframes = 2
+frame = 0
+
+[node name="Collision" type="StaticBody2D" parent="SideAnalysisStation"]
+collision_layer = 1
+collision_mask = 0
+
+[node name="Footprint" type="CollisionShape2D" parent="SideAnalysisStation/Collision"]
+shape = SubResource("TableFootprint")
+
+[node name="DecontaminationStation" type="Node2D" parent="."]
+position = Vector2(430, 141)
+scale = Vector2(0.06, 0.06)
+
+[node name="Sprite" type="Sprite2D" parent="DecontaminationStation"]
+texture = ExtResource("10_decon")
+hframes = 2
+vframes = 2
+frame = 3
+
+[node name="Collision" type="StaticBody2D" parent="DecontaminationStation"]
+collision_layer = 1
+collision_mask = 0
+
+[node name="Footprint" type="CollisionShape2D" parent="DecontaminationStation/Collision"]
+shape = SubResource("DeconFootprint")
+
+[node name="LabWasteBins" type="Node2D" parent="."]
+position = Vector2(438, 64)
+scale = Vector2(0.055, 0.055)
+
+[node name="Sprite" type="Sprite2D" parent="LabWasteBins"]
+texture = ExtResource("11_waste")
+hframes = 2
+vframes = 2
+frame = 3
+
+[node name="Collision" type="StaticBody2D" parent="LabWasteBins"]
+collision_layer = 1
+collision_mask = 0
+
+[node name="Footprint" type="CollisionShape2D" parent="LabWasteBins/Collision"]
+shape = SubResource("WasteBinsFootprint")
+
+[node name="WashSink" type="Node2D" parent="."]
+position = Vector2(416, 154)
+scale = Vector2(0.06, 0.06)
+
+[node name="Sprite" type="Sprite2D" parent="WashSink"]
+texture = ExtResource("14_sink")
+hframes = 2
+vframes = 2
+frame = 1
+
+[node name="Collision" type="StaticBody2D" parent="WashSink"]
+collision_layer = 1
+collision_mask = 0
+
+[node name="Footprint" type="CollisionShape2D" parent="WashSink/Collision"]
+shape = SubResource("WashSinkFootprint")
+
+[node name="CableRuns" type="Node2D" parent="."]
+z_index = -1
+
+[node name="ContainmentToAnalysisSleeve" type="Line2D" parent="CableRuns"]
+points = PackedVector2Array(248, 92, 255, 98, 255, 113, 250, 121, 246, 132, 246, 158)
+width = 3.2
+default_color = Color(0.075, 0.09, 0.11, 0.95)
+joint_mode = 2
+begin_cap_mode = 2
+end_cap_mode = 2
+
+[node name="ContainmentToAnalysisSignal" type="Line2D" parent="CableRuns"]
+points = PackedVector2Array(248, 92, 255, 98, 255, 113, 250, 121, 246, 132, 246, 158)
+width = 1.15
+default_color = Color(0.22, 0.68, 0.78, 0.95)
+joint_mode = 2
+begin_cap_mode = 2
+end_cap_mode = 2
+
+[node name="AnalysisToConsoleSleeve" type="Line2D" parent="CableRuns"]
+points = PackedVector2Array(326, 188, 326, 198, 338, 198, 338, 181)
+width = 2.8
+default_color = Color(0.075, 0.09, 0.11, 0.95)
+joint_mode = 2
+begin_cap_mode = 2
+end_cap_mode = 2
+
+[node name="AnalysisToConsolePower" type="Line2D" parent="CableRuns"]
+points = PackedVector2Array(326, 188, 326, 198, 338, 198, 338, 181)
+width = 1.1
+default_color = Color(0.85, 0.52, 0.22, 0.95)
+joint_mode = 2
+begin_cap_mode = 2
+end_cap_mode = 2
+
+[node name="AnalysisToMicroscopeCable" type="Line2D" parent="CableRuns"]
+points = PackedVector2Array(326, 184, 321, 190, 314, 193, 310, 185)
+width = 2.4
+default_color = Color(0.075, 0.09, 0.11, 0.95)
+joint_mode = 2
+begin_cap_mode = 2
+end_cap_mode = 2
+
+[node name="ArchiveDataTrunk" type="Line2D" parent="CableRuns"]
+points = PackedVector2Array(295, 53, 295, 48, 369, 48, 369, 53)
+width = 2.8
+default_color = Color(0.075, 0.09, 0.11, 0.95)
+joint_mode = 2
+begin_cap_mode = 2
+end_cap_mode = 2
+
+[node name="ArchiveDataCore" type="Line2D" parent="CableRuns"]
+points = PackedVector2Array(295, 53, 295, 48, 369, 48, 369, 53)
+width = 1.05
+default_color = Color(0.32, 0.69, 0.73, 0.95)
+joint_mode = 2
+begin_cap_mode = 2
+end_cap_mode = 2
+
+[node name="ArchiveCenterLeadSleeve" type="Line2D" parent="CableRuns"]
+points = PackedVector2Array(332, 48, 332, 53)
+width = 2.8
+default_color = Color(0.075, 0.09, 0.11, 0.95)
+joint_mode = 2
+begin_cap_mode = 2
+end_cap_mode = 2
+
+[node name="ArchiveCenterLeadCore" type="Line2D" parent="CableRuns"]
+points = PackedVector2Array(332, 48, 332, 53)
+width = 1.05
+default_color = Color(0.32, 0.69, 0.73, 0.95)
+joint_mode = 2
+begin_cap_mode = 2
+end_cap_mode = 2
+
+[node name="StationLighting" type="Node2D" parent="."]
+z_index = -1
+
+[node name="AnalysisGlow" parent="StationLighting" instance=ExtResource("7_light")]
+position = Vector2(290, 158)
+color = Color(0.2, 0.77, 1, 1)
+energy = 0.62
+texture_scale = 0.28
+
+[node name="ConsoleGlow" parent="StationLighting" instance=ExtResource("7_light")]
+position = Vector2(355, 158)
+color = Color(0.2, 0.77, 1, 1)
+energy = 0.4
+texture_scale = 0.2
+
+[node name="ContainmentGlow" parent="StationLighting" instance=ExtResource("7_light")]
+position = Vector2(230, 76)
+color = Color(0.2, 0.77, 1, 1)
+energy = 0.48
+texture_scale = 0.22
+
+[node name="CartWorklight" parent="StationLighting" instance=ExtResource("7_light")]
+position = Vector2(290, 205)
+energy = 0.34
+texture_scale = 0.15
+
+[node name="ArchiveGlowLeft" parent="StationLighting" instance=ExtResource("7_light")]
+position = Vector2(295, 76)
+color = Color(0.2, 0.77, 1, 1)
+energy = 0.28
+texture_scale = 0.15
+
+[node name="ArchiveGlowCenter" parent="StationLighting" instance=ExtResource("7_light")]
+position = Vector2(332, 76)
+color = Color(0.2, 0.77, 1, 1)
+energy = 0.32
+texture_scale = 0.17
+
+[node name="ArchiveGlowRight" parent="StationLighting" instance=ExtResource("7_light")]
+position = Vector2(369, 76)
+color = Color(0.2, 0.77, 1, 1)
+energy = 0.28
+texture_scale = 0.15

@@ -4,6 +4,7 @@ extends CanvasLayer
 const SKIN := preload("res://scripts/ui/pixel_ui.gd")
 
 signal dialogue_finished(accepted_tasks: bool)
+signal conversation_finished(conversation_id: String, result_id: String)
 
 const PALE := Color(0.94, 0.91, 0.82)
 const MUTED := Color(0.59, 0.69, 0.73)
@@ -23,6 +24,10 @@ var _typewriter_progress := 0.0
 var _is_typing := false
 var _is_active := false
 var _offer_enabled := false
+var conversation_id := ""
+var _choices: Array = []
+var _choice_row: HBoxContainer
+var _choice_buttons: Array[Button] = []
 
 
 func _ready() -> void:
@@ -31,6 +36,8 @@ func _ready() -> void:
 	set_process_input(true)
 	set_process(true)
 	_root.hide()
+	get_viewport().size_changed.connect(_resize_bubble)
+	_resize_bubble()
 
 
 func _process(delta: float) -> void:
@@ -46,12 +53,26 @@ func _process(delta: float) -> void:
 		_refresh_prompt()
 
 
-func start_dialogue(lines: Array[String], offer_enabled: bool = false) -> void:
+func start_dialogue(lines: Array[String], offer_enabled: bool = false, context: Dictionary = {}) -> void:
 	if lines.is_empty():
 		return
 	_lines = lines.duplicate()
 	_line_index = 0
 	_offer_enabled = offer_enabled
+	conversation_id = str(context.get("id", ""))
+	_speaker_label.text = str(context.get("speaker", "AMARA OKOYE / MED / HYDROPONICS"))
+	_choices = context.get("choices", []).duplicate(true)
+	for child in _choice_row.get_children():
+		_choice_row.remove_child(child); child.queue_free()
+	_choice_buttons.clear()
+	for choice in _choices:
+		var button := Button.new()
+		button.text = str(choice.label)
+		button.custom_minimum_size.y = 36
+		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		button.add_theme_font_size_override("font_size", 14)
+		button.pressed.connect(_choose.bind(str(choice.id)))
+		_choice_row.add_child(button); _choice_buttons.append(button)
 	_is_active = true
 	_root.show()
 	_show_current_line()
@@ -64,6 +85,13 @@ func _input(event: InputEvent) -> void:
 	var decline: bool = false
 	if event is InputEventKey:
 		decline = event.pressed and event.keycode == KEY_Q
+		if event.pressed and event.keycode == KEY_ESCAPE:
+			cancel_dialogue(); get_viewport().set_input_as_handled(); return
+		advance = advance or (event.pressed and event.keycode in [KEY_ENTER, KEY_KP_ENTER, KEY_SPACE])
+		if event.pressed and not _is_typing and _line_index == _lines.size()-1 and not _choices.is_empty():
+			var index := int(event.keycode) - int(KEY_1)
+			if index >= 0 and index < _choices.size():
+				_choose(str(_choices[index].id)); get_viewport().set_input_as_handled(); return
 	if not advance and not decline:
 		return
 	if _is_typing:
@@ -75,6 +103,9 @@ func _input(event: InputEvent) -> void:
 		if advance:
 			_line_index += 1
 			_show_current_line()
+	elif not _choices.is_empty():
+		if advance: _choose(str(_choices[0].id))
+		elif decline: _choose(str(_choices[-1].id))
 	elif _offer_enabled:
 		if advance:
 			_finish(true)
@@ -99,7 +130,7 @@ func _build_ui() -> void:
 	_bubble.anchor_top = 1.0
 	_bubble.anchor_bottom = 1.0
 	_bubble.offset_left = -430.0
-	_bubble.offset_top = -266.0
+	_bubble.offset_top = -330.0
 	_bubble.offset_right = 430.0
 	_bubble.offset_bottom = -106.0
 	_bubble.add_theme_stylebox_override("panel", _bubble_style())
@@ -119,6 +150,9 @@ func _build_ui() -> void:
 	_dialogue_label.add_theme_font_size_override("font_size", 16)
 	_dialogue_label.add_theme_color_override("font_color", PALE)
 	content.add_child(_dialogue_label)
+	_choice_row = HBoxContainer.new()
+	_choice_row.add_theme_constant_override("separation", 8)
+	content.add_child(_choice_row)
 	_prompt_label = Label.new()
 	_prompt_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_prompt_label.add_theme_font_size_override("font_size", 12)
@@ -143,10 +177,13 @@ func _reveal_current_line() -> void:
 
 
 func _refresh_prompt() -> void:
+	_choice_row.visible = not _is_typing and _line_index == _lines.size()-1 and not _choices.is_empty()
 	if _is_typing:
 		_prompt_label.text = "[E]  SHOW LINE"
 	elif _line_index < _lines.size() - 1:
 		_prompt_label.text = "[E]  CONTINUE"
+	elif not _choices.is_empty():
+		_prompt_label.text = "[E] FIRST RESPONSE / [1-%d] CHOOSE / [Q] %s / ESC CLOSE" % [_choices.size(), str(_choices[-1].label).to_upper()]
 	elif _offer_enabled:
 		_prompt_label.text = "[E]  TAKE TASKS     [Q]  MAYBE LATER"
 	else:
@@ -154,10 +191,31 @@ func _refresh_prompt() -> void:
 
 
 func _finish(accepted_tasks: bool) -> void:
+	if not conversation_id.is_empty():
+		_choose(str(_choices[0].id) if accepted_tasks and not _choices.is_empty() else "closed")
+		return
 	_is_active = false
 	_is_typing = false
 	_root.hide()
 	dialogue_finished.emit(accepted_tasks)
+
+func _choose(result_id: String) -> void:
+	if not _is_active: return
+	_is_active = false; _is_typing = false; _root.hide()
+	conversation_finished.emit(conversation_id, result_id)
+
+func cancel_dialogue() -> void:
+	if not _is_active: return
+	if conversation_id.is_empty(): _finish(false)
+	else: _choose("cancelled")
+
+func _resize_bubble() -> void:
+	if not is_instance_valid(_bubble): return
+	var width := minf(900.0, get_viewport().get_visible_rect().size.x-48.0)
+	_bubble.offset_left = -width*0.5; _bubble.offset_right = width*0.5
+
+func _exit_tree() -> void:
+	cancel_dialogue()
 
 
 func _bubble_style() -> StyleBox:

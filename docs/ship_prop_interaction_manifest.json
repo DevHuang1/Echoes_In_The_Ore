@@ -1,0 +1,1068 @@
+{
+  "version": 1,
+  "owner": "existing BareShipWalkthrough root; HUD remains inventory/objective owner",
+  "props": [
+    {
+      "walkthrough": "res://scenes/ship/bare_ship_walkthrough.tscn",
+      "node": "BareShipWalkthrough/BridgeRoomProps/MissionPlanningTable",
+      "stable_id": "bridge.planning",
+      "room": "bridge",
+      "interaction_type": "planning",
+      "function": "Assignments, objective prerequisites, phase evidence/journal, final report, save/load",
+      "task_connections": [
+        "all eight procedures"
+      ],
+      "story_connection": "bridge phase note recorded as outbound.bridge or return.bridge",
+      "preferred_access": "down",
+      "validation": {
+        "marker_and_E_selection": true,
+        "real_player_route": true,
+        "concealment_entry_exit": "not applicable",
+        "host_move_attachment": true
+      },
+      "saved_furniture_transform": "unchanged"
+    },
+    {
+      "walkthrough": "res://scenes/ship/bare_ship_walkthrough.tscn",
+      "node": "BareShipWalkthrough/BridgeRoomProps/MainHelmConsole",
+      "stable_id": "bridge.helm",
+      "room": "bridge",
+      "interaction_type": "navigation",
+      "function": "Compare planned/instrument headings; signed correction and verification",
+      "task_connections": [
+        "navigation",
+        "communications"
+      ],
+      "story_connection": "bridge phase note recorded as outbound.bridge or return.bridge",
+      "preferred_access": "right",
+      "validation": {
+        "marker_and_E_selection": true,
+        "real_player_route": true,
+        "concealment_entry_exit": "not applicable",
+        "host_move_attachment": true
+      },
+      "saved_furniture_transform": "unchanged"
+    },
+    {
+      "walkthrough": "res://scenes/ship/bare_ship_walkthrough.tscn",
+      "node": "BareShipWalkthrough/BridgeRoomProps/UpperFlightControlStation",
+      "stable_id": "bridge.comms.upper",
+      "room": "bridge",
+      "interaction_type": "communications",
+      "function": "Prepare verified report; choose signal-compatible protocol; transmit/acknowledge",
+      "task_connections": [
+        "navigation",
+        "communications"
+      ],
+      "story_connection": "bridge phase note recorded as outbound.bridge or return.bridge",
+      "preferred_access": "down",
+      "validation": {
+        "marker_and_E_selection": true,
+        "real_player_route": true,
+        "concealment_entry_exit": "not applicable",
+        "host_move_attachment": true
+      },
+      "saved_furniture_transform": "unchanged"
+    },
+    {
+      "walkthrough": "res://scenes/ship/bare_ship_walkthrough.tscn",
+      "node": "BareShipWalkthrough/BridgeRoomProps/LowerFlightControlStation",
+      "stable_id": "bridge.comms.lower",
+      "room": "bridge",
+      "interaction_type": "communications",
+      "function": "Prepare verified report; choose signal-compatible protocol; transmit/acknowledge",
+      "task_connections": [
+        "navigation",
+        "communications"
+      ],
+      "story_connection": "bridge phase note recorded as outbound.bridge or return.bridge",
+      "preferred_access": "up",
+      "validation": {
+        "marker_and_E_selection": true,
+        "real_player_route": true,
+        "concealment_entry_exit": "not applicable",
+        "host_move_attachment": true
+      },
+      "saved_furniture_transform": "unchanged"
+    },
+    {
+      "walkthrough": "res://scenes/ship/bare_ship_walkthrough.tscn",
+      "node": "BareShipWalkthrough/BridgeRoomProps/UpperBowFlightConsole",
+      "stable_id": "bridge.flight.upper",
+      "room": "bridge",
+      "interaction_type": "navigation",
+      "function": "Compare planned/instrument headings; signed correction and verification",
+      "task_connections": [
+        "navigation",
+        "communications"
+      ],
+      "story_connection": "bridge phase note recorded as outbound.bridge or return.bridge",
+      "preferred_access": "down",
+      "validation": {
+        "marker_and_E_selection": true,
+        "real_player_route": true,
+        "concealment_entry_exit": "not applicable",
+        "host_move_attachment": true
+      },
+      "saved_furniture_transform": "unchanged"
+    },
+    {
+      "walkthrough": "res://scenes/ship/bare_ship_walkthrough.tscn",
+      "node": "BareShipWalkthrough/BridgeRoomProps/LowerBowFlightConsole",
+      "stable_id": "bridge.flight.lower",
+      "room": "bridge",
+      "interaction_type": "navigation",
+      "function": "Compare planned/instrument headings; signed correction and verification",
+      "task_connections": [
+        "navigation",
+        "communications"
+      ],
+      "story_connection": "bridge phase note recorded as outbound.bridge or return.bridge",
+      "preferred_access": "up",
+      "validation": {
+        "marker_and_E_selection": true,
+        "real_player_route": true,
+        "concealment_entry_exit": "not applicable",
+        "host_move_attachment": true
+      },
+      "saved_furniture_transform": "unchanged"
+    },
+    {
+      "walkthrough": "res://scenes/ship/bare_ship_walkthrough.tscn",
+      "node": "BareShipWalkthrough/BridgeRoomProps/UpperStationChair",
+      "stable_id": "bridge.chair.upper",
+      "room": "bridge",
+      "interaction_type": "chair",
+      "function": "Operator-access examination; seated animation unavailable",
+      "task_connections": [
+        "optional operator-access examination"
+      ],
+      "story_connection": "bridge phase note recorded as outbound.bridge or return.bridge",
+      "preferred_access": "right",
+      "validation": {
+        "marker_and_E_selection": true,
+        "real_player_route": true,
+        "concealment_entry_exit": "not applicable",
+        "host_move_attachment": true
+      },
+      "saved_furniture_transform": "unchanged"
+    },
+    {
+      "walkthrough": "res://scenes/ship/bare_ship_walkthrough.tscn",
+      "node": "BareShipWalkthrough/BridgeRoomProps/MainHelmChair",
+      "stable_id": "bridge.chair.helm",
+      "room": "bridge",
+      "interaction_type": "chair",
+      "function": "Operator-access examination; seated animation unavailable",
+      "task_connections": [
+        "optional operator-access examination"
+      ],
+      "story_connection": "bridge phase note recorded as outbound.bridge or return.bridge",
+      "preferred_access": "right",
+      "validation": {
+        "marker_and_E_selection": true,
+        "real_player_route": true,
+        "concealment_entry_exit": "not applicable",
+        "host_move_attachment": true
+      },
+      "saved_furniture_transform": "unchanged"
+    },
+    {
+      "walkthrough": "res://scenes/ship/bare_ship_walkthrough.tscn",
+      "node": "BareShipWalkthrough/BridgeRoomProps/LowerStationChair",
+      "stable_id": "bridge.chair.lower",
+      "room": "bridge",
+      "interaction_type": "chair",
+      "function": "Operator-access examination; seated animation unavailable",
+      "task_connections": [
+        "optional operator-access examination"
+      ],
+      "story_connection": "bridge phase note recorded as outbound.bridge or return.bridge",
+      "preferred_access": "right",
+      "validation": {
+        "marker_and_E_selection": true,
+        "real_player_route": true,
+        "concealment_entry_exit": "not applicable",
+        "host_move_attachment": true
+      },
+      "saved_furniture_transform": "unchanged"
+    },
+    {
+      "walkthrough": "res://scenes/ship/bare_ship_walkthrough.tscn",
+      "node": "BareShipWalkthrough/CrewLivingQuarterProps/PersonalComputerDesk",
+      "stable_id": "quarters.desk",
+      "room": "quarters",
+      "interaction_type": "crew",
+      "function": "Duty roster, authorised watch records and supported check-in conclusion",
+      "task_connections": [
+        "crew"
+      ],
+      "story_connection": "quarters phase note recorded as outbound.quarters or return.quarters",
+      "preferred_access": "down",
+      "validation": {
+        "marker_and_E_selection": true,
+        "real_player_route": true,
+        "concealment_entry_exit": "not applicable",
+        "host_move_attachment": true
+      },
+      "saved_furniture_transform": "unchanged"
+    },
+    {
+      "walkthrough": "res://scenes/ship/bare_ship_walkthrough.tscn",
+      "node": "BareShipWalkthrough/CrewLivingQuarterProps/CommunalTable",
+      "stable_id": "quarters.table",
+      "room": "quarters",
+      "interaction_type": "crew",
+      "function": "Duty roster, authorised watch records and supported check-in conclusion",
+      "task_connections": [
+        "crew"
+      ],
+      "story_connection": "quarters phase note recorded as outbound.quarters or return.quarters",
+      "preferred_access": "left",
+      "validation": {
+        "marker_and_E_selection": true,
+        "real_player_route": true,
+        "concealment_entry_exit": "not applicable",
+        "host_move_attachment": true
+      },
+      "saved_furniture_transform": "unchanged"
+    },
+    {
+      "walkthrough": "res://scenes/ship/bare_ship_walkthrough.tscn",
+      "node": "BareShipWalkthrough/CrewLivingQuarterProps/StorageCabinet02",
+      "stable_id": "quarters.wardrobe",
+      "room": "quarters",
+      "interaction_type": "storage",
+      "function": "Retrieve/store shared inventory supplies",
+      "task_connections": [
+        "crew"
+      ],
+      "story_connection": "quarters phase note recorded as outbound.quarters or return.quarters",
+      "preferred_access": "down",
+      "validation": {
+        "marker_and_E_selection": true,
+        "real_player_route": true,
+        "concealment_entry_exit": "not applicable",
+        "host_move_attachment": true
+      },
+      "saved_furniture_transform": "unchanged"
+    },
+    {
+      "walkthrough": "res://scenes/ship/bare_ship_walkthrough.tscn",
+      "node": "BareShipWalkthrough/CrewLivingQuarterProps/ThreeDrawerChest",
+      "stable_id": "quarters.drawer.1",
+      "room": "quarters",
+      "interaction_type": "storage",
+      "function": "Retrieve/store shared inventory supplies",
+      "task_connections": [
+        "crew"
+      ],
+      "story_connection": "quarters phase note recorded as outbound.quarters or return.quarters",
+      "preferred_access": "down",
+      "validation": {
+        "marker_and_E_selection": true,
+        "real_player_route": true,
+        "concealment_entry_exit": "not applicable",
+        "host_move_attachment": true
+      },
+      "saved_furniture_transform": "unchanged"
+    },
+    {
+      "walkthrough": "res://scenes/ship/bare_ship_walkthrough.tscn",
+      "node": "BareShipWalkthrough/CrewLivingQuarterProps/ThreeDrawerChest02",
+      "stable_id": "quarters.drawer.2",
+      "room": "quarters",
+      "interaction_type": "storage",
+      "function": "Retrieve/store shared inventory supplies",
+      "task_connections": [
+        "crew"
+      ],
+      "story_connection": "quarters phase note recorded as outbound.quarters or return.quarters",
+      "preferred_access": "down",
+      "validation": {
+        "marker_and_E_selection": true,
+        "real_player_route": true,
+        "concealment_entry_exit": "not applicable",
+        "host_move_attachment": true
+      },
+      "saved_furniture_transform": "unchanged"
+    },
+    {
+      "walkthrough": "res://scenes/ship/bare_ship_walkthrough.tscn",
+      "node": "BareShipWalkthrough/CrewLivingQuarterProps/StackedCapsuleUnit",
+      "stable_id": "quarters.bed.1",
+      "room": "quarters",
+      "interaction_type": "rest",
+      "function": "Conditional fatigue recovery without chapter/event advancement",
+      "task_connections": [
+        "crew"
+      ],
+      "story_connection": "quarters phase note recorded as outbound.quarters or return.quarters",
+      "preferred_access": "down",
+      "validation": {
+        "marker_and_E_selection": true,
+        "real_player_route": true,
+        "concealment_entry_exit": "not applicable",
+        "host_move_attachment": true
+      },
+      "saved_furniture_transform": "unchanged"
+    },
+    {
+      "walkthrough": "res://scenes/ship/bare_ship_walkthrough.tscn",
+      "node": "BareShipWalkthrough/CrewLivingQuarterProps/StackedCapsuleUnit02",
+      "stable_id": "quarters.bed.2",
+      "room": "quarters",
+      "interaction_type": "rest",
+      "function": "Conditional fatigue recovery without chapter/event advancement",
+      "task_connections": [
+        "crew"
+      ],
+      "story_connection": "quarters phase note recorded as outbound.quarters or return.quarters",
+      "preferred_access": "down",
+      "validation": {
+        "marker_and_E_selection": true,
+        "real_player_route": true,
+        "concealment_entry_exit": "not applicable",
+        "host_move_attachment": true
+      },
+      "saved_furniture_transform": "unchanged"
+    },
+    {
+      "walkthrough": "res://scenes/ship/bare_ship_walkthrough.tscn",
+      "node": "BareShipWalkthrough/CrewLivingQuarterProps/StackedCapsuleUnit03",
+      "stable_id": "quarters.bed.3",
+      "room": "quarters",
+      "interaction_type": "rest",
+      "function": "Conditional fatigue recovery without chapter/event advancement",
+      "task_connections": [
+        "crew"
+      ],
+      "story_connection": "quarters phase note recorded as outbound.quarters or return.quarters",
+      "preferred_access": "down",
+      "validation": {
+        "marker_and_E_selection": true,
+        "real_player_route": true,
+        "concealment_entry_exit": "not applicable",
+        "host_move_attachment": true
+      },
+      "saved_furniture_transform": "unchanged"
+    },
+    {
+      "walkthrough": "res://scenes/ship/bare_ship_walkthrough.tscn",
+      "node": "BareShipWalkthrough/CrewLivingQuarterProps/DeskChair",
+      "stable_id": "quarters.chair.desk",
+      "room": "quarters",
+      "interaction_type": "chair",
+      "function": "Operator-access examination; seated animation unavailable",
+      "task_connections": [
+        "optional operator-access examination"
+      ],
+      "story_connection": "quarters phase note recorded as outbound.quarters or return.quarters",
+      "preferred_access": "down",
+      "validation": {
+        "marker_and_E_selection": true,
+        "real_player_route": true,
+        "concealment_entry_exit": "not applicable",
+        "host_move_attachment": true
+      },
+      "saved_furniture_transform": "unchanged"
+    },
+    {
+      "walkthrough": "res://scenes/ship/bare_ship_walkthrough.tscn",
+      "node": "BareShipWalkthrough/CrewLivingQuarterProps/TableChairNorth",
+      "stable_id": "quarters.chair.north",
+      "room": "quarters",
+      "interaction_type": "chair",
+      "function": "Operator-access examination; seated animation unavailable",
+      "task_connections": [
+        "optional operator-access examination"
+      ],
+      "story_connection": "quarters phase note recorded as outbound.quarters or return.quarters",
+      "preferred_access": "right",
+      "validation": {
+        "marker_and_E_selection": true,
+        "real_player_route": true,
+        "concealment_entry_exit": "not applicable",
+        "host_move_attachment": true
+      },
+      "saved_furniture_transform": "unchanged"
+    },
+    {
+      "walkthrough": "res://scenes/ship/bare_ship_walkthrough.tscn",
+      "node": "BareShipWalkthrough/CrewLivingQuarterProps/TableChairSouth",
+      "stable_id": "quarters.chair.south",
+      "room": "quarters",
+      "interaction_type": "chair",
+      "function": "Operator-access examination; seated animation unavailable",
+      "task_connections": [
+        "optional operator-access examination"
+      ],
+      "story_connection": "quarters phase note recorded as outbound.quarters or return.quarters",
+      "preferred_access": "right",
+      "validation": {
+        "marker_and_E_selection": true,
+        "real_player_route": true,
+        "concealment_entry_exit": "not applicable",
+        "host_move_attachment": true
+      },
+      "saved_furniture_transform": "unchanged"
+    },
+    {
+      "walkthrough": "res://scenes/ship/bare_ship_walkthrough.tscn",
+      "node": "BareShipWalkthrough/CrewLivingQuarterProps/TableChairWest",
+      "stable_id": "quarters.chair.west",
+      "room": "quarters",
+      "interaction_type": "chair",
+      "function": "Operator-access examination; seated animation unavailable",
+      "task_connections": [
+        "optional operator-access examination"
+      ],
+      "story_connection": "quarters phase note recorded as outbound.quarters or return.quarters",
+      "preferred_access": "left",
+      "validation": {
+        "marker_and_E_selection": true,
+        "real_player_route": true,
+        "concealment_entry_exit": "not applicable",
+        "host_move_attachment": true
+      },
+      "saved_furniture_transform": "unchanged"
+    },
+    {
+      "walkthrough": "res://scenes/ship/bare_ship_walkthrough.tscn",
+      "node": "BareShipWalkthrough/CrewLivingQuarterProps/TableChairEast",
+      "stable_id": "quarters.chair.east",
+      "room": "quarters",
+      "interaction_type": "chair",
+      "function": "Operator-access examination; seated animation unavailable",
+      "task_connections": [
+        "optional operator-access examination"
+      ],
+      "story_connection": "quarters phase note recorded as outbound.quarters or return.quarters",
+      "preferred_access": "right",
+      "validation": {
+        "marker_and_E_selection": true,
+        "real_player_route": true,
+        "concealment_entry_exit": "not applicable",
+        "host_move_attachment": true
+      },
+      "saved_furniture_transform": "unchanged"
+    },
+    {
+      "walkthrough": "res://scenes/ship/bare_ship_walkthrough.tscn",
+      "node": "BareShipWalkthrough/CargoBayProps/ElectricPalletMover",
+      "stable_id": "cargo.mover",
+      "room": "cargo",
+      "interaction_type": "transfer",
+      "function": "Bounded identified-load transfer and cargo-to-engine coolant-kit ledger transfer",
+      "task_connections": [
+        "cargo"
+      ],
+      "story_connection": "cargo phase note recorded as outbound.cargo or return.cargo",
+      "preferred_access": "right",
+      "validation": {
+        "marker_and_E_selection": true,
+        "real_player_route": true,
+        "concealment_entry_exit": "not applicable",
+        "host_move_attachment": true
+      },
+      "saved_furniture_transform": "unchanged"
+    },
+    {
+      "walkthrough": "res://scenes/ship/bare_ship_walkthrough.tscn",
+      "node": "BareShipWalkthrough/CargoBayProps/CargoInspectionScale",
+      "stable_id": "cargo.scale",
+      "room": "cargo",
+      "interaction_type": "cargo",
+      "function": "Manifest/ID/seal comparison, scale tare/mass and disposition",
+      "task_connections": [
+        "cargo"
+      ],
+      "story_connection": "cargo phase note recorded as outbound.cargo or return.cargo",
+      "preferred_access": "down",
+      "validation": {
+        "marker_and_E_selection": true,
+        "real_player_route": true,
+        "concealment_entry_exit": "not applicable",
+        "host_move_attachment": true
+      },
+      "saved_furniture_transform": "unchanged"
+    },
+    {
+      "walkthrough": "res://scenes/ship/bare_ship_walkthrough.tscn",
+      "node": "BareShipWalkthrough/CargoBayProps/SecuredCylinderRack",
+      "stable_id": "cargo.cylinders",
+      "room": "cargo",
+      "interaction_type": "cylinders",
+      "function": "Labelled COOL-02/O2-01/N2-03 issues; different inventory contents",
+      "task_connections": [
+        "cargo"
+      ],
+      "story_connection": "cargo phase note recorded as outbound.cargo or return.cargo",
+      "preferred_access": "down",
+      "validation": {
+        "marker_and_E_selection": true,
+        "real_player_route": true,
+        "concealment_entry_exit": "not applicable",
+        "host_move_attachment": true
+      },
+      "saved_furniture_transform": "unchanged"
+    },
+    {
+      "walkthrough": "res://scenes/ship/bare_ship_walkthrough.tscn",
+      "node": "BareShipWalkthrough/CargoBayProps/MaintenanceTrolley",
+      "stable_id": "cargo.trolley",
+      "room": "cargo",
+      "interaction_type": "transfer",
+      "function": "Bounded identified-load transfer and cargo-to-engine coolant-kit ledger transfer",
+      "task_connections": [
+        "cargo"
+      ],
+      "story_connection": "cargo phase note recorded as outbound.cargo or return.cargo",
+      "preferred_access": "up",
+      "validation": {
+        "marker_and_E_selection": true,
+        "real_player_route": true,
+        "concealment_entry_exit": "not applicable",
+        "host_move_attachment": true
+      },
+      "saved_furniture_transform": "unchanged"
+    },
+    {
+      "walkthrough": "res://scenes/ship/bare_ship_walkthrough.tscn",
+      "node": "BareShipWalkthrough/CargoBayProps/CargoLocker",
+      "stable_id": "cargo.locker",
+      "room": "cargo",
+      "interaction_type": "storage_hide",
+      "function": "Shared supply storage and safe concealment",
+      "task_connections": [
+        "cargo"
+      ],
+      "story_connection": "cargo phase note recorded as outbound.cargo or return.cargo",
+      "preferred_access": "left",
+      "validation": {
+        "marker_and_E_selection": true,
+        "real_player_route": true,
+        "concealment_entry_exit": true,
+        "host_move_attachment": true
+      },
+      "saved_furniture_transform": "unchanged"
+    },
+    {
+      "walkthrough": "res://scenes/ship/bare_ship_walkthrough.tscn",
+      "node": "BareShipWalkthrough/CargoBayProps/TiedBoxBundle",
+      "stable_id": "cargo.bundle",
+      "room": "cargo",
+      "interaction_type": "cargo_hide",
+      "function": "Manifest/seal inspection and safe concealment",
+      "task_connections": [
+        "cargo"
+      ],
+      "story_connection": "cargo phase note recorded as outbound.cargo or return.cargo",
+      "preferred_access": "down",
+      "validation": {
+        "marker_and_E_selection": true,
+        "real_player_route": true,
+        "concealment_entry_exit": true,
+        "host_move_attachment": true
+      },
+      "saved_furniture_transform": "unchanged"
+    },
+    {
+      "walkthrough": "res://scenes/ship/bare_ship_walkthrough.tscn",
+      "node": "BareShipWalkthrough/EngineRoomProps/TurbineUpper",
+      "stable_id": "engine.turbine.1",
+      "room": "engine",
+      "interaction_type": "turbine",
+      "function": "Individually identified output/cooling-loop monitoring and maintenance output control",
+      "task_connections": [
+        "engine"
+      ],
+      "story_connection": "engine phase note recorded as outbound.engine or return.engine",
+      "preferred_access": "right",
+      "validation": {
+        "marker_and_E_selection": true,
+        "real_player_route": true,
+        "concealment_entry_exit": "not applicable",
+        "host_move_attachment": true
+      },
+      "saved_furniture_transform": "unchanged"
+    },
+    {
+      "walkthrough": "res://scenes/ship/bare_ship_walkthrough.tscn",
+      "node": "BareShipWalkthrough/EngineRoomProps/TurbineLower",
+      "stable_id": "engine.turbine.2",
+      "room": "engine",
+      "interaction_type": "turbine",
+      "function": "Individually identified output/cooling-loop monitoring and maintenance output control",
+      "task_connections": [
+        "engine"
+      ],
+      "story_connection": "engine phase note recorded as outbound.engine or return.engine",
+      "preferred_access": "right",
+      "validation": {
+        "marker_and_E_selection": true,
+        "real_player_route": true,
+        "concealment_entry_exit": "not applicable",
+        "host_move_attachment": true
+      },
+      "saved_furniture_transform": "unchanged"
+    },
+    {
+      "walkthrough": "res://scenes/ship/bare_ship_walkthrough.tscn",
+      "node": "BareShipWalkthrough/EngineRoomProps/TurbineMiddleWest",
+      "stable_id": "engine.turbine.3",
+      "room": "engine",
+      "interaction_type": "turbine",
+      "function": "Individually identified output/cooling-loop monitoring and maintenance output control",
+      "task_connections": [
+        "engine"
+      ],
+      "story_connection": "engine phase note recorded as outbound.engine or return.engine",
+      "preferred_access": "right",
+      "validation": {
+        "marker_and_E_selection": true,
+        "real_player_route": true,
+        "concealment_entry_exit": "not applicable",
+        "host_move_attachment": true
+      },
+      "saved_furniture_transform": "unchanged"
+    },
+    {
+      "walkthrough": "res://scenes/ship/bare_ship_walkthrough.tscn",
+      "node": "BareShipWalkthrough/EngineRoomProps/TurbineMiddleEast",
+      "stable_id": "engine.turbine.4",
+      "room": "engine",
+      "interaction_type": "turbine",
+      "function": "Individually identified output/cooling-loop monitoring and maintenance output control",
+      "task_connections": [
+        "engine"
+      ],
+      "story_connection": "engine phase note recorded as outbound.engine or return.engine",
+      "preferred_access": "right",
+      "validation": {
+        "marker_and_E_selection": true,
+        "real_player_route": true,
+        "concealment_entry_exit": "not applicable",
+        "host_move_attachment": true
+      },
+      "saved_furniture_transform": "unchanged"
+    },
+    {
+      "walkthrough": "res://scenes/ship/bare_ship_walkthrough.tscn",
+      "node": "BareShipWalkthrough/EngineRoomProps/CoolantPumpUpper",
+      "stable_id": "engine.pump.1",
+      "room": "engine",
+      "interaction_type": "engine",
+      "function": "Pump/cooling-loop readings and diagnosis; pump1 service outbound",
+      "task_connections": [
+        "engine"
+      ],
+      "story_connection": "engine phase note recorded as outbound.engine or return.engine",
+      "preferred_access": "down",
+      "validation": {
+        "marker_and_E_selection": true,
+        "real_player_route": true,
+        "concealment_entry_exit": "not applicable",
+        "host_move_attachment": true
+      },
+      "saved_furniture_transform": "unchanged"
+    },
+    {
+      "walkthrough": "res://scenes/ship/bare_ship_walkthrough.tscn",
+      "node": "BareShipWalkthrough/EngineRoomProps/CoolantPumpLower",
+      "stable_id": "engine.pump.2",
+      "room": "engine",
+      "interaction_type": "engine",
+      "function": "Pump/cooling-loop readings and diagnosis; pump1 service outbound",
+      "task_connections": [
+        "engine"
+      ],
+      "story_connection": "engine phase note recorded as outbound.engine or return.engine",
+      "preferred_access": "down",
+      "validation": {
+        "marker_and_E_selection": true,
+        "real_player_route": true,
+        "concealment_entry_exit": "not applicable",
+        "host_move_attachment": true
+      },
+      "saved_furniture_transform": "unchanged"
+    },
+    {
+      "walkthrough": "res://scenes/ship/bare_ship_walkthrough.tscn",
+      "node": "BareShipWalkthrough/EngineRoomProps/ValveManifoldUpper",
+      "stable_id": "engine.valve.1",
+      "room": "engine",
+      "interaction_type": "engine_valve",
+      "function": "Valve pressure/flow comparison; valve2 service return",
+      "task_connections": [
+        "engine"
+      ],
+      "story_connection": "engine phase note recorded as outbound.engine or return.engine",
+      "preferred_access": "down",
+      "validation": {
+        "marker_and_E_selection": true,
+        "real_player_route": true,
+        "concealment_entry_exit": "not applicable",
+        "host_move_attachment": true
+      },
+      "saved_furniture_transform": "unchanged"
+    },
+    {
+      "walkthrough": "res://scenes/ship/bare_ship_walkthrough.tscn",
+      "node": "BareShipWalkthrough/EngineRoomProps/ValveManifoldLower",
+      "stable_id": "engine.valve.2",
+      "room": "engine",
+      "interaction_type": "engine_valve",
+      "function": "Valve pressure/flow comparison; valve2 service return",
+      "task_connections": [
+        "engine"
+      ],
+      "story_connection": "engine phase note recorded as outbound.engine or return.engine",
+      "preferred_access": "down",
+      "validation": {
+        "marker_and_E_selection": true,
+        "real_player_route": true,
+        "concealment_entry_exit": "not applicable",
+        "host_move_attachment": true
+      },
+      "saved_furniture_transform": "unchanged"
+    },
+    {
+      "walkthrough": "res://scenes/ship/bare_ship_walkthrough.tscn",
+      "node": "BareShipWalkthrough/EngineRoomProps/LockerUpper",
+      "stable_id": "engine.locker.1",
+      "room": "engine",
+      "interaction_type": "storage_hide",
+      "function": "Shared supply storage and safe concealment",
+      "task_connections": [
+        "engine"
+      ],
+      "story_connection": "engine phase note recorded as outbound.engine or return.engine",
+      "preferred_access": "left",
+      "validation": {
+        "marker_and_E_selection": true,
+        "real_player_route": true,
+        "concealment_entry_exit": true,
+        "host_move_attachment": true
+      },
+      "saved_furniture_transform": "unchanged"
+    },
+    {
+      "walkthrough": "res://scenes/ship/bare_ship_walkthrough.tscn",
+      "node": "BareShipWalkthrough/EngineRoomProps/LockerLower",
+      "stable_id": "engine.locker.2",
+      "room": "engine",
+      "interaction_type": "storage_hide",
+      "function": "Shared supply storage and safe concealment",
+      "task_connections": [
+        "engine"
+      ],
+      "story_connection": "engine phase note recorded as outbound.engine or return.engine",
+      "preferred_access": "left",
+      "validation": {
+        "marker_and_E_selection": true,
+        "real_player_route": true,
+        "concealment_entry_exit": true,
+        "host_move_attachment": true
+      },
+      "saved_furniture_transform": "unchanged"
+    },
+    {
+      "walkthrough": "res://scenes/ship/bare_ship_walkthrough.tscn",
+      "node": "BareShipWalkthrough/PowerMaintenanceRoomProps/BreakerCabinet",
+      "stable_id": "power.breaker",
+      "room": "power",
+      "interaction_type": "power",
+      "function": "Load diagnosis, science-service isolation, allocation/restoration/verification; original bank controls at cell",
+      "task_connections": [
+        "power"
+      ],
+      "story_connection": "power phase note recorded as outbound.power or return.power",
+      "preferred_access": "down",
+      "validation": {
+        "marker_and_E_selection": true,
+        "real_player_route": true,
+        "concealment_entry_exit": "not applicable",
+        "host_move_attachment": true
+      },
+      "saved_furniture_transform": "unchanged"
+    },
+    {
+      "walkthrough": "res://scenes/ship/bare_ship_walkthrough.tscn",
+      "node": "BareShipWalkthrough/PowerMaintenanceRoomProps/PowerConverterAssembly",
+      "stable_id": "power.converter",
+      "room": "power",
+      "interaction_type": "power",
+      "function": "Load diagnosis, science-service isolation, allocation/restoration/verification; original bank controls at cell",
+      "task_connections": [
+        "power"
+      ],
+      "story_connection": "power phase note recorded as outbound.power or return.power",
+      "preferred_access": "down",
+      "validation": {
+        "marker_and_E_selection": true,
+        "real_player_route": true,
+        "concealment_entry_exit": "not applicable",
+        "host_move_attachment": true
+      },
+      "saved_furniture_transform": "unchanged"
+    },
+    {
+      "walkthrough": "res://scenes/ship/bare_ship_walkthrough.tscn",
+      "node": "BareShipWalkthrough/PowerMaintenanceRoomProps/PowerCellModule",
+      "stable_id": "power.cell",
+      "room": "power",
+      "interaction_type": "power",
+      "function": "Load diagnosis, science-service isolation, allocation/restoration/verification; original bank controls at cell",
+      "task_connections": [
+        "power"
+      ],
+      "story_connection": "power phase note recorded as outbound.power or return.power",
+      "preferred_access": "down",
+      "validation": {
+        "marker_and_E_selection": true,
+        "real_player_route": true,
+        "concealment_entry_exit": "not applicable",
+        "host_move_attachment": true
+      },
+      "saved_furniture_transform": "unchanged"
+    },
+    {
+      "walkthrough": "res://scenes/ship/bare_ship_walkthrough.tscn",
+      "node": "BareShipWalkthrough/LifeSupportRoomProps/OxygenTankRack",
+      "stable_id": "life.oxygen",
+      "room": "life",
+      "interaction_type": "life",
+      "function": "Gas/airflow diagnosis, isolation/restoration/verification; filter outbound, scrubber return, optional labelled O2 reserve",
+      "task_connections": [
+        "life"
+      ],
+      "story_connection": "life phase note recorded as outbound.life or return.life",
+      "preferred_access": "left",
+      "validation": {
+        "marker_and_E_selection": true,
+        "real_player_route": true,
+        "concealment_entry_exit": "not applicable",
+        "host_move_attachment": true
+      },
+      "saved_furniture_transform": "unchanged"
+    },
+    {
+      "walkthrough": "res://scenes/ship/bare_ship_walkthrough.tscn",
+      "node": "BareShipWalkthrough/LifeSupportRoomProps/AirDuctAssembly",
+      "stable_id": "life.duct",
+      "room": "life",
+      "interaction_type": "life",
+      "function": "Gas/airflow diagnosis, isolation/restoration/verification; filter outbound, scrubber return, optional labelled O2 reserve",
+      "task_connections": [
+        "life"
+      ],
+      "story_connection": "life phase note recorded as outbound.life or return.life",
+      "preferred_access": "right",
+      "validation": {
+        "marker_and_E_selection": true,
+        "real_player_route": true,
+        "concealment_entry_exit": "not applicable",
+        "host_move_attachment": true
+      },
+      "saved_furniture_transform": "unchanged"
+    },
+    {
+      "walkthrough": "res://scenes/ship/bare_ship_walkthrough.tscn",
+      "node": "BareShipWalkthrough/LifeSupportRoomProps/AirScrubber",
+      "stable_id": "life.scrubber",
+      "room": "life",
+      "interaction_type": "life",
+      "function": "Gas/airflow diagnosis, isolation/restoration/verification; filter outbound, scrubber return, optional labelled O2 reserve",
+      "task_connections": [
+        "life"
+      ],
+      "story_connection": "life phase note recorded as outbound.life or return.life",
+      "preferred_access": "left",
+      "validation": {
+        "marker_and_E_selection": true,
+        "real_player_route": true,
+        "concealment_entry_exit": "not applicable",
+        "host_move_attachment": true
+      },
+      "saved_furniture_transform": "unchanged"
+    },
+    {
+      "walkthrough": "res://scenes/ship/bare_ship_walkthrough.tscn",
+      "node": "BareShipWalkthrough/LifeSupportRoomProps/FilterCartridge",
+      "stable_id": "life.filter",
+      "room": "life",
+      "interaction_type": "life",
+      "function": "Gas/airflow diagnosis, isolation/restoration/verification; filter outbound, scrubber return, optional labelled O2 reserve",
+      "task_connections": [
+        "life"
+      ],
+      "story_connection": "life phase note recorded as outbound.life or return.life",
+      "preferred_access": "left",
+      "validation": {
+        "marker_and_E_selection": true,
+        "real_player_route": true,
+        "concealment_entry_exit": "not applicable",
+        "host_move_attachment": true
+      },
+      "saved_furniture_transform": "unchanged"
+    },
+    {
+      "walkthrough": "res://scenes/ship/bare_ship_walkthrough.tscn",
+      "node": "BareShipWalkthrough/HydroponicsRoomProps/ControlConsole",
+      "stable_id": "hydro.console",
+      "room": "hydro",
+      "interaction_type": "hydro",
+      "function": "EC/flow/pump/environment comparison, manifold outbound or measured buffer dosing return, recovery verification",
+      "task_connections": [
+        "hydro"
+      ],
+      "story_connection": "hydro phase note recorded as outbound.hydro or return.hydro",
+      "preferred_access": "right",
+      "validation": {
+        "marker_and_E_selection": true,
+        "real_player_route": true,
+        "concealment_entry_exit": "not applicable",
+        "host_move_attachment": true
+      },
+      "saved_furniture_transform": "unchanged"
+    },
+    {
+      "walkthrough": "res://scenes/ship/bare_ship_walkthrough.tscn",
+      "node": "BareShipWalkthrough/HydroponicsRoomProps/NutrientPump",
+      "stable_id": "hydro.pump",
+      "room": "hydro",
+      "interaction_type": "hydro",
+      "function": "EC/flow/pump/environment comparison, manifold outbound or measured buffer dosing return, recovery verification",
+      "task_connections": [
+        "hydro"
+      ],
+      "story_connection": "hydro phase note recorded as outbound.hydro or return.hydro",
+      "preferred_access": "right",
+      "validation": {
+        "marker_and_E_selection": true,
+        "real_player_route": true,
+        "concealment_entry_exit": "not applicable",
+        "host_move_attachment": true
+      },
+      "saved_furniture_transform": "unchanged"
+    },
+    {
+      "walkthrough": "res://scenes/ship/bare_ship_walkthrough.tscn",
+      "node": "BareShipWalkthrough/HydroponicsRoomProps/GrowTrayNorth",
+      "stable_id": "hydro.tray.north",
+      "room": "hydro",
+      "interaction_type": "hydro",
+      "function": "EC/flow/pump/environment comparison, manifold outbound or measured buffer dosing return, recovery verification",
+      "task_connections": [
+        "hydro"
+      ],
+      "story_connection": "hydro phase note recorded as outbound.hydro or return.hydro",
+      "preferred_access": "down",
+      "validation": {
+        "marker_and_E_selection": true,
+        "real_player_route": true,
+        "concealment_entry_exit": "not applicable",
+        "host_move_attachment": true
+      },
+      "saved_furniture_transform": "unchanged"
+    },
+    {
+      "walkthrough": "res://scenes/ship/bare_ship_walkthrough.tscn",
+      "node": "BareShipWalkthrough/HydroponicsRoomProps/GrowTraySouth",
+      "stable_id": "hydro.tray.south",
+      "room": "hydro",
+      "interaction_type": "hydro",
+      "function": "EC/flow/pump/environment comparison, manifold outbound or measured buffer dosing return, recovery verification",
+      "task_connections": [
+        "hydro"
+      ],
+      "story_connection": "hydro phase note recorded as outbound.hydro or return.hydro",
+      "preferred_access": "down",
+      "validation": {
+        "marker_and_E_selection": true,
+        "real_player_route": true,
+        "concealment_entry_exit": "not applicable",
+        "host_move_attachment": true
+      },
+      "saved_furniture_transform": "unchanged"
+    },
+    {
+      "walkthrough": "res://scenes/ship/bare_ship_walkthrough.tscn",
+      "node": "BareShipWalkthrough/HydroponicsRoomProps/SeedlingRack",
+      "stable_id": "hydro.seedlings",
+      "room": "hydro",
+      "interaction_type": "hydro",
+      "function": "EC/flow/pump/environment comparison, manifold outbound or measured buffer dosing return, recovery verification",
+      "task_connections": [
+        "hydro"
+      ],
+      "story_connection": "hydro phase note recorded as outbound.hydro or return.hydro",
+      "preferred_access": "right",
+      "validation": {
+        "marker_and_E_selection": true,
+        "real_player_route": true,
+        "concealment_entry_exit": "not applicable",
+        "host_move_attachment": true
+      },
+      "saved_furniture_transform": "unchanged"
+    },
+    {
+      "walkthrough": "res://scenes/ship/bare_ship_walkthrough.tscn",
+      "node": "BareShipWalkthrough/HydroponicsRoomProps/WallHerbShelf",
+      "stable_id": "hydro.herbs",
+      "room": "hydro",
+      "interaction_type": "observation",
+      "function": "Phase-sensitive herb/reservoir crew observation",
+      "task_connections": [
+        "hydro"
+      ],
+      "story_connection": "hydro phase note recorded as outbound.hydro or return.hydro",
+      "preferred_access": "down",
+      "validation": {
+        "marker_and_E_selection": true,
+        "real_player_route": true,
+        "concealment_entry_exit": "not applicable",
+        "host_move_attachment": true
+      },
+      "saved_furniture_transform": "unchanged"
+    },
+    {
+      "walkthrough": "res://scenes/ship/bare_ship_walkthrough.tscn",
+      "node": "BareShipWalkthrough/ShuttleBayCargo",
+      "stable_id": "shuttle.bundle",
+      "room": "shuttle",
+      "interaction_type": "storage",
+      "function": "Retrieve/store shared inventory supplies",
+      "task_connections": [],
+      "story_connection": "shuttle phase note recorded as outbound.shuttle or return.shuttle",
+      "preferred_access": "up",
+      "validation": {
+        "marker_and_E_selection": true,
+        "real_player_route": true,
+        "concealment_entry_exit": "not applicable",
+        "host_move_attachment": true
+      },
+      "saved_furniture_transform": "unchanged"
+    }
+  ],
+  "decorative_exceptions": [
+    "Pipes and vent network",
+    "Lighting fixtures and ambient mist",
+    "Floor decals",
+    "Repeated NorthHerbB/C/D/E and SouthHerbA/B/C props (shared herb/system observation is at WallHerbShelf)",
+    "Cabinet handles/feet, screens, sprite/body/collision children (interact through their host)"
+  ],
+  "deferred_areas": {
+    "shuttle": "existing bundle optional storage; not a required objective",
+    "med_bay_center_recess": "environment preserved; no medical task claimed",
+    "science_lab": "separate inactive scene; six unresolved room_additions images; no required mission dependency",
+    "ops_mess_other": "layout preserved; future watch briefing, communal crew reports and social duty stations"
+  },
+  "validation_evidence": {
+    "physical_checks": 663,
+    "failures": [],
+    "renderer": "normal OpenGL Compatibility",
+    "report": "ship_missions_validation.json"
+  }
+}

@@ -2,6 +2,8 @@ class_name WalkHud
 extends CanvasLayer
 
 signal modal_state_changed(is_open: bool)
+signal inventory_changed
+signal mission_scenario_requested(context: String)
 
 const PIXEL_THEME := preload("res://themes/ship_pixel_theme.tres")
 const MAP_CONTENT_VISIBLE := false
@@ -21,6 +23,12 @@ const EDGE := Color(0.34, 0.51, 0.55)
 const EDGE_SOFT := Color(0.24, 0.39, 0.43)
 
 const ITEM_DATA := {
+	&"filter_cartridge":{"name":"FILTER-A / sealed airflow cartridge","short":"FILTER-A","color":CYAN,"equip_slot":&""},
+	&"scrubber_media":{"name":"SCRUB-A / CO2 scrubber medium","short":"SCRUB-A","color":GREEN,"equip_slot":&""},
+	&"coolant_charge":{"name":"COOL-02 / sealed service coolant","short":"COOL-02","color":CYAN,"equip_slot":&""},
+	&"nutrient_buffer":{"name":"BUFFER-A / nutrient dilution dose","short":"BUFFER","color":GREEN,"equip_slot":&""},
+	&"oxygen_reserve":{"name":"O2-01 / oxygen reserve cylinder","short":"O2-01","color":PALE,"equip_slot":&""},
+	&"inert_purge":{"name":"N2-03 / inert purge cylinder","short":"N2-03","color":MUTED,"equip_slot":&""},
 	&"captains_revolver": {
 		"name": "Captain's Revolver", "short": "REVOLVER", "color": ORANGE, "equip_slot": &"tool",
 		"texture": preload("res://art/tools/captains_revolver.png"), "icon_region": Rect2(35.0, 292.0, 960.0, 880.0),
@@ -500,6 +508,7 @@ func _add_mission_row(entry: Dictionary) -> void:
 		return
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 6)
+	row.tooltip_text=str(entry.get("marker_label","TASK"))+" / "+str(entry.get("description",entry.get("title","Ship work order")))
 	var tag_text: String = str(entry.get("marker_label", "TASK"))
 	var tag := _label("[%s]" % tag_text, 9, GOLD)
 	tag.custom_minimum_size.x = 88.0
@@ -1052,6 +1061,7 @@ func _on_inventory_drop_requested(target_kind: StringName, target_index: int, da
 	_set_slot_item(target_kind, target_index, source_item)
 	_refresh_hotbar()
 	_refresh_inventory_cells()
+	inventory_changed.emit()
 
 
 func _get_slot_item(slot_kind: StringName, slot_index: int) -> StringName:
@@ -1126,6 +1136,7 @@ func _open_settings() -> void:
 func _open_overlay(overlay_name: StringName) -> void:
 	if not _walking_visible or not _overlay_nodes.has(overlay_name):
 		return
+	if is_instance_valid(_dev_panel): _dev_panel.hide()
 	for name in _overlay_nodes:
 		_overlay_nodes[name].visible = name == overlay_name
 	var was_closed := _active_overlay == &""
@@ -1267,6 +1278,8 @@ func _item_icon_texture(item_id: StringName) -> Texture2D:
 	if _item_icon_cache.has(item_id):
 		return _item_icon_cache[item_id]
 	var item: Dictionary = ITEM_DATA[item_id]
+	if not item.has("texture"):
+		return null # Consumables use labelled dynamic slots; no invented artwork.
 	# Downsample the existing poster crop once. Nearest display then preserves
 	# readable icon pixels instead of aliasing a thousand-pixel source each frame.
 	var source: Image = item["texture"].get_image()
@@ -1333,6 +1346,105 @@ func _get_room_lighting() -> Node2D:
 	if is_instance_valid(_player) and _player.get_parent() != null:
 		return _player.get_parent().get_node_or_null("ShipRoomLighting") as Node2D
 	return null
+
+
+func inventory_count(item: StringName) -> int:
+	var count := _storage_items.count(item)+_hotbar_items.count(item)
+	for carried in _equipment_items.values():
+		if StringName(carried)==item: count+=1
+	return count
+
+
+func inventory_put(item: StringName, amount := 1) -> bool:
+	if amount<1 or not ITEM_DATA.has(item): return false
+	var spaces := _storage_items.count(&"")+_hotbar_items.count(&"")
+	if spaces<amount: return false
+	for i in range(amount):
+		var index := _storage_items.find(&"")
+		if index>=0: _storage_items[index]=item
+		else: _hotbar_items[_hotbar_items.find(&"")]=item
+	_refresh_hotbar();_refresh_inventory_cells();inventory_changed.emit()
+	return true
+
+
+func inventory_take(item: StringName, amount := 1) -> bool:
+	if amount<1 or inventory_count(item)<amount: return false
+	for i in range(amount):
+		var index := _storage_items.find(item)
+		if index>=0: _storage_items[index]=&"";continue
+		index=_hotbar_items.find(item)
+		if index>=0: _hotbar_items[index]=&"";continue
+		for slot in _equipment_items:
+			if StringName(_equipment_items[slot])==item:
+				_equipment_items[slot]=&"";break
+	_refresh_hotbar();_refresh_inventory_cells();inventory_changed.emit()
+	return true
+
+
+func inventory_snapshot() -> Dictionary:
+	# Array(existing_array) aliases its storage in Godot. Snapshots must own copies
+	# so later drag/drop and consumption cannot mutate a save/scenario baseline.
+	return {"storage":_storage_items.duplicate(),"hotbar":_hotbar_items.duplicate(),"equipment":_equipment_items.duplicate(),"selected":_selected_hotbar_index}
+
+
+func inventory_valid(data: Dictionary) -> bool:
+	if not data.get("storage") is Array or data.storage.size()!=27 or not data.get("hotbar") is Array or data.hotbar.size()!=9 or not data.get("equipment") is Dictionary or data.equipment.size()!=4: return false
+	for item in data.storage+data.hotbar+data.equipment.values():
+		if not (item is String or item is StringName): return false
+		if str(item)!="" and not ITEM_DATA.has(StringName(item)): return false
+	for slot in EQUIPMENT_SLOTS:
+		if not data.equipment.has(str(slot)): return false
+		var item := StringName(data.equipment[str(slot)])
+		if item!=&"" and ITEM_DATA[item].equip_slot!=slot: return false
+	if not (data.get("selected") is int or data.get("selected") is float): return false
+	return is_finite(float(data.selected)) and data.selected==floor(data.selected) and data.selected>=0 and data.selected<9
+
+
+func inventory_restore(data: Dictionary) -> bool:
+	if not inventory_valid(data): return false
+	for i in range(27): _storage_items[i]=StringName(data.storage[i])
+	for i in range(9): _hotbar_items[i]=StringName(data.hotbar[i])
+	for slot in EQUIPMENT_SLOTS: _equipment_items[slot]=StringName(data.equipment[str(slot)])
+	_selected_hotbar_index=int(data.selected)
+	_refresh_hotbar();_refresh_inventory_cells();inventory_changed.emit()
+	return true
+
+
+func set_ship_objectives(entries: Array, completed_ids: Dictionary) -> void:
+	# Reuse the existing mission tracker and completion dictionary. Its dynamic
+	# rows are rebuilt in place; the inventory, settings, map and hotbar stay live.
+	_task_entries.clear();_task_completed.clear();_mission_rows.clear()
+	# The original three service markers remain available as data, but must not
+	# linger at (0,0) after the tracker switches to the integrated ship duties.
+	for marker in _world_task_markers.values():
+		if is_instance_valid(marker): marker.hide()
+	# Keep header/progress/subheading (first three children), replace objective rows.
+	for i in range(_mission_stack.get_child_count()-1,2,-1):
+		var child := _mission_stack.get_child(i)
+		_mission_stack.remove_child(child);child.queue_free()
+	for entry in entries:
+		_task_entries.append(entry.duplicate(true));_task_completed[entry.id]=completed_ids.has(str(entry.id))
+		_add_mission_row(entry)
+		_add_world_task_marker(entry);_add_map_task_marker(entry)
+	_mission_panel.offset_bottom=198.0+maxi(entries.size()-3,0)*32.0
+	_refresh_mission_panel()
+	_update_world_task_markers()
+
+func set_story_objective(entry: Dictionary, completed_missions: int, optional_enabled: bool, optional_completed: int) -> void:
+	# Reuse the tracker and its world marker; optional checks never enter the
+	# chapter denominator or masquerade as additional required machine repairs.
+	set_ship_objectives([entry], {str(entry.id):true} if completed_missions==5 else {})
+	_mission_progress_label.text = "%d / 5 MISSIONS" % completed_missions
+	_mission_progress_bar.max_value = 5; _mission_progress_bar.value = completed_missions
+	var description := _label(str(entry.description), 12, PALE)
+	description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	description.custom_minimum_size.x = 280
+	_mission_stack.add_child(description)
+	_mission_stack.add_child(HSeparator.new())
+	var optional := _label("OPTIONAL / %d OF 2 OBSERVATIONS" % mini(optional_completed,2) if optional_enabled else "OPTIONAL / EXPLORE AND INSPECT SHIP SYSTEMS", 10, MUTED)
+	optional.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_mission_stack.add_child(optional)
+	_mission_panel.offset_bottom = 264
 
 
 func _build_dev_menu_panel() -> void:
@@ -1435,6 +1547,14 @@ func _build_dev_menu_panel() -> void:
 	reset_btn.pressed.connect(_on_dev_reset_lights)
 	row3.add_child(reset_btn)
 	stack.add_child(row3)
+	stack.add_child(_label("SHIP MISSIONS / DEVELOPMENT ONLY", 11, GOLD))
+	var scenarios := HBoxContainer.new()
+	for context in ["outbound","return"]:
+		var scenario := _button("TEST "+str(context).to_upper(),Vector2(170,36),CYAN)
+		scenario.tooltip_text="Development scenario; separate save file. Does not replace a canonical chapter transition."
+		scenario.pressed.connect(func(): mission_scenario_requested.emit(context);_dev_panel.hide())
+		scenarios.add_child(scenario)
+	stack.add_child(scenarios)
 
 
 func _toggle_dev_menu() -> void:
@@ -1444,6 +1564,9 @@ func _toggle_dev_menu() -> void:
 		_close_overlay()
 	_dev_panel.visible = not _dev_panel.visible
 	if _dev_panel.visible:
+		# Mission scenario buttons extend the existing dev panel. Keep it above
+		# the prompt/quickbar at smaller sizes so both scenario entries can click.
+		_root.move_child(_dev_panel,_root.get_child_count()-1)
 		_refresh_dev_menu()
 
 

@@ -57,7 +57,9 @@ const CROP_SHADER := preload("res://shaders/cargo_atlas_clip.gdshader")
 		fork_side_offset = value
 		_refresh_preview()
 
-@export_group("Future Hiding Markers")
+@export_group("Hiding Access")
+@export_range(30.0, 150.0, 5.0) var hide_transition_speed := 95.0
+@export_range(4.0, 14.0, 1.0) var hide_door_tolerance := 10.0
 @export var access_distance := 30.0:
 	set(value):
 		access_distance = value

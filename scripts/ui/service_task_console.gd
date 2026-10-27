@@ -2,6 +2,7 @@ class_name ServiceTaskConsole
 extends CanvasLayer
 
 const SKIN := preload("res://scripts/ui/pixel_ui.gd")
+const INSTRUMENT := preload("res://scripts/ui/equipment_ui.gd")
 
 signal task_completed(task_id: StringName)
 signal console_closed
@@ -300,7 +301,8 @@ class NutrientDiagram extends Control:
 		var aligned := all_aligned()
 		var pipe_y := size.y * 0.38
 		var tray_y := size.y * 0.68
-		var return_y := size.y * 0.87
+		# Reserve a fixed label band below the return pipe at compact height.
+		var return_y := size.y - 58.0
 		var pump_center := Vector2(58.0, pipe_y)
 		var valve_centers: Array[Vector2] = []
 		var tray_centers: Array[Vector2] = []
@@ -345,7 +347,7 @@ class NutrientDiagram extends Control:
 			_draw_pipe(drop_points, CYAN.darkened(0.12), 6.0)
 		var return_color := GREEN if aligned else CYAN.darkened(0.12)
 		_draw_pipe(PackedVector2Array([Vector2(tray_centers[2].x, return_y), Vector2(pump_center.x, return_y), Vector2(pump_center.x, pipe_y + 29.0)]), return_color, 7.0)
-		draw_string(font, Vector2(size.x - 114.0, return_y - 7.0), "RETURN LINE", HORIZONTAL_ALIGNMENT_LEFT, -1.0, 10, MUTED)
+		draw_string(font, Vector2(80.0, return_y - 12.0), "RETURN LINE", HORIZONTAL_ALIGNMENT_LEFT, -1.0, 12, MUTED)
 		_draw_flow_arrow(Vector2(size.x - 146.0, return_y), return_color)
 
 		for index in range(3):
@@ -395,6 +397,189 @@ class NutrientDiagram extends Control:
 		draw_line(center, center + Vector2(-6.0, 4.0), accent, 1.5, false)
 
 
+class LabStationDisplay extends Control:
+	const GOLD := Color(1.0, 0.78, 0.38)
+	const PALE := Color(0.91, 0.96, 0.96)
+	const MUTED := Color(0.43, 0.59, 0.62)
+	const CYAN := Color(0.36, 0.9, 1.0)
+	const MINT := Color(0.53, 0.94, 0.75)
+	const GREEN := Color(0.48, 0.93, 0.64)
+	const ORANGE := Color(1.0, 0.57, 0.32)
+
+	var task_id: StringName = &""
+	var status_text := "STANDBY"
+	var scan_complete := false
+	var single_sample_index := -1
+	var joint_angles := Vector3(0.0, 0.0, 0.0)
+	var clamp_closed := false
+	var chamber_pressure := 1.0
+	var containment_locks: Array[bool] = [true, true]
+	var focus_position := 0.0
+	var objective_magnification := 4
+
+	func _draw() -> void:
+		var bounds := Rect2(Vector2.ZERO, size)
+		draw_rect(bounds, Color(0.018, 0.039, 0.052), true)
+		draw_rect(bounds, Color(0.21, 0.36, 0.4), false, 1.0)
+		draw_rect(Rect2(10.0, 10.0, size.x - 20.0, 23.0), Color(0.04, 0.084, 0.1), true)
+		draw_string(ThemeDB.fallback_font, Vector2(18.0, 26.0), _station_name(), HORIZONTAL_ALIGNMENT_LEFT, size.x - 36.0, 10, GOLD)
+		match task_id:
+			&"lab_specimen":
+				_draw_spectrum()
+			&"lab_containment":
+				_draw_containment()
+			&"lab_trolley":
+				_draw_instruments()
+			&"lab_earth_comms":
+				_draw_research_console()
+			&"lab_archive_01", &"lab_archive_02", &"lab_archive_03":
+				_draw_archive()
+			&"lab_robot_arm":
+				_draw_robot_arm()
+			_:
+				_draw_generic_readout()
+		draw_string(ThemeDB.fallback_font, Vector2(16.0, size.y - 12.0), status_text, HORIZONTAL_ALIGNMENT_LEFT, size.x - 32.0, 9, GREEN if scan_complete or status_text.contains("SECURE") else MUTED)
+
+	func _station_name() -> String:
+		match task_id:
+			&"lab_specimen": return "ORE SPECTROMETER  /  SAMPLES 07 + 08"
+			&"lab_containment": return "SEALED CHAMBER  /  PRESSURE LOCKS"
+			&"lab_trolley": return "FIELD INSTRUMENTS  /  CALIBRATION"
+			&"lab_archive_01": return "DATA ARCHIVE 01  /  PERSONNEL LOG"
+			&"lab_archive_02": return "DATA ARCHIVE 02  /  SPECIMEN INDEX"
+			&"lab_archive_03": return "DATA ARCHIVE 03  /  CONTAINMENT RECORD"
+			&"lab_robot_arm": return "SAMPLE MANIPULATOR  /  GRIP CONTROL"
+		return "LAB STATION  /  DIAGNOSTIC"
+
+	func _draw_spectrum() -> void:
+		var chart := Rect2(18.0, 48.0, size.x - 36.0, size.y - 91.0)
+		_draw_chart_grid(chart)
+		var first := PackedVector2Array()
+		var second := PackedVector2Array()
+		for index in range(33):
+			var t := float(index) / 32.0
+			var x := chart.position.x + t * chart.size.x
+			var peak_a := exp(-pow((t - 0.34) * 18.0, 2.0)) * 0.62 + exp(-pow((t - 0.71) * 35.0, 2.0)) * 0.2
+			var peak_b := exp(-pow((t - 0.38) * 19.0, 2.0)) * 0.5 + exp(-pow((t - 0.71) * 35.0, 2.0)) * 0.2
+			first.append(Vector2(x, chart.end.y - 8.0 - peak_a * (chart.size.y - 18.0)))
+			second.append(Vector2(x, chart.end.y - 8.0 - peak_b * (chart.size.y - 18.0)))
+		if scan_complete:
+			if single_sample_index != 1:
+				draw_polyline(first, CYAN, 2.0, true)
+			if single_sample_index != 0:
+				draw_polyline(second, MINT, 1.5, true)
+		if single_sample_index != 1:
+			draw_string(ThemeDB.fallback_font, Vector2(chart.position.x + 3.0, chart.position.y + 13.0), "SAMPLE 07", HORIZONTAL_ALIGNMENT_LEFT, -1.0, 8, CYAN)
+		if single_sample_index != 0:
+			draw_string(ThemeDB.fallback_font, Vector2(chart.position.x + 77.0, chart.position.y + 13.0), "SAMPLE 08", HORIZONTAL_ALIGNMENT_LEFT, -1.0, 8, MINT)
+		draw_line(Vector2(chart.position.x + chart.size.x * 0.71, chart.position.y), Vector2(chart.position.x + chart.size.x * 0.71, chart.end.y), ORANGE, 1.0, true)
+		draw_string(ThemeDB.fallback_font, Vector2(chart.position.x + chart.size.x * 0.71 + 4.0, chart.end.y - 3.0), "17s", HORIZONTAL_ALIGNMENT_LEFT, -1.0, 8, ORANGE)
+
+	func _draw_containment() -> void:
+		var chamber := Rect2(size.x * 0.38, 52.0, size.x * 0.24, size.y - 100.0)
+		draw_rect(Rect2(chamber.position.x - 11.0, chamber.position.y - 5.0, chamber.size.x + 22.0, chamber.size.y + 10.0), Color(0.1, 0.19, 0.2), true)
+		draw_rect(chamber, Color(0.025, 0.08, 0.09), true)
+		draw_rect(chamber, CYAN.darkened(0.12), false, 2.0)
+		draw_line(Vector2(chamber.position.x, chamber.position.y + 12.0), Vector2(chamber.end.x, chamber.position.y + 12.0), MUTED, 1.0)
+		draw_line(Vector2(chamber.position.x, chamber.end.y - 12.0), Vector2(chamber.end.x, chamber.end.y - 12.0), MUTED, 1.0)
+		draw_circle(chamber.get_center(), minf(chamber.size.x, chamber.size.y) * 0.23, Color(0.62, 0.39, 0.2, 0.92))
+		draw_circle(chamber.get_center(), minf(chamber.size.x, chamber.size.y) * 0.15, Color(0.9, 0.66, 0.33, 0.9))
+		for index in range(2):
+			var y := chamber.position.y + 19.0 + float(index) * (chamber.size.y - 38.0)
+			var lock := Rect2(chamber.position.x - 30.0, y - 5.0, 18.0, 10.0)
+			draw_rect(lock, GREEN if containment_locks[index] else ORANGE, true)
+			draw_string(ThemeDB.fallback_font, Vector2(18.0, y + 4.0), "NORTH LOCK" if index == 0 else "SOUTH LOCK", HORIZONTAL_ALIGNMENT_LEFT, 83.0, 8, PALE)
+		draw_string(ThemeDB.fallback_font, Vector2(chamber.end.x + 15.0, chamber.position.y + 13.0), "PRESSURE", HORIZONTAL_ALIGNMENT_LEFT, 65.0, 8, MUTED)
+		draw_string(ThemeDB.fallback_font, Vector2(chamber.end.x + 15.0, chamber.position.y + 30.0), "%.2f ATM" % chamber_pressure, HORIZONTAL_ALIGNMENT_LEFT, 70.0, 10, GREEN if status_text.contains("SECURE") or status_text.contains("PASSED") else CYAN)
+
+	func _draw_research_console() -> void:
+		var screen := Rect2(22.0, 49.0, size.x - 44.0, size.y - 88.0)
+		draw_rect(screen, Color(0.012, 0.03, 0.04), true)
+		draw_rect(screen, Color(0.25, 0.41, 0.44), false, 1.0)
+		draw_string(ThemeDB.fallback_font, screen.position + Vector2(12.0, 18.0), "LOCAL CATALOG  /  LINK ACTIVE", HORIZONTAL_ALIGNMENT_LEFT, screen.size.x - 24.0, 9, GREEN)
+		for index in range(4):
+			var y := screen.position.y + 38.0 + float(index) * 35.0
+			draw_circle(Vector2(screen.position.x + 15.0, y - 3.0), 3.0, CYAN if index == 0 else MUTED)
+			draw_line(Vector2(screen.position.x + 25.0, y), Vector2(screen.end.x - 14.0, y), Color(0.43, 0.59, 0.62, 0.7), 2.0)
+			draw_line(Vector2(screen.position.x + 25.0, y + 7.0), Vector2(screen.end.x - 50.0, y + 7.0), Color(0.21, 0.36, 0.4, 0.75), 1.0)
+
+	func _draw_instruments() -> void:
+		var center := Vector2(size.x * 0.49, size.y * 0.53)
+		draw_circle(center, 38.0, Color(0.08, 0.15, 0.16))
+		draw_circle(center, 29.0, Color(0.018, 0.04, 0.05))
+		draw_arc(center, 27.0, -PI * 0.78, PI * 0.78, 36, CYAN, 2.0, true)
+		draw_line(center, center + Vector2(15.0, -12.0), GOLD, 2.0, true)
+		draw_circle(center + Vector2(15.0, -12.0), 3.0, PALE)
+		var sample := Rect2(center.x + 49.0, center.y - 13.0, 17.0, 26.0)
+		draw_rect(sample, Color(0.1, 0.2, 0.2), true)
+		draw_rect(Rect2(sample.position + Vector2(3.0, 7.0), Vector2(11.0, 14.0)), Color(0.69, 0.41, 0.22), true)
+		draw_rect(sample, MUTED, false, 1.0)
+		draw_line(center + Vector2(-38.0, 28.0), center + Vector2(67.0, 28.0), MUTED, 3.0)
+		draw_string(ThemeDB.fallback_font, Vector2(16.0, size.y - 42.0), "MICROSCOPE  /  READER  /  SAMPLE VIAL", HORIZONTAL_ALIGNMENT_CENTER, size.x - 32.0, 8, PALE)
+		draw_string(ThemeDB.fallback_font, Vector2(center.x - 58.0, center.y + 51.0), "FOCUS  %.2f" % focus_position, HORIZONTAL_ALIGNMENT_CENTER, 116.0, 8, GREEN if status_text.contains("ZEROED") else MUTED)
+		draw_string(ThemeDB.fallback_font, Vector2(center.x - 40.0, center.y + 65.0), "OBJ  %d×" % objective_magnification, HORIZONTAL_ALIGNMENT_CENTER, 80.0, 8, CYAN)
+
+	func _draw_archive() -> void:
+		var row_count := 4
+		var row_height := 19.0
+		var top := 48.0
+		for index in range(row_count):
+			var row := Rect2(17.0, top + float(index) * (row_height + 5.0), size.x - 34.0, row_height)
+			draw_rect(row, Color(0.035, 0.075, 0.088) if index % 2 == 0 else Color(0.025, 0.057, 0.07), true)
+			var is_match := index == (1 if task_id == &"lab_archive_01" else 2 if task_id == &"lab_archive_02" else 3)
+			if is_match:
+				draw_rect(row, Color(0.36, 0.9, 1.0, 0.14), true)
+			draw_circle(Vector2(row.position.x + 9.0, row.get_center().y), 3.0, GREEN if is_match else CYAN.darkened(0.35))
+			var text := _archive_row_text(index)
+			draw_string(ThemeDB.fallback_font, Vector2(row.position.x + 19.0, row.position.y + 13.0), text, HORIZONTAL_ALIGNMENT_LEFT, row.size.x - 24.0, 8, PALE if is_match else MUTED)
+		draw_string(ThemeDB.fallback_font, Vector2(18.0, size.y - 28.0), "INDEX HEALTH  96%     ENCRYPTION  ACTIVE", HORIZONTAL_ALIGNMENT_LEFT, size.x - 36.0, 8, GREEN)
+
+	func _archive_row_text(index: int) -> String:
+		match task_id:
+			&"lab_archive_01":
+				return ["SHIFT HANDOVER  /  DAY 183", "ANALYZER CALIBRATION  /  FLAGGED", "CREW LOG  /  OKOYE", "MAINTENANCE  /  CLOSED"][index]
+			&"lab_archive_02":
+				return ["EREBOS-06  /  BASELINE", "EREBOS-07  /  SIGNAL INDEX", "EREBOS-08  /  PAIRED SAMPLE", "MINERAL INDEX  /  UPDATED"][index]
+		return ["CHAMBER PRESSURE  /  1.0 ATM", "SEAL CYCLE  /  02:14", "CONTAINMENT LOG  /  LATEST", "RESEARCH NOTES  /  UNVERIFIED"][index]
+
+	func _draw_robot_arm() -> void:
+		var base := Vector2(size.x * 0.32, size.y * 0.75)
+		var upper_length := size.y * 0.25
+		var lower_length := size.y * 0.21
+		var elbow := base + Vector2(cos(deg_to_rad(joint_angles.x)), -sin(deg_to_rad(joint_angles.x))) * upper_length
+		var wrist := elbow + Vector2(cos(deg_to_rad(joint_angles.y)), -sin(deg_to_rad(joint_angles.y))) * lower_length
+		var tip := wrist + Vector2(cos(deg_to_rad(joint_angles.z)), -sin(deg_to_rad(joint_angles.z))) * size.y * 0.14
+		draw_rect(Rect2(size.x * 0.17, base.y, size.x * 0.68, 15.0), Color(0.07, 0.13, 0.15), true)
+		draw_line(base, elbow, Color(0.2, 0.36, 0.38), 13.0, true)
+		draw_line(elbow, wrist, Color(0.2, 0.36, 0.38), 11.0, true)
+		draw_line(wrist, tip, Color(0.2, 0.36, 0.38), 7.0, true)
+		draw_line(base, elbow, CYAN, 2.0, true)
+		draw_line(elbow, wrist, CYAN, 2.0, true)
+		draw_line(wrist, tip, GOLD, 2.0, true)
+		for joint in [base, elbow, wrist]:
+			draw_circle(joint, 8.0, Color(0.1, 0.21, 0.22))
+			draw_circle(joint, 4.0, CYAN)
+		draw_line(tip, tip + Vector2(-10.0, -8.0 if not clamp_closed else -3.0), ORANGE if not clamp_closed else GREEN, 2.0, true)
+		draw_line(tip, tip + Vector2(9.0, -9.0 if not clamp_closed else -3.0), ORANGE if not clamp_closed else GREEN, 2.0, true)
+		draw_circle(Vector2(size.x * 0.82, size.y * 0.75), 16.0, Color(0.08, 0.16, 0.17))
+		draw_arc(Vector2(size.x * 0.82, size.y * 0.75), 11.0, -PI, PI, 32, GREEN if clamp_closed else GOLD, 2.0)
+		draw_string(ThemeDB.fallback_font, Vector2(18.0, size.y - 30.0), "A1 %03d°   A2 %03d°   A3 %03d°" % [roundi(joint_angles.x), roundi(joint_angles.y), roundi(joint_angles.z)], HORIZONTAL_ALIGNMENT_LEFT, size.x - 36.0, 8, MUTED)
+
+	func _draw_generic_readout() -> void:
+		_draw_chart_grid(Rect2(18.0, 48.0, size.x - 36.0, size.y - 91.0))
+
+	func _draw_chart_grid(chart: Rect2) -> void:
+		draw_rect(chart, Color(0.012, 0.03, 0.04), true)
+		for index in range(1, 5):
+			var x := chart.position.x + chart.size.x * float(index) / 5.0
+			draw_line(Vector2(x, chart.position.y), Vector2(x, chart.end.y), Color(0.12, 0.25, 0.27), 1.0)
+		var row_count := 4
+		for index in range(1, row_count):
+			var y := chart.position.y + chart.size.y * float(index) / float(row_count)
+			draw_line(Vector2(chart.position.x, y), Vector2(chart.end.x, y), Color(0.12, 0.25, 0.27), 1.0)
+		draw_rect(chart, Color(0.25, 0.41, 0.44), false, 1.0)
+
+
 var _task_id: StringName = &""
 var _completed_count := 0
 var _task_total := 3
@@ -433,6 +618,7 @@ var _filter_pressure_button: Button
 var _filter_stage := 0
 var _filter_rotation := 0
 var _filter_airflow := 18.0
+var _resume_progress := {}
 
 var _nutrient_diagram: NutrientDiagram
 var _nutrient_rotations: Array[int] = []
@@ -442,6 +628,28 @@ var _nutrient_rotate_buttons: Array[Button] = []
 var _nutrient_status: Label
 var _nutrient_restore_button: Button
 var _nutrient_step_labels: Array[Label] = []
+
+var _lab_station_display: LabStationDisplay
+var _lab_device_status: Label
+var _lab_primary_control: Control
+var _lab_gain_label: Label
+var _lab_focus_label: Label
+var _lab_pressure_label: Label
+var _lab_baseline_checkbox: CheckBox
+var _lab_clamp_button: Button
+var _lab_selected_vial := "ERE-07"
+var _lab_scan_mode: OptionButton
+var _lab_sample_slot: OptionButton
+var _lab_scan_gain: HSlider
+var _lab_archive_search: LineEdit
+var _lab_archive_records: ItemList
+var _lab_archive_detail: Label
+var _lab_open_record_button: Button
+var _lab_archive_data: Array[Dictionary] = []
+var _lab_axis_sliders: Array[HSlider] = []
+var _lab_axis_names: Array[String] = []
+var _lab_axis_value_labels: Array[Label] = []
+var _lab_lock_buttons: Array[Button] = []
 
 
 func setup(task_id: StringName, completed_count: int, task_total: int) -> void:
@@ -453,6 +661,7 @@ func setup(task_id: StringName, completed_count: int, task_total: int) -> void:
 func _ready() -> void:
 	layer = 20
 	_build_ui()
+	_restore_service_progress()
 	_root.modulate = Color(1.0, 1.0, 1.0, 0.0)
 	var tween := create_tween()
 	tween.tween_property(_root, "modulate", Color.WHITE, 0.22).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
@@ -462,11 +671,14 @@ func _ready() -> void:
 		_filter_release_button.grab_focus()
 	elif _task_id == &"nutrient_flow" and not _nutrient_rotate_buttons.is_empty():
 		_nutrient_rotate_buttons[0].grab_focus()
+	elif _is_labroom_task() and is_instance_valid(_lab_primary_control):
+		_lab_primary_control.grab_focus()
 
 
 func _build_ui() -> void:
 	_root = Control.new()
-	SKIN.apply(_root)
+	if _is_labroom_task(): SKIN.apply(_root)
+	else: INSTRUMENT.apply(_root)
 	_root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_root.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(_root)
@@ -477,14 +689,15 @@ func _build_ui() -> void:
 	dimmer.mouse_filter = Control.MOUSE_FILTER_STOP
 	_root.add_child(dimmer)
 
-	var center := CenterContainer.new()
+	var center := Control.new()
 	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_root.add_child(center)
 
 	var frame := PanelContainer.new()
-	frame.custom_minimum_size = Vector2(1232.0, 672.0)
-	var frame_style := _panel_style(Color(0.031, 0.067, 0.086, 0.99), Color(1.0, 0.78, 0.38, 0.94), 16.0)
+	frame.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	frame.offset_left=16;frame.offset_top=16;frame.offset_right=-16;frame.offset_bottom=-16
+	var frame_style := INSTRUMENT.box(INSTRUMENT.METAL,INSTRUMENT.EDGE,12)
 	frame.add_theme_stylebox_override("panel", frame_style)
 	center.add_child(frame)
 
@@ -497,6 +710,8 @@ func _build_ui() -> void:
 	layout.add_child(divider)
 	layout.add_child(_build_body())
 	layout.add_child(_build_footer())
+	var chassis := INSTRUMENT.Chassis.new()
+	chassis.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT);frame.add_child(chassis)
 
 
 func _build_header() -> Control:
@@ -516,8 +731,8 @@ func _build_header() -> Control:
 	var heading := VBoxContainer.new()
 	heading.add_theme_constant_override("separation", 1)
 	heading.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	heading.add_child(_label("ASTERIA-1 // ENGINEERING TELEMETRY", 10, GOLD))
-	var header_title := _label("SHIP MAINTENANCE TERMINAL", 20, PALE)
+	heading.add_child(_label("ASTERIA-1  /  SCIENCE LAB" if _is_labroom_task() else "ASTERIA-1 / ENGINEERING / LOCAL CONTROLS", 12, INSTRUMENT.WELL))
+	var header_title := _label(_lab_device_name() if _is_labroom_task() else "SERVICE INSTRUMENT", 20, INSTRUMENT.WELL)
 	heading.add_child(header_title)
 	row.add_child(heading)
 	row.add_spacer(false)
@@ -529,22 +744,25 @@ func _build_header() -> Control:
 	_status_light.color = GREEN
 	_status_light.custom_minimum_size = Vector2(8.0, 8.0)
 	status_group.add_child(_centered(_status_light))
-	_status_label = _label("TERMINAL LINK SECURE", 10, GREEN)
+	_status_label = _label("DEVICE ONLINE" if _is_labroom_task() else "LOCAL CONTROL", 12, INSTRUMENT.WELL)
 	status_group.add_child(_centered(_status_label))
 	row.add_child(status_group)
 
 	_close_button = Button.new()
-	SKIN.close_button(_close_button)
+	_close_button.text="X";_close_button.custom_minimum_size=Vector2(42,42)
 	_close_button.pressed.connect(_close_console)
 	row.add_child(_close_button)
 	return row
 
 
 func _build_body() -> Control:
+	if _is_labroom_task():
+		return _build_lab_device_ui()
 	var body := HBoxContainer.new()
 	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	body.add_theme_constant_override("separation", 14)
-	body.add_child(_build_sidebar())
+	var sidebar := _build_sidebar()
+	body.add_child(sidebar);sidebar.visible=false
 	body.add_child(_build_game_panel())
 	return body
 
@@ -611,7 +829,7 @@ func _build_game_panel() -> Control:
 	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	panel.add_theme_stylebox_override("panel", _panel_style(Color(0.035, 0.068, 0.087, 0.99), Color(0.34, 0.51, 0.55), 12.0))
 	_content_stack = VBoxContainer.new()
-	_content_stack.add_theme_constant_override("separation", 8)
+	_content_stack.add_theme_constant_override("separation", 6)
 	panel.add_child(_content_stack)
 
 	var game_heading := HBoxContainer.new()
@@ -619,17 +837,17 @@ func _build_game_panel() -> Control:
 	var number := "01"
 	var category := "ELECTRICAL // POWER BUS"
 	var title := "Calibrate Capacitor Banks"
-	var instruction := "Tune each capacitor bank into its target frequency window, then synchronize the power bus."
+	var instruction := "Tune all three banks into the labelled target windows."
 	if _task_id == &"air_filter":
 		number = "02"
 		category = "LIFE SUPPORT // O2 FILTRATION DUCT"
 		title = "Replace O2 Filter Canister"
-		instruction = "Release housing latch, rotate keyway 180°, seat replacement canister, and regulate airflow velocity to 62–72%."
+		instruction = "Release, align 180°, seat, then set airflow to 62–72%."
 	elif _task_id == &"nutrient_flow":
 		number = "03"
 		category = "HYDROPONICS // IRRIGATION MANIFOLD"
 		title = "Divert Nutrient Manifold"
-		instruction = "Rotate each manifold valve to clear conduit flow paths, then engage automated irrigation."
+		instruction = "Turn each valve to its marked guide, then restore flow."
 	_title_label = _label(title, 22, PALE)
 	var heading_stack := VBoxContainer.new()
 	heading_stack.add_theme_constant_override("separation", 3)
@@ -656,14 +874,507 @@ func _build_game_panel() -> Control:
 		_build_hydroponics_game()
 
 	_success_banner = _label("", 11, GREEN)
-	_success_banner.custom_minimum_size.y = 30.0
+	_success_banner.custom_minimum_size.y = 0.0
+	_success_banner.visible=false
 	_success_banner.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_content_stack.add_child(_success_banner)
-	_return_button = _button("[ RETURN TO SHIP ]", Vector2(190.0, 42.0), GOLD)
+	_return_button = _button("RETURN TO SHIP", Vector2(170.0, 32.0), GOLD)
 	_return_button.size_flags_horizontal = Control.SIZE_SHRINK_END
 	_return_button.visible = false
 	_return_button.pressed.connect(_close_console)
 	return panel
+
+
+func _is_labroom_task() -> bool:
+	return str(_task_id).begins_with("lab_")
+
+
+func _lab_device_name() -> String:
+	match _task_id:
+		&"lab_specimen": return "SPECIMEN ANALYSIS TABLE"
+		&"lab_earth_comms": return "RESEARCH CONSOLE"
+		&"lab_containment": return "SAMPLE CONTAINMENT"
+		&"lab_trolley": return "INSTRUMENT TROLLEY"
+		&"lab_archive_01": return "DATA ARCHIVE  /  PERSONNEL"
+		&"lab_archive_02": return "DATA ARCHIVE  /  SPECIMENS"
+		&"lab_archive_03": return "DATA ARCHIVE  /  CONTAINMENT"
+		&"lab_robot_arm": return "SAMPLE MANIPULATOR"
+	return "LAB DEVICE"
+
+
+func _build_lab_device_ui() -> Control:
+	var workspace := VBoxContainer.new()
+	workspace.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	workspace.add_theme_constant_override("separation", 10)
+	var device_heading := HBoxContainer.new()
+	device_heading.add_child(_label("LOCAL EQUIPMENT PANEL", 10, GOLD))
+	device_heading.add_spacer(false)
+	_lab_device_status = _label("LOCKS ENGAGED  /  READY" if _task_id == &"lab_containment" else "IDLE  /  READY", 10, GREEN)
+	_lab_device_status.clip_text = true
+	_lab_device_status.custom_minimum_size.x = 200.0
+	_lab_device_status.size_flags_horizontal = Control.SIZE_SHRINK_END
+	_lab_device_status.tooltip_text = "Device status and the result of your last action."
+	device_heading.add_child(_lab_device_status)
+	workspace.add_child(device_heading)
+
+	var device_body := HBoxContainer.new()
+	device_body.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	device_body.add_theme_constant_override("separation", 12)
+	var display_panel := PanelContainer.new()
+	display_panel.custom_minimum_size.x = 365.0
+	display_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	display_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	display_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.018, 0.042, 0.055), Color(0.29, 0.47, 0.52), 8.0))
+	_lab_station_display = LabStationDisplay.new()
+	_lab_station_display.task_id = _task_id
+	if _task_id == &"lab_containment":
+		_lab_station_display.status_text = "LOCKS ENGAGED  /  READY"
+	_lab_station_display.custom_minimum_size = Vector2(350.0, 300.0)
+	_lab_station_display.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_lab_station_display.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	display_panel.add_child(_lab_station_display)
+	device_body.add_child(display_panel)
+
+	var controls_panel := PanelContainer.new()
+	controls_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	controls_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	controls_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.035, 0.068, 0.087, 0.99), Color(0.34, 0.51, 0.55), 16.0))
+	var controls := VBoxContainer.new()
+	controls.add_theme_constant_override("separation", 10)
+	controls_panel.add_child(controls)
+	match _task_id:
+		&"lab_specimen": _build_spectrometer_controls(controls)
+		&"lab_earth_comms": _build_research_console_controls(controls)
+		&"lab_containment": _build_containment_controls(controls)
+		&"lab_trolley": _build_trolley_controls(controls)
+		&"lab_archive_01", &"lab_archive_02", &"lab_archive_03": _build_archive_controls(controls)
+		&"lab_robot_arm": _build_manipulator_controls(controls)
+	device_body.add_child(controls_panel)
+	workspace.add_child(device_body)
+	return workspace
+
+
+func _build_spectrometer_controls(parent: VBoxContainer) -> void:
+	parent.add_child(_label("SPECTROMETER SETUP", 11, GOLD))
+	parent.add_child(_label("1. Choose a sample   →   2. Set scan   →   3. Acquire", 10, MUTED))
+	parent.add_child(_label("SAMPLE", 9, CYAN))
+	_lab_sample_slot = OptionButton.new()
+	_lab_sample_slot.add_item("Paired tray  /  ERE-07 + ERE-08")
+	_lab_sample_slot.add_item("Sample vial  /  ERE-07")
+	_lab_sample_slot.add_item("Sample vial  /  ERE-08")
+	parent.add_child(_lab_sample_slot)
+	parent.add_child(_label("SCAN TYPE", 9, CYAN))
+	_lab_scan_mode = OptionButton.new()
+	_lab_scan_mode.add_item("X-ray fluorescence")
+	_lab_scan_mode.add_item("Reflectance spectrum")
+	_lab_scan_mode.add_item("Electromagnetic survey")
+	parent.add_child(_lab_scan_mode)
+	_lab_gain_label = _label("SENSOR SENSITIVITY  /  64%", 9, CYAN)
+	parent.add_child(_lab_gain_label)
+	_lab_scan_gain = HSlider.new()
+	_lab_scan_gain.min_value = 0.0
+	_lab_scan_gain.max_value = 100.0
+	_lab_scan_gain.value = 64.0
+	_lab_scan_gain.step = 1.0
+	_lab_scan_gain.custom_minimum_size.y = 30.0
+	_lab_scan_gain.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_style_task_slider(_lab_scan_gain, CYAN)
+	_lab_scan_gain.value_changed.connect(_on_spectrometer_gain_changed)
+	parent.add_child(_lab_scan_gain)
+	_lab_scan_gain.tooltip_text = "Increase sensitivity to reveal weaker readings."
+	_lab_baseline_checkbox = CheckBox.new()
+	_lab_baseline_checkbox.text = "Correct background noise"
+	_lab_baseline_checkbox.button_pressed = true
+	_lab_baseline_checkbox.tooltip_text = "Recommended: remove the detector's normal background signal."
+	parent.add_child(_lab_baseline_checkbox)
+	parent.add_spacer(false)
+	var run_button := _button("ACQUIRE SPECTRUM", Vector2(0.0, 46.0), CYAN)
+	run_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	run_button.pressed.connect(_on_spectrometer_scan)
+	_lab_primary_control = run_button
+	parent.add_child(run_button)
+
+
+func _on_spectrometer_gain_changed(value: float) -> void:
+	_lab_gain_label.text = "SENSOR SENSITIVITY  /  %02d%%" % roundi(value)
+
+
+func _on_spectrometer_scan() -> void:
+	_lab_station_display.scan_complete = true
+	_lab_station_display.single_sample_index = _lab_sample_slot.selected - 1
+	var mode := _lab_scan_mode.get_item_text(_lab_scan_mode.selected)
+	var sample := _lab_sample_slot.get_item_text(_lab_sample_slot.selected)
+	var baseline_note := "  /  BASELINE CORRECTED" if _lab_baseline_checkbox.button_pressed else ""
+	_lab_station_display.status_text = "ACQUISITION COMPLETE"
+	_lab_station_display.queue_redraw()
+	_set_lab_device_status("SPECTRUM ACQUIRED  /  %s  /  %s%s" % [sample, mode, baseline_note], GREEN)
+
+
+func _build_research_console_controls(parent: VBoxContainer) -> void:
+	parent.add_child(_label("RESEARCH DATA TERMINAL", 11, GOLD))
+	parent.add_child(_label("Search, select a record, then open it to read the full entry.", 10, MUTED))
+	_lab_archive_search = LineEdit.new()
+	_lab_archive_search.placeholder_text = "Search reference catalog…"
+	_lab_archive_search.clear_button_enabled = true
+	_lab_archive_search.text_changed.connect(_on_research_search_changed)
+	parent.add_child(_lab_archive_search)
+	var split := HBoxContainer.new()
+	split.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	split.add_theme_constant_override("separation", 8)
+	_lab_archive_records = ItemList.new()
+	_lab_archive_records.custom_minimum_size.x = 220.0
+	_lab_archive_records.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_lab_archive_records.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_lab_archive_records.item_selected.connect(_on_research_record_selected)
+	split.add_child(_lab_archive_records)
+	var detail_panel := PanelContainer.new()
+	detail_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	detail_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.018, 0.042, 0.055), Color(0.21, 0.36, 0.4), 10.0))
+	_lab_archive_detail = _label("Select an entry to preview its contents.", 11, PALE)
+	_lab_archive_detail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	detail_panel.add_child(_lab_archive_detail)
+	split.add_child(detail_panel)
+	parent.add_child(split)
+	_lab_archive_data = [
+		{"title": "Instrument reference", "detail": "Spectrometer operating ranges, detector response, and routine calibration procedure."},
+		{"title": "Mineral library", "detail": "Reference reflectance and fluorescence profiles for common silicates, iron, and nickel ores."},
+		{"title": "Sample catalog", "detail": "Registered sample vials, storage locations, collection notes, and chain-of-custody records."},
+		{"title": "Lab handbook", "detail": "Bench procedures for microscopy, containment, and specimen handling."},
+	]
+	_refresh_lab_archive_list()
+	_lab_open_record_button = _button("OPEN SELECTED ENTRY", Vector2(0.0, 46.0), CYAN)
+	_lab_open_record_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_lab_open_record_button.disabled = true
+	_lab_open_record_button.pressed.connect(_on_research_record_open)
+	_lab_primary_control = _lab_archive_search
+	parent.add_child(_lab_open_record_button)
+
+
+func _on_research_search_changed(_value: String) -> void:
+	_lab_archive_detail.text = "Choose a result to preview its contents."
+	_refresh_lab_archive_list()
+
+
+func _on_research_record_selected(index: int) -> void:
+	var record := _visible_archive_record(index)
+	if not record.is_empty():
+		_lab_archive_detail.text = str(record["detail"])
+		_lab_open_record_button.disabled = false
+		_set_lab_device_status("ENTRY SELECTED  /  READY TO OPEN", CYAN)
+
+
+func _on_research_record_open() -> void:
+	var selected := _lab_archive_records.get_selected_items()
+	if selected.is_empty() or _visible_archive_record(selected[0]).is_empty():
+		_set_lab_device_status("SELECT A CATALOG ENTRY", GOLD)
+		return
+	var record: Dictionary = _visible_archive_record(selected[0])
+	_lab_archive_detail.text = "%s\n\n%s\n\nREVISION  3.4   /   LOCAL COPY VERIFIED" % [record["title"], record["detail"]]
+	_set_lab_device_status("REFERENCE ENTRY OPEN", GREEN)
+
+
+func _build_containment_controls(parent: VBoxContainer) -> void:
+	parent.add_child(_label("CONTAINMENT CONTROL", 11, GOLD))
+	parent.add_child(_label("Secure both locks and set pressure to 1.00 ATM, then run the test.", 10, MUTED))
+	var lock_row := HBoxContainer.new()
+	lock_row.add_theme_constant_override("separation", 8)
+	for index in range(2):
+		var lock_button := _button("NORTH LOCK  /  ENGAGED" if index == 0 else "SOUTH LOCK  /  ENGAGED", Vector2(0.0, 48.0), CYAN)
+		lock_button.toggle_mode = true
+		lock_button.button_pressed = true
+		lock_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		lock_button.toggled.connect(_on_containment_lock_toggled.bind(index))
+		_lab_lock_buttons.append(lock_button)
+		lock_row.add_child(lock_button)
+	_lab_station_display.containment_locks = [true, true]
+	parent.add_child(lock_row)
+	_lab_pressure_label = _label("CHAMBER PRESSURE  /  1.00 ATM", 9, CYAN)
+	parent.add_child(_lab_pressure_label)
+	var pressure_slider := HSlider.new()
+	pressure_slider.min_value = 0.7
+	pressure_slider.max_value = 1.3
+	pressure_slider.step = 0.01
+	pressure_slider.value = 1.0
+	pressure_slider.custom_minimum_size.y = 30.0
+	pressure_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_style_task_slider(pressure_slider, CYAN)
+	pressure_slider.tooltip_text = "Target: 0.97–1.03 ATM. Use the arrow keys for fine adjustment."
+	pressure_slider.value_changed.connect(_on_containment_pressure_changed)
+	parent.add_child(pressure_slider)
+	var test_button := _button("RUN PRESSURE-HOLD TEST", Vector2(0.0, 44.0), GOLD)
+	test_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	test_button.pressed.connect(_on_containment_test)
+	_lab_primary_control = test_button
+	parent.add_child(test_button)
+	parent.add_spacer(false)
+	parent.add_child(_label("PASS CHECK: both locks engaged and pressure within 0.03 ATM of target.", 9, MUTED))
+
+
+func _on_containment_lock_toggled(is_engaged: bool, index: int) -> void:
+	var lock_name := "NORTH" if index == 0 else "SOUTH"
+	_lab_lock_buttons[index].text = "%s LOCK  /  %s" % [lock_name, "ENGAGED" if is_engaged else "RELEASED"]
+	_lab_station_display.containment_locks[index] = is_engaged
+	var both_engaged := _lab_lock_buttons[0].button_pressed and _lab_lock_buttons[1].button_pressed
+	_lab_station_display.status_text = "VESSEL SECURE" if both_engaged else "INTERLOCK OPEN"
+	_lab_station_display.queue_redraw()
+	_set_lab_device_status("BOTH INTERLOCKS ENGAGED" if both_engaged else "%s LOCK %s" % [lock_name, "ENGAGED" if is_engaged else "RELEASED"], GREEN if both_engaged else GOLD)
+
+
+func _on_containment_pressure_changed(value: float) -> void:
+	_lab_pressure_label.text = "CHAMBER PRESSURE  /  %.2f ATM" % value
+	_lab_station_display.chamber_pressure = value
+	_lab_station_display.queue_redraw()
+	_set_lab_device_status("CHAMBER PRESSURE  /  %.2f ATM" % value, CYAN)
+
+
+func _on_containment_test() -> void:
+	var locks_engaged := _lab_lock_buttons.size() == 2 and _lab_lock_buttons[0].button_pressed and _lab_lock_buttons[1].button_pressed
+	if not locks_engaged:
+		_lab_station_display.status_text = "INTERLOCK OPEN"
+		_lab_station_display.queue_redraw()
+		_set_lab_device_status("TEST INHIBITED  /  CLOSE BOTH LOCKS", ORANGE)
+		return
+	if absf(_lab_station_display.chamber_pressure - 1.0) > 0.03:
+		_lab_station_display.status_text = "PRESSURE OUT OF RANGE"
+		_lab_station_display.queue_redraw()
+		_set_lab_device_status("TEST FAILED  /  PRESSURE OUT OF RANGE", ORANGE)
+		return
+	_lab_station_display.status_text = "VESSEL SECURE"
+	_lab_station_display.queue_redraw()
+	_set_lab_device_status("PRESSURE-HOLD TEST PASSED  /  1.0 ATM", GREEN)
+
+
+func _build_trolley_controls(parent: VBoxContainer) -> void:
+	parent.add_child(_label("PORTABLE INSTRUMENTS", 11, GOLD))
+	parent.add_child(_label("Choose magnification and focus, then zero the selected vial.", 10, MUTED))
+	parent.add_child(_label("1  /  MAGNIFICATION", 9, CYAN))
+	var objective := OptionButton.new()
+	objective.add_item("4×  /  Locator")
+	objective.add_item("10×  /  Survey")
+	objective.add_item("40×  /  Detail")
+	objective.item_selected.connect(_on_trolley_objective_changed)
+	parent.add_child(objective)
+	parent.add_child(_label("2  /  FOCUS  —  0.00 MM", 9, CYAN))
+	_lab_focus_label = parent.get_child(parent.get_child_count() - 1) as Label
+	var focus_slider := HSlider.new()
+	focus_slider.min_value = -5.0
+	focus_slider.max_value = 5.0
+	focus_slider.step = 0.01
+	focus_slider.value = 0.0
+	focus_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_style_task_slider(focus_slider, CYAN)
+	focus_slider.value_changed.connect(_on_trolley_focus_changed)
+	parent.add_child(focus_slider)
+	parent.add_child(_label("3  /  SAMPLE READER", 9, CYAN))
+	var reader_row := HBoxContainer.new()
+	var vial := OptionButton.new()
+	vial.add_item("Vial  /  ERE-07")
+	vial.add_item("Vial  /  ERE-08")
+	vial.item_selected.connect(_on_trolley_vial_changed)
+	reader_row.add_child(vial)
+	var zero_button := _button("ZERO SELECTED VIAL", Vector2(170.0, 42.0), GOLD)
+	zero_button.pressed.connect(_on_trolley_zero)
+	reader_row.add_child(zero_button)
+	parent.add_child(reader_row)
+	parent.add_spacer(false)
+	_lab_primary_control = zero_button
+
+
+func _on_trolley_objective_changed(index: int) -> void:
+	_lab_station_display.objective_magnification = [4, 10, 40][index]
+	_lab_station_display.queue_redraw()
+	_set_lab_device_status("MICROSCOPE OBJECTIVE  /  %s" % ["4× LOCATOR", "10× SURVEY", "40× DETAIL"][index], CYAN)
+
+
+func _on_trolley_focus_changed(value: float) -> void:
+	_lab_focus_label.text = "2  /  FOCUS  —  %.2f MM" % value
+	_lab_station_display.focus_position = value
+	_lab_station_display.status_text = "FOCUS %.2f MM" % value
+	_lab_station_display.queue_redraw()
+	_set_lab_device_status("FOCUS ADJUSTMENT  /  %.2f MM" % value, CYAN)
+
+
+func _on_trolley_zero() -> void:
+	_lab_station_display.status_text = "%s READER ZEROED" % _lab_selected_vial
+	_lab_station_display.queue_redraw()
+	_set_lab_device_status("%s SAMPLE READER ZEROED" % _lab_selected_vial, GREEN)
+
+
+func _on_trolley_vial_changed(index: int) -> void:
+	_lab_selected_vial = "ERE-07" if index == 0 else "ERE-08"
+	_set_lab_device_status("READER SLOT  /  %s" % _lab_selected_vial, CYAN)
+
+
+func _build_archive_controls(parent: VBoxContainer) -> void:
+	parent.add_child(_label("ARCHIVE BROWSER", 11, GOLD))
+	parent.add_child(_label("Type to filter. Select a record to preview it, then open it.", 10, MUTED))
+	_lab_archive_search = LineEdit.new()
+	_lab_archive_search.placeholder_text = "Filter by title or keyword…"
+	_lab_archive_search.clear_button_enabled = true
+	_lab_archive_search.text_changed.connect(_on_archive_search_changed)
+	parent.add_child(_lab_archive_search)
+	var split := HBoxContainer.new()
+	split.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	split.add_theme_constant_override("separation", 8)
+	_lab_archive_records = ItemList.new()
+	_lab_archive_records.custom_minimum_size.x = 240.0
+	_lab_archive_records.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_lab_archive_records.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_lab_archive_records.item_selected.connect(_on_archive_record_selected)
+	split.add_child(_lab_archive_records)
+	var detail_panel := PanelContainer.new()
+	detail_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	detail_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.018, 0.042, 0.055), Color(0.21, 0.36, 0.4), 10.0))
+	_lab_archive_detail = _label("Select a record to inspect its stored fields.", 11, PALE)
+	_lab_archive_detail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	detail_panel.add_child(_lab_archive_detail)
+	split.add_child(detail_panel)
+	parent.add_child(split)
+	_lab_archive_data = _archive_records_for_device()
+	_refresh_lab_archive_list()
+	_lab_open_record_button = _button("OPEN SELECTED RECORD", Vector2(0.0, 46.0), CYAN)
+	_lab_open_record_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_lab_open_record_button.disabled = true
+	_lab_open_record_button.pressed.connect(_on_archive_record_open)
+	_lab_primary_control = _lab_archive_search
+	parent.add_child(_lab_open_record_button)
+
+
+func _archive_records_for_device() -> Array[Dictionary]:
+	var records: Array[Dictionary] = []
+	match _task_id:
+		&"lab_archive_01":
+			records.append({"title": "Shift handover  /  Day 183", "detail": "Operator: M. Ilyanov\nBench: north analysis station\nNote: detector baseline drift recorded during routine calibration."})
+			records.append({"title": "Personnel roster  /  Science", "detail": "Research crew assignments, certifications, and current station access permissions."})
+			records.append({"title": "Maintenance entry  /  Microscope", "detail": "Objective turret inspected. Focus rail cleaned and lubricated; no damage recorded."})
+		&"lab_archive_02":
+			records.append({"title": "Specimen ERE-07", "detail": "Dark metallic fragment\nMass: 18.42 g\nStorage: sealed vial, rack B2."})
+			records.append({"title": "Specimen ERE-08", "detail": "Layered silicate fragment\nMass: 12.07 g\nStorage: sealed vial, rack B3."})
+			records.append({"title": "Scan index  /  Mineral library", "detail": "Cross-reference table for fluorescence, reflectance, and elemental readings from registered samples."})
+		&"lab_archive_03":
+			records.append({"title": "Chamber 04  /  Pressure log", "detail": "Nominal pressure: 1.00 atm\nLast hold test: 02:14:08\nPressure loss: below instrument tolerance."})
+			records.append({"title": "Seal inspection  /  Batch 6", "detail": "Elastomer seals inspected under magnification. No cracks, swelling, or surface contamination found."})
+			records.append({"title": "Sample storage protocol", "detail": "Keep specimens double-contained. Record chamber pressure before and after each transfer."})
+	return records
+
+func _on_archive_search_changed(_value: String) -> void:
+	_refresh_lab_archive_list()
+
+
+func _refresh_lab_archive_list() -> void:
+	if not is_instance_valid(_lab_archive_records):
+		return
+	if is_instance_valid(_lab_open_record_button):
+		_lab_open_record_button.disabled = true
+	_lab_archive_records.clear()
+	if is_instance_valid(_lab_archive_detail):
+		_lab_archive_detail.text = "Choose a record to preview its contents."
+	var query := _lab_archive_search.text.strip_edges().to_lower() if is_instance_valid(_lab_archive_search) else ""
+	for record in _lab_archive_data:
+		var searchable := (str(record["title"]) + " " + str(record["detail"])).to_lower()
+		if query.is_empty() or searchable.contains(query):
+			_lab_archive_records.add_item(str(record["title"]))
+	if _lab_archive_records.item_count == 0 and is_instance_valid(_lab_archive_detail):
+		_lab_archive_detail.text = "No matching records. Try another search."
+
+
+func _on_archive_record_selected(index: int) -> void:
+	var record := _visible_archive_record(index)
+	if not record.is_empty():
+		_lab_archive_detail.text = str(record["detail"])
+		_lab_open_record_button.disabled = false
+		_set_lab_device_status("RECORD SELECTED  /  LOCAL COPY", CYAN)
+
+
+func _on_archive_record_open() -> void:
+	var selected := _lab_archive_records.get_selected_items()
+	if selected.is_empty() or _visible_archive_record(selected[0]).is_empty():
+		_set_lab_device_status("SELECT A RECORD TO OPEN", GOLD)
+		return
+	var record := _visible_archive_record(selected[0])
+	_lab_archive_detail.text = "%s\n\n%s\n\nRECORD STATUS  /  VERIFIED LOCAL COPY" % [record["title"], record["detail"]]
+	_set_lab_device_status("RECORD OPEN  /  READ ONLY", GREEN)
+
+
+func _visible_archive_record(visible_index: int) -> Dictionary:
+	var query := _lab_archive_search.text.strip_edges().to_lower()
+	var visible_records: Array[Dictionary] = []
+	for record in _lab_archive_data:
+		if query.is_empty() or (str(record["title"]) + " " + str(record["detail"])).to_lower().contains(query):
+			visible_records.append(record)
+	return visible_records[visible_index] if visible_index >= 0 and visible_index < visible_records.size() else {}
+
+
+func _build_manipulator_controls(parent: VBoxContainer) -> void:
+	parent.add_child(_label("ARM POSITION CONTROL", 11, GOLD))
+	parent.add_child(_label("Move a joint with its slider. HOME ARM restores the safe pose.", 10, MUTED))
+	var axis_names := ["BASE ROTATION", "ELBOW PITCH", "WRIST PITCH"]
+	var defaults := [0.0, 55.0, -35.0]
+	for index in range(axis_names.size()):
+		var value_label := _label("%s  /  %d°" % [axis_names[index], roundi(defaults[index])], 9, CYAN)
+		parent.add_child(value_label)
+		_lab_axis_names.append(axis_names[index])
+		_lab_axis_value_labels.append(value_label)
+		var axis := HSlider.new()
+		axis.min_value = -90.0
+		axis.max_value = 90.0
+		axis.step = 1.0
+		axis.value = defaults[index]
+		axis.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		_style_task_slider(axis, CYAN)
+		axis.tooltip_text = "Range: −90° to +90°. Use arrow keys for precise movement."
+		axis.value_changed.connect(_on_manipulator_axis_changed.bind(index))
+		_lab_axis_sliders.append(axis)
+		parent.add_child(axis)
+	_lab_station_display.joint_angles = Vector3(defaults[0], defaults[1], defaults[2])
+	var action_row := HBoxContainer.new()
+	var home_button := _button("HOME ARM", Vector2(0.0, 42.0), GOLD)
+	home_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	home_button.pressed.connect(_on_manipulator_home)
+	_lab_primary_control = home_button
+	action_row.add_child(home_button)
+	_lab_clamp_button = _button("CLOSE GRIP", Vector2(0.0, 42.0), CYAN)
+	_lab_clamp_button.toggle_mode = true
+	_lab_clamp_button.toggled.connect(_on_manipulator_grip_toggled)
+	_lab_clamp_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	action_row.add_child(_lab_clamp_button)
+	parent.add_child(action_row)
+	parent.add_spacer(false)
+	parent.add_child(_label("GRIP LOAD  /  NO SAMPLE DETECTED", 9, MUTED))
+
+
+func _on_manipulator_axis_changed(value: float, index: int) -> void:
+	_lab_station_display.joint_angles[index] = value
+	_lab_axis_value_labels[index].text = "%s  /  %d°" % [_lab_axis_names[index], roundi(value)]
+	_lab_station_display.status_text = "JOINT POSITION UPDATED"
+	_lab_station_display.queue_redraw()
+	_set_lab_device_status("JOINT %d  /  %03d°" % [index + 1, roundi(value)], CYAN)
+
+
+func _on_manipulator_home() -> void:
+	var defaults := [0.0, 55.0, -35.0]
+	for index in range(_lab_axis_sliders.size()):
+		_lab_axis_sliders[index].value = defaults[index]
+	_lab_station_display.joint_angles = Vector3(defaults[0], defaults[1], defaults[2])
+	_lab_station_display.queue_redraw()
+	_set_lab_device_status("ARM AT HOME POSITION", GREEN)
+
+
+func _on_manipulator_grip_toggled(is_closed: bool) -> void:
+	_lab_clamp_button.text = "OPEN GRIP" if is_closed else "CLOSE GRIP"
+	_lab_station_display.clamp_closed = is_closed
+	_lab_station_display.queue_redraw()
+	_set_lab_device_status("GRIP CLOSED" if is_closed else "GRIP OPEN", GREEN if is_closed else CYAN)
+
+
+func _set_lab_device_status(text: String, color: Color) -> void:
+	if is_instance_valid(_lab_device_status):
+		_lab_device_status.text = text
+		_lab_device_status.tooltip_text = text
+		_lab_device_status.add_theme_color_override("font_color", color)
+	if is_instance_valid(_lab_station_display):
+		_lab_station_display.status_text = text
+		_lab_station_display.queue_redraw()
 
 
 func _build_power_game() -> void:
@@ -679,7 +1390,7 @@ func _build_power_game() -> void:
 	workspace.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	workspace.add_theme_constant_override("separation", 12)
 	_power_diagram = PowerDiagram.new()
-	_power_diagram.custom_minimum_size = Vector2(350.0, 300.0)
+	_power_diagram.custom_minimum_size = Vector2(300.0, 220.0)
 	_power_diagram.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_power_diagram.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	for index in range(3):
@@ -696,17 +1407,16 @@ func _build_power_game() -> void:
 	workspace.add_child(_power_diagram)
 
 	var control_panel := PanelContainer.new()
-	control_panel.custom_minimum_size.x = 390.0
+	control_panel.custom_minimum_size.x = 360.0
 	control_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	control_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.045, 0.084, 0.103), Color(0.24, 0.39, 0.43), 14.0))
+	control_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.045, 0.084, 0.103), Color(0.24, 0.39, 0.43), 8.0))
 	var control_stack := VBoxContainer.new()
 	control_stack.add_theme_constant_override("separation", 6)
 	control_panel.add_child(control_stack)
 	control_stack.add_child(_label("ENERGY RESERVOIRS", 10, GOLD))
 	for index in range(3):
 		var cell_panel := PanelContainer.new()
-		cell_panel.custom_minimum_size.y = 67.0
-		cell_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.045, 0.08, 0.096), Color(0.24, 0.39, 0.43), 9.0))
+		cell_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.045, 0.08, 0.096), Color(0.24, 0.39, 0.43), 5.0))
 		var cell_stack := VBoxContainer.new()
 		cell_stack.add_theme_constant_override("separation", 2)
 		cell_panel.add_child(cell_stack)
@@ -740,7 +1450,7 @@ func _build_power_game() -> void:
 	workspace.add_child(control_panel)
 	_content_stack.add_child(workspace)
 
-	_power_sync_button = _button("[ ✔ SYNCHRONIZE POWER BUS ]", Vector2(0.0, 46.0), GOLD)
+	_power_sync_button = _button("SYNCHRONIZE BANKS", Vector2(0.0, 36.0), GOLD)
 	_power_sync_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_power_sync_button.disabled = true
 	_power_sync_button.pressed.connect(_on_power_sync_pressed)
@@ -788,7 +1498,7 @@ func _build_hydroponics_game() -> void:
 	workspace.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	workspace.add_theme_constant_override("separation", 12)
 	_nutrient_diagram = NutrientDiagram.new()
-	_nutrient_diagram.custom_minimum_size = Vector2(350.0, 310.0)
+	_nutrient_diagram.custom_minimum_size = Vector2(300.0, 230.0)
 	_nutrient_diagram.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_nutrient_diagram.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_nutrient_diagram.rotations = _nutrient_rotations
@@ -796,11 +1506,11 @@ func _build_hydroponics_game() -> void:
 	workspace.add_child(_nutrient_diagram)
 
 	var controls := PanelContainer.new()
-	controls.custom_minimum_size.x = 450.0
+	controls.custom_minimum_size.x = 390.0
 	controls.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	controls.add_theme_stylebox_override("panel", _panel_style(Color(0.045, 0.084, 0.103), Color(0.24, 0.39, 0.43), 13.0))
+	controls.add_theme_stylebox_override("panel", _panel_style(Color(0.045, 0.084, 0.103), Color(0.24, 0.39, 0.43), 8.0))
 	var control_stack := VBoxContainer.new()
-	control_stack.add_theme_constant_override("separation", 7)
+	control_stack.add_theme_constant_override("separation", 5)
 	controls.add_child(control_stack)
 	control_stack.add_child(_label("MANIFOLD VALVE ALIGNMENT", 10, GOLD))
 	var help := _label("Match each handle to its amber guide.", 10, MUTED)
@@ -808,8 +1518,7 @@ func _build_hydroponics_game() -> void:
 	control_stack.add_child(help)
 	for index in range(3):
 		var row_panel := PanelContainer.new()
-		row_panel.custom_minimum_size.y = 57.0
-		row_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.045, 0.08, 0.096), Color(0.24, 0.39, 0.43), 7.0))
+		row_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.045, 0.08, 0.096), Color(0.24, 0.39, 0.43), 5.0))
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 7)
 		row_panel.add_child(row)
@@ -825,7 +1534,7 @@ func _build_hydroponics_game() -> void:
 		value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		_nutrient_rotation_labels.append(value_label)
 		row.add_child(value_label)
-		var rotate_button := _button("TURN 90°", Vector2(102.0, 39.0), CYAN)
+		var rotate_button := _button("TURN 90°", Vector2(102.0, 32.0), CYAN)
 		rotate_button.pressed.connect(_on_nutrient_rotate_pressed.bind(index))
 		_nutrient_rotate_buttons.append(rotate_button)
 		row.add_child(rotate_button)
@@ -834,7 +1543,7 @@ func _build_hydroponics_game() -> void:
 	_nutrient_status = _label("PUMP READY  /  MANIFOLD MISALIGNED", 9, GOLD)
 	control_stack.add_child(_nutrient_status)
 	control_stack.add_spacer(false)
-	_nutrient_restore_button = _button("[ ✔ RESTORE NUTRIENT IRRIGATION ]", Vector2(0.0, 46.0), GOLD)
+	_nutrient_restore_button = _button("RESTORE IRRIGATION", Vector2(0.0, 36.0), GOLD)
 	_nutrient_restore_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_nutrient_restore_button.disabled = true
 	_nutrient_restore_button.pressed.connect(_on_nutrient_flow_restore_pressed)
@@ -903,7 +1612,7 @@ func _build_filter_game() -> void:
 	workspace.add_theme_constant_override("separation", 14)
 
 	_filter_diagram = FilterDiagram.new()
-	_filter_diagram.custom_minimum_size = Vector2(350.0, 320.0)
+	_filter_diagram.custom_minimum_size = Vector2(300.0, 230.0)
 	_filter_diagram.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_filter_diagram.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	workspace.add_child(_filter_diagram)
@@ -1017,7 +1726,7 @@ func _on_filter_seat_pressed() -> void:
 	_filter_pressure_slider.value_changed.connect(_on_filter_pressure_changed)
 	_filter_stage_controls.add_child(_filter_pressure_slider)
 	_filter_stage_controls.add_child(_pressure_scale())
-	_filter_pressure_button = _button("[ ✔ STABILIZE AIRFLOW & SEAL DUCT ]", Vector2(0.0, 46.0), GOLD)
+	_filter_pressure_button = _button("STABILIZE AIRFLOW + SEAL", Vector2(0.0, 46.0), GOLD)
 	_filter_pressure_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_filter_pressure_button.disabled = true
 	_filter_pressure_button.pressed.connect(_on_filter_pressure_locked)
@@ -1058,9 +1767,13 @@ func _complete_task(message: String) -> void:
 	for slider in _power_sliders:
 		slider.editable = false
 	_status_label.text = "SYSTEM RESTORED"
-	_status_label.add_theme_color_override("font_color", GREEN)
+	_status_label.add_theme_color_override("font_color", INSTRUMENT.WELL)
 	_status_light.color = GREEN
 	_success_banner.text = "✓   %s" % message
+	# The restored header lamp and return control provide completion feedback.
+	# Keep the full result as a tooltip without expanding the compact layout.
+	_success_banner.visible=false
+	_return_button.tooltip_text=message
 	_success_banner.add_theme_color_override("font_color", GREEN)
 	_progress_bar.value = mini(_completed_count + 1, _task_total)
 	_progress_label.text = "%02d / %02d TASKS COMPLETE" % [mini(_completed_count + 1, _task_total), _task_total]
@@ -1083,12 +1796,13 @@ func _refresh_filter_step_footer() -> void:
 
 func _build_footer() -> Control:
 	var footer := HBoxContainer.new()
-	footer.custom_minimum_size.y = 42.0
+	footer.custom_minimum_size.y = 22.0
 	footer.add_theme_constant_override("separation", 8)
-	footer.add_child(_label("FIELD TERMINAL  /  EREBOS DEEP-SPACE SURVEY", 9, MUTED))
+	footer.add_child(_label("DEVICE INTERFACE / LOCAL CONTROL" if _is_labroom_task() else "ASTERIA-1 / SIMULATED SERVICE INSTRUMENTS", 12, INSTRUMENT.WELL))
 	footer.add_spacer(false)
-	footer.add_child(_label("ESC  CLOSE CONSOLE", 9, MUTED))
-	footer.add_child(_return_button)
+	footer.add_child(_label("ESC CLOSE", 12, INSTRUMENT.WELL))
+	if is_instance_valid(_return_button):
+		footer.add_child(_return_button)
 	return footer
 
 
@@ -1131,7 +1845,7 @@ func _panel_style(background: Color, _border: Color, padding: float) -> StyleBox
 		var fill := StyleBoxFlat.new()
 		fill.bg_color = background
 		return fill
-	return SKIN.panel(padding, padding < 16.0)
+	return INSTRUMENT.box(background,INSTRUMENT.SHADOW,int(padding))
 
 func _unhandled_key_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ESCAPE:
@@ -1149,3 +1863,35 @@ func _close_console() -> void:
 	await tween.finished
 	console_closed.emit()
 	queue_free()
+
+
+func set_resume_progress(data: Dictionary) -> void:
+	_resume_progress=data.duplicate(true)
+
+
+func progress_snapshot() -> Dictionary:
+	var charges: Array=[]
+	for slider in _power_sliders: charges.append(slider.value)
+	return {"task":str(_task_id),"power":charges,"filter_stage":_filter_stage,"filter_rotation":_filter_rotation,"filter_airflow":_filter_airflow,"nutrient_rotations":Array(_nutrient_rotations),"complete":_task_complete}
+
+
+func _restore_service_progress() -> void:
+	if _resume_progress.is_empty() or _resume_progress.get("task","")!=str(_task_id): return
+	if _task_id==&"auxiliary_power":
+		var values: Array=_resume_progress.get("power",[])
+		for i in range(mini(values.size(),_power_sliders.size())): _power_sliders[i].value=clampf(float(values[i]),0,100)
+	elif _task_id==&"air_filter":
+		var stage := clampi(int(_resume_progress.get("filter_stage",0)),0,2)
+		if stage>=1:
+			_on_filter_release_pressed()
+			var rotations := 2 if stage==2 else clampi(int(_resume_progress.get("filter_rotation",0)),0,3)
+			for i in range(rotations): _on_filter_rotate_pressed()
+		if stage==2:
+			_on_filter_seat_pressed()
+			_filter_pressure_slider.value=clampf(float(_resume_progress.get("filter_airflow",18)),0,100)
+	elif _task_id==&"nutrient_flow":
+		var rotations: Array=_resume_progress.get("nutrient_rotations",[])
+		for i in range(mini(rotations.size(),_nutrient_rotations.size())):
+			_nutrient_rotations[i]=posmod(int(rotations[i]),4)
+			_nutrient_diagram.rotations[i]=_nutrient_rotations[i]
+		_nutrient_diagram.queue_redraw();_update_nutrient_readouts()
