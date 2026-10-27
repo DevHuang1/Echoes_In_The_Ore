@@ -139,10 +139,17 @@ class LabWreckageLayer extends Node2D:
 	func _draw() -> void:
 		if destroyed_stages <= 0:
 			return
-		# Stage 1+: Breached OreContainment puddle, scorch & shattered cyan bio-glass around (236, 74..102)
-		draw_circle(Vector2(236.0, 96.0), 22.0, Color(0.08, 0.36, 0.42, 0.55))
-		draw_circle(Vector2(216.0, 102.0), 14.0, Color(0.12, 0.52, 0.58, 0.48))
-		draw_circle(Vector2(254.0, 100.0), 12.0, Color(0.85, 0.54, 0.18, 0.38))
+		# Stage 1+: Irregular pixel-art bio-fluid spill & scorched debris below OreContainment (236, 74..104)
+		var spill_outer := PackedVector2Array([
+			Vector2(198, 92), Vector2(214, 88), Vector2(236, 90), Vector2(262, 89),
+			Vector2(272, 96), Vector2(258, 106), Vector2(234, 110), Vector2(210, 105)
+		])
+		draw_colored_polygon(spill_outer, Color(0.05, 0.24, 0.28, 0.46))
+		var spill_core := PackedVector2Array([
+			Vector2(212, 94), Vector2(238, 92), Vector2(254, 96),
+			Vector2(246, 104), Vector2(226, 105), Vector2(214, 100)
+		])
+		draw_colored_polygon(spill_core, Color(0.14, 0.58, 0.64, 0.42))
 		for shard in [Vector2(204, 96), Vector2(222, 108), Vector2(238, 104), Vector2(252, 95), Vector2(268, 104), Vector2(194, 88)]:
 			var pts := PackedVector2Array([
 				shard + Vector2(-4.0, -2.0),
@@ -189,12 +196,15 @@ class LabWreckageLayer extends Node2D:
 			_draw_spark(Vector2(130.0, 72.0), 5.8)
 
 	func _draw_claw_slashes(center: Vector2, span: float) -> void:
-		for i in range(-1, 2):
-			var offset := Vector2(float(i) * 5.5, -float(i) * 2.0)
-			var a := center + offset + Vector2(-span * 0.65, -span * 0.55)
-			var b := center + offset + Vector2(span * 0.65, span * 0.55)
-			draw_line(a, b, Color(0.02, 0.02, 0.03, 0.92), 3.0, false)
-			draw_line(a, b, Color(0.95, 0.42, 0.16, 0.75), 1.2, false)
+		for idx in range(5):
+			var ang := float(idx) * 1.25 + 0.3
+			var shard_pos := center + Vector2(cos(ang), sin(ang)) * (span * 0.55)
+			var pts := PackedVector2Array([
+				shard_pos + Vector2(-2.5, -1.5),
+				shard_pos + Vector2(3.0, -0.5),
+				shard_pos + Vector2(0.5, 2.5),
+			])
+			draw_colored_polygon(pts, Color(0.38, 0.86, 0.96, 0.72) if idx % 2 == 0 else Color(0.92, 0.58, 0.22, 0.72))
 
 	func _draw_spark(pos: Vector2, phase: float) -> void:
 		var pulse := sin(spark_time * 24.0 + phase * 5.0)
@@ -405,11 +415,12 @@ func _apply_lab_destruction_stage(stage: int, animate: bool) -> void:
 	var wreckage := _ensure_lab_wreckage_layer()
 	if is_instance_valid(wreckage):
 		wreckage.set_destroyed_stages(max(wreckage.destroyed_stages, stage))
-	var scorch_tint := Color(0.56, 0.50, 0.48, 1.0)
+	var scorch_tint := Color(0.74, 0.68, 0.66, 1.0)
 	match stage:
 		1:
 			# Stage 1: OreContainment shattered & cable severed
-			_wreck_lab_prop(NodePath("LabRoom/OreContainment"), -0.06, Vector2(0.0, 3.0), Color(0.68, 0.56, 0.54), animate)
+			_load_sprite_png(get_node_or_null("LabRoom/OreContainment/SampleContainment") as Sprite2D, "res://art/planet/modern_ore_containment_destroyed.png")
+			_wreck_lab_prop(NodePath("LabRoom/OreContainment"), -0.05, Vector2(0.0, 3.0), Color.WHITE, animate)
 			var sleeve := get_node_or_null("LabRoom/CableRuns/ContainmentToAnalysisSleeve") as Line2D
 			var sig := get_node_or_null("LabRoom/CableRuns/ContainmentToAnalysisSignal") as Line2D
 			if sleeve != null:
@@ -418,39 +429,46 @@ func _apply_lab_destruction_stage(stage: int, animate: bool) -> void:
 				sig.default_color = Color(1.0, 0.42, 0.18, 0.95)
 				sig.points = PackedVector2Array([Vector2(248, 92), Vector2(256, 102)])
 		2:
-			# Stage 2: Data Archive Racks slashed & tilted
-			_wreck_lab_prop(NodePath("LabRoom/ArchiveStationLeft"), -0.16, Vector2(-4.0, 3.0), scorch_tint, animate)
-			_wreck_lab_prop(NodePath("LabRoom/ArchiveStationCenter"), 0.12, Vector2(2.0, 4.0), scorch_tint, animate)
-			_wreck_lab_prop(NodePath("LabRoom/ArchiveStationRight"), -0.18, Vector2(4.0, 2.0), scorch_tint, animate)
+			# Stage 2: Data Archive Racks slashed & tilted with destroyed textures
+			_load_sprite_png(get_node_or_null("LabRoom/ArchiveStationLeft/DataArchive") as Sprite2D, "res://art/concepts/lab_props/data_archive_destroyed.png")
+			_load_sprite_png(get_node_or_null("LabRoom/ArchiveStationCenter/DataArchive") as Sprite2D, "res://art/concepts/lab_props/data_archive_destroyed.png")
+			_load_sprite_png(get_node_or_null("LabRoom/ArchiveStationRight/DataArchive") as Sprite2D, "res://art/concepts/lab_props/data_archive_destroyed.png")
+			_wreck_lab_prop(NodePath("LabRoom/ArchiveStationLeft"), -0.14, Vector2(-3.0, 2.0), Color.WHITE, animate)
+			_wreck_lab_prop(NodePath("LabRoom/ArchiveStationCenter"), 0.10, Vector2(2.0, 3.0), Color.WHITE, animate)
+			_wreck_lab_prop(NodePath("LabRoom/ArchiveStationRight"), -0.15, Vector2(3.0, 2.0), Color.WHITE, animate)
 			for gl_name in ["ArchiveGlowLeft", "ArchiveGlowCenter", "ArchiveGlowRight"]:
 				var gl := get_node_or_null("LabRoom/StationLighting/" + gl_name) as PointLight2D
 				if gl != null:
 					gl.color = Color(1.0, 0.32, 0.18, 1.0)
 		3:
-			# Stage 3: Specimen Analysis Table & Robotic Arm smashed
-			_wreck_lab_prop(NodePath("LabRoom/NorthWorkstation"), -0.09, Vector2(-5.0, 4.0), scorch_tint, animate)
-			_wreck_lab_prop(NodePath("LabRoom/SampleManipulator"), 0.68, Vector2(8.0, -5.0), Color(0.48, 0.44, 0.42), animate)
+			# Stage 3: Specimen Analysis Table & Robotic Arm smashed with destroyed textures
+			_load_sprite_png(get_node_or_null("LabRoom/NorthWorkstation/SpecimenAnalysisTable") as Sprite2D, "res://art/concepts/lab_props/specimen_analysis_table_destroyed.png")
+			_load_sprite_png(get_node_or_null("LabRoom/SampleManipulator/RoboticSampleArm") as Sprite2D, "res://art/concepts/lab_props/sample_robot_arm_destroyed.png")
+			_wreck_lab_prop(NodePath("LabRoom/NorthWorkstation"), -0.07, Vector2(-4.0, 3.0), Color.WHITE, animate)
+			_wreck_lab_prop(NodePath("LabRoom/SampleManipulator"), 0.58, Vector2(6.0, -4.0), Color.WHITE, animate)
 			var ag := get_node_or_null("LabRoom/StationLighting/AnalysisGlow") as PointLight2D
 			if ag != null:
 				ag.color = Color(1.0, 0.28, 0.16, 1.0)
 		4:
-			# Stage 4: Research Console & Right Storage Cabinet smashed
-			_wreck_lab_prop(NodePath("LabRoom/ConsoleStation"), 0.18, Vector2(5.0, 4.0), scorch_tint, animate)
-			_wreck_lab_prop(NodePath("LabRoom/StorageCabinetRightView"), -0.10, Vector2(-3.0, 3.0), scorch_tint, animate)
+			# Stage 4: Research Console & Right Storage Cabinet smashed with destroyed textures
+			_load_sprite_png(get_node_or_null("LabRoom/ConsoleStation/ResearchConsole") as Sprite2D, "res://art/concepts/lab_props/research_console_destroyed.png")
+			_wreck_lab_prop(NodePath("LabRoom/ConsoleStation"), 0.15, Vector2(4.0, 3.0), Color.WHITE, animate)
+			_wreck_lab_prop(NodePath("LabRoom/StorageCabinetRightView"), -0.08, Vector2(-2.0, 2.0), scorch_tint, animate)
 			var cg := get_node_or_null("LabRoom/StationLighting/ConsoleGlow") as PointLight2D
 			if cg != null:
 				cg.color = Color(1.0, 0.34, 0.16, 1.0)
 		5:
-			# Stage 5: Instrument Trolley knocked over onto its side
-			_wreck_lab_prop(NodePath("LabRoom/MicroscopeCart"), -0.78, Vector2(-12.0, 7.0), scorch_tint, animate)
+			# Stage 5: Instrument Trolley knocked over onto its side with destroyed texture
+			_load_sprite_png(get_node_or_null("LabRoom/MicroscopeCart/InstrumentTrolley") as Sprite2D, "res://art/concepts/lab_props/instrument_trolley_destroyed.png")
+			_wreck_lab_prop(NodePath("LabRoom/MicroscopeCart"), -0.68, Vector2(-10.0, 6.0), Color.WHITE, animate)
 			var wg := get_node_or_null("LabRoom/StationLighting/CartWorklight") as PointLight2D
 			if wg != null:
 				wg.color = Color(1.0, 0.25, 0.14, 1.0)
 		6:
 			# Stage 6: Left Storage Cabinet, Waste Bins & Wash Sink destroyed
-			_wreck_lab_prop(NodePath("LabRoom/LeftStorageCabinet"), 0.15, Vector2(-4.0, 4.0), scorch_tint, animate)
-			_wreck_lab_prop(NodePath("LabRoom/LabWasteBins"), 0.64, Vector2(-8.0, 6.0), scorch_tint, animate)
-			_wreck_lab_prop(NodePath("LabRoom/WashSink"), -0.24, Vector2(-4.0, 3.0), scorch_tint, animate)
+			_wreck_lab_prop(NodePath("LabRoom/LeftStorageCabinet"), 0.12, Vector2(-3.0, 3.0), scorch_tint, animate)
+			_wreck_lab_prop(NodePath("LabRoom/LabWasteBins"), 0.54, Vector2(-6.0, 5.0), scorch_tint, animate)
+			_wreck_lab_prop(NodePath("LabRoom/WashSink"), -0.20, Vector2(-3.0, 2.0), scorch_tint, animate)
 			Engine.set_meta(&"lab_destroyed_by_xenomorph", true)
 			var lbl := _ensure_tank_countdown_label()
 			if is_instance_valid(lbl):
@@ -482,7 +500,7 @@ func _spawn_resonance_ore_villain(play_breakout_fx: bool) -> void:
 		return
 	var tank_sprite := containment.get_node_or_null("SampleContainment") as Sprite2D
 	if tank_sprite != null:
-		_load_sprite_png(tank_sprite, "res://art/planet/modern_ore_containment_empty.png")
+		_load_sprite_png(tank_sprite, "res://art/planet/modern_ore_containment_destroyed.png")
 	var containment_glow := get_node_or_null("LabRoom/StationLighting/ContainmentGlow") as PointLight2D
 	if containment_glow != null:
 		containment_glow.visible = true
