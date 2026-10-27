@@ -99,7 +99,7 @@ const AMARA_CREW_TASKS := [
 		"station_path": NodePath("HydroponicsRoomProps/NutrientPump"),
 		"interaction_offset": Vector2(36.0, 0.0),
 		"prompt": "NUTRIENT PUMP   /   [E] INSPECT",
-		"completion": "The nutrient pump is clear and flowing again.",
+		"completion": "Pump inspection recorded. Verify actual delivery separately at the console.",
 	},
 	{
 		"id": &"amara_seedling_sensor",
@@ -108,11 +108,12 @@ const AMARA_CREW_TASKS := [
 		"station_path": NodePath("HydroponicsRoomProps/SeedlingRack"),
 		"interaction_offset": Vector2(44.0, 0.0),
 		"prompt": "SEEDLING RACK   /   [E] CALIBRATE SENSOR",
-		"completion": "The seedling rack humidity sensor is calibrated.",
+		"completion": "Seedling sensor check recorded; the irrigation repair remains a separate procedure.",
 	},
 ]
 
 @export var player_spawn: Vector2 = Vector2(900.0, 500.0)
+@export_file("*.tscn") var mock_planet_scene_path := MOCK_PLANET_SCENE_PATH
 
 @onready var floor_layer: Sprite2D = $FloorLayer
 @onready var wall_layer: Sprite2D = $WallLayer
@@ -201,7 +202,7 @@ func _ready() -> void:
 	add_child(_crew_dialogue)
 	ship_begin(_walk_hud,player)
 
-	if returning_from_planet:
+	if returning_from_planet or ship_story_continuing():
 		_arrival_briefing_open = false
 		_walk_hud.set_walking_visible(true)
 		_room_task_feedback = "AIRLOCK CYCLE COMPLETE  //  ABOARD ASTERIA-1"
@@ -264,9 +265,19 @@ func _unhandled_input(event: InputEvent) -> void:
 func _exit_ship_to_planet() -> void:
 	if _transitioning_to_planet:
 		return
+	if ship_story_active():
+		_ship_status = "Await the Erebos survey briefing. This watch does not authorize surface deployment."
+		_ship_status_time = 7.0
+		return
 	_transitioning_to_planet = true
 	ship_store_transit()
-	get_tree().change_scene_to_file(MOCK_PLANET_SCENE_PATH)
+	var result := get_tree().change_scene_to_file(mock_planet_scene_path)
+	if result != OK:
+		_transitioning_to_planet = false
+		Engine.remove_meta("ship_mission_transit"); Engine.remove_meta("ship_mission_transit_save_path")
+		_ship_status = "The development surface could not load. You remain aboard; retry when its scene is available."
+		_ship_status_time = 8.0
+		_update_player_walk_state()
 
 
 func _open_lab_device_console(device_id: StringName) -> void:
@@ -426,6 +437,7 @@ func _refresh_room_task_prompt() -> void:
 func _begin_amara_dialogue() -> void:
 	if _crew_dialogue_open:
 		return
+	if ship_story_amara_dialogue(): return
 	var first_meeting := not _amara_intro_seen
 	_crew_dialogue_open = true
 	_amara_intro_seen = true
@@ -437,7 +449,7 @@ func _begin_amara_dialogue() -> void:
 	var offer_tasks := not _crew_tasks_unlocked
 	if offer_tasks:
 		if first_meeting:
-			lines.append("I'm Amara Okoye. I keep the grow beds alive, and I know this section of the ship inside out.")
+			lines.append("I'm Amara Okoye, the medic. I also tend the grow beds, and I know this section of the ship inside out.")
 			lines.append("The nutrient pump needs an inspection, and the seedling rack's humidity sensor needs recalibrating.")
 		else:
 			lines.append("I've got two hydroponics jobs that could use another set of hands: the nutrient pump and the seedling rack sensor.")
@@ -445,7 +457,7 @@ func _begin_amara_dialogue() -> void:
 	else:
 		var completed_count := _completed_crew_tasks.size()
 		if completed_count >= AMARA_CREW_TASKS.size():
-			lines.append("The pump is flowing and the seedling sensor is steady. The beds should be in good shape now. Thank you.")
+			lines.append("Thank you for recording those checks. Delivery is currently in range." if _ship_state.systems.hydro.flow>=90 else "Thank you for recording those checks. Delivery is still low; those observations do not replace the irrigation repair.")
 		elif completed_count == 1:
 			for task in AMARA_CREW_TASKS:
 				if not _completed_crew_tasks.has(task["id"]):
@@ -535,6 +547,8 @@ func _complete_crew_task(task_id: StringName) -> void:
 
 func _on_arrival_briefing_dismissed() -> void:
 	_arrival_briefing_open = false
+	if ship_story_active() and _ship_cue_active.get("cue_id") == "cue.asteria.arrival":
+		ship_finish_story_cue("cue.asteria.arrival", str(_ship_cue_active.request_token), "completed")
 	_walk_hud.set_walking_visible(true)
 	_update_player_walk_state()
 

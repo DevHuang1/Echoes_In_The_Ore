@@ -316,10 +316,11 @@ func _update_readings() -> void:
 		_metrics[i].visible=i<readings.size()
 		if i<readings.size(): _metrics[i].show_reading.callv(readings[i])
 	var condition: String=PRESENT.condition(state,_definition)
-	var color := UI.CYAN if condition in ["VERIFIED","ACCESS READY","REST READY","WATCH FILED","READY TO VERIFY"] else UI.RED if condition.begins_with("FAULT") else UI.AMBER
+	var color := UI.CYAN if condition in ["VERIFIED","ACCESS READY","REST READY","WATCH FILED","WATCH HANDED OVER","ROUTINE / HEALTHY","READY TO VERIFY"] else UI.RED if condition.begins_with("FAULT") else UI.AMBER
 	_condition.set_status(condition,color)
 	var task: String=PRESENT.task(_definition)
 	var timed: bool=room in ["power","life","hydro","engine"] and _definition.get("kind")!="storage_hide"
+	if state.work_order_context=="first_watch" and room not in state.authorized_work_orders: timed=false
 	_observation.visible=timed;_timer.visible=timed
 	_observation.text="STABLE OBSERVATION / %.1f OF 6.0 s" % minf(6,float(state.verification.get(task,0.0)))
 	_timer.set_reading(float(state.verification.get(task,0.0)),6.0,UI.CYAN)
@@ -331,8 +332,10 @@ func _update_records(room: String) -> void:
 	match _record_page:
 		"PROCEDURE":
 			if prop_id=="bridge.planning":
-				for objective in CATALOG.OBJECTIVES:
-					text+=("VERIFIED / " if state.completed.has(objective[0]) else "OPEN / ")+objective[1]+"\n"+state.next_step(objective[0])+"\n\n"
+				if state.work_order_context=="first_watch": text="FIRST WATCH / FIVE MISSIONS\nReceive Maya's assignment, review the roster, meet Amara, diagnose delivery, restore service power, repair irrigation and report back, then hand over to Maya.\n\nOnly power and irrigation are required equipment repairs. Other routine work is optional.\n\n"+str(state.story_progress.get("summary",""))
+				else:
+					for objective in CATALOG.OBJECTIVES:
+						text+=("VERIFIED / " if state.completed.has(objective[0]) else "OPEN / ")+objective[1]+"\n"+state.next_step(objective[0])+"\n\n"
 			elif _definition.get("kind") in ["storage","storage_hide"]:
 				text="SHARED SERVICE STORE\nSUPPLIES retrieves one item. RETURN stores one carried service item. Station and carried counts update together. A full inventory leaves the stock here.\n\nFILTER-A: air filter\nSCRUB-A: scrubber medium\nCOOL-02: coolant service charge\nBUFFER-A: nutrient buffer\nO2-01: oxygen reserve\nN2-03: inert purge\n\n"
 				if _definition.get("kind")=="storage_hide": text+="ACCESS offers the marked concealment space. Press E to exit; a blocked exit allows retry."
@@ -344,7 +347,7 @@ func _update_records(room: String) -> void:
 		"HISTORY":
 			text="LATEST CONTROL RESULT\n"+_last_feedback+"\n\nDUTY LOG\n"
 			for entry in state.journal: text+=str(entry.text)+"\n\n"
-		"REPORT": text=state.systems.communications.report_text if state.systems.communications.report_ready else "No report prepared. Verify the duties, then use the bridge flight-control station to prepare the measured report."
+		"REPORT": text=str(state.story_progress.get("summary","No first-watch summary submitted yet.")) if state.work_order_context=="first_watch" else state.systems.communications.report_text if state.systems.communications.report_ready else "No report prepared. Verify the duties, then use the bridge flight-control station to prepare the measured report."
 	text=PRESENT.clean(text)
 	if _readout.text!=text: _readout.text=text
 

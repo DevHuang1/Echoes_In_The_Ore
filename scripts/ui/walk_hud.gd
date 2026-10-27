@@ -1430,6 +1430,22 @@ func set_ship_objectives(entries: Array, completed_ids: Dictionary) -> void:
 	_refresh_mission_panel()
 	_update_world_task_markers()
 
+func set_story_objective(entry: Dictionary, completed_missions: int, optional_enabled: bool, optional_completed: int) -> void:
+	# Reuse the tracker and its world marker; optional checks never enter the
+	# chapter denominator or masquerade as additional required machine repairs.
+	set_ship_objectives([entry], {str(entry.id):true} if completed_missions==5 else {})
+	_mission_progress_label.text = "%d / 5 MISSIONS" % completed_missions
+	_mission_progress_bar.max_value = 5; _mission_progress_bar.value = completed_missions
+	var description := _label(str(entry.description), 12, PALE)
+	description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	description.custom_minimum_size.x = 280
+	_mission_stack.add_child(description)
+	_mission_stack.add_child(HSeparator.new())
+	var optional := _label("OPTIONAL / %d OF 2 OBSERVATIONS" % mini(optional_completed,2) if optional_enabled else "OPTIONAL / EXPLORE AND INSPECT SHIP SYSTEMS", 10, MUTED)
+	optional.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_mission_stack.add_child(optional)
+	_mission_panel.offset_bottom = 264
+
 
 func _build_dev_menu_panel() -> void:
 	_dev_panel = PanelContainer.new()

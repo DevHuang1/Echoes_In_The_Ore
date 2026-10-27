@@ -232,7 +232,7 @@ func test_amara() -> void:
 
 func run() -> void:
 	DirAccess.make_dir_recursive_absolute("res://.godot/mission_validation")
-	level=LEVEL.instantiate();level.ship_mission_save_path="res://.godot/mission_validation/physical.json"
+	level=LEVEL.instantiate();level.ship_story_enabled=false;level.ship_mission_save_path="res://.godot/mission_validation/physical.json"
 	add_child(level);await frames(12)
 	while not level._ship_points_ready: await get_tree().process_frame
 	level._on_arrival_briefing_dismissed()

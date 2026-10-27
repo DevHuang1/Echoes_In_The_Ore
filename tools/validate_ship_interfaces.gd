@@ -180,7 +180,7 @@ func station(id: String) -> void:
 	check(level.ship_open_procedure(id),"Open "+id);await frames()
 
 func run() -> void:
-	level=LEVEL.instantiate();get_tree().root.add_child(level)
+	level=LEVEL.instantiate();level.ship_story_enabled=false;get_tree().root.add_child(level)
 	while not level._ship_points_ready: await get_tree().process_frame
 	level.ship_mission_save_path="res://.godot/mission_validation/interface_isolated.json"
 	level._on_arrival_briefing_dismissed()

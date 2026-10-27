@@ -237,6 +237,7 @@ func sequence(context: String) -> void:
 
 func run() -> void:
 	DirAccess.make_dir_recursive_absolute("res://.godot/mission_validation/screenshots")
+	Engine.set_meta("ship_maintenance_entry",true)
 	var landing: Node=load(ProjectSettings.get_setting("application/run/main_scene")).instantiate()
 	get_tree().root.add_child(landing);get_tree().current_scene=landing
 	await frames();await capture("normal_landing")

@@ -184,6 +184,7 @@ func reopen_level(save_path: String) -> void:
 	level.queue_free();level=null;await frames(3)
 	print("STATE VALIDATION: create replacement walkthrough")
 	var replacement=LEVEL.instantiate()
+	replacement.ship_story_enabled=false
 	print("STATE VALIDATION: replacement instantiated")
 	level=replacement;level.ship_mission_save_path=save_path
 	print("STATE VALIDATION: add replacement to tree")
@@ -246,7 +247,7 @@ func test_restart_persistence() -> void:
 func run() -> void:
 	print("STATE VALIDATION: instantiate walkthrough")
 	DirAccess.make_dir_recursive_absolute("res://.godot/mission_validation")
-	level=LEVEL.instantiate();level.ship_mission_save_path="res://.godot/mission_validation/runtime.json"
+	level=LEVEL.instantiate();level.ship_story_enabled=false;level.ship_mission_save_path="res://.godot/mission_validation/runtime.json"
 	add_child(level);await frames(12)
 	while not level._ship_points_ready: await get_tree().process_frame
 	hud=level._walk_hud;state=level._ship_state

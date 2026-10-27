@@ -21,12 +21,17 @@ var systems := {}
 var verification := {}
 var transactions := {}
 var elapsed := 0.0
+var work_order_context := "maintenance"
+var authorized_work_orders := PackedStringArray()
+var optional_checks := {}
+var story_progress := {}
 
 func configure(existing_inventory: Object, context := "outbound") -> void:
 	inventory = existing_inventory
 	reset(context)
 
 func reset(context: String) -> void:
+	work_order_context = "maintenance"; authorized_work_orders = PackedStringArray(); optional_checks = {}
 	phase = "return" if context == "return" else "outbound"
 	flags = {}; completed = {}; evidence = {}; journal = []; legacy_progress = {}
 	verification = {}; transactions = {}; elapsed = 0.0
@@ -51,6 +56,17 @@ func reset(context: String) -> void:
 	_log("context", "POST-INCIDENT RETURN / development scenario; crew outcomes unconfirmed." if phase=="return" else "OUTBOUND / pre-incident ship duties. Review assignments at the bridge table.")
 	changed.emit()
 
+func configure_first_watch() -> void:
+	# Only the two authored work orders are faulty. Healthy equipment is not
+	# marked as a completed procedure and does not demand pointless consumables.
+	work_order_context = "first_watch"
+	systems.life.airflow = 67.0; systems.life.co2 = 0.07; systems.life.restored = true
+	systems.engine.health = [1.0, 1.0]; systems.engine.temperature = 60.0
+	systems.hydro.flow = 0.0
+	journal.clear()
+	_log("context", "DAY 184 / Asteria-1. Preparing for the Erebos survey. Receive the watch at the bridge planning table.")
+	changed.emit()
+
 func _log(id: String, text: String) -> void:
 	journal.append({"id":id,"phase":phase,"time":elapsed,"text":text})
 	if journal.size()>120: journal.pop_front()
@@ -71,6 +87,11 @@ func _done(id: String) -> void:
 	objective_completed.emit(id)
 
 func prerequisite(task: String) -> String:
+	if work_order_context == "first_watch":
+		if not flags.get("assigned", false): return "Receive Maya's watch assignment at the bridge planning table. You may inspect live readings first."
+		if task in authorized_work_orders: return ""
+		if task == "cargo" and completed.has("crew"): return ""
+		return "No repair work order here for this watch. Inspect routine readings, or follow the primary objective."
 	if not flags.get("assigned",false): return "Review and accept duties at the bridge planning table first."
 	var requirements := {"crew":[],"cargo":["crew"],"power":["cargo"],"life":["power"],"hydro":["life"],"engine":["power","cargo"],"navigation":["crew","engine"],"communications":["crew","cargo","power","life","hydro","engine","navigation"]}
 	for needed in requirements.get(task,[]):
@@ -78,6 +99,8 @@ func prerequisite(task: String) -> String:
 	return ""
 
 func narrative(room: String) -> String:
+	if work_order_context == "first_watch":
+		return {"bridge": "DAY 184 aboard Asteria-1, preparing for the Erebos survey. Maya's watch covers service power and nutrient delivery; other routine work is optional.", "hydro": "Amara Okoye, MED, is tending the grow beds. Compare healthy pump capacity and normal reservoir chemistry with actual delivery and the science/service supply.", "engine": "Both cooling loops are operating normally. No cooling repair is assigned on this watch.", "life": "Oxygen, carbon-dioxide removal and airflow are in their routine ranges. No filter replacement is assigned on this watch."}.get(room, "Routine watch observation. Personal belongings remain private; shared service stores are authorized.")
 	var outbound := {
 		"bridge":"Asteria-1 is bound for the Erebos survey and autonomous ore-extraction trials. Before filing the duty report, compare the planned route with the helm instruments and confirm the relay conditions.",
 		"quarters":"Duty roster: "+", ".join(CATALOG.CREW)+". Compare the watch entries with the expected duty activity. Shared maintenance stores are authorised for this work; personal possessions remain private.",
@@ -143,6 +166,8 @@ func bus_powered(bus: String) -> bool:
 
 func tick(delta: float) -> void:
 	elapsed += maxf(delta,0.0)
+	if work_order_context == "first_watch" and not systems.hydro.restored:
+		systems.hydro.flow = 25.0 if bus_powered("science") else 0.0
 	if systems.hydro.restored:
 		systems.hydro.flow=0.0 if systems.hydro.isolated or not bus_powered("science") else 96.0 if systems.hydro.aligned and systems.hydro.ec>=1.8 and systems.hydro.ec<=2.4 else 32.0
 	var e: Dictionary=systems.engine
@@ -169,6 +194,8 @@ func _action(id: String, title: String, allowed := true, reason := "", options: 
 
 func _gated(id: String, title: String, task: String, condition := true, reason := "", options: Array = []) -> Dictionary:
 	var prerequisite_reason := prerequisite(task)
+	if work_order_context == "first_watch" and (id == "observe" or (id == "diagnose" and task == "hydro" and "hydro.inspect" in authorized_work_orders)):
+		prerequisite_reason = ""
 	if task in ["navigation","communications"] and prerequisite_reason.is_empty() and not bus_powered("science"): prerequisite_reason="Science/service bus is unavailable. Restore a safe allocation at the power breaker; essential systems remain fed."
 	if completed.has(task): prerequisite_reason="This procedure is already verified. Monitor its readings or use the safe restore control; no repeat consumption/reward is needed."
 	return _action(id,title,prerequisite_reason.is_empty() and condition,prerequisite_reason if not prerequisite_reason.is_empty() else reason,options)
@@ -179,6 +206,10 @@ func actions(prop_id: String) -> Array:
 	var room: String=def.room;var kind: String=def.kind
 	var result: Array=[_action("record","Read and record this phase's crew/system note")]
 	if kind=="planning":
+		if work_order_context == "first_watch":
+			result.append(_action("story:briefing", "Speak to Maya / watch assignment"))
+			result.append(_action("story:summary", "Review the measured watch summary", story_progress.get("can_submit",false), "Verify the two assigned repairs and report back to Amara first. A completed watch may be reviewed in Records."))
+			return result
 		result.append(_action("assign","Accept ship-side duties",not flags.get("assigned",false),"Assignments already accepted; progress is retained."))
 		result.append(_action("file_report","File the verified ship-side report",completed.size()==8 and not flags.get("report_filed",false),"Verify all eight listed procedures and obtain the transmission acknowledgement first."))
 		return result
@@ -190,7 +221,10 @@ func actions(prop_id: String) -> Array:
 		if prop_id=="cargo.locker": result.append(_action("recover_supplies","Issue a logged replacement duty kit",flags.get("assigned",false),"Review bridge assignments first."))
 		if kind=="storage_hide": result.append(_action("hide","Enter concealment (E exits safely)"))
 	if kind=="chair": result.append(_action("chair","Inspect station seat / operator access"))
-	if kind=="rest": result.append(_action("rest","Take a short rest without advancing the story",not flags.get("assigned",false) or (completed.has("power") and completed.has("life") and completed.has("engine")),"Restore and verify essential power, air and cooling before resting."))
+	if kind=="rest": result.append(_action("rest","Take a short rest without advancing the story",(bus_powered("essential") and systems.life.airflow>=62 and systems.life.co2<=0.1 and engine_flow(0)>=0.9 and engine_flow(1)>=0.9 and systems.engine.temperature<=65) if work_order_context=="first_watch" else not flags.get("assigned",false) or (completed.has("power") and completed.has("life") and completed.has("engine")),"Restore essential power, healthy air and cooling before resting."))
+	if work_order_context == "first_watch" and optional_checks.get("enabled", false):
+		var optional_id: String = "amara_nutrient_pump" if prop_id == "hydro.pump" else "amara_seedling_sensor" if prop_id == "hydro.seedlings" else ""
+		if not optional_id.is_empty(): result.append(_action("optional:"+optional_id, "OPTIONAL / record the pump inspection" if prop_id=="hydro.pump" else "OPTIONAL / check the seedling sensor", not optional_checks.get(optional_id,false), "This optional check is already recorded."))
 	if kind=="crew":
 		result.append(_gated("roster","Compare duty roster and expected activity","crew"))
 		result.append(_gated("crew_log","Review authorised watch/check-in records","crew",flags.get("crew.roster",false),"Read the duty roster first."))
@@ -271,6 +305,8 @@ func act(prop_id: String, action_id: String, value: Variant = null) -> Dictionar
 	if not chosen.options.is_empty() and not chosen.options.any(func(option: Array): return option[0]==value): return _reply(false,"Choose one of the labelled operating options.")
 	if chosen.has("number") and (not (value is float or value is int) or not is_finite(float(value)) or float(value)<chosen.number.min or float(value)>chosen.number.max): return _reply(false,"The setting is outside this control's allowed range.")
 	var message := ""
+	if action_id.begins_with("story:"): return {"ok":true,"event":"story","action":action_id}
+	if action_id.begins_with("optional:"): return {"ok":true,"event":"optional","task":action_id.trim_prefix("optional:")}
 	if action_id.begins_with("take:"):
 		var item := action_id.trim_prefix("take:")
 		if not inventory.inventory_put(StringName(item),1): return _reply(false,"Inventory full. Store an item before retrieving a spare; nothing was removed.")
@@ -437,10 +473,16 @@ func next_step(task: String) -> String:
 	return "See duty record."
 
 func snapshot() -> Dictionary:
-	return {"version":CATALOG.VERSION,"phase":phase,"flags":flags.duplicate(true),"completed":completed.duplicate(true),"evidence":evidence.duplicate(true),"journal":journal.duplicate(true),"stocks":stocks.duplicate(true),"legacy_progress":legacy_progress.duplicate(true),"systems":systems.duplicate(true),"verification":verification.duplicate(true),"transactions":transactions.duplicate(true),"elapsed":elapsed}
+	return {"version":2,"phase":phase,"context":work_order_context,"work_orders":Array(authorized_work_orders),"flags":flags.duplicate(true),"completed":completed.duplicate(true),"evidence":evidence.duplicate(true),"journal":journal.duplicate(true),"stocks":stocks.duplicate(true),"legacy_progress":legacy_progress.duplicate(true),"systems":systems.duplicate(true),"verification":verification.duplicate(true),"transactions":transactions.duplicate(true),"elapsed":elapsed}
 
 func restore(data: Dictionary) -> bool:
-	if data.get("version")!=CATALOG.VERSION or data.get("phase","") not in ["outbound","return"]: return false
+	if data.get("version") not in [1,2] or data.get("phase","") not in ["outbound","return"]: return false
+	var context: String = str(data.get("context", "maintenance")) if data.version == 2 else "maintenance"
+	var orders: Variant = data.get("work_orders", []) if data.version == 2 else []
+	if context not in ["maintenance", "first_watch"] or not orders is Array: return false
+	if context == "first_watch" and data.phase != "outbound": return false
+	for order in orders:
+		if order not in ["crew", "cargo", "power", "life", "hydro", "engine", "navigation", "communications", "hydro.inspect"]: return false
 	for key in ["flags","completed","evidence","stocks","legacy_progress","systems","verification","transactions"]:
 		if not data.get(key) is Dictionary: return false
 	if not data.get("journal") is Array or not (data.get("elapsed") is float or data.get("elapsed") is int): return false
@@ -474,6 +516,7 @@ func restore(data: Dictionary) -> bool:
 		if not _valid_service_progress(key,data.legacy_progress[key]): return false
 	if not is_finite(float(data.elapsed)) or data.elapsed<0: return false
 	phase=data.phase
+	work_order_context = context; authorized_work_orders = PackedStringArray(orders)
 	for key in ["flags","completed","evidence","stocks","legacy_progress","systems","verification","transactions"]: set(key,data[key].duplicate(true))
 	journal=data.journal.duplicate(true);elapsed=float(data.elapsed)
 	changed.emit()

@@ -174,6 +174,14 @@ func _cargo(kind: String) -> void:
 	text_at(25,238,"20 kg CHECK REFERENCE / TARE EMPTY PLATFORM",UI.MUTED)
 
 func _planning() -> void:
+	if model.work_order_context=="first_watch":
+		var titles := ["RECEIVE THE WATCH","MEET AMARA / READINGS","RESTORE SERVICE POWER","IRRIGATION / REPORT BACK","COMMAND HANDOFF"]
+		var count: int=int(model.story_progress.get("completed",0))
+		for i in range(titles.size()):
+			var x := 12.0+(i%2)*296; var y := 14.0+int(i/2.0)*70
+			module(x,y,280,60,titles[i],UI.CYAN if i<count else UI.AMBER if i==count else UI.MUTED)
+			text_at(x+18,y+46,"COMPLETE" if i<count else "CURRENT" if i==count else "LATER",UI.MUTED)
+		return
 	for i in range(CATALOG.OBJECTIVES.size()):
 		var obj: Array=CATALOG.OBJECTIVES[i]
 		var x := 12.0+(i%2)*296

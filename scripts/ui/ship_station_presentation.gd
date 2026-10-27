@@ -19,6 +19,9 @@ const ITEMS := {"filter_cartridge":"FILTER-A", "scrubber_media":"SCRUB-A", "cool
 	"engineering_multitool":"MULTITOOL", "pressure_sealant":"SEALANT"}
 
 static func action_label(id: String,title: String) -> String:
+	if id=="story:briefing": return "COMMAND TEXT"
+	if id=="story:summary": return "REVIEW + HANDOFF"
+	if id.begins_with("optional:"): return "OPTIONAL CHECK"
 	if id.begins_with("take:"): return "TAKE / "+ITEMS.get(id.trim_prefix("take:"),id.trim_prefix("take:").to_upper())
 	if id.begins_with("store:"): return "STORE / "+ITEMS.get(id.trim_prefix("store:"),id.trim_prefix("store:").to_upper())
 	return LABELS.get(id,title)
@@ -84,6 +87,8 @@ static func pages(definition: Dictionary) -> Array:
 	return ["INSPECT","SERVICE","VERIFY","RECORDS"]
 
 static func action_page(id: String, definition: Dictionary) -> String:
+	if id=="story:briefing": return "DUTIES"
+	if id=="story:summary": return "SIGN-OFF"
 	var kind: String=definition.get("kind","")
 	if id=="record": return "RECORDS"
 	if id.begins_with("take:") or id=="recover_supplies": return "SUPPLIES"
@@ -126,6 +131,9 @@ static func metrics(state: Object,d: Dictionary) -> Array:
 		var free: int=inv.storage.count(&"")+inv.hotbar.count(&"")
 		return [metric("STATION STOCK","%d ITEMS" % n,"Service supplies",n,maxi(12,n)),metric("CARRY SPACE","%d FREE" % free,"36 carry slots",free,36),metric("ACCESS","AVAILABLE","E exits safely" if kind=="storage_hide" else "One item per transfer",1,1)]
 	if kind=="planning":
+		if state.work_order_context=="first_watch":
+			var progress: Dictionary=state.story_progress
+			return [metric("FIRST WATCH","%d / 5" % int(progress.get("completed",0)),"Story missions",int(progress.get("completed",0)),5),metric("REQUIRED WORK","2 REPAIRS","Power / irrigation",int(state.completed.has("power"))+int(state.completed.has("hydro")),2),metric("HANDOFF","ACKNOWLEDGED" if progress.get("acknowledged",false) else "PENDING","Maya / terminal text",int(progress.get("acknowledged",false)),1)]
 		return [metric("DUTY LOG","%d / 8" % state.completed.size(),"Verified procedures",state.completed.size(),8),metric("ASSIGNMENT","ACCEPTED" if state.flags.get("assigned",false) else "AWAITING","Accept duties",int(state.flags.get("assigned",false)),1),metric("REPORT","FILED" if state.flags.get("report_filed",false) else "OPEN","Relay + sign-off",int(state.flags.get("report_filed",false)),1)]
 	if kind=="navigation":
 		var n: Dictionary=s.navigation
@@ -161,6 +169,10 @@ static func condition(state: Object,d: Dictionary) -> String:
 	if kind=="rest":
 		for action in state.actions(d.id):
 			if action.id=="rest": return "REST READY" if action.enabled else "REST INTERLOCKED"
+	if state.work_order_context=="first_watch":
+		if kind=="planning": return "WATCH HANDED OVER" if state.story_progress.get("acknowledged",false) else "FIRST WATCH"
+		if room=="life" and state.systems.life.airflow>=62 and state.systems.life.co2<=0.1: return "ROUTINE / HEALTHY"
+		if room=="engine" and state.engine_flow(0)>=0.9 and state.engine_flow(1)>=0.9 and state.systems.engine.temperature<=65: return "ROUTINE / HEALTHY"
 	if state.completed.has(t): return "VERIFIED"
 	if kind=="planning": return "WATCH FILED" if state.flags.get("report_filed",false) else "DUTY LOG"
 	if not state.prerequisite(t).is_empty(): return "INTERLOCKED"

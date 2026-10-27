@@ -164,7 +164,12 @@ func _board_ship() -> void:
 		return
 	_transitioning = true
 	Engine.set_meta(&"returning_from_planet", true)
-	get_tree().change_scene_to_file(SHIP_SCENE_PATH)
+	var result := get_tree().change_scene_to_file(SHIP_SCENE_PATH)
+	if result != OK:
+		_transitioning = false
+		Engine.remove_meta(&"returning_from_planet")
+		_feedback_text = "Ship scene unavailable. You remain on the development surface; retry the airlock."
+		_feedback_timer = 8.0
 
 
 func _on_hud_modal_state_changed(is_open: bool) -> void:
