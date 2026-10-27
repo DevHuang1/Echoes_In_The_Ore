@@ -1,21 +1,21 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene format=3 uid="uid://cibln6qo1e5jr"]
 
-[ext_resource type="Texture2D" path="res://art/overview/asteria_overview_floor.png" id="1_floor"]
-[ext_resource type="Texture2D" path="res://art/overview/asteria_overview_walls_2x.png" id="2_walls"]
-[ext_resource type="PackedScene" path="res://scenes/ship/lab_room.tscn" id="3_lab"]
+[ext_resource type="Texture2D" uid="uid://chi8e3l3w8vc5" path="res://art/overview/asteria_overview_floor.png" id="1_floor"]
+[ext_resource type="Texture2D" uid="uid://ru8r0ka7sokn" path="res://art/overview/asteria_overview_walls_2x.png" id="2_walls"]
 [ext_resource type="PackedScene" path="res://scenes/ship/space_backdrop.tscn" id="4_space"]
+[ext_resource type="PackedScene" path="res://scenes/ship/lab_room.tscn" id="3_lab"]
 
-[node name="LabRoomPreview" type="Node2D"]
+[node name="LabRoomPreview" type="Node2D" unique_id=1488891432]
 
-[node name="SpaceBackdrop" parent="." instance=ExtResource("4_space")]
+[node name="SpaceBackdrop" parent="." unique_id=1504178829 instance=ExtResource("4_space")]
 position = Vector2(887, 443.5)
 
-[node name="FloorLayer" type="Sprite2D" parent="."]
+[node name="FloorLayer" type="Sprite2D" parent="." unique_id=2030460037]
 z_index = -2
 texture = ExtResource("1_floor")
 centered = false
 
-[node name="WallLayer" type="Sprite2D" parent="."]
+[node name="WallLayer" type="Sprite2D" parent="." unique_id=1929381636]
 z_index = -1
 texture_filter = 2
 scale = Vector2(0.5, 0.5)
@@ -23,8 +23,8 @@ texture = ExtResource("2_walls")
 centered = false
 
 [node name="LabRoom" parent="." instance=ExtResource("3_lab")]
-position = Vector2(697, 405)
+position = Vector2(694, 383)
 
-[node name="RoomCamera" type="Camera2D" parent="."]
+[node name="RoomCamera" type="Camera2D" parent="." unique_id=2092248260]
 position = Vector2(958.5, 535)
 zoom = Vector2(2, 2)
