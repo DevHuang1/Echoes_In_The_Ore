@@ -749,7 +749,7 @@ func _build_header() -> Control:
 	row.add_child(status_group)
 
 	_close_button = Button.new()
-	_close_button.text="X";_close_button.custom_minimum_size=Vector2(42,42)
+	SKIN.close_button(_close_button)
 	_close_button.pressed.connect(_close_console)
 	row.add_child(_close_button)
 	return row
@@ -1815,7 +1815,9 @@ func _centered(control: Control) -> Control:
 func _label(text: String, font_size: int, color: Color) -> Label:
 	var label := Label.new()
 	label.text = text
-	label.add_theme_font_size_override("font_size", maxi(12, font_size))
+	var scaled_size: int = 15 if font_size >= 20 else (12 if font_size >= 16 else (10 if font_size >= 12 else maxi(8, font_size)))
+	label.add_theme_font_size_override("font_size", scaled_size)
+	label.add_theme_constant_override("line_spacing", 4)
 	label.add_theme_color_override("font_color", color)
 	return label
 
@@ -1825,7 +1827,10 @@ func _button(text: String, minimum_size: Vector2, _accent: Color) -> Button:
 	button.text = text
 	button.custom_minimum_size = minimum_size
 	button.focus_mode = Control.FOCUS_ALL
-	button.add_theme_font_size_override("font_size", 12)
+	button.add_theme_font_size_override("font_size", 10)
+	for st_name in ["normal", "hover", "pressed", "disabled", "focus"]:
+		if SKIN.THEME.has_stylebox(st_name, "Button"):
+			button.add_theme_stylebox_override(st_name, SKIN.THEME.get_stylebox(st_name, "Button"))
 	return button
 
 func _style_task_slider(slider: HSlider, _accent: Color) -> void:

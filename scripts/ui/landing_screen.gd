@@ -48,20 +48,20 @@ func _build_screen() -> void:
 	add_child(title_panel)
 
 	var content := VBoxContainer.new()
-	content.add_theme_constant_override("separation", 16)
+	content.add_theme_constant_override("separation", 18)
 	content.alignment = BoxContainer.ALIGNMENT_CENTER
 	title_panel.add_child(content)
 
 	var header_meta := HBoxContainer.new()
-	header_meta.add_theme_constant_override("separation", 8)
+	header_meta.add_theme_constant_override("separation", 12)
 	var sys_badge := Label.new()
 	sys_badge.text = "[ SYS // FLIGHT DECK ]"
-	sys_badge.add_theme_font_size_override("font_size", 12)
+	sys_badge.add_theme_font_size_override("font_size", 9)
 	sys_badge.add_theme_color_override("font_color", Color(1.0, 0.78, 0.38))
 	header_meta.add_child(sys_badge)
 	var link_status := Label.new()
 	link_status.text = "● TERMINAL LINKED"
-	link_status.add_theme_font_size_override("font_size", 11)
+	link_status.add_theme_font_size_override("font_size", 9)
 	link_status.add_theme_color_override("font_color", Color(0.48, 0.93, 0.64))
 	header_meta.add_child(link_status)
 	content.add_child(header_meta)
@@ -69,7 +69,8 @@ func _build_screen() -> void:
 	var eyebrow := Label.new()
 	eyebrow.text = "ASTERIA-1 // DEEP-SPACE SURVEY EXPEDITION"
 	eyebrow.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	eyebrow.add_theme_font_size_override("font_size", 13)
+	eyebrow.add_theme_font_size_override("font_size", 10)
+	eyebrow.add_theme_constant_override("line_spacing", 4)
 	eyebrow.add_theme_color_override("font_color", Color(0.88, 0.70, 0.39))
 	eyebrow.add_theme_constant_override("outline_size", 0)
 	eyebrow.add_theme_color_override("font_outline_color", Color(0.01, 0.018, 0.03, 0.8))
@@ -77,17 +78,18 @@ func _build_screen() -> void:
 
 	var title := Label.new()
 	title.text = "ECHOES\nIN THE ORE"
-	title.add_theme_font_size_override("font_size", 48)
+	title.add_theme_font_size_override("font_size", 32)
 	title.add_theme_color_override("font_color", Color(0.97, 0.95, 0.89))
 	title.add_theme_constant_override("outline_size", 0)
 	title.add_theme_color_override("font_outline_color", Color(0.015, 0.025, 0.04, 0.95))
-	title.add_theme_constant_override("line_spacing", -5)
+	title.add_theme_constant_override("line_spacing", 6)
 	content.add_child(title)
 
 	var tagline := Label.new()
 	tagline.text = "Some discoveries are worth leaving behind."
 	tagline.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	tagline.add_theme_font_size_override("font_size", 16)
+	tagline.add_theme_font_size_override("font_size", 11)
+	tagline.add_theme_constant_override("line_spacing", 4)
 	tagline.add_theme_color_override("font_color", Color(0.85, 0.88, 0.9))
 	content.add_child(tagline)
 
@@ -97,7 +99,8 @@ func _build_screen() -> void:
 
 	var telemetry_info := Label.new()
 	telemetry_info.text = "CREW SPECIALIST: THURA MIN  //  STATUS: APPROACHING EREBOS"
-	telemetry_info.add_theme_font_size_override("font_size", 11)
+	telemetry_info.add_theme_font_size_override("font_size", 9)
+	telemetry_info.add_theme_constant_override("line_spacing", 4)
 	telemetry_info.add_theme_color_override("font_color", Color(0.62, 0.73, 0.76))
 	content.add_child(telemetry_info)
 
@@ -107,10 +110,10 @@ func _build_screen() -> void:
 
 	_start_button = Button.new()
 	_start_button.text = "[ INITIALIZE EXPEDITION  → ]"
-	_start_button.custom_minimum_size = Vector2(280, 56)
+	_start_button.custom_minimum_size = Vector2(280, 52)
 	_start_button.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	_start_button.focus_mode = Control.FOCUS_ALL
-	_start_button.add_theme_font_size_override("font_size", 20)
+	_start_button.add_theme_font_size_override("font_size", 12)
 	_start_button.pressed.connect(_on_start_pressed)
 	content.add_child(_start_button)
 	_continue_path = STORY_SAVE.continue_path()
@@ -121,7 +124,7 @@ func _build_screen() -> void:
 		_continue_button.text = "[ CONTINUE WATCH  → ]"
 		_continue_button.custom_minimum_size = Vector2(280, 48)
 		_continue_button.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-		_continue_button.add_theme_font_size_override("font_size", 18)
+		_continue_button.add_theme_font_size_override("font_size", 11)
 		_continue_button.pressed.connect(_on_continue_pressed)
 		content.add_child(_continue_button)
 
@@ -131,7 +134,7 @@ func _build_screen() -> void:
 	footer.anchor_top = 0.94
 	footer.anchor_right = 0.48
 	footer.anchor_bottom = 0.985
-	footer.add_theme_font_size_override("font_size", 12)
+	footer.add_theme_font_size_override("font_size", 9)
 	footer.add_theme_color_override("font_color", Color(0.85, 0.88, 0.9, 0.65))
 	add_child(footer)
 

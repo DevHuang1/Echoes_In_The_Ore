@@ -41,50 +41,50 @@ func _build_ui() -> void:
 	_root.add_child(center)
 
 	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(1120.0, 0.0)
+	panel.custom_minimum_size = Vector2(980.0, 0.0)
 	panel.add_theme_stylebox_override("panel", _panel_style())
 	center.add_child(panel)
 
 	var content := VBoxContainer.new()
-	content.add_theme_constant_override("separation", 12)
+	content.add_theme_constant_override("separation", 14)
 	panel.add_child(content)
 
 	var header_row := HBoxContainer.new()
-	header_row.add_theme_constant_override("separation", 10)
-	var badge := _label("[ MISSION BRIEFING ]", 11, GOLD)
+	header_row.add_theme_constant_override("separation", 12)
+	var badge := _label("[ MISSION BRIEFING ]", 9, GOLD)
 	header_row.add_child(badge)
-	var telemetry_tag := _label("// FLIGHT RECORD DAY 184 // ASTERIA-1", 11, MUTED)
+	var telemetry_tag := _label("// FLIGHT RECORD DAY 184 // ASTERIA-1", 9, MUTED)
 	header_row.add_child(telemetry_tag)
 	header_row.add_spacer(false)
-	var status_tag := _label("● ORBITAL TELEMETRY LINKED", 11, GREEN)
+	var status_tag := _label("● ORBITAL TELEMETRY LINKED", 9, GREEN)
 	header_row.add_child(status_tag)
 	content.add_child(header_row)
 
-	var welcome := _label("WELCOME ABOARD, SPECIALIST THURA MIN", 34, PALE)
-	welcome.custom_minimum_size.y = 44.0
+	var welcome := _label("WELCOME ABOARD, SPECIALIST THURA MIN", 20, PALE)
+	welcome.custom_minimum_size.y = 34.0
 	content.add_child(welcome)
 
-	var status := _label("DAY 184 ABOARD ASTERIA-1 // PREPARING FOR THE EREBOS SURVEY", 14, MUTED)
+	var status := _label("DAY 184 ABOARD ASTERIA-1 // PREPARING FOR THE EREBOS SURVEY", 10, MUTED)
 	content.add_child(status)
 
 	var divider := HSeparator.new()
 	divider.add_theme_color_override("separator_color", Color(0.66, 0.49, 0.27, 0.72))
 	content.add_child(divider)
 
-	var mission_heading := _label("OPERATION DIRECTIVE // SURVEY & EXTRACTION", 12, GOLD)
+	var mission_heading := _label("OPERATION DIRECTIVE // SURVEY & EXTRACTION", 10, GOLD)
 	content.add_child(mission_heading)
 
 	var mission := _label(
 		"Crewed deep-space industrial research expedition to survey minor planet Erebos and validate autonomous ore extraction systems.",
-		16,
+		11,
 		PALE
 	)
 	mission.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	mission.custom_minimum_size.y = 26.0
+	mission.custom_minimum_size.y = 28.0
 	content.add_child(mission)
 
 	var cards := HBoxContainer.new()
-	cards.add_theme_constant_override("separation", 12)
+	cards.add_theme_constant_override("separation", 14)
 	content.add_child(cards)
 	cards.add_child(_info_card("[ 01 // DESTINATION ]", "EREBOS (MINOR PLANET)", "High-density ore survey target; anomalous magnetic signature."))
 	cards.add_child(_info_card("[ 02 // ASSIGNMENT ]", "PLANETARY GEOLOGY", "Lead specialist: autonomous drone deployment & core sampling."))
@@ -92,22 +92,23 @@ func _build_ui() -> void:
 
 	var crew := _label(
 		"CREW ONBOARD:  Maya Chen (CDR) · Elias Ward (PLT) · Amara Okoye (MED) · Leila Haddad (ENG) · Mateo Ruiz (MIN)",
-		14,
+		10,
 		PALE
 	)
 	crew.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	crew.custom_minimum_size.y = 32.0
+	crew.custom_minimum_size.y = 28.0
 	content.add_child(crew)
 
-	var first_duty := _label("FIRST OBJECTIVE: Go west through the bridge corridor. Use the planning table beside the main helm to receive Maya's watch assignment. She will explain the work before you begin.", 14, MUTED)
+	var first_duty := _label("FIRST OBJECTIVE: Go west through the bridge corridor. Use the planning table beside the main helm to receive Maya's watch assignment. She will explain the work before you begin.", 10, MUTED)
 	first_duty.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	first_duty.custom_minimum_size.y = 32.0
 	content.add_child(first_duty)
 
 	_continue_button = Button.new()
 	_continue_button.text = "[ ENTER SHIP DECK  → ]"
-	_continue_button.custom_minimum_size = Vector2(250.0, 50.0)
+	_continue_button.custom_minimum_size = Vector2(250.0, 48.0)
 	_continue_button.size_flags_horizontal = Control.SIZE_SHRINK_END
-	_continue_button.add_theme_font_size_override("font_size", 16)
+	_continue_button.add_theme_font_size_override("font_size", 11)
 	_continue_button.pressed.connect(_dismiss)
 	content.add_child(_continue_button)
 
@@ -115,7 +116,8 @@ func _build_ui() -> void:
 func _label(text: String, font_size: int, color: Color) -> Label:
 	var label := Label.new()
 	label.text = text
-	label.add_theme_font_size_override("font_size", maxi(12, font_size))
+	label.add_theme_font_size_override("font_size", maxi(8, font_size))
+	label.add_theme_constant_override("line_spacing", 4)
 	label.add_theme_color_override("font_color", color)
 	return label
 
@@ -127,15 +129,15 @@ func _info_card(heading: String, title: String, detail: String) -> PanelContaine
 	card.add_theme_stylebox_override("panel", _card_style())
 
 	var stack := VBoxContainer.new()
-	stack.add_theme_constant_override("separation", 5)
+	stack.add_theme_constant_override("separation", 6)
 	card.add_child(stack)
-	stack.add_child(_label(heading, 11, GOLD))
+	stack.add_child(_label(heading, 9, GOLD))
 
-	var card_title := _label(title, 16, PALE)
+	var card_title := _label(title, 11, PALE)
 	card_title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	stack.add_child(card_title)
 
-	var card_detail := _label(detail, 12, MUTED)
+	var card_detail := _label(detail, 9, MUTED)
 	card_detail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	stack.add_child(card_detail)
 	return card
@@ -149,7 +151,7 @@ func _card_style() -> StyleBox:
 
 func _unhandled_key_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
-		if event.keycode == KEY_SPACE or event.keycode == KEY_ENTER or event.keycode == KEY_KP_ENTER:
+		if event.keycode in [KEY_SPACE, KEY_ENTER, KEY_KP_ENTER, KEY_ESCAPE, KEY_E, KEY_W, KEY_A, KEY_S, KEY_D, KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT]:
 			_dismiss()
 			get_viewport().set_input_as_handled()
 

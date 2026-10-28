@@ -15,9 +15,9 @@
 
 [sub_resource type="StyleBoxTexture" id="Disabled"]
 content_margin_left = 10.0
-content_margin_top = 10.0
+content_margin_top = 8.0
 content_margin_right = 10.0
-content_margin_bottom = 10.0
+content_margin_bottom = 8.0
 texture = ExtResource("button")
 texture_margin_left = 12.0
 texture_margin_top = 12.0
@@ -27,9 +27,9 @@ modulate_color = Color(0.45, 0.5, 0.55, 1)
 
 [sub_resource type="StyleBoxTexture" id="Focus"]
 content_margin_left = 10.0
-content_margin_top = 10.0
+content_margin_top = 8.0
 content_margin_right = 10.0
-content_margin_bottom = 10.0
+content_margin_bottom = 8.0
 texture = ExtResource("button_hover")
 texture_margin_left = 12.0
 texture_margin_top = 12.0
@@ -39,9 +39,9 @@ draw_center = false
 
 [sub_resource type="StyleBoxTexture" id="Hover"]
 content_margin_left = 10.0
-content_margin_top = 10.0
+content_margin_top = 8.0
 content_margin_right = 10.0
-content_margin_bottom = 10.0
+content_margin_bottom = 8.0
 texture = ExtResource("button_hover")
 texture_margin_left = 12.0
 texture_margin_top = 12.0
@@ -50,9 +50,9 @@ texture_margin_bottom = 12.0
 
 [sub_resource type="StyleBoxTexture" id="Button"]
 content_margin_left = 10.0
-content_margin_top = 10.0
+content_margin_top = 8.0
 content_margin_right = 10.0
-content_margin_bottom = 10.0
+content_margin_bottom = 8.0
 texture = ExtResource("button")
 texture_margin_left = 12.0
 texture_margin_top = 12.0
@@ -110,10 +110,10 @@ border_width_bottom = 2
 border_color = Color(0.35, 0.45, 0.51, 1)
 
 [sub_resource type="StyleBoxTexture" id="SlotHover"]
-content_margin_left = 4.0
-content_margin_top = 4.0
-content_margin_right = 4.0
-content_margin_bottom = 4.0
+content_margin_left = 5.0
+content_margin_top = 5.0
+content_margin_right = 5.0
+content_margin_bottom = 5.0
 texture = ExtResource("slot_hover")
 texture_margin_left = 6.0
 texture_margin_top = 6.0
@@ -121,10 +121,10 @@ texture_margin_right = 6.0
 texture_margin_bottom = 6.0
 
 [sub_resource type="StyleBoxTexture" id="Slot"]
-content_margin_left = 4.0
-content_margin_top = 4.0
-content_margin_right = 4.0
-content_margin_bottom = 4.0
+content_margin_left = 5.0
+content_margin_top = 5.0
+content_margin_right = 5.0
+content_margin_bottom = 5.0
 texture = ExtResource("slot")
 texture_margin_left = 6.0
 texture_margin_top = 6.0
@@ -132,10 +132,10 @@ texture_margin_right = 6.0
 texture_margin_bottom = 6.0
 
 [sub_resource type="StyleBoxTexture" id="Selected"]
-content_margin_left = 4.0
-content_margin_top = 4.0
-content_margin_right = 4.0
-content_margin_bottom = 4.0
+content_margin_left = 5.0
+content_margin_top = 5.0
+content_margin_right = 5.0
+content_margin_bottom = 5.0
 texture = ExtResource("slot_selected")
 texture_margin_left = 6.0
 texture_margin_top = 6.0
@@ -159,9 +159,9 @@ texture_margin_right = 18.0
 texture_margin_bottom = 20.0
 
 [sub_resource type="StyleBoxTexture" id="Frame"]
-content_margin_left = 16.0
+content_margin_left = 18.0
 content_margin_top = 16.0
-content_margin_right = 16.0
+content_margin_right = 18.0
 content_margin_bottom = 16.0
 texture = ExtResource("frame")
 texture_margin_left = 12.0
@@ -171,11 +171,13 @@ texture_margin_bottom = 12.0
 
 [resource]
 default_font = ExtResource("font")
-default_font_size = 16
+default_font_size = 11
 Button/colors/font_color = Color(0.94, 0.91, 0.82, 1)
 Button/colors/font_disabled_color = Color(0.48, 0.58, 0.62, 1)
 Button/colors/font_hover_color = Color(1, 0.77, 0.34, 1)
 Button/colors/font_pressed_color = Color(1, 0.77, 0.34, 1)
+Button/constants/h_separation = 8
+Button/font_sizes/font_size = 11
 Button/styles/disabled = SubResource("Disabled")
 Button/styles/focus = SubResource("Focus")
 Button/styles/hover = SubResource("Hover")
@@ -186,6 +188,7 @@ CloseButton/styles/focus = SubResource("CloseFocus")
 CloseButton/styles/hover = SubResource("CloseHover")
 CloseButton/styles/normal = SubResource("CloseNormal")
 CloseButton/styles/pressed = SubResource("CloseHover")
+HSeparator/constants/separation = 10
 HSeparator/styles/separator = SubResource("Rule")
 HSlider/icons/grabber = ExtResource("slider_thumb")
 HSlider/icons/grabber_disabled = ExtResource("slider_thumb")
@@ -197,8 +200,15 @@ InventorySlot/styles/hover = SubResource("SlotHover")
 InventorySlot/styles/normal = SubResource("Slot")
 InventorySlot/styles/selected = SubResource("Selected")
 Label/colors/font_color = Color(0.94, 0.91, 0.82, 1)
+Label/constants/line_spacing = 4
+Label/font_sizes/font_size = 11
+LineEdit/font_sizes/font_size = 11
 MapViewport/styles/panel = SubResource("MapViewport")
+OptionButton/font_sizes/font_size = 10
 PanelContainer/styles/panel = SubResource("Frame")
+PopupMenu/font_sizes/font_size = 10
+RichTextLabel/constants/line_separation = 4
+RichTextLabel/font_sizes/normal_font_size = 11
 TooltipLabel/colors/font_color = Color(0.94, 0.91, 0.82, 1)
-TooltipLabel/font_sizes/font_size = 12
+TooltipLabel/font_sizes/font_size = 10
 TooltipPanel/styles/panel = SubResource("Frame")

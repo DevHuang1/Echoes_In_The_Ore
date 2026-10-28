@@ -586,7 +586,8 @@ func _is_player_in_room(room: Dictionary, sample_points: Array[Vector2]) -> bool
 
 	for pt in sample_points:
 		for rect in entry_rects:
-			if (rect as Rect2).has_point(pt):
+			var r_box: Rect2 = rect
+			if r_box.has_point(pt):
 				return true
 		if bbox.has_point(pt):
 			if img == null:

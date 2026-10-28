@@ -70,7 +70,7 @@ func start_dialogue(lines: Array[String], offer_enabled: bool = false, context: 
 		button.text = str(choice.label)
 		button.custom_minimum_size.y = 36
 		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		button.add_theme_font_size_override("font_size", 14)
+		button.add_theme_font_size_override("font_size", 10)
 		button.pressed.connect(_choose.bind(str(choice.id)))
 		_choice_row.add_child(button); _choice_buttons.append(button)
 	_is_active = true
@@ -92,6 +92,9 @@ func _input(event: InputEvent) -> void:
 			var index := int(event.keycode) - int(KEY_1)
 			if index >= 0 and index < _choices.size():
 				_choose(str(_choices[index].id)); get_viewport().set_input_as_handled(); return
+	elif event is InputEventScreenTouch and event.pressed:
+		if _is_typing or (_line_index < _lines.size() - 1) or (_choices.is_empty() and not _offer_enabled):
+			advance = true
 	if not advance and not decline:
 		return
 	if _is_typing:
@@ -137,17 +140,18 @@ func _build_ui() -> void:
 	_root.add_child(_bubble)
 
 	var content := VBoxContainer.new()
-	content.add_theme_constant_override("separation", 7)
+	content.add_theme_constant_override("separation", 10)
 	_bubble.add_child(content)
 	_speaker_label = Label.new()
 	_speaker_label.text = "AMARA OKOYE   /   HYDROPONICS"
-	_speaker_label.add_theme_font_size_override("font_size", 12)
+	_speaker_label.add_theme_font_size_override("font_size", 10)
 	_speaker_label.add_theme_color_override("font_color", GOLD)
 	content.add_child(_speaker_label)
 	_dialogue_label = Label.new()
-	_dialogue_label.custom_minimum_size = Vector2(0.0, 70.0)
+	_dialogue_label.custom_minimum_size = Vector2(0.0, 74.0)
 	_dialogue_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_dialogue_label.add_theme_font_size_override("font_size", 16)
+	_dialogue_label.add_theme_font_size_override("font_size", 12)
+	_dialogue_label.add_theme_constant_override("line_spacing", 5)
 	_dialogue_label.add_theme_color_override("font_color", PALE)
 	content.add_child(_dialogue_label)
 	_choice_row = HBoxContainer.new()
@@ -155,7 +159,7 @@ func _build_ui() -> void:
 	content.add_child(_choice_row)
 	_prompt_label = Label.new()
 	_prompt_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	_prompt_label.add_theme_font_size_override("font_size", 12)
+	_prompt_label.add_theme_font_size_override("font_size", 9)
 	_prompt_label.add_theme_color_override("font_color", MUTED)
 	content.add_child(_prompt_label)
 
@@ -179,15 +183,15 @@ func _reveal_current_line() -> void:
 func _refresh_prompt() -> void:
 	_choice_row.visible = not _is_typing and _line_index == _lines.size()-1 and not _choices.is_empty()
 	if _is_typing:
-		_prompt_label.text = "[E]  SHOW LINE"
+		_prompt_label.text = "[E / TAP]  SHOW LINE"
 	elif _line_index < _lines.size() - 1:
-		_prompt_label.text = "[E]  CONTINUE"
+		_prompt_label.text = "[E / TAP]  CONTINUE"
 	elif not _choices.is_empty():
 		_prompt_label.text = "[E] FIRST RESPONSE / [1-%d] CHOOSE / [Q] %s / ESC CLOSE" % [_choices.size(), str(_choices[-1].label).to_upper()]
 	elif _offer_enabled:
 		_prompt_label.text = "[E]  TAKE TASKS     [Q]  MAYBE LATER"
 	else:
-		_prompt_label.text = "[E]  CLOSE"
+		_prompt_label.text = "[E / TAP]  CLOSE"
 
 
 func _finish(accepted_tasks: bool) -> void:

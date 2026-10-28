@@ -145,7 +145,8 @@ func _update_particles(delta: float) -> void:
 				vel = vel.rotated(float(p["swirl"]) * delta)
 			vel *= pow(0.18, delta)
 			p["vel"] = vel
-			p["world_pos"] = (p["world_pos"] as Vector2) + vel * delta
+			var wp: Vector2 = p["world_pos"]
+			p["world_pos"] = wp + vel * delta
 			_particles[idx] = p
 		idx -= 1
 
@@ -184,7 +185,8 @@ func _draw_player_shadow() -> void:
 func _draw_dust_particles() -> void:
 	for p in _particles:
 		var t := clampf(float(p["age"]) / maxf(float(p["lifetime"]), 0.001), 0.0, 1.0)
-		var local_pos := to_local(p["world_pos"] as Vector2)
+		var wp_draw: Vector2 = p["world_pos"]
+		var local_pos: Vector2 = to_local(wp_draw)
 		var base_col: Color = p["color"]
 		var kind: int = int(p["kind"])
 

@@ -114,7 +114,8 @@ func _ready() -> void:
 func _save_planet_state() -> void:
 	var st: Dictionary = {}
 	if Engine.has_meta(STORY_STATE_META_KEY):
-		st = (Engine.get_meta(STORY_STATE_META_KEY) as Dictionary).duplicate(true)
+		var raw_st: Dictionary = Engine.get_meta(STORY_STATE_META_KEY)
+		st = raw_st.duplicate(true)
 	st["sampled_planet_sites"] = _sampled_sites.duplicate()
 	Engine.set_meta(STORY_STATE_META_KEY, st)
 

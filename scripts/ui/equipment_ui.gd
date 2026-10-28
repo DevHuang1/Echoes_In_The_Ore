@@ -1,6 +1,6 @@
 class_name ShipEquipmentUI
 extends RefCounted
-## Local instrument skin. The gameplay HUD/inventory keep their approved theme.
+## Local instrument skin with clean, spaced small-font typography.
 const FONT := preload("res://art/ui/pixel/ore_pixel_font.fnt")
 const INK := Color("101f25")
 const WELL := Color("0b171d")
@@ -23,7 +23,7 @@ static func box(background: Color = INK, border: Color = SHADOW, padding := 10) 
 	return s
 
 static func theme() -> Theme:
-	var t := Theme.new();t.default_font=FONT;t.default_font_size=14
+	var t := Theme.new();t.default_font=FONT;t.default_font_size=11
 	for type in ["Label","RichTextLabel","Button","OptionButton","LineEdit","SpinBox","PopupMenu"]:
 		t.set_color("font_color",type,TEXT)
 	for type in ["Button","OptionButton"]:
@@ -35,6 +35,9 @@ static func theme() -> Theme:
 		t.set_stylebox("focus",type,focus)
 		t.set_color("font_disabled_color",type,Color("94a3a7"))
 		t.set_color("font_focus_color",type,TEXT)
+		t.set_font_size("font_size",type,10)
+	t.set_constant("line_spacing","Label",4)
+	t.set_font_size("font_size","Label",11)
 	t.set_stylebox("panel","PanelContainer",box())
 	t.set_stylebox("panel","PopupMenu",box(WELL,EDGE,8))
 	t.set_stylebox("hover","PopupMenu",box(SHADOW,AMBER,6))
@@ -48,19 +51,35 @@ static func theme() -> Theme:
 		t.set_icon(item,"HSlider",EXISTING.get_icon(item,"HSlider"))
 	t.set_color("font_color","RichTextLabel",TEXT)
 	t.set_color("default_color","RichTextLabel",TEXT)
-	t.set_font_size("normal_font_size","RichTextLabel",14)
+	t.set_font_size("normal_font_size","RichTextLabel",10)
+	t.set_constant("line_separation","RichTextLabel",4)
 	return t
 
 static func apply(node: Control) -> void:
 	node.theme=theme();node.texture_filter=CanvasItem.TEXTURE_FILTER_NEAREST
 
-static func label(text: String, size := 14, color: Color = TEXT) -> Label:
-	var l := Label.new();l.text=text;l.add_theme_font_size_override("font_size",size)
+static func _scaled_font_size(requested: int) -> int:
+	if requested >= 24:
+		return 16
+	if requested >= 20:
+		return 14
+	if requested >= 18:
+		return 12
+	if requested >= 14:
+		return 10
+	if requested >= 12:
+		return 9
+	return maxi(8, requested)
+
+static func label(text: String, size := 11, color: Color = TEXT) -> Label:
+	var l := Label.new();l.text=text;l.add_theme_font_size_override("font_size",_scaled_font_size(size))
+	l.add_theme_constant_override("line_spacing",4)
 	l.add_theme_color_override("font_color",color);l.mouse_filter=Control.MOUSE_FILTER_IGNORE
 	return l
 
 static func button(text: String, callback: Callable, tip := "") -> Button:
 	var b := CommandButton.new();b.text=text;b.custom_minimum_size.y=36
+	b.add_theme_font_size_override("font_size",10)
 	b.tooltip_text=tip;b.focus_mode=Control.FOCUS_ALL
 	if callback.is_valid(): b.pressed.connect(callback)
 	return b
@@ -109,15 +128,15 @@ class Readout extends PanelContainer:
 	func _init() -> void:
 		add_theme_stylebox_override("panel",ShipEquipmentUI.box(WELL,SHADOW,8))
 		size_flags_horizontal=Control.SIZE_EXPAND_FILL
-		var v := VBoxContainer.new();v.add_theme_constant_override("separation",3);add_child(v)
-		heading=ShipEquipmentUI.label("",12,MUTED);v.add_child(heading)
-		reading=ShipEquipmentUI.label("",24,CYAN);v.add_child(reading)
+		var v := VBoxContainer.new();v.add_theme_constant_override("separation",4);add_child(v)
+		heading=ShipEquipmentUI.label("",10,MUTED);v.add_child(heading)
+		reading=ShipEquipmentUI.label("",18,CYAN);v.add_child(reading)
 		meter=SegmentedMeter.new();v.add_child(meter)
-		detail=ShipEquipmentUI.label("",12,MUTED);detail.text_overrun_behavior=TextServer.OVERRUN_TRIM_ELLIPSIS
+		detail=ShipEquipmentUI.label("",10,MUTED);detail.text_overrun_behavior=TextServer.OVERRUN_TRIM_ELLIPSIS
 		v.add_child(detail)
 	func show_reading(title: String, value_text: String, hint: String, value: float, maximum: float, color: Color) -> void:
 		heading.text=title;reading.text=value_text;detail.text=hint;detail.tooltip_text=hint
-		reading.add_theme_font_size_override("font_size",18 if value_text.length()>10 else 24)
+		reading.add_theme_font_size_override("font_size",13 if value_text.length()>10 else 16)
 		reading.add_theme_color_override("font_color",color);meter.set_reading(value,maximum,color)
 
 class Lamp extends HBoxContainer:
@@ -127,16 +146,16 @@ class Lamp extends HBoxContainer:
 		add_theme_constant_override("separation",6)
 		bulb=ColorRect.new();bulb.custom_minimum_size=Vector2(8,8)
 		bulb.size_flags_vertical=Control.SIZE_SHRINK_CENTER;bulb.mouse_filter=Control.MOUSE_FILTER_IGNORE
-		add_child(bulb);caption=ShipEquipmentUI.label("",12);add_child(caption)
+		add_child(bulb);caption=ShipEquipmentUI.label("",10);add_child(caption)
 	func set_status(text: String, color: Color) -> void:
 		bulb.color=color;caption.text=text;caption.add_theme_color_override("font_color",color)
 
 class Confirmation extends VBoxContainer:
 	## A review card above the real commit control; no duplicate mission state.
 	func show_review(title: String,description: String) -> void:
-		add_theme_constant_override("separation",4)
-		add_child(ShipEquipmentUI.label(title,12,AMBER))
-		var detail := ShipEquipmentUI.label(description,12,MUTED)
+		add_theme_constant_override("separation",5)
+		add_child(ShipEquipmentUI.label(title,10,AMBER))
+		var detail := ShipEquipmentUI.label(description,10,MUTED)
 		detail.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;add_child(detail)
 
 class Chassis extends Control:

@@ -172,18 +172,18 @@ func _build_ui() -> void:
 	top_label.anchor_top = 0.035
 	top_label.anchor_right = 0.68
 	top_label.anchor_bottom = 0.085
-	top_label.add_theme_font_size_override("font_size", 14)
+	top_label.add_theme_font_size_override("font_size", 10)
 	top_label.add_theme_color_override("font_color", Color(0.92, 0.86, 0.7, 0.92))
 	top_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(top_label)
 
 	_skip_button = Button.new()
 	_skip_button.text = "[ SKIP DOSSIER  → ]"
-	_skip_button.anchor_left = 0.83
-	_skip_button.anchor_top = 0.035
+	_skip_button.anchor_left = 0.81
+	_skip_button.anchor_top = 0.03
 	_skip_button.anchor_right = 0.96
 	_skip_button.anchor_bottom = 0.105
-	_skip_button.add_theme_font_size_override("font_size", 14)
+	_skip_button.add_theme_font_size_override("font_size", 10)
 	_skip_button.pressed.connect(_enter_game)
 	add_child(_skip_button)
 
@@ -221,7 +221,7 @@ func _build_ui() -> void:
 	_chapter_label.anchor_top = 0.795
 	_chapter_label.anchor_right = 0.78
 	_chapter_label.anchor_bottom = 0.845
-	_chapter_label.add_theme_font_size_override("font_size", 14)
+	_chapter_label.add_theme_font_size_override("font_size", 10)
 	_chapter_label.add_theme_color_override("font_color", Color(0.86, 0.67, 0.38))
 	add_child(_chapter_label)
 
@@ -231,7 +231,7 @@ func _build_ui() -> void:
 	_counter_label.anchor_right = 0.95
 	_counter_label.anchor_bottom = 0.845
 	_counter_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	_counter_label.add_theme_font_size_override("font_size", 14)
+	_counter_label.add_theme_font_size_override("font_size", 10)
 	_counter_label.add_theme_color_override("font_color", Color(0.72, 0.76, 0.79))
 	add_child(_counter_label)
 
@@ -242,7 +242,8 @@ func _build_ui() -> void:
 	_subtitle_label.anchor_bottom = 0.975
 	_subtitle_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_subtitle_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_subtitle_label.add_theme_font_size_override("font_size", 20)
+	_subtitle_label.add_theme_font_size_override("font_size", 13)
+	_subtitle_label.add_theme_constant_override("line_spacing", 5)
 	_subtitle_label.add_theme_color_override("font_color", Color(0.96, 0.96, 0.92))
 	_subtitle_label.add_theme_constant_override("outline_size", 0)
 	_subtitle_label.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 0.0, 0.8))
@@ -250,11 +251,11 @@ func _build_ui() -> void:
 
 	_next_button = Button.new()
 	_next_button.text = "[ PROCEED  › ]"
-	_next_button.anchor_left = 0.78
+	_next_button.anchor_left = 0.77
 	_next_button.anchor_top = 0.875
 	_next_button.anchor_right = 0.96
 	_next_button.anchor_bottom = 0.955
-	_next_button.add_theme_font_size_override("font_size", 16)
+	_next_button.add_theme_font_size_override("font_size", 11)
 	_next_button.pressed.connect(_advance)
 	add_child(_next_button)
 

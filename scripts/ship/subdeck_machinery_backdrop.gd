@@ -42,7 +42,7 @@ const MACHINERY_BAYS: Array = [
 ]
 
 # Heavy structural sub-hull conduit runs connecting the recessed machinery bays
-const SUBHULL_CONDUIT_RUNS: Array = [
+var _subhull_conduit_runs: Array = [
 	PackedVector2Array([Vector2(-80.0, 472.0), Vector2(680.0, 472.0), Vector2(755.0, 472.0), Vector2(755.0, 630.0)]),
 	PackedVector2Array([Vector2(755.0, 125.0), Vector2(1020.0, 125.0), Vector2(1020.0, 495.0), Vector2(1680.0, 495.0)]),
 	PackedVector2Array([Vector2(1045.0, 350.0), Vector2(1045.0, 625.0), Vector2(1480.0, 625.0)]),
@@ -288,7 +288,7 @@ func _on_structure_canvas_draw() -> void:
 		_rotor_canvas.draw_rect(r, Color(0.24, 0.28, 0.33, 0.85), false, 2.0)
 
 	# 3. Sub-hull armored conduit trunks
-	for run in SUBHULL_CONDUIT_RUNS:
+	for run in _subhull_conduit_runs:
 		var pts: PackedVector2Array = run
 		_rotor_canvas.draw_polyline(pts, Color(0.02, 0.03, 0.04, 0.92), 11.0, false)
 		_rotor_canvas.draw_polyline(pts, Color(0.15, 0.18, 0.21, 0.96), 7.0, false)

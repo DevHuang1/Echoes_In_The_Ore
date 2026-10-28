@@ -5,6 +5,13 @@ const IVORY := Color(0.94, 0.91, 0.82)
 const AMBER := Color(1.0, 0.77, 0.34)
 const MUTED := Color(0.59, 0.69, 0.73)
 
+const FONT_TINY := 8
+const FONT_SMALL := 9
+const FONT_BODY := 11
+const FONT_SUBHEAD := 13
+const FONT_TITLE := 18
+const DEFAULT_LINE_SPACING := 4
+
 static func apply(control: Control) -> void:
 	control.theme = THEME
 	control.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
@@ -24,4 +31,4 @@ static func close_button(button: Button) -> void:
 	button.text = "X"
 	button.custom_minimum_size = Vector2(48, 48)
 	button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	button.add_theme_font_size_override("font_size", 24)
+	button.add_theme_font_size_override("font_size", 16)

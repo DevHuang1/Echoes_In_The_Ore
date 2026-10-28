@@ -62,13 +62,10 @@ func _draw() -> void:
 	var shaft_rect: Rect2 = Rect2(Vector2(-half_w + 2.0, -half_h + 2.0), Vector2(opening_width - 4.0, wall_depth - 4.0))
 	draw_rect(outer_rect, Color(0.11, 0.14, 0.18, 0.98), true)
 	draw_rect(shaft_rect, Color(0.02, 0.04, 0.07, 0.98), true)
-	# Threshold floor grate bars & status LEDs
+	# Threshold floor grate bars (floor LED strips removed)
 	for i in range(-3, 4):
 		var gx: float = float(i) * (opening_width * 0.12)
 		draw_line(Vector2(gx, -half_h + 4.0), Vector2(gx, half_h - 4.0), Color(0.16, 0.24, 0.30, 0.75), 1.5)
-	var led_col: Color = Color(0.32, 0.96, 0.62, 0.95) if is_open() else Color(1.0, 0.64, 0.24, 0.92)
-	draw_rect(Rect2(Vector2(-half_w - 1.0, -3.0), Vector2(3.0, 6.0)), led_col, true)
-	draw_rect(Rect2(Vector2(half_w - 2.0, -3.0), Vector2(3.0, 6.0)), led_col, true)
 	draw_rect(outer_rect, Color(0.30, 0.42, 0.48, 0.92), false, 1.5)
 
 
