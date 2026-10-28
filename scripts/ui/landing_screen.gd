@@ -154,7 +154,16 @@ func _on_start_pressed() -> void:
 	if _start_button.disabled:
 		return
 	_start_button.disabled = true
-	Engine.set_meta("ship_story_bootstrap", STORY.new().snapshot())
+	if not Engine.has_meta("ship_maintenance_entry"):
+		var story=STORY.new();story.request_cue("cue.thura.earth_years","existing_montage")
+		var payload: Dictionary=STORY_SAVE.initial_campaign(story.snapshot())
+		var path: String=STORY_SAVE.new_campaign_path()
+		if not STORY_SAVE.valid_payload(payload) or STORY_SAVE.atomic_write(path,payload)!=OK:
+			_start_button.disabled=false;_start_button.text="SAVE UNAVAILABLE / RETRY NEW WATCH";return
+		STORY_SAVE.remember(path)
+		Engine.set_meta("ship_story_bootstrap",story.snapshot())
+		Engine.set_meta("ship_story_intro_payload",payload)
+		Engine.set_meta("ship_story_intro_path",path)
 	await _fade_to_black()
 	var result := get_tree().change_scene_to_file(INTRO_SCENE)
 	if result != OK:
@@ -167,9 +176,16 @@ func _on_continue_pressed() -> void:
 	if STORY_SAVE.read(_continue_path).is_empty():
 		_continue_button.disabled = true; _continue_button.text = "SAVE UNAVAILABLE / START A NEW WATCH"; return
 	_start_button.disabled = true; _continue_button.disabled = true
-	Engine.set_meta("ship_story_continue_path", _continue_path)
+	var payload: Dictionary=STORY_SAVE.read(_continue_path)
+	var intro_status: String=str(payload.get("story",{}).get("cues",{}).get("cue.thura.earth_years",{}).get("status",""))
+	var resume_intro: bool = intro_status in ["pending","cancelled","failed"] and not payload.get("story",{}).get("cues",{}).has("cue.asteria.arrival")
+	if resume_intro:
+		Engine.set_meta("ship_story_bootstrap",payload.story)
+		Engine.set_meta("ship_story_intro_payload",payload)
+		Engine.set_meta("ship_story_intro_path",_continue_path)
+	else: Engine.set_meta("ship_story_continue_path", _continue_path)
 	await _fade_to_black()
-	var result := get_tree().change_scene_to_file("res://scenes/ship/bare_ship_walkthrough.tscn")
+	var result := get_tree().change_scene_to_file(INTRO_SCENE if resume_intro else "res://scenes/ship/bare_ship_walkthrough.tscn")
 	if result != OK:
 		Engine.remove_meta("ship_story_continue_path")
 		_start_button.disabled = false; _continue_button.disabled = false

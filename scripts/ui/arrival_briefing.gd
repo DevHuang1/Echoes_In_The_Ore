@@ -12,10 +12,14 @@ const GREEN := Color(0.48, 0.93, 0.64)
 var _root: Control
 var _continue_button: Button
 var _is_dismissing := false
+var _panel: PanelContainer
+var _welcome: Label
 
 
 func _ready() -> void:
 	_build_ui()
+	get_viewport().size_changed.connect(_resize_briefing)
+	_resize_briefing()
 	_root.modulate = Color(1.0, 1.0, 1.0, 0.0)
 	_continue_button.grab_focus()
 	var tween := create_tween()
@@ -41,6 +45,7 @@ func _build_ui() -> void:
 	_root.add_child(center)
 
 	var panel := PanelContainer.new()
+	_panel = panel
 	panel.custom_minimum_size = Vector2(1120.0, 0.0)
 	panel.add_theme_stylebox_override("panel", _panel_style())
 	center.add_child(panel)
@@ -54,13 +59,17 @@ func _build_ui() -> void:
 	var badge := _label("[ MISSION BRIEFING ]", 11, GOLD)
 	header_row.add_child(badge)
 	var telemetry_tag := _label("// FLIGHT RECORD DAY 184 // ASTERIA-1", 11, MUTED)
+	telemetry_tag.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	telemetry_tag.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header_row.add_child(telemetry_tag)
 	header_row.add_spacer(false)
-	var status_tag := _label("● ORBITAL TELEMETRY LINKED", 11, GREEN)
+	var status_tag := _label("TELEMETRY LINKED", 11, GREEN)
 	header_row.add_child(status_tag)
 	content.add_child(header_row)
 
 	var welcome := _label("WELCOME ABOARD, SPECIALIST THURA MIN", 34, PALE)
+	_welcome = welcome
+	welcome.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	welcome.custom_minimum_size.y = 44.0
 	content.add_child(welcome)
 
@@ -110,6 +119,12 @@ func _build_ui() -> void:
 	_continue_button.add_theme_font_size_override("font_size", 16)
 	_continue_button.pressed.connect(_dismiss)
 	content.add_child(_continue_button)
+
+
+func _resize_briefing() -> void:
+	var view := get_viewport().get_visible_rect().size
+	_panel.custom_minimum_size.x = minf(1120.0, view.x-48.0)
+	_welcome.add_theme_font_size_override("font_size", 28 if view.x<1150 else 34)
 
 
 func _label(text: String, font_size: int, color: Color) -> Label:

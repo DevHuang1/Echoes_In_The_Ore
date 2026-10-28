@@ -7,6 +7,8 @@ var reviewed_states: Array=[]
 func pair(label: String,page := "") -> void:
 	if not is_instance_valid(level._ship_panel): return
 	var panel=level._ship_panel
+	if redesigned(panel):
+		await redesigned_pair(label,panel);return
 	if not page.is_empty(): panel._select_stage(page)
 	var old_size: Vector2i=get_window().size
 	var old_scale: Vector2i=get_window().content_scale_size
@@ -22,6 +24,23 @@ func pair(label: String,page := "") -> void:
 		var capture_id: String=label+"_%dx%d" % [dims.x,dims.y]
 		get_viewport().get_texture().get_image().save_png(DEST+"screenshots/"+capture_id+".png")
 		reviewed_states.append({"capture":capture_id,"station":panel.prop_id,"page":panel._stage,"phase":level._ship_state.phase})
+	get_window().size=old_size;get_window().content_scale_size=old_scale;await frames(4)
+
+func redesigned(panel) -> bool:
+	return is_instance_valid(panel) and not str(panel.get("kind") if panel.get("kind")!=null else "").is_empty()
+
+## Redesigned screens are a fixed 1280x720 stage; check it stays on screen.
+func redesigned_pair(label: String, panel) -> void:
+	var old_size: Vector2i=get_window().size
+	var old_scale: Vector2i=get_window().content_scale_size
+	for dims in [Vector2i(1280,720),Vector2i(1024,576)]:
+		get_window().size=dims;get_window().content_scale_size=dims;await frames(5)
+		var viewport := Rect2(Vector2.ZERO,Vector2(dims))
+		check(viewport.grow(1).encloses(panel.screen.get_global_rect()),"Redesigned stage fits "+label+str(dims))
+		await RenderingServer.frame_post_draw
+		var capture_id: String=label+"_%dx%d" % [dims.x,dims.y]
+		get_viewport().get_texture().get_image().save_png(DEST+"screenshots/"+capture_id+".png")
+		reviewed_states.append({"capture":capture_id,"station":panel.prop_id,"page":panel.kind,"phase":level._ship_state.phase})
 	get_window().size=old_size;get_window().content_scale_size=old_scale;await frames(4)
 
 func capture(capture_name: String) -> void:
@@ -78,6 +97,10 @@ func operate(prop: String, action_id: String, value: Variant=null) -> void:
 		if not await station(prop): return
 	await frames(2)
 	var panel=level._ship_panel
+	if redesigned(panel):
+		panel.act(action_id,value);await frames(3)
+		if action_id=="isolate": await pair(level._ship_state.phase+"_"+prop.replace(".","_")+"_isolated")
+		return
 	if not panel._controls.has(action_id): check(false,"Missing rendered action: "+prop+"/"+action_id);return
 	panel.reveal_action(action_id);await frames(3)
 	var button: Button=panel._controls[action_id].button

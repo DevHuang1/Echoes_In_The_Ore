@@ -1,35 +1,46 @@
 # Cutscene integration handoff
 
-**Planning contract only.** The teammate owns cinematic scenes, camera
-choreography, animation tracks, voices and art. This audit creates none of those
-assets, edits no story text and does not implement an adapter. Cue IDs and
-integration behavior below are proposed stable names, not assets already supplied.
-See [current narrative evidence](narrative_audit.md) and
-[mission plan](mission_story_plan.md).
+## Implemented first-watch adapter (2026-10-27)
 
-## What exists now
+The existing walkthrough is the only progression/input owner. The shipped delivery
+is the existing Earth-years montage, the existing arrival briefing and an approved
+production **terminal-text** command acknowledgement. No teammate cinematic,
+choreography, animation, voice or additional physical crew actor is fabricated.
+Later incident/boarding/return entries below remain gated proposals.
 
-- `scenes/ui/landing_screen.tscn` / `scripts/ui/landing_screen.gd:137` fades to
-  `scenes/ui/earth_years_montage.tscn`.
-- `scripts/ui/earth_years_montage.gd:10`, `:309`, `:338` owns fourteen ordered
-  image/subtitle beats, typewriter/advance/skip, final DAY 184 boarding text and
-  a direct walkthrough scene change. There is no persistent cue receipt.
-- `scenes/ui/arrival_briefing.tscn` / `scripts/ui/arrival_briefing.gd:157` emits
-  `dismissed` after a fade. The current root freezes the player until dismissal.
-  This is a briefing overlay, not a ship-arrival cinematic with crew actors.
-- Root `bare_ship_walkthrough.gd:240`, `:547` owns input/modal movement locks.
-  `ship_mission_walkthrough.gd:342`, `:429` owns mission snapshots and transit.
-  Planet transit uses `Engine` metadata and `change_scene_to_file`; ordinary
-  reboarding does not enter the return mission phase.
-- Equipment completion signals and Amara dialogue completion exist but have no
-  cinematic/progression subscriber. There is no shared cutscene manager, actor
-  registry, cue completion/skip ledger or generic production incident scene.
-- F3 `TEST RETURN` is a reset fixture with its own save namespace, not a scene
-  completion event and not evidence that a cinematic was played.
+- `FirstWatchStory` is data only: five mission receipts, evidence, and versioned
+  cue attempts with monotonic counters and fresh request-token nonces and terminal outcomes.
+- `ship_mission_walkthrough.gd` requests / finishes cues, atomically checkpoints
+  receipts and restores gameplay camera zoom, offsets, bounds, current camera,
+  smoothing and named NPC/input locks through the existing aggregate owner.
+- The montage retains its fourteen existing frames, subtitles and advance/skip.
+  Normal complete/skip carries the same first-watch arrival context. It also offers
+  `play_cue(context)` / the signal below for explicit embedded integration.
+- New Start atomically checkpoints the actual initial HUD/model data and a
+  pending prologue before changing scenes. Continue of an interrupted prologue
+  reoffers its opening frame with a fresh attempt identity. Its first actor landing
+  uses the current scene spawn after clearance validation.
+- Arrival dismissal validates its bound cue token and completes its receipt. A pending-arrival load reoffers the
+  actual briefing at a validated checkpoint. A pending-handoff load cancels the
+  stale attempt and reoffers the bridge summary/text acknowledgement; it does not
+  deserialize an animation frame or grant completion.
+- Handoff requires earned repair reports, current healthy assigned systems and a
+  submitted scoped summary. Completion or authored skip acknowledges the watch
+  once, leaves survey briefing pending and never calls the eight-duty file_report.
+- Missing/bad resources, missing requested actors, node exit and a 90-second lost
+  callback timeout fail safely. Stale/duplicate outcomes cannot advance. Unknown
+  landing IDs cannot grant completion. Only `ship` is implemented for these cues.
+- Optional `required_actor_ids()` is checked against existing `thura` and `amara`
+  handles. Maya/Leila are terminal text; no physical substitute is created. Runtime
+  handles in context are never serialized. No general actor/quest autoload exists.
+- Both production airlock routes remain guarded. The mock surface is available only
+  in explicitly identified maintenance development/legacy contexts. Scene-load
+  failures clear transient transition ownership and leave retryable controls.
 
-Do not replace the existing montage to get a generic adapter working. Wrap its
-existing completion/skip signals/entry point in the later implementation. Retain
-current assets and the normal Start path until the teammate supplies replacements.
+`tools/first_watch_cue_fixture.tscn` tests **contract behavior only**, with a temporary
+camera and terminal signals. It contains no teammate cinematic or enemy behavior.
+Current runtime evidence is recorded in `first_watch_implementation.md` and the
+first-watch validation report; the original narrative audit remains historical.
 
 ## Smallest practical contract
 
@@ -38,7 +49,7 @@ commits progression. A cinematic instance receives a read-only context and emits
 a terminal outcome. It does not call F3 reset, mutate mission flags/inventory,
 create permanent crew, choose a chapter or save independently.
 
-Proposed interface, independent of cinematic production format:
+Implemented interface for the three scoped cues, independent of cinematic production format:
 
 | Direction | Minimal data / behavior |
 |---|---|
@@ -322,6 +333,6 @@ missing person's fate, enemy ability or ending from a UI prototype record.
   fallbacks; a labelled development bypass is tested separately and never counted
   as evidence that a cinematic exists.
 
-No cue adapter tests are claimed as passing in this audit: the adapter and
-teammate assets do not yet exist. Existing transition/runtime evidence is in
-the narrative audit; this document is the concrete handoff needed to implement it.
+The narrative audit predates implementation. Consult the current implementation
+log for tests actually run. Contract fixtures do not establish that later teammate
+cinematics, incident canon, compatible enemy AI or deployment persistence exist.

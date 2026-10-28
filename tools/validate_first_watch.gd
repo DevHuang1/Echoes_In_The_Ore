@@ -36,6 +36,7 @@ func _ready() -> void:
 		if argument.begins_with("--mode="): validation_mode=argument.trim_prefix("--mode=")
 	DirAccess.make_dir_recursive_absolute(ROOT)
 	DirAccess.make_dir_recursive_absolute(EVIDENCE+"screenshots")
+	flush()
 	get_tree().create_timer(900.0).timeout.connect(func():
 		if not _finished: check(false,"Validation deadline exceeded"); finish())
 	run.call_deferred()
@@ -51,7 +52,7 @@ func interact() -> void:
 	event=InputEventAction.new(); event.action=&"interact"; event.pressed=false; Input.parse_input_event(event); await frames(2)
 
 func click(control: Control) -> bool:
-	if not check(is_instance_valid(control) and control.is_visible_in_tree(),"Input target is visible"): return false
+	if not check(is_instance_valid(control) and control.is_visible_in_tree(),"Input target is visible: "+str(control.name if is_instance_valid(control) else "missing")): return false
 	if control is BaseButton and not check(not control.disabled,"Input target is enabled: "+control.name): return false
 	var point := control.get_global_rect().get_center()
 	var motion := InputEventMouseMotion.new(); motion.position=point; motion.global_position=point; Input.parse_input_event(motion)
@@ -82,7 +83,9 @@ func current_scene_changed(previous_id: int) -> Node:
 	return get_tree().current_scene
 
 func start_normal(full_intro := false) -> void:
-	Engine.set_meta("ship_story_validation_path",ROOT+"campaign.json" if not full_intro else ROOT+"intro_full.json")
+	var preferred := ROOT+"campaign.json" if not full_intro else ROOT+"intro_full.json"
+	var previous_campaign := FileAccess.get_file_as_string(preferred) if FileAccess.file_exists(preferred) else ""
+	Engine.set_meta("ship_story_validation_path",preferred)
 	var landing: Node=load("res://scenes/ui/landing_screen.tscn").instantiate()
 	get_tree().root.add_child(landing); get_tree().current_scene=landing
 	await frames(5)
@@ -102,6 +105,8 @@ func start_normal(full_intro := false) -> void:
 		await key(KEY_SPACE)
 	else: await click(intro._skip_button)
 	await wait_ship()
+	if not previous_campaign.is_empty():
+		check(level.ship_mission_save_path!=preferred and FileAccess.get_file_as_string(preferred)==previous_campaign,"A new Start preserves the existing campaign byte-for-byte")
 	check(level.ship_story_active(),"Normal entry creates first-watch context")
 	check(level._ship_story.cues["cue.thura.earth_years"].status==("completed" if full_intro else "skipped"),"Montage receipt records actual complete/skip outcome")
 	await capture("arrival",true)
@@ -134,6 +139,7 @@ func movement(direction: Vector2, strength := 1.0) -> void:
 	for item in [["move_left",direction.x<0],["move_right",direction.x>0],["move_up",direction.y<0],["move_down",direction.y>0]]:
 		var event := InputEventAction.new(); event.action=StringName(item[0]); event.pressed=item[1]; event.strength=strength if item[1] else 0
 		Input.parse_input_event(event)
+	Input.flush_buffered_events()
 
 func move_to(point: Vector2) -> bool:
 	var start := nearest_cell(level.player.global_position); var target := nearest_cell(point)
@@ -147,21 +153,32 @@ func move_to(point: Vector2) -> bool:
 		waypoints.append(level._ship_floor.to_global(Vector2(16,20)+path[i]*4))
 	for waypoint in waypoints:
 		var stalled := 0; var ticks := 0
-		while level.player.global_position.distance_to(waypoint)>0.7 and ticks<900:
+		while level.player.global_position.distance_to(waypoint)>0.2 and ticks<900:
 			var before: Vector2=level.player.global_position
 			var delta: Vector2=waypoint-before
-			var direction := Vector2(signf(delta.x),0) if absf(delta.x)>0.6 else Vector2(0,signf(delta.y))
-			movement(direction,0.6 if delta.length()<5 else 1.0)
+			var direction := Vector2(signf(delta.x),0) if absf(delta.x)>0.15 else Vector2(0,signf(delta.y))
+			var axis_distance := absf(delta.x) if direction.x!=0 else absf(delta.y)
+			# Account for get_vector's deadzone, then wait past the actual physics
+			# update. Reading at physics_frame alone observes the previous position
+			# and overshoots tight corridor corners by a full walking step.
+			var fraction := minf(1.0,axis_distance/(level.player.move_speed*level.player.get_physics_process_delta_time()))
+			var deadzone := (InputMap.action_get_deadzone("move_left")+InputMap.action_get_deadzone("move_right")+InputMap.action_get_deadzone("move_up")+InputMap.action_get_deadzone("move_down"))/4.0
+			movement(direction,deadzone+(1.0-deadzone)*fraction)
 			await get_tree().physics_frame
+			await get_tree().process_frame
 			var moved: float=before.distance_to(level.player.global_position); walking_distance+=moved
 			stalled=stalled+1 if moved<0.01 else 0; ticks+=1
 			if stalled>180: break
 		movement(Vector2.ZERO)
-		if not check(level.player.global_position.distance_to(waypoint)<1.5,"Actual movement input reaches route corner"): return false
+		if not check(level.player.global_position.distance_to(waypoint)<1.5,"Actual movement input reaches route corner"):
+			observations.route_failure={"from":str(start),"target":str(point),"waypoint":str(waypoint),"actual":str(level.player.global_position),"ticks":ticks,"stalled":stalled,"physics":level.player.is_physics_processing(),"arrival":level._arrival_briefing_open,"hud_modal":level._hud_modal_open,"dialogue":level._crew_dialogue_open,"locked":level.ship_control_locked(),"input":str(Input.get_vector("move_left","move_right","move_up","move_down"))}
+			print("ROUTE FAILURE ",observations.route_failure)
+			await capture("route_failure",true); finish(); return false
 	await frames(2)
 	return true
 
 func station(id: String) -> bool:
+	observations.last_station=id; print("WALK TO ",id); flush()
 	if is_instance_valid(level._ship_panel): await key(KEY_ESCAPE)
 	var entry: Dictionary=level._ship_points[id]
 	var destination: Vector2=entry.marker.global_position
@@ -194,25 +211,38 @@ func talk_amara() -> bool:
 	return check(false,"Catch moving Amara through normal movement")
 
 func dialogue(result := "", capture_name := "") -> void:
+	# Redesigned dialogue: E reveals/advances (and steps the comms "Continue" row),
+	# number keys pick a reply; the picked reply echoes briefly before it lands.
 	var dialog: CrewDialogue=level._crew_dialogue
-	for i in range(24):
-		if not dialog._is_active: break
-		if dialog._is_typing: await interact()
-		elif dialog._line_index<dialog._lines.size()-1: await interact()
+	for i in range(32):
+		if not dialog._active: break
+		if dialog.phase in ["typing","wait"] or (dialog.phase=="choose" and dialog._continue_choice and dialog._index<dialog._lines.size()-1):
+			await interact(); await get_tree().create_timer(0.05).timeout
+		elif dialog.phase=="echo": await get_tree().create_timer(0.1).timeout
 		else:
 			if not capture_name.is_empty(): await capture(capture_name,true)
 			var selected := -1
-			for index in range(dialog._choices.size()):
-				if dialog._choices[index].id==result: selected=index; break
-			if selected>=0: await click(dialog._choice_buttons[selected])
+			for index in range(dialog.choices.size()):
+				if dialog.choices[index].id==result: selected=index; break
+			if selected>=0: await key(KEY_1+selected)
 			elif result=="cancelled": await key(KEY_ESCAPE)
 			else: await interact()
 			break
+	var waited := 0.0
+	while dialog._active and dialog.phase=="echo" and waited<3.0:
+		await get_tree().create_timer(0.1).timeout; waited+=0.1
 	await frames(3)
 
 func operate(action_id: String) -> bool:
 	var panel=level._ship_panel
 	if not check(is_instance_valid(panel),"Procedure exists for "+action_id): return false
+	if not str(panel.get("kind") if panel.get("kind")!=null else "").is_empty():
+		# Redesigned station screens (power, irrigation, crew records) send the
+		# same actions through their layer; values are the readings-supported ones.
+		var values := {"diagnose":{"power":"cell","irrigation":"restriction"}.get(panel.kind),"allocation":"repair","crew_compare":"one_missing"}
+		panel.act(action_id,values.get(action_id))
+		await get_tree().create_timer(0.2).timeout
+		return true
 	var page: String=panel._action_page(action_id)
 	var tab: Button=panel._tabs.get_node(page+"Tab")
 	await click(tab)
@@ -224,6 +254,10 @@ func checkpoint_copy(name: String) -> void:
 	check(SAVE.atomic_write(ROOT+name+".json",level.ship_snapshot())==OK,"Isolated checkpoint copied: "+name)
 
 func power_controls() -> void:
+	if not str(level._ship_panel.get("kind") if level._ship_panel.get("kind")!=null else "").is_empty():
+		await operate("sync")
+		check(level._ship_state.systems.power.calibrated,"Bank B synchronizes through the redesigned power panel")
+		return
 	await operate("legacy:auxiliary_power")
 	var console=level._ship_service_console
 	check(is_instance_valid(console),"Original bank controls opened")
@@ -237,15 +271,17 @@ func power_controls() -> void:
 func verify(room: String) -> void:
 	await operate("restore")
 	var waited := 0.0
-	while float(level._ship_state.verification.get(room,0.0))<6 and waited<25:
+	var needed: float=level._ship_state.verify_seconds(room)
+	while float(level._ship_state.verification.get(room,0.0))<needed and waited<25:
 		await get_tree().create_timer(0.25).timeout; waited+=0.25
-	check(float(level._ship_state.verification.get(room,0))>=6,"Actual healthy observation period: "+room)
+	check(float(level._ship_state.verification.get(room,0))>=needed,"Actual healthy observation period: "+room)
 	await operate("verify")
 
 func chapter() -> void:
 	await start_normal(false)
 	check(level.amara.is_physics_processing(),"NPC physics stays enabled in the chapter fixture")
 	check(level._ship_state.systems.life.airflow==67 and level._ship_state.engine_flow(0)==1 and level._ship_state.systems.engine.temperature<=65,"Unselected critical systems start genuinely healthy")
+	check(level._ship_state.systems.navigation.instrument==level._ship_state.systems.navigation.planned and not level._ship_state.systems.navigation.verified,"Unassigned navigation starts in range without fabricated service signoff")
 	await station("bridge.planning"); await dialogue("later")
 	check(not level._ship_story.has("watch.accepted"),"Declining preserves unaccepted assignment")
 	await station("bridge.planning"); await dialogue("accept","maya_assignment")
@@ -265,19 +301,18 @@ func chapter() -> void:
 	await station("power.breaker"); await operate("observe"); await operate("diagnose"); await operate("isolate")
 	await key(KEY_ESCAPE); await station("power.converter"); await operate("allocation")
 	await key(KEY_ESCAPE); await station("power.cell"); await power_controls()
-	await station("power.breaker"); await verify("power"); await dialogue("ack","leila_power_ack")
+	await station("power.breaker"); await verify("power")
+	# Leila's acknowledgement now arrives on the power panel's comms card.
+	await get_tree().create_timer(1.0).timeout
+	check(is_instance_valid(level._ship_panel) and level._ship_panel.screen.comms and not level._crew_dialogue_open,"Engineering acknowledgement shown on the power panel")
+	await capture("leila_power_ack",true)
 	check(level._ship_story.completed_count()==3 and level._ship_state.bus_powered("science"),"Verified power plus engineering acknowledgement completes 030 without cargo")
-	check(level._ship_state.systems.hydro.flow==25,"Restored feed has observable delivery while manifold remains restricted")
+	check(level._ship_state.systems.hydro.flow==30,"Restored feed has observable delivery while manifold remains restricted")
 	checkpoint_copy("mid_power")
 	await station("hydro.console"); await operate("observe"); await operate("diagnose"); await operate("isolate")
-	await operate("legacy:nutrient_flow")
-	var console=level._ship_service_console
-	for i in range(3):
-		while console._nutrient_rotations[i]!=[1,3,2][i]: await click(console._nutrient_rotate_buttons[i])
-	await click(console._nutrient_restore_button)
-	check(console._task_complete,"Actual pointer inputs operate the original manifold")
-	await click(console._close_button); await get_tree().create_timer(0.3).timeout
-	await station("hydro.console"); await verify("hydro")
+	await operate("align")
+	check(level._ship_state.systems.hydro.aligned,"Manifold valves set through the redesigned irrigation panel")
+	await verify("hydro")
 	check(level._ship_story.completed_count()==3,"Technical irrigation verification still needs Amara report-back")
 	await key(KEY_ESCAPE); await talk_amara(); await dialogue("report","amara_repair_report")
 	check(level._ship_story.completed_count()==4,"Explicit healthy repair report completes 040")

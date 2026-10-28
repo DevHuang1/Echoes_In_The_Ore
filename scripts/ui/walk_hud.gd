@@ -354,6 +354,7 @@ var _map_world_size := Vector2(1774.0, 887.0)
 var _root: Control
 var _world_task_marker_layer: Control
 var _mission_panel: PanelContainer
+var _story_tracker_enabled := false
 var _mission_stack: VBoxContainer
 var _mission_progress_label: Label
 var _mission_progress_bar: ProgressBar
@@ -478,6 +479,8 @@ func _build_mission_panel() -> void:
 	panel.offset_bottom = 198.0 + maxi(_task_entries.size() - 3, 0) * 32.0
 	var mission_style := _panel_style(SURFACE, Color(1.0, 0.78, 0.38, 0.94), 13.0)
 	panel.add_theme_stylebox_override("panel", mission_style)
+	panel.minimum_size_changed.connect(func():
+		if _story_tracker_enabled: _fit_story_tracker.call_deferred())
 	_root.add_child(panel)
 	var stack := VBoxContainer.new()
 	_mission_stack = stack
@@ -1411,6 +1414,7 @@ func inventory_restore(data: Dictionary) -> bool:
 
 
 func set_ship_objectives(entries: Array, completed_ids: Dictionary) -> void:
+	_story_tracker_enabled=false
 	# Reuse the existing mission tracker and completion dictionary. Its dynamic
 	# rows are rebuilt in place; the inventory, settings, map and hotbar stay live.
 	_task_entries.clear();_task_completed.clear();_mission_rows.clear()
@@ -1445,6 +1449,14 @@ func set_story_objective(entry: Dictionary, completed_missions: int, optional_en
 	optional.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_mission_stack.add_child(optional)
 	_mission_panel.offset_bottom = 264
+	_story_tracker_enabled=true
+	_fit_story_tracker.call_deferred()
+
+func _fit_story_tracker() -> void:
+	# Wrapped text briefly reports a taller minimum before its first container
+	# layout. Refit when that minimum settles, including hidden startup layouts.
+	if _story_tracker_enabled and is_instance_valid(_mission_panel):
+		_mission_panel.size=Vector2(342,246)
 
 
 func _build_dev_menu_panel() -> void:

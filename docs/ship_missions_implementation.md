@@ -1,5 +1,9 @@
 # Ship-side mission implementation
 
+This is the earlier maintenance-watch implementation record. The normal entry now
+uses the [first-watch chapter](narrative/first_watch_implementation.md); full maintenance
+contexts remain available through explicit development entries and legacy saves.
+
 ## Scope and preservation
 
 Implement the user's attached seven-room mission brief: outbound routines and a

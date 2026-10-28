@@ -2,9 +2,12 @@ extends Control
 
 const SKIN := preload("res://scripts/ui/pixel_ui.gd")
 const STORY := preload("res://scripts/ship/first_watch_story.gd")
+const STORY_SAVE := preload("res://scripts/ship/ship_story_save.gd")
 signal cue_finished(request_token: String, cue_id: String, outcome: String, landing_id: String)
 var _cue_context := {}
 var _bootstrap_story
+var _campaign_payload := {}
+var _campaign_path := ""
 
 const GAMEPLAY_SCENE := "res://scenes/ship/bare_ship_walkthrough.tscn"
 const TYPEWRITER_CHARACTERS_PER_SECOND := 38.0
@@ -105,7 +108,12 @@ var _finished := false
 func _ready() -> void:
 	_bootstrap_story = STORY.new()
 	if Engine.has_meta("ship_story_bootstrap"): _bootstrap_story.restore(Engine.get_meta("ship_story_bootstrap"))
+	# A cold resume is a new attempt. Earlier pending tokens cannot finish it.
 	_cue_context = _bootstrap_story.request_cue("cue.thura.earth_years", "existing_montage")
+	if Engine.has_meta("ship_story_intro_payload"):
+		_campaign_payload=Engine.get_meta("ship_story_intro_payload");Engine.remove_meta("ship_story_intro_payload")
+		_campaign_path=str(Engine.get_meta("ship_story_intro_path",""));Engine.remove_meta("ship_story_intro_path")
+		_persist_intro()
 	SKIN.apply(self)
 	_build_ui()
 	_show_frame(0)
@@ -355,12 +363,21 @@ func _enter_game() -> void:
 	if result != OK:
 		_bootstrap_story.finish_cue("cue.thura.earth_years", str(_cue_context.get("request_token","")), "failed")
 		_cue_context = _bootstrap_story.request_cue("cue.thura.earth_years", "existing_montage")
+		_persist_intro()
 		push_error("Could not open the ship walkthrough: %s" % GAMEPLAY_SCENE)
 		_transitioning = false
 		await _fade_to_alpha(0.0, TRANSITION_SECONDS)
 	else:
 		_bootstrap_story.finish_cue("cue.thura.earth_years", str(_cue_context.get("request_token","")), outcome)
+		_persist_intro()
 		Engine.set_meta("ship_story_bootstrap", _bootstrap_story.snapshot())
+		if not _campaign_path.is_empty(): Engine.set_meta("ship_story_continue_path",_campaign_path)
+
+func _persist_intro() -> void:
+	if _campaign_payload.is_empty() or not STORY_SAVE.allowed(_campaign_path): return
+	_campaign_payload.story=_bootstrap_story.snapshot()
+	if STORY_SAVE.valid_payload(_campaign_payload) and STORY_SAVE.atomic_write(_campaign_path,_campaign_payload)==OK: STORY_SAVE.remember(_campaign_path)
+	else: push_warning("Intro checkpoint could not be replaced; the previous saved watch is preserved.")
 
 func play_cue(context: Dictionary) -> void:
 	_cue_context = context.duplicate(true)

@@ -209,10 +209,23 @@ func _ready() -> void:
 		_room_task_feedback_timer = 3.5
 		_update_player_walk_state()
 	else:
-		_walk_hud.set_walking_visible(false)
-		var arrival_briefing := ARRIVAL_BRIEFING_SCENE.instantiate()
-		arrival_briefing.connect(&"dismissed", _on_arrival_briefing_dismissed)
-		add_child(arrival_briefing)
+		_show_story_arrival_briefing()
+
+
+func _show_story_arrival_briefing() -> void:
+	_arrival_briefing_open=true
+	_walk_hud.set_walking_visible(false)
+	var cue_token: String=str(_ship_cue_active.get("request_token","")) if ship_story_active() else ""
+	var existing := get_node_or_null("ArrivalBriefing")
+	if existing!=null and str(existing.get_meta("story_cue_token",""))!=cue_token:
+		remove_child(existing);existing.queue_free()
+	if not has_node("ArrivalBriefing"):
+		var briefing := ARRIVAL_BRIEFING_SCENE.instantiate()
+		briefing.name="ArrivalBriefing"
+		briefing.set_meta("story_cue_token",cue_token)
+		briefing.connect(&"dismissed", _on_arrival_briefing_dismissed.bind(cue_token))
+		add_child(briefing)
+	_update_player_walk_state()
 
 
 func _process(delta: float) -> void:
@@ -445,6 +458,7 @@ func _begin_amara_dialogue() -> void:
 		amara.set_in_dialogue(true)
 	_update_player_walk_state()
 	_walk_hud.set_interaction_prompt("", false)
+	_walk_hud.set_walking_visible(false)
 	var lines: Array[String] = []
 	var offer_tasks := not _crew_tasks_unlocked
 	if offer_tasks:
@@ -472,6 +486,7 @@ func _begin_amara_dialogue() -> void:
 
 func _on_amara_dialogue_finished(accepted_tasks: bool) -> void:
 	_crew_dialogue_open = false
+	_walk_hud.set_walking_visible(not _arrival_briefing_open and not _task_console_open)
 	if is_instance_valid(amara) and amara.has_method("set_in_dialogue"):
 		amara.set_in_dialogue(false)
 	if accepted_tasks and not _crew_tasks_unlocked:
@@ -545,7 +560,8 @@ func _complete_crew_task(task_id: StringName) -> void:
 	_room_task_feedback_timer = 4.0
 
 
-func _on_arrival_briefing_dismissed() -> void:
+func _on_arrival_briefing_dismissed(cue_token := "") -> void:
+	if ship_story_active() and not cue_token.is_empty() and (_ship_cue_active.get("cue_id")!="cue.asteria.arrival" or _ship_cue_active.get("request_token")!=cue_token): return
 	_arrival_briefing_open = false
 	if ship_story_active() and _ship_cue_active.get("cue_id") == "cue.asteria.arrival":
 		ship_finish_story_cue("cue.asteria.arrival", str(_ship_cue_active.request_token), "completed")

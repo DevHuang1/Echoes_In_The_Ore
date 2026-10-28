@@ -1,222 +1,271 @@
 class_name CrewDialogue
 extends CanvasLayer
+## Conversations in the redesigned dialogue frame. Keeps the original contract
+## (start_dialogue / cancel_dialogue / dialogue_finished / conversation_finished /
+## conversation_id) so the walkthrough's story code is unchanged. People on the
+## ship terminal (Maya, Leila) talk through the comms device; Amara in person.
 
-const SKIN := preload("res://scripts/ui/pixel_ui.gd")
+const SCREEN := preload("res://scripts/ui/eito/dialogue_screen.gd")
 
 signal dialogue_finished(accepted_tasks: bool)
 signal conversation_finished(conversation_id: String, result_id: String)
 
-const PALE := Color(0.94, 0.91, 0.82)
-const MUTED := Color(0.59, 0.69, 0.73)
-const GOLD := Color(1.0, 0.77, 0.34)
+const CHARS_PER_SECOND := 2.0 / 0.022
+const ECHO_PERSON := 1.0
+const ECHO_COMMS := 0.65
 
-const TYPEWRITER_CHARS_PER_SECOND := 38.0
-
-var _root: Control
-var _bubble: PanelContainer
-var _speaker_label: Label
-var _dialogue_label: Label
-var _prompt_label: Label
-var _lines: Array[String] = []
-var _line_index := 0
-var _visible_characters := 0
-var _typewriter_progress := 0.0
-var _is_typing := false
-var _is_active := false
-var _offer_enabled := false
 var conversation_id := ""
-var _choices: Array = []
-var _choice_row: HBoxContainer
-var _choice_buttons: Array[Button] = []
+var mode := "person"        # person | comms | ribbon
+var who := "amara"
+var display_name := "Amara"
+var tag := "HYDROPONICS"
+var objective := ""
+var speaking := "them"      # them | me
+var phase := "idle"         # typing | wait | choose | end | echo | idle
+var choices: Array = []
+var transcript: Array = []
+var ribbon_text := ""
+var ribbon_t := 0.0
 
+var _lines: Array[String] = []
+var _index := 0
+var _typed := 0.0
+var _offer := false
+var _active := false
+var _echo_text := ""
+var _echo_result := ""
+var _echo_left := 0.0
+var _generation := 0
+var _last_finish_ms := -100000
+var _ribbon_left := 0.0
+var _root: Control
+var _screen: Control
+
+func _init() -> void:
+	layer = 20
+	_root = _Dim.new()
+	_root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_root.mouse_filter = Control.MOUSE_FILTER_STOP
+	add_child(_root)
+	_screen = SCREEN.new()
+	_screen.name = "DialogueScreen"
+	add_child(_screen)
+	_screen.setup(self)
+	_set_shown(false)
 
 func _ready() -> void:
-	layer = 20
-	_build_ui()
-	set_process_input(true)
-	set_process(true)
-	_root.hide()
-	get_viewport().size_changed.connect(_resize_bubble)
-	_resize_bubble()
+	get_viewport().size_changed.connect(_layout)
+	_layout()
 
+func _layout() -> void:
+	if not is_inside_tree(): return
+	var vs := get_viewport().get_visible_rect().size
+	var s := minf(1.0, minf(vs.x / 1280.0, vs.y / 720.0))
+	_screen.scale = Vector2(s, s)
+	_screen.position = ((vs - Vector2(1280, 720) * s) * 0.5).floor()
 
-func _process(delta: float) -> void:
-	if not _is_typing:
-		return
-	_typewriter_progress += delta * TYPEWRITER_CHARS_PER_SECOND
-	var new_visible_count := mini(int(_typewriter_progress), _dialogue_label.text.length())
-	if new_visible_count != _visible_characters:
-		_visible_characters = new_visible_count
-		_dialogue_label.visible_characters = _visible_characters
-	if _visible_characters >= _dialogue_label.text.length():
-		_is_typing = false
-		_refresh_prompt()
+func _set_shown(on: bool, ribbon_only := false) -> void:
+	_root.visible = on and not ribbon_only
+	_screen.visible = on
+	_screen.mouse_filter = Control.MOUSE_FILTER_IGNORE if ribbon_only else Control.MOUSE_FILTER_STOP
+	_screen.set_process(on)
 
-
+# ------------------------------------------------------------ public API
 func start_dialogue(lines: Array[String], offer_enabled: bool = false, context: Dictionary = {}) -> void:
-	if lines.is_empty():
-		return
-	_lines = lines.duplicate()
-	_line_index = 0
-	_offer_enabled = offer_enabled
+	if lines.is_empty(): return
+	var speaker := str(context.get("speaker", "AMARA OKOYE / MED / HYDROPONICS"))
+	var parts := speaker.split("/")
+	var first := parts[0].strip_edges().split(" ")[0].to_lower()
+	var next_mode := "comms" if speaker.contains("TERMINAL") else "person"
+	var continuing := next_mode == "comms" and mode == "comms" and who == first and Time.get_ticks_msec() - _last_finish_ms < 400
+	who = first if first in ["amara", "maya", "leila"] else ("maya" if next_mode == "comms" else "amara")
+	display_name = parts[0].strip_edges().split(" ")[0].capitalize()
+	tag = parts[-1].strip_edges() if next_mode == "person" and parts.size() > 1 else ""
+	mode = next_mode
+	objective = str(context.get("objective", ""))
+	if objective.is_empty(): objective = "Talk with " + display_name
 	conversation_id = str(context.get("id", ""))
-	_speaker_label.text = str(context.get("speaker", "AMARA OKOYE / MED / HYDROPONICS"))
-	_choices = context.get("choices", []).duplicate(true)
-	for child in _choice_row.get_children():
-		_choice_row.remove_child(child); child.queue_free()
-	_choice_buttons.clear()
-	for choice in _choices:
-		var button := Button.new()
-		button.text = str(choice.label)
-		button.custom_minimum_size.y = 36
-		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		button.add_theme_font_size_override("font_size", 14)
-		button.pressed.connect(_choose.bind(str(choice.id)))
-		_choice_row.add_child(button); _choice_buttons.append(button)
-	_is_active = true
-	_root.show()
-	_show_current_line()
-
-
-func _input(event: InputEvent) -> void:
-	if not _is_active or (event is InputEventKey and event.echo):
-		return
-	var advance := event.is_action_pressed(&"interact")
-	var decline: bool = false
-	if event is InputEventKey:
-		decline = event.pressed and event.keycode == KEY_Q
-		if event.pressed and event.keycode == KEY_ESCAPE:
-			cancel_dialogue(); get_viewport().set_input_as_handled(); return
-		advance = advance or (event.pressed and event.keycode in [KEY_ENTER, KEY_KP_ENTER, KEY_SPACE])
-		if event.pressed and not _is_typing and _line_index == _lines.size()-1 and not _choices.is_empty():
-			var index := int(event.keycode) - int(KEY_1)
-			if index >= 0 and index < _choices.size():
-				_choose(str(_choices[index].id)); get_viewport().set_input_as_handled(); return
-	if not advance and not decline:
-		return
-	if _is_typing:
-		if advance:
-			_reveal_current_line()
-		get_viewport().set_input_as_handled()
-		return
-	if _line_index < _lines.size() - 1:
-		if advance:
-			_line_index += 1
-			_show_current_line()
-	elif not _choices.is_empty():
-		if advance: _choose(str(_choices[0].id))
-		elif decline: _choose(str(_choices[-1].id))
-	elif _offer_enabled:
-		if advance:
-			_finish(true)
-		elif decline:
-			_finish(false)
-	elif advance:
-		_finish(false)
-	get_viewport().set_input_as_handled()
-
-
-func _build_ui() -> void:
-	_root = Control.new()
-	SKIN.apply(_root)
-	_root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(_root)
-
-	_bubble = PanelContainer.new()
-	_bubble.name = "AmaraSpeechBubble"
-	_bubble.anchor_left = 0.5
-	_bubble.anchor_right = 0.5
-	_bubble.anchor_top = 1.0
-	_bubble.anchor_bottom = 1.0
-	_bubble.offset_left = -430.0
-	_bubble.offset_top = -330.0
-	_bubble.offset_right = 430.0
-	_bubble.offset_bottom = -106.0
-	_bubble.add_theme_stylebox_override("panel", _bubble_style())
-	_root.add_child(_bubble)
-
-	var content := VBoxContainer.new()
-	content.add_theme_constant_override("separation", 7)
-	_bubble.add_child(content)
-	_speaker_label = Label.new()
-	_speaker_label.text = "AMARA OKOYE   /   HYDROPONICS"
-	_speaker_label.add_theme_font_size_override("font_size", 12)
-	_speaker_label.add_theme_color_override("font_color", GOLD)
-	content.add_child(_speaker_label)
-	_dialogue_label = Label.new()
-	_dialogue_label.custom_minimum_size = Vector2(0.0, 70.0)
-	_dialogue_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_dialogue_label.add_theme_font_size_override("font_size", 16)
-	_dialogue_label.add_theme_color_override("font_color", PALE)
-	content.add_child(_dialogue_label)
-	_choice_row = HBoxContainer.new()
-	_choice_row.add_theme_constant_override("separation", 8)
-	content.add_child(_choice_row)
-	_prompt_label = Label.new()
-	_prompt_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	_prompt_label.add_theme_font_size_override("font_size", 12)
-	_prompt_label.add_theme_color_override("font_color", MUTED)
-	content.add_child(_prompt_label)
-
-
-func _show_current_line() -> void:
-	_dialogue_label.text = _lines[_line_index]
-	_visible_characters = 0
-	_typewriter_progress = 0.0
-	_is_typing = not _dialogue_label.text.is_empty()
-	_dialogue_label.visible_characters = 0 if _is_typing else -1
-	_refresh_prompt()
-
-
-func _reveal_current_line() -> void:
-	_is_typing = false
-	_visible_characters = _dialogue_label.text.length()
-	_dialogue_label.visible_characters = -1
-	_refresh_prompt()
-
-
-func _refresh_prompt() -> void:
-	_choice_row.visible = not _is_typing and _line_index == _lines.size()-1 and not _choices.is_empty()
-	if _is_typing:
-		_prompt_label.text = "[E]  SHOW LINE"
-	elif _line_index < _lines.size() - 1:
-		_prompt_label.text = "[E]  CONTINUE"
-	elif not _choices.is_empty():
-		_prompt_label.text = "[E] FIRST RESPONSE / [1-%d] CHOOSE / [Q] %s / ESC CLOSE" % [_choices.size(), str(_choices[-1].label).to_upper()]
-	elif _offer_enabled:
-		_prompt_label.text = "[E]  TAKE TASKS     [Q]  MAYBE LATER"
-	else:
-		_prompt_label.text = "[E]  CLOSE"
-
-
-func _finish(accepted_tasks: bool) -> void:
-	if not conversation_id.is_empty():
-		_choose(str(_choices[0].id) if accepted_tasks and not _choices.is_empty() else "closed")
-		return
-	_is_active = false
-	_is_typing = false
-	_root.hide()
-	dialogue_finished.emit(accepted_tasks)
-
-func _choose(result_id: String) -> void:
-	if not _is_active: return
-	_is_active = false; _is_typing = false; _root.hide()
-	conversation_finished.emit(conversation_id, result_id)
+	_generation += 1
+	_offer = offer_enabled
+	choices = []
+	for c in context.get("choices", []): choices.append({"id":str(c.id), "label":str(c.label)})
+	if choices.is_empty() and _offer:
+		choices = [{"id":"accept", "label":"I'll take both jobs"}, {"id":"decline", "label":"Maybe later"}]
+	_lines = lines.duplicate()
+	_index = 0
+	if not continuing: transcript = []
+	_active = true
+	_ribbon_left = 0.0
+	_set_shown(true)
+	_begin_line()
 
 func cancel_dialogue() -> void:
-	if not _is_active: return
-	if conversation_id.is_empty(): _finish(false)
+	if not _active: return
+	if phase == "echo": return
+	if conversation_id.is_empty(): _finish_legacy(false)
 	else: _choose("cancelled")
 
-func _resize_bubble() -> void:
-	if not is_instance_valid(_bubble): return
-	var width := minf(900.0, get_viewport().get_visible_rect().size.x-48.0)
-	_bubble.offset_left = -width*0.5; _bubble.offset_right = width*0.5
+## Briefly shows the design's NEW OBJECTIVE ribbon over the game.
+func flash_objective(text: String) -> void:
+	if _active or text.is_empty(): return
+	ribbon_text = text; ribbon_t = _screen.now; _ribbon_left = 3.0
+	mode = "ribbon"
+	_set_shown(true, true)
+
+# ------------------------------------------------------------ view helpers
+func full_text() -> String:
+	if phase == "echo" and mode == "person": return _echo_text
+	return _lines[_index] if _index < _lines.size() else ""
+
+func visible_text() -> String:
+	var t := full_text()
+	if phase == "typing": return t.substr(0, int(_typed))
+	return t
+
+## Replies that will appear once the current line finishes, so the frame can
+## make room for them up front instead of jumping when they arrive.
+func reserved_choices() -> int:
+	if phase == "choose": return choices.size()
+	if phase in ["typing", "wait", "end"] and _index == _lines.size() - 1 and not _continue_choice: return choices.size()
+	return 0
+
+func show_more() -> bool:
+	return mode == "person" and phase in ["typing", "wait", "end"]
+
+# ------------------------------------------------------------ flow
+func _begin_line() -> void:
+	speaking = "them"
+	_typed = 0.0
+	phase = "typing"
+	if mode == "comms":
+		transcript.append({"who":"them", "name":display_name.to_upper(), "text":_lines[_index], "shown":0, "t0":_screen.now})
+		while transcript.size() > 4: transcript.pop_front()
+
+func _line_done() -> void:
+	if mode == "comms" and not transcript.is_empty(): transcript[-1].shown = str(transcript[-1].text).length()
+	if _index < _lines.size() - 1:
+		phase = "wait"
+		if mode == "comms": choices_for_continue()
+	elif not choices.is_empty(): phase = "choose"
+	else:
+		phase = "end"
+		if mode == "comms": choices_for_continue(true)
+
+var _continue_choice := false
+func choices_for_continue(close := false) -> void:
+	# The comms device has no click-to-continue box; a single reply row stands in.
+	_continue_choice = true
+	_saved_choices = choices
+	choices = [{"id":"__next", "label":"Close channel" if close else "Continue", "key":"E"}]
+	phase = "choose"
+
+var _saved_choices: Array = []
+
+func advance() -> void:
+	if not _active: return
+	match phase:
+		"typing":
+			_typed = float(full_text().length()); _line_done()
+		"wait":
+			_index += 1; _begin_line()
+		"end":
+			_close_without_choice()
+		"choose":
+			if _continue_choice: pick(0)
+
+func pick(i: int) -> void:
+	if not _active or phase != "choose" or i < 0 or i >= choices.size(): return
+	if _continue_choice:
+		_continue_choice = false
+		choices = _saved_choices
+		if _index < _lines.size() - 1:
+			_index += 1; _begin_line()
+		else:
+			_close_without_choice()
+		return
+	var c: Dictionary = choices[i]
+	if _offer and conversation_id.is_empty():
+		_finish_legacy(c.id == "accept"); return
+	_echo_text = str(c.label); _echo_result = str(c.id)
+	speaking = "me"; phase = "echo"
+	if mode == "comms":
+		transcript.append({"who":"me", "name":"THURA", "text":_echo_text, "shown":_echo_text.length(), "t0":_screen.now})
+		while transcript.size() > 4: transcript.pop_front()
+		_echo_left = ECHO_COMMS
+	else:
+		_echo_left = ECHO_PERSON
+
+func _close_without_choice() -> void:
+	if conversation_id.is_empty(): _finish_legacy(false)
+	else: _choose("closed")
+
+func _finish_legacy(accepted: bool) -> void:
+	_active = false; phase = "idle"
+	_last_finish_ms = Time.get_ticks_msec()
+	_set_shown(false)
+	dialogue_finished.emit(accepted)
+
+func _choose(result: String) -> void:
+	if not _active: return
+	_active = false; phase = "idle"
+	_last_finish_ms = Time.get_ticks_msec()
+	_set_shown(false)
+	conversation_finished.emit(conversation_id, result)
+
+func _process(delta: float) -> void:
+	if _ribbon_left > 0.0:
+		_ribbon_left -= delta
+		if _ribbon_left <= 0.0 and not _active:
+			mode = "person"; ribbon_text = ""; _set_shown(false)
+	if not _active: return
+	if phase == "typing":
+		_typed += delta * CHARS_PER_SECOND
+		if mode == "comms" and not transcript.is_empty(): transcript[-1].shown = int(_typed)
+		if _typed >= full_text().length(): _line_done()
+	elif phase == "echo":
+		_echo_left -= delta
+		if _echo_left <= 0.0:
+			var gen := _generation
+			if _offer and conversation_id.is_empty(): _finish_legacy(_echo_result == "accept")
+			elif gen == _generation: _choose(_echo_result)
+
+func _input(event: InputEvent) -> void:
+	if not _active: return
+	var ke := event as InputEventKey
+	var interact := event.is_action_pressed(&"interact")
+	if ke == null:
+		# Gamepad / action events: interact advances or takes the first reply.
+		if not interact: return
+		if phase == "choose" and not _continue_choice and not choices.is_empty(): pick(0)
+		else: advance()
+		get_viewport().set_input_as_handled(); return
+	if not ke.pressed or ke.echo: return
+	var k: int = ke.keycode
+	var handled := true
+	if k == KEY_ESCAPE: cancel_dialogue()
+	elif interact or k in [KEY_ENTER, KEY_KP_ENTER, KEY_SPACE]:
+		if phase == "choose" and not _continue_choice and not choices.is_empty(): pick(0)
+		else: advance()
+	elif k == KEY_Q and phase == "choose" and not _continue_choice and not choices.is_empty():
+		pick(choices.size() - 1)
+	elif k >= KEY_1 and k <= KEY_9 and phase == "choose" and not _continue_choice:
+		pick(k - KEY_1)
+	elif k == KEY_TAB:
+		_screen.key(event)
+	else:
+		handled = false
+	if handled: get_viewport().set_input_as_handled()
 
 func _exit_tree() -> void:
 	cancel_dialogue()
 
-
-func _bubble_style() -> StyleBox:
-	return SKIN.panel(20.0)
+## Dims the ship behind the conversation like the design's scene wash.
+class _Dim extends Control:
+	func _draw() -> void:
+		draw_rect(Rect2(Vector2.ZERO, size), Color(0, 0, 0, 0.28))
+		# The design's HUD row sits on a dark wall; over the bright ship it needs
+		# a little shade to stay readable.
+		var top := Color(0.02, 0.03, 0.04, 0.72); var clear := Color(0.02, 0.03, 0.04, 0.0)
+		draw_polygon(PackedVector2Array([Vector2(0, 0), Vector2(size.x, 0), Vector2(size.x, 72), Vector2(0, 72)]), PackedColorArray([top, top, clear, clear]))
+	func _notification(what: int) -> void:
+		if what == NOTIFICATION_RESIZED: queue_redraw()

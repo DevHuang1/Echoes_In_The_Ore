@@ -49,6 +49,8 @@ func legacy(task: String, prop: String, test_cancel := false) -> void:
 			check(hud.inventory_count(&"filter_cartridge")==before,"Cancel filter does not consume spare")
 			level.ship_open_procedure(prop);await frames();level._ship_action("legacy:"+task,null,prop);await frames()
 			console=level._ship_service_console
+			check(is_instance_valid(console),"Filter console reopens after cancel")
+			if not is_instance_valid(console): return
 			check(console._filter_stage==1 and console._filter_rotation==1,"Filter stage/orientation resumes")
 		console._on_filter_rotate_pressed();console._on_filter_seat_pressed()
 		console._filter_pressure_slider.value=67;console._on_filter_pressure_locked()
@@ -70,8 +72,8 @@ func run_context(context: String) -> void:
 	action("bridge.planning","assign")
 	action("quarters.desk","roster")
 	action("quarters.table","crew_log")
-	action("quarters.desk","crew_compare","records_match" if context=="return" else "unconfirmed",false)
-	action("quarters.desk","crew_compare","unconfirmed" if context=="return" else "records_match")
+	action("quarters.desk","crew_compare","records_match" if context=="return" else "all_checked_in",false)
+	action("quarters.desk","crew_compare","unconfirmed" if context=="return" else "one_missing")
 	action("cargo.bundle","manifest")
 	action("cargo.bundle","seal")
 	action("cargo.scale","tare")
@@ -82,10 +84,17 @@ func run_context(context: String) -> void:
 	action("power.breaker","observe")
 	action("power.breaker","diagnose","load" if context=="return" else "cell")
 	action("power.breaker","isolate")
-	action("power.converter","allocation","overload",false)
-	check(state.systems.power.essential==70,"Poor allocation never removes essential supply")
-	action("power.converter","allocation","reserve")
-	if context=="outbound": await legacy("auxiliary_power","power.cell")
+	if context=="outbound":
+		# Redesigned auxiliary power: pick a safe plan, then synchronize bank B.
+		action("power.converter","allocation","standard",false)
+		check(state.bus_powered("essential") and state.systems.power.essential==50,"Unsafe plan rejected; essential supply stays on")
+		action("power.converter","allocation","repair")
+		hud.inventory_put(&"engineering_multitool")
+		action("power.cell","sync")
+	else:
+		action("power.converter","allocation","overload",false)
+		check(state.systems.power.essential==70,"Poor allocation never removes essential supply")
+		action("power.converter","allocation","reserve")
 	action("power.breaker","restore");state.tick(7.0);action("power.breaker","verify")
 	check(state.completed.has("power"),"Complete multistage power duty")
 	action("life.filter","observe")
@@ -106,7 +115,7 @@ func run_context(context: String) -> void:
 	action("hydro.console","observe")
 	action("hydro.console","diagnose","balance" if context=="return" else "restriction")
 	action("hydro.pump","isolate")
-	if context=="outbound": await legacy("nutrient_flow","hydro.console")
+	if context=="outbound": action("hydro.console","align")
 	else:
 		action("quarters.drawer.2","take:nutrient_buffer")
 		var stock_before: int=hud.inventory_count(&"nutrient_buffer")

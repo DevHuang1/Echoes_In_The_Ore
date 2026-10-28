@@ -2,12 +2,50 @@
 
 ## Start and controls
 
-Run `project.godot` normally (F5). Start/Skip Intro and the Asteria-1 arrival
-briefing retain their existing flow. The ship starts with the pre-incident duty
-context; the existing arrival text/date has not been rewritten. Go to the bridge
-`MissionPlanningTable`, approach its clear edge, press **E**, and accept duties.
-The table contains all eight objectives, prerequisites, recorded evidence and the
-recent log. Seven rooms provide those objectives; the bridge provides two.
+Run `project.godot` normally (F5). **INITIALIZE EXPEDITION** starts a separate
+first-watch campaign through the existing Earth-years montage (Space to reveal /
+advance, or Skip Intro). **CONTINUE WATCH** appears for a valid saved campaign and
+resumes chapter progress without replaying completed cues. If you quit during
+the prologue, Continue reoffers its opening frame as a safe checkpoint. A new start preserves older campaign files.
+The arrival is DAY 184 aboard Asteria-1, preparing for the Erebos survey.
+
+The normal chapter has **five missions and two required equipment repairs**.
+Maya and Leila communicate through identified terminal text; Amara is the existing
+MED NPC. No physical Maya/Leila actor or recorded voice is supplied.
+
+1. **Receive the watch:** go west to the bridge planning table beside the main
+   helm. Hear Maya's reason for the work and accept. At the quarters desk below
+   the bridge corridor, read the roster, review watch entries and compare them.
+   This reviews records; it does not mean you have met every crew member.
+2. **Meet Amara / inspect delivery:** find Amara in hydroponics below quarters
+   (the objective follows her actual location if she walks elsewhere). At the
+   hydro console capture and diagnose normal EC / healthy pump / poor delivery.
+   Report the observation to Amara. She asks for service power before manifold work.
+3. **Restore service power:** diagnose and isolate at the power breaker, allocate
+   safely at the converter, and synchronize the original capacitor controls at
+   the cell module. Carry the engineering multitool. Restore at the breaker,
+   observe six stable seconds, verify and acknowledge Leila's reply. Cargo signoff
+   and unrelated repairs are not prerequisites for this scoped work order.
+4. **Restore irrigation:** isolate at the hydro console, operate the existing
+   labelled manifold, restore and verify six stable seconds, then explicitly
+   report back to Amara. Normal chemistry needs no BUFFER-A. Her response follows
+   current delivery; the repair log remains earned if a later fault regresses it.
+5. **Hand over:** at the bridge planning table submit the scoped before/after
+   summary and acknowledge Maya's terminal message. The endpoint is **Watch handed
+   over / await survey briefing**. Surface deployment remains guarded at both the
+   ordinary airlock prompt and its walk-through boundary.
+
+E reveals / advances dialogue. The visible response buttons or 1–3 select a reply;
+Q chooses the last response, and Esc cancels. Decline/cancel leaves a clear objective
+and allows reoffering. Closing one modal never releases another owner's input lock.
+The tracker has one primary next objective and a five-mission denominator.
+
+Life support and cooling start genuinely healthy in a new story watch. Their
+readings remain inspectable without invented completed duties. Storage, exploration,
+rest and Amara's two optional observations remain separate. Optional observations
+are offered inside the corresponding equipment panel and cannot replace a repair.
+The original full eight-duty watch remains available through explicit development
+entries and legacy saves, as documented below.
 
 - WASD/arrows: existing walking. Nearby doors retain their existing automatic use.
 - E: access the single station named in the prompt; when concealed, exit safely.
@@ -35,7 +73,7 @@ individual interlock. Supply stores show stock/carried counts, **SUPPLIES** and
 Unsubmitted settings are retained during live refresh; reopening initializes
 controls from the actual mission state. The ship map remains blank.
 
-## Outbound duty sequence
+## Full maintenance outbound development sequence
 
 1. **Bridge planning table:** accept duties. Optional Record actions collect the
    phase's crew/system notes into the table's evidence log.
@@ -122,23 +160,43 @@ substitute for coolant/oxygen. The cargo locker can issue a logged replacement
 kit only when total service stock is low; repeated requests do not multiply it.
 
 Capsule rest reduces fatigue without changing chapter/events, objectives or
-unresolved evidence. Once duties are accepted, essential power/air/cooling must
-be verified first. Chairs have operator-access/examine actions: only walking
+unresolved evidence. In the full maintenance context, essential power/air/cooling must be verified
+first after accepting duties. The first-watch context uses current healthy routine
+readings, without fabricating service signoffs. Chairs have operator-access/examine actions: only walking
 frames exist in the supplied player setup, so no seated/tool animation was
 fabricated.
 
-Cargo locker, tied-box bundle, and both engine lockers have usable concealment.
-Enter from the clear access point. E validates a safe exit; if every nearby exit
-is obstructed, remain concealed and retry after it clears. The player exposes
+The cargo locker and both engine lockers require the actual WEST door of an
+intact cabinet. Open its station panel from that side and choose Hide. Entry / exit
+uses the supplied WEST open artwork; the door closes when concealed. Q cancels
+entry along the route already traversed. The cabinet stays solid to other actors.
+Damaged/open combinations with no supplied art are refused.
+
+The cargo bundle uses a full-size walk-around route into the existing covered
+behind-stack pocket. Its three sealed crate bodies remain solid; there is no
+squeeze animation or hollow-crate interior. All four places reserve occupancy and
+recheck external solids, characters, floor and closed doors during their routes.
+E exits through a connected access-side route. A partly blocked endpoint can use
+a connected nearby alternative. If every exit is blocked, remain concealed and
+retry; never eject through a wall. Inventory remains usable without unlocking
+ordinary movement. No furniture transform, footprint or player size is changed. The player exposes
 `concealment_changed`, `is_concealed`, `concealment_source`, group
 `concealed_players`, and matching metadata for future enemy integration. **No
 compatible enemy AI exists here, so detection behavior is not validated.**
 
 ## Persistence
 
-Default save: `user://ship_side_missions_v1.json`. Development contexts use
+New campaigns use version-2 snapshots under `user://ship_side_missions_story_…json`
+(the first is `ship_side_missions_story_v2.json`). A small current-campaign index
+powers Continue. F6/F9 and the table's explicit Save/Load remain available.
+Acceptance, observations, reports and cue outcomes checkpoint atomically. Starting
+a new watch chooses another filename if a campaign already exists.
+
+Version-1 `user://ship_side_missions_v1.json` saves migrate conservatively to the
+maintenance context, retaining inventory, equipment and completed procedures;
+no first-watch/cinematic completion is invented. Development contexts use
 `user://ship_side_missions_dev_outbound.json` and
-`user://ship_side_missions_dev_return.json`. Tests only use
+`user://ship_side_missions_dev_return.json`. Validation uses only
 `res://.godot/mission_validation/`; no existing user save is read or overwritten.
 
 Saving includes the phase, objectives, evidence/log, storage ledgers, consumed
@@ -146,8 +204,9 @@ transaction IDs, equipment readings/isolation, partial original service controls
 HUD inventory/hotbar/equipment selection, Amara progress and player location.
 Load is explicit (F9/table), not an automatic chapter/phase change. Close an open
 legacy service game before loading. Partial work resumes on reopening it.
-Concealed saves deliberately resume outside at a validated exit with movement
-and collision restored. The existing planet transition carries the same state
+Concealed saves deliberately resume outside through a validated connected exit
+with movement and collision restored. If every safe restoration is blocked, loading
+is refused before live state is changed; clear the obstruction and retry. The existing planet transition carries the same state
 in memory; it does not automatically convert it to the return development phase.
 
 ## Editing furniture and interactions

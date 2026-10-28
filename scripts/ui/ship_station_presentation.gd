@@ -87,6 +87,7 @@ static func pages(definition: Dictionary) -> Array:
 	return ["INSPECT","SERVICE","VERIFY","RECORDS"]
 
 static func action_page(id: String, definition: Dictionary) -> String:
+	if id.begins_with("optional:"): return "INSPECT"
 	if id=="story:briefing": return "DUTIES"
 	if id=="story:summary": return "SIGN-OFF"
 	var kind: String=definition.get("kind","")
