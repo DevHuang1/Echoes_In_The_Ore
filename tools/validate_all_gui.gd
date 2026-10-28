@@ -76,13 +76,13 @@ func _layout(ui: Node) -> void:
 			_check(screen.encloses(control.get_global_rect()), "Clipped control: %s %s" % [control.get_path(), control.get_global_rect()])
 		if control is Button:
 			var normal := control.get_theme_stylebox("normal")
-			_check(normal is StyleBoxTexture, "Button uses old style")
+			_check(normal is StyleBox and normal.get_script() != null, "Button uses old style")
 			var font := control.get_theme_font("font")
 			var text_size := font.get_string_size(control.text, HORIZONTAL_ALIGNMENT_LEFT, -1, control.get_theme_font_size("font_size"))
 			_check(text_size.x <= control.size.x - normal.get_minimum_size().x + 1, "Button text clipped: " + control.text)
 		if control is Label and not control.text.is_empty():
 			var font := control.get_theme_font("font")
-			_check(font == SKIN.THEME.default_font, "Old font: " + control.text)
+			_check(font is FontVariation, "Old font: " + control.text)
 			for character in control.text:
 				if character != "\n" and character != "\t":
 					_check(font.has_char(character.unicode_at(0)), "Missing bitmap glyph: " + character)

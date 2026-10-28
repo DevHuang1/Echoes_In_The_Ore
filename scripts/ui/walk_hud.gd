@@ -6,21 +6,26 @@ signal inventory_changed
 signal mission_scenario_requested(context: String)
 
 const PIXEL_THEME := preload("res://themes/ship_pixel_theme.tres")
+const EC := preload("res://scripts/ui/eito/eito_controls.gd")
+const EUI := preload("res://scripts/ui/eito/eito_ui.gd")
+const ESTYLE := preload("res://scripts/ui/eito/eito_style.gd")
 const MAP_CONTENT_VISIBLE := false
 const THURA_ATLAS := preload("res://art/characters/runtime/thura_walk_4dir.png")
 const CHARACTER_FRAME_SIZE := Vector2(313.5, 313.5)
 
-const GOLD := Color(1.0, 0.78, 0.38)
-const PALE := Color(0.94, 0.91, 0.82)
-const MUTED := Color(0.7, 0.8, 0.83)
-const CYAN := Color(0.36, 0.9, 1.0)
-const ORANGE := Color(1.0, 0.68, 0.32)
-const GREEN := Color(0.48, 0.93, 0.64)
-const SURFACE := Color(0.035, 0.055, 0.085)
-const SURFACE_RAISED := Color(0.042, 0.084, 0.103)
-const SURFACE_HOVER := Color(0.068, 0.125, 0.141)
-const EDGE := Color(0.34, 0.51, 0.55)
-const EDGE_SOFT := Color(0.24, 0.39, 0.43)
+# Design palette (eito_ui): amber warn, bone text, label grey-green, live cyan,
+# ok green; surfaces are drawn by EitoStyle materials.
+const GOLD := Color("#f0b23a")
+const PALE := Color("#e6e1d2")
+const MUTED := Color("#a9c4c2")
+const CYAN := Color("#62d0f0")
+const ORANGE := Color("#f0b23a")
+const GREEN := Color("#5fd067")
+const SURFACE := Color("#0a1114")
+const SURFACE_RAISED := Color("#101a1e")
+const SURFACE_HOVER := Color("#1b292e")
+const EDGE := Color("#2a3b40")
+const EDGE_SOFT := Color("#1b292e")
 
 const ITEM_DATA := {
 	&"filter_cartridge":{"name":"FILTER-A / sealed airflow cartridge","short":"FILTER-A","color":CYAN,"equip_slot":&""},
@@ -141,6 +146,40 @@ class MapDot extends Control:
 		draw_circle(center, 1.8, Color(0.96, 0.985, 1.0))
 
 
+## Chart glass for the ship map: phosphor grid and a standby message while the
+## deck schematic stays disabled (markers keep their data underneath).
+class MapScreen extends Control:
+	var _now := 0.0
+	func _ready() -> void:
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+		texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	func _process(delta: float) -> void:
+		_now += delta; queue_redraw()
+	func _draw() -> void:
+		var faint := EUI.PHOS_FAINT
+		var x := fposmod(size.x * 0.5, 24.0)
+		while x < size.x:
+			var major := is_zero_approx(fposmod(x - size.x * 0.5, 96.0))
+			draw_rect(Rect2(roundf(x), 0, 1, size.y), faint if not major else Color(faint, 1.0).lightened(0.12))
+			x += 24.0
+		var y := fposmod(size.y * 0.5, 24.0)
+		while y < size.y:
+			var major := is_zero_approx(fposmod(y - size.y * 0.5, 96.0))
+			draw_rect(Rect2(0, roundf(y), size.x, 1), faint if not major else Color(faint, 1.0).lightened(0.12))
+			y += 24.0
+		# sweep line
+		var sy := fposmod(_now * 60.0, size.y)
+		draw_rect(Rect2(0, roundf(sy), size.x, 2), Color(EUI.PHOS, 0.10))
+		var c := size * 0.5
+		var box := Rect2(c - Vector2(230, 52), Vector2(460, 104))
+		EUI.box(self, box, {"notch":true, "bg":Color(0.016, 0.063, 0.047, 0.92), "border":EUI.PHOS_DIM})
+		var fl := EUI.font("label", 400, 1.28)
+		EUI.text(self, fl, 16, "DECK CHART NOT LOADED", box.position.x, box.position.y + 18, EUI.PHOS, 24, 1, box.size.x)
+		EUI.text(self, EUI.font("body"), 16, "Survey schematic awaiting approval", box.position.x, box.position.y + 50, EUI.PHOS_DIM, 22, 1, box.size.x)
+		if fmod(_now, 1.0) < 0.5:
+			draw_rect(Rect2(box.position.x + box.size.x * 0.5 - 6, box.position.y + 80, 12, 4), EUI.PHOS)
+
+
 class MapPin extends Control:
 	var pin_color := Color(1.0, 0.68, 0.32)
 	var is_complete := false
@@ -197,29 +236,28 @@ class TaskLocationMarker extends Control:
 		queue_redraw()
 
 	func _draw() -> void:
-		var center := Vector2(MARKER_SIZE.x * 0.5, 18.0)
-		var pulse := (sin(_pulse_phase) + 1.0) * 0.5
-		draw_arc(center, 13.0 + pulse * 4.0, 0.0, TAU, 28, Color(ACCENT, 0.16 + (1.0 - pulse) * 0.16), 1.5, false)
-		var outline := PackedVector2Array([
-			Vector2(20.0, 52.0), Vector2(14.0, 42.0), Vector2(7.0, 33.0),
-			Vector2(4.0, 27.0), Vector2(4.0, 20.0), Vector2(6.0, 14.0),
-			Vector2(11.0, 8.0), Vector2(17.0, 5.0), Vector2(20.0, 4.0),
-			Vector2(23.0, 5.0), Vector2(29.0, 8.0), Vector2(34.0, 14.0),
-			Vector2(36.0, 20.0), Vector2(36.0, 27.0), Vector2(33.0, 33.0),
-			Vector2(26.0, 42.0),
-		])
-		draw_colored_polygon(outline, DARK)
-		draw_circle(center, 11.0, ACCENT)
-		draw_circle(center, 7.5, DARK)
-		draw_string(get_theme_font("font", "Label"), Vector2(15.0, 23.0), "!", HORIZONTAL_ALIGNMENT_LEFT, -1.0, 14, PALE)
+		# Notched chip with a pulsing warn lamp, corner cue brackets and a stem.
+		var bob := roundf(sin(_pulse_phase) * 1.5)
+		var chip := Rect2(6, 2 + bob, 28, 28)
+		EUI.box(self, chip, {"notch":true, "bg":Color("#0a1114"), "border":EUI.WARN})
+		var a := 0.55 + 0.45 * (sin(_pulse_phase * 2.0) * 0.5 + 0.5)
+		draw_texture_rect(EUI.tex("g_warn"), Rect2(chip.position + Vector2(-1, -1), Vector2(30, 30)), false, Color(1, 1, 1, a))
+		draw_texture_rect(EUI.tex("l_warn"), Rect2(chip.position + Vector2(5, 5), Vector2(18, 18)), false)
+		var g := chip.grow(3 + roundf(1.5 + sin(_pulse_phase * 2.0) * 1.5))
+		for c in [[g.position, Vector2(1, 1)], [Vector2(g.end.x, g.position.y), Vector2(-1, 1)], [Vector2(g.position.x, g.end.y), Vector2(1, -1)], [g.end, Vector2(-1, -1)]]:
+			var p: Vector2 = c[0]; var d: Vector2 = c[1]
+			draw_rect(Rect2(p.x if d.x > 0 else p.x - 7, p.y if d.y > 0 else p.y - 2, 7, 2), EUI.CUE)
+			draw_rect(Rect2(p.x if d.x > 0 else p.x - 2, p.y if d.y > 0 else p.y - 7, 2, 7), EUI.CUE)
+		draw_rect(Rect2(19, chip.end.y + 2, 2, MARKER_SIZE.y - chip.end.y - 6), EUI.WARN)
+		draw_rect(Rect2(17, MARKER_SIZE.y - 4, 6, 2), EUI.WARN)
 
 
 class InventoryCell extends PanelContainer:
-	const CELL_GOLD := Color(1.0, 0.78, 0.38)
-	const CELL_PALE := Color(0.96, 0.985, 1.0)
-	const CELL_MUTED := Color(0.7, 0.8, 0.83)
-	const CELL_SURFACE := Color(0.025, 0.055, 0.074)
-	const CELL_EDGE := Color(0.34, 0.51, 0.55)
+	const CELL_GOLD := Color("#fff2b8")
+	const CELL_PALE := Color("#e6e1d2")
+	const CELL_MUTED := Color("#6f8a8c")
+	const CELL_SURFACE := Color("#081013")
+	const CELL_EDGE := Color("#05090b")
 	signal activated(slot_kind: StringName, slot_index: int)
 	signal drop_requested(target_kind: StringName, target_index: int, data: Dictionary)
 
@@ -261,6 +299,7 @@ class InventoryCell extends PanelContainer:
 		stack.add_theme_constant_override("separation", 0)
 		add_child(stack)
 		_badge = Label.new()
+		_badge.theme_type_variation = &"EitoTag"
 		_badge.add_theme_font_size_override("font_size", 12)
 		_badge.add_theme_color_override("font_color", CELL_MUTED)
 		_badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
@@ -277,6 +316,7 @@ class InventoryCell extends PanelContainer:
 		icon_center.add_child(_icon)
 		stack.add_child(icon_center)
 		_name = Label.new()
+		_name.theme_type_variation = &"EitoTag"
 		_name.add_theme_font_size_override("font_size", 12)
 		_name.add_theme_color_override("font_color", CELL_PALE)
 		_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -322,12 +362,12 @@ class InventoryCell extends PanelContainer:
 		if item_id == &"":
 			return null
 		var preview := PanelContainer.new()
-		preview.custom_minimum_size = Vector2(156.0, 48.0)
+		preview.custom_minimum_size = Vector2(156.0, 40.0)
 		preview.theme = PIXEL_THEME
 		preview.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-		var preview_style := PIXEL_THEME.get_stylebox("panel", "PanelContainer")
-		preview.add_theme_stylebox_override("panel", preview_style)
+		preview.add_theme_stylebox_override("panel", ESTYLE.make("chip", 8))
 		var preview_label := Label.new()
+		preview_label.theme_type_variation = &"EitoTag"
 		preview_label.text = short_label
 		preview_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		preview_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -380,6 +420,7 @@ var _world_task_markers: Dictionary = {}
 var _volume_slider: HSlider
 var _volume_label: Label
 var _walking_visible := true
+var _operator_input_locked := false
 var _modal_frames: Dictionary = {}
 var _operator_panel: PanelContainer
 var _cargo_grid: GridContainer
@@ -466,7 +507,9 @@ func _build_ui() -> void:
 
 
 func _build_mission_panel() -> void:
-	var panel := PanelContainer.new()
+	# Watch log plate: stamped header strip, mission count and segmented progress,
+	# then one row per work order.
+	var panel := EC.Plate.new("WATCH LOG", "module", true, 16.0)
 	_mission_panel = panel
 	panel.name = "MissionTracker"
 	panel.anchor_left = 0.0
@@ -474,11 +517,9 @@ func _build_mission_panel() -> void:
 	panel.anchor_top = 0.0
 	panel.anchor_bottom = 0.0
 	panel.offset_left = 18.0
-	panel.offset_top = 18.0
-	panel.offset_right = 360.0
-	panel.offset_bottom = 198.0 + maxi(_task_entries.size() - 3, 0) * 32.0
-	var mission_style := _panel_style(SURFACE, Color(1.0, 0.78, 0.38, 0.94), 13.0)
-	panel.add_theme_stylebox_override("panel", mission_style)
+	panel.offset_top = 14.0
+	panel.offset_right = 378.0
+	panel.offset_bottom = 214.0 + maxi(_task_entries.size() - 3, 0) * 32.0
 	panel.minimum_size_changed.connect(func():
 		if _story_tracker_enabled: _fit_story_tracker.call_deferred())
 	_root.add_child(panel)
@@ -487,20 +528,19 @@ func _build_mission_panel() -> void:
 	stack.add_theme_constant_override("separation", 6)
 	panel.add_child(stack)
 	var heading := HBoxContainer.new()
-	heading.add_child(_label("TOTAL TASKS COMPLETED", 10, Color(0.24, 0.95, 0.54)))
+	heading.add_theme_constant_override("separation", 10)
+	heading.add_child(_tag("TASKS COMPLETED", 12, MUTED))
 	heading.add_spacer(false)
-	_mission_progress_label = _label("00 / 02  (0%)", 10, Color(0.48, 0.93, 0.64))
+	_mission_progress_label = _label("00 / 02  (0%)", 16, EUI.PHOS)
 	heading.add_child(_mission_progress_label)
 	stack.add_child(heading)
 	_mission_progress_bar = ProgressBar.new()
 	_mission_progress_bar.min_value = 0.0
 	_mission_progress_bar.max_value = maxi(_task_entries.size(), 1)
 	_mission_progress_bar.show_percentage = false
-	_mission_progress_bar.custom_minimum_size.y = 8.0
-	_mission_progress_bar.add_theme_stylebox_override("background", _panel_style(Color(0.02, 0.05, 0.07), Color(0.12, 0.22, 0.25), 0.0))
-	_mission_progress_bar.add_theme_stylebox_override("fill", _panel_style(Color(0.24, 0.95, 0.54), Color(0.24, 0.95, 0.54), 0.0))
+	_mission_progress_bar.custom_minimum_size.y = 14.0
 	stack.add_child(_mission_progress_bar)
-	var sub_heading := _label("SHIP TELEMETRY // ACTIVE WORK ORDERS", 9, MUTED)
+	var sub_heading := _tag("ACTIVE WORK ORDERS", 12, MUTED)
 	stack.add_child(sub_heading)
 	for entry in _task_entries:
 		_add_mission_row(entry)
@@ -510,21 +550,22 @@ func _add_mission_row(entry: Dictionary) -> void:
 	if not is_instance_valid(_mission_stack):
 		return
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 6)
+	row.add_theme_constant_override("separation", 8)
 	row.tooltip_text=str(entry.get("marker_label","TASK"))+" / "+str(entry.get("description",entry.get("title","Ship work order")))
 	var tag_text: String = str(entry.get("marker_label", "TASK"))
-	var tag := _label("[%s]" % tag_text, 9, GOLD)
-	tag.custom_minimum_size.x = 88.0
+	var tag := _tag(tag_text, 12, GOLD)
+	tag.custom_minimum_size.x = 96.0
+	tag.clip_text = true
 	row.add_child(tag)
 	var title_text: String = str(entry.get("title", "Ship work order"))
 	if title_text.begins_with("Amara: "):
 		title_text = title_text.substr(7)
-	var objective := _label(title_text, 11, PALE)
+	var objective := _label(title_text, 16, PALE)
 	objective.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	objective.clip_text = true
 	row.add_child(objective)
-	var status := _label("● PENDING", 9, ORANGE)
-	status.custom_minimum_size.x = 68.0
+	var status := _tag("● PENDING", 12, ORANGE)
+	status.custom_minimum_size.x = 84.0
 	status.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	row.add_child(status)
 	_mission_stack.add_child(row)
@@ -552,17 +593,19 @@ func _build_top_controls() -> void:
 	controls.name = "TopRightControls"
 	controls.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
 	controls.offset_left = -626.0
-	controls.offset_top = 18.0
+	controls.offset_top = 14.0
 	controls.offset_right = -18.0
-	controls.offset_bottom = 82.0
+	controls.offset_bottom = 74.0
 	controls.add_theme_constant_override("separation", 8)
 	_root.add_child(controls)
 	controls.add_child(_navigation_button(&"map", "SHIP MAP", "M", _open_map))
 	controls.add_child(_navigation_button(&"inventory", "INVENTORY", "I", _open_inventory))
-	controls.add_child(_navigation_button(&"settings", "SETTINGS", "ESC", _open_settings))
+	controls.add_child(_navigation_button(&"settings", "SETTINGS", "Esc", _open_settings))
 	controls.add_child(_navigation_button(&"dev", "DEV MENU", "F3", _toggle_dev_menu))
 
+
 func _build_context_prompt() -> void:
+	# The design's HUD chip: notched dark strip, keycap, then the action.
 	_context_prompt = PanelContainer.new()
 	_context_prompt.name = "InteractionPrompt"
 	_context_prompt.anchor_left = 0.5
@@ -570,25 +613,20 @@ func _build_context_prompt() -> void:
 	_context_prompt.anchor_top = 1.0
 	_context_prompt.anchor_bottom = 1.0
 	_context_prompt.offset_left = -300.0
-	_context_prompt.offset_top = -152.0
+	_context_prompt.offset_top = -158.0
 	_context_prompt.offset_right = 300.0
-	_context_prompt.offset_bottom = -112.0
+	_context_prompt.offset_bottom = -114.0
 	_context_prompt.visible = false
-	var prompt_style := _panel_style(Color(0.012, 0.025, 0.038, 0.95), ORANGE, 7.0)
+	var prompt_style := ESTYLE.make("chip", 8.0)
+	prompt_style.content_margin_left = 14.0; prompt_style.content_margin_right = 16.0
 	_context_prompt.add_theme_stylebox_override("panel", prompt_style)
 	_root.add_child(_context_prompt)
 	var prompt_box := HBoxContainer.new()
 	prompt_box.alignment = BoxContainer.ALIGNMENT_CENTER
 	prompt_box.add_theme_constant_override("separation", 10)
 	_context_prompt.add_child(prompt_box)
-	var keycap := PanelContainer.new()
-	var keycap_style := _panel_style(ORANGE, Color(1.0, 0.82, 0.42), 4.0)
-	keycap.add_theme_stylebox_override("panel", keycap_style)
-	var keycap_label := _label("E", 11, Color(0.02, 0.035, 0.05))
-	keycap_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	keycap.add_child(keycap_label)
-	prompt_box.add_child(keycap)
-	_context_label = _label("", 12, PALE)
+	prompt_box.add_child(EC.Keycap.new("E", 14, 28.0, 24.0))
+	_context_label = _label("", 17, PALE)
 	_context_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_context_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	prompt_box.add_child(_context_label)
@@ -597,15 +635,15 @@ func _build_context_prompt() -> void:
 func _build_hotbar() -> void:
 	var bar := HBoxContainer.new()
 	bar.name = "Hotbar"
-	bar.add_theme_constant_override("separation", 4)
+	bar.add_theme_constant_override("separation", 6)
 	var frame := PanelContainer.new()
 	frame.name = "QuickbarFrame"
 	frame.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
-	frame.offset_left = -334.0
-	frame.offset_right = 334.0
-	frame.offset_top = -102.0
-	frame.offset_bottom = -14.0
-	frame.add_theme_stylebox_override("panel", _panel_style(SURFACE, EDGE, 10.0))
+	frame.offset_left = -340.0
+	frame.offset_right = 340.0
+	frame.offset_top = -104.0
+	frame.offset_bottom = -12.0
+	frame.add_theme_stylebox_override("panel", ESTYLE.make("module", 10.0))
 	_root.add_child(frame)
 	frame.add_child(bar)
 	for index in range(9):
@@ -619,6 +657,7 @@ func _build_hotbar() -> void:
 		bar.add_child(cell)
 		_hotbar_slots.append(cell)
 
+
 func _create_map_overlay() -> void:
 	var modal := _create_modal_shell("SHIP MAP", Vector2(1140, 660))
 	_overlay_nodes[&"map"] = modal["root"]
@@ -629,6 +668,10 @@ func _create_map_overlay() -> void:
 	_map_surface.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_map_surface.add_theme_stylebox_override("panel", PIXEL_THEME.get_stylebox("panel", "MapViewport"))
 	content.add_child(_map_surface)
+	# Phosphor chart glass. Deck content stays disabled until the map is approved.
+	var chart := MapScreen.new()
+	chart.name = "ChartGrid"
+	_map_surface.add_child(chart)
 	# Retain marker nodes/data for later, without rendering or receiving input.
 	_map_player_marker = _map_marker(GOLD, true)
 	_map_player_marker.hide()
@@ -639,19 +682,20 @@ func _create_map_overlay() -> void:
 	legend.name = "MapLegend"
 	legend.add_theme_constant_override("h_separation", 24)
 	legend.add_theme_constant_override("v_separation", 8)
-	for item in [["CURRENT POSITION", CYAN], ["OPEN TASK", ORANGE], ["COMPLETE", GREEN]]:
+	for item in [["Current position", "live"], ["Open task", "warn"], ["Complete", "ok"]]:
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 8)
-		var swatch := ColorRect.new()
-		swatch.color = item[1]
-		swatch.custom_minimum_size = Vector2(8, 8)
-		swatch.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		swatch.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		row.add_child(swatch)
-		row.add_child(_label(item[0], 12, PALE))
+		row.add_child(EC.Lamp.new(item[1]))
+		row.add_child(_label(item[0], 15, PALE))
 		legend.add_child(row)
-	legend.add_child(_label("M / ESC  CLOSE", 12, MUTED))
+	var close_hint := HBoxContainer.new()
+	close_hint.add_theme_constant_override("separation", 6)
+	close_hint.add_child(EC.Keycap.new("M"))
+	close_hint.add_child(EC.Keycap.new("Esc"))
+	close_hint.add_child(_label("Close", 15, MUTED))
+	legend.add_child(close_hint)
 	content.add_child(legend)
+
 
 func _add_map_task_marker(entry: Dictionary) -> void:
 	if not is_instance_valid(_map_surface):
@@ -693,14 +737,19 @@ func _create_inventory_overlay() -> void:
 	columns.add_theme_constant_override("separation", 12)
 	content.add_child(columns)
 
+	# Operator: Thura on phosphor glass, flanked by the four equipment wells.
 	_operator_panel = PanelContainer.new()
 	_operator_panel.custom_minimum_size.x = 300
-	_operator_panel.add_theme_stylebox_override("panel", _panel_style(SURFACE_RAISED, EDGE_SOFT, 10))
+	_operator_panel.add_theme_stylebox_override("panel", ESTYLE.make("glass", 12))
 	columns.add_child(_operator_panel)
 	var character_stack := VBoxContainer.new()
-	character_stack.add_theme_constant_override("separation", 12)
+	character_stack.add_theme_constant_override("separation", 10)
 	_operator_panel.add_child(character_stack)
-	character_stack.add_child(_label("OPERATOR / THURA MIN", 12, GOLD))
+	var operator_head := HBoxContainer.new()
+	operator_head.add_theme_constant_override("separation", 8)
+	operator_head.add_child(EC.Lamp.new("ok"))
+	operator_head.add_child(_tag("OPERATOR / THURA MIN", 12, EUI.PHOS))
+	character_stack.add_child(operator_head)
 	character_stack.add_child(HSeparator.new())
 	var character_row := HBoxContainer.new()
 	character_row.add_theme_constant_override("separation", 6)
@@ -736,19 +785,29 @@ func _create_inventory_overlay() -> void:
 		cell.drop_requested.connect(_on_inventory_drop_requested)
 		(left_slots if index % 2 == 0 else right_slots).add_child(cell)
 		_equipment_cells.append(cell)
+	var vitals := HBoxContainer.new()
+	vitals.add_theme_constant_override("separation", 8)
+	vitals.add_child(_tag("SUIT", 12, EUI.PHOS_DIM))
+	var suit_cells := EC.Cells.new(10, 10)
+	suit_cells.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	suit_cells.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	suit_cells.set_value(10, EUI.PHOS)
+	vitals.add_child(suit_cells)
+	vitals.add_child(_label("Nominal", 15, EUI.PHOS))
+	character_stack.add_child(vitals)
 
 	var inventory_panel := PanelContainer.new()
 	inventory_panel.name = "CargoPanel"
 	inventory_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	inventory_panel.add_theme_stylebox_override("panel", _panel_style(SURFACE_RAISED, EDGE_SOFT, 10))
+	inventory_panel.add_theme_stylebox_override("panel", ESTYLE.make("bezel", 12))
 	columns.add_child(inventory_panel)
 	var stack := VBoxContainer.new()
 	stack.add_theme_constant_override("separation", 8)
 	inventory_panel.add_child(stack)
 	var cargo_heading := HBoxContainer.new()
-	cargo_heading.add_child(_label("CARGO HOLD", 16, GOLD))
+	cargo_heading.add_child(EC.stamp(_tag("CARGO HOLD", 16, MUTED)))
 	cargo_heading.add_spacer(false)
-	_cargo_count_label = _label("08 / 27 USED", 12, CYAN)
+	_cargo_count_label = _label("08 / 27 USED", 16, EUI.PHOS)
 	cargo_heading.add_child(_cargo_count_label)
 	stack.add_child(cargo_heading)
 	_cargo_grid = GridContainer.new()
@@ -769,7 +828,11 @@ func _create_inventory_overlay() -> void:
 		cell.drop_requested.connect(_on_inventory_drop_requested)
 		_cargo_grid.add_child(cell)
 		_storage_cells.append(cell)
-	stack.add_child(_label("QUICK ACCESS / 1-9", 16, GOLD))
+	var quick_heading := HBoxContainer.new()
+	quick_heading.add_theme_constant_override("separation", 8)
+	quick_heading.add_child(EC.stamp(_tag("QUICK ACCESS", 16, MUTED)))
+	quick_heading.add_child(EC.Keycap.new("1-9"))
+	stack.add_child(quick_heading)
 	var quick_grid := GridContainer.new()
 	quick_grid.name = "InventoryQuickAccess"
 	quick_grid.columns = 9
@@ -785,26 +848,41 @@ func _create_inventory_overlay() -> void:
 		cell.drop_requested.connect(_on_inventory_drop_requested)
 		quick_grid.add_child(cell)
 		_inventory_hotbar_cells.append(cell)
-	var hint := _label("DRAG ITEMS TO QUICK ACCESS OR A COMPATIBLE SLOT.  /  ESC CLOSE", 12, MUTED)
+	var hint := _label("Drag items to quick access or a compatible slot.", 15, MUTED)
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	content.add_child(hint)
+	var hint_row := HBoxContainer.new()
+	hint_row.add_theme_constant_override("separation", 8)
+	hint.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	hint_row.add_child(hint)
+	hint_row.add_child(EC.Keycap.new("I"))
+	hint_row.add_child(EC.Keycap.new("Esc"))
+	hint_row.add_child(_label("Close", 15, MUTED))
+	content.add_child(hint_row)
 	_refresh_inventory_cells()
 
+
 func _create_settings_overlay() -> void:
-	var modal := _create_modal_shell("SHIP SETTINGS", Vector2(860, 548))
+	var modal := _create_modal_shell("SHIP SETTINGS", Vector2(860, 560))
 	_overlay_nodes[&"settings"] = modal["root"]
 	var content: VBoxContainer = modal["content"]
-	content.add_theme_constant_override("separation", 18)
-	content.add_child(_label("AUDIO OUTPUT", 16, GOLD))
+	content.add_theme_constant_override("separation", 12)
+	var audio := PanelContainer.new()
+	audio.add_theme_stylebox_override("panel", ESTYLE.make("bezel", 14))
+	content.add_child(audio)
+	var audio_stack := VBoxContainer.new()
+	audio_stack.add_theme_constant_override("separation", 10)
+	audio.add_child(audio_stack)
+	audio_stack.add_child(EC.stamp(_tag("AUDIO OUTPUT", 16, MUTED)))
 	var volume_row := HBoxContainer.new()
-	volume_row.add_theme_constant_override("separation", 18)
-	volume_row.add_child(_label("MASTER VOLUME", 16, PALE))
+	volume_row.add_theme_constant_override("separation", 16)
+	volume_row.add_child(_label("Master volume", 17, PALE))
 	_volume_slider = HSlider.new()
 	_volume_slider.name = "MasterVolume"
 	_volume_slider.min_value = 0
 	_volume_slider.max_value = 100
 	_volume_slider.step = 1
 	_volume_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_volume_slider.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	_volume_slider.custom_minimum_size = Vector2(180, 32)
 	var master_bus_index := AudioServer.get_bus_index("Master")
 	_volume_slider.value = 100
@@ -812,40 +890,49 @@ func _create_settings_overlay() -> void:
 		_volume_slider.value = 0.0 if AudioServer.is_bus_mute(master_bus_index) else AudioServer.get_bus_volume_linear(master_bus_index) * 100.0
 	_volume_slider.value_changed.connect(_on_master_volume_changed)
 	volume_row.add_child(_volume_slider)
-	_volume_label = _label("%d%%" % roundi(_volume_slider.value), 16, CYAN)
+	var readout := PanelContainer.new()
+	readout.add_theme_stylebox_override("panel", ESTYLE.make("glass", 6))
+	readout.custom_minimum_size = Vector2(76, 0)
+	_volume_label = _label("%d%%" % roundi(_volume_slider.value), 18, EUI.PHOS)
 	_volume_label.custom_minimum_size.x = 52
 	_volume_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	volume_row.add_child(_volume_label)
-	content.add_child(volume_row)
-	content.add_child(HSeparator.new())
-	content.add_child(_label("CONTROLS", 16, GOLD))
+	readout.add_child(_volume_label)
+	volume_row.add_child(readout)
+	audio_stack.add_child(volume_row)
+	var controls := PanelContainer.new()
+	controls.add_theme_stylebox_override("panel", ESTYLE.make("bezel", 14))
+	controls.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	content.add_child(controls)
+	var control_stack := VBoxContainer.new()
+	control_stack.add_theme_constant_override("separation", 10)
+	controls.add_child(control_stack)
+	control_stack.add_child(EC.stamp(_tag("CONTROLS", 16, MUTED)))
 	var hints := GridContainer.new()
 	hints.name = "ControlHints"
 	hints.columns = 2
-	hints.add_theme_constant_override("h_separation", 24)
-	hints.add_theme_constant_override("v_separation", 14)
-	for pair in [["MOVE", "WASD / ARROWS"], ["INTERACT", "E"], ["QUICK SLOT", "1-9 / WHEEL"], ["INVENTORY", "I"], ["SHIP MAP", "M"], ["SETTINGS / CLOSE", "ESC"]]:
+	hints.add_theme_constant_override("h_separation", 32)
+	hints.add_theme_constant_override("v_separation", 10)
+	for pair in [["Move", "WASD / Arrows"], ["Interact", "E"], ["Quick slot", "1-9 / Wheel"], ["Inventory", "I"], ["Ship map", "M"], ["Settings / close", "Esc"]]:
 		hints.add_child(_key_hint(pair[0], pair[1]))
-	content.add_child(hints)
-	content.add_spacer(false)
-	content.add_child(HSeparator.new())
-	content.add_child(_label("WALKING PAUSES WHILE THESE PANELS ARE OPEN.", 12, MUTED))
+	control_stack.add_child(hints)
+	var foot := HBoxContainer.new()
+	foot.add_theme_constant_override("separation", 8)
+	foot.add_child(EC.Lamp.new("ok"))
+	foot.add_child(_label("Walking pauses while these panels are open.", 15, MUTED))
+	content.add_child(foot)
+
 
 func _key_hint(action_name: String, key_name: String) -> Control:
 	var row := HBoxContainer.new()
-	row.custom_minimum_size = Vector2(370, 40)
+	row.custom_minimum_size = Vector2(340, 32)
 	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_theme_constant_override("separation", 10)
-	row.add_child(_label(action_name, 12, PALE))
+	row.add_theme_constant_override("separation", 6)
+	row.add_child(_label(action_name, 16, PALE))
 	row.add_spacer(false)
-	var keycap := PanelContainer.new()
-	keycap.custom_minimum_size = Vector2(164 if key_name.length() > 4 else 64, 40)
-	keycap.add_theme_stylebox_override("panel", _panel_style(SURFACE, EDGE, 8))
-	var key_label := _label(key_name, 12, CYAN)
-	key_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	keycap.add_child(key_label)
-	row.add_child(keycap)
+	for part in key_name.split(" / "):
+		row.add_child(EC.Keycap.new(part, 14, 28.0, 26.0))
 	return row
+
 
 func _create_modal_shell(title: String, desired_size: Vector2) -> Dictionary:
 	var overlay := Control.new()
@@ -855,13 +942,14 @@ func _create_modal_shell(title: String, desired_size: Vector2) -> Dictionary:
 	overlay.visible = false
 	_root.add_child(overlay)
 	var dimmer := ColorRect.new()
-	dimmer.color = Color(0.008, 0.014, 0.025, 0.86)
+	dimmer.color = Color(0.02, 0.03, 0.035, 0.86)
 	dimmer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	overlay.add_child(dimmer)
+	# Screwed metal plate, like the design's station frames.
 	var frame := PanelContainer.new()
 	frame.name = "WindowFrame"
 	frame.minimum_size_changed.connect(_queue_resize)
-	frame.add_theme_stylebox_override("panel", PIXEL_THEME.get_stylebox("panel", "PanelContainer"))
+	frame.add_theme_stylebox_override("panel", ESTYLE.make("module", 24.0, true))
 	overlay.add_child(frame)
 	_modal_frames[overlay] = {"frame": frame, "desired": desired_size}
 	var layout := VBoxContainer.new()
@@ -872,10 +960,10 @@ func _create_modal_shell(title: String, desired_size: Vector2) -> Dictionary:
 	var icon := PixelIcon.new()
 	icon.icon_kind = &"map" if title == "SHIP MAP" else &"settings" if title == "SHIP SETTINGS" else &"inventory"
 	icon.tint = GOLD
-	icon.custom_minimum_size = Vector2(32, 32)
+	icon.custom_minimum_size = Vector2(28, 28)
 	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	heading.add_child(icon)
-	var title_label := _label(title, 24, PALE)
+	var title_label := EC.stamp(_tag(title, 20, MUTED))
 	title_label.name = "WindowTitle"
 	title_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	title_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
@@ -883,11 +971,11 @@ func _create_modal_shell(title: String, desired_size: Vector2) -> Dictionary:
 	var close_button := Button.new()
 	close_button.text = "X"
 	close_button.theme_type_variation = &"CloseButton"
-	close_button.custom_minimum_size = Vector2(48, 48)
+	close_button.custom_minimum_size = Vector2(40, 40)
 	close_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	close_button.name = "Close"
 	close_button.tooltip_text = "Close / Esc"
-	close_button.add_theme_font_size_override("font_size", 24)
+	close_button.add_theme_font_size_override("font_size", 16)
 	close_button.pressed.connect(_close_overlay)
 	heading.add_child(close_button)
 	layout.add_child(heading)
@@ -898,6 +986,7 @@ func _create_modal_shell(title: String, desired_size: Vector2) -> Dictionary:
 	content.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	layout.add_child(content)
 	return {"root": overlay, "content": content}
+
 
 func _map_marker(color: Color, _is_player: bool) -> Control:
 	var marker := MapDot.new()
@@ -991,7 +1080,7 @@ func _refresh_mission_panel() -> void:
 	var total := _task_entries.size()
 	var pct := int(roundf((float(completed_count) / float(maxi(total, 1))) * 100.0))
 	_mission_progress_label.text = "%02d / %02d  (%d%%)" % [completed_count, total, pct]
-	_mission_progress_label.add_theme_color_override("font_color", GREEN if completed_count == total else Color(0.48, 0.93, 0.64))
+	_mission_progress_label.add_theme_color_override("font_color", GREEN if completed_count == total else EUI.PHOS)
 	_mission_progress_bar.max_value = maxi(total, 1)
 	_mission_progress_bar.value = completed_count
 	for task_id in _mission_rows:
@@ -1000,9 +1089,9 @@ func _refresh_mission_panel() -> void:
 		if is_complete:
 			row["mark"].text = "✔ DONE"
 			row["mark"].add_theme_color_override("font_color", GREEN)
-			row["label"].add_theme_color_override("font_color", Color(0.52, 0.72, 0.65))
+			row["label"].add_theme_color_override("font_color", Color("#7f9a92"))
 			if row.has("tag"):
-				row["tag"].add_theme_color_override("font_color", Color(0.38, 0.58, 0.50))
+				row["tag"].add_theme_color_override("font_color", Color("#4f6b51"))
 		else:
 			row["mark"].text = "● PENDING"
 			row["mark"].add_theme_color_override("font_color", ORANGE)
@@ -1039,8 +1128,13 @@ func set_walking_visible(is_visible: bool) -> void:
 	set_process_unhandled_input(is_visible)
 	set_process_unhandled_key_input(is_visible)
 
+func set_operator_input_locked(locked: bool) -> void:
+	_operator_input_locked = locked
+	if locked and is_instance_valid(_dev_panel): _dev_panel.hide()
+
 
 func _on_inventory_cell_activated(slot_kind: StringName, slot_index: int) -> void:
+	if _operator_input_locked: return
 	if slot_kind == &"hotbar":
 		_selected_hotbar_index = slot_index
 		_refresh_hotbar()
@@ -1048,6 +1142,7 @@ func _on_inventory_cell_activated(slot_kind: StringName, slot_index: int) -> voi
 
 
 func _on_inventory_drop_requested(target_kind: StringName, target_index: int, data: Dictionary) -> void:
+	if _operator_input_locked: return
 	var source_kind := StringName(data.get("source_kind", &""))
 	var source_index := int(data.get("source_index", -1))
 	if source_kind == &"" or source_index < 0 or (source_kind == target_kind and source_index == target_index):
@@ -1137,7 +1232,7 @@ func _open_settings() -> void:
 
 
 func _open_overlay(overlay_name: StringName) -> void:
-	if not _walking_visible or not _overlay_nodes.has(overlay_name):
+	if _operator_input_locked or not _walking_visible or not _overlay_nodes.has(overlay_name):
 		return
 	if is_instance_valid(_dev_panel): _dev_panel.hide()
 	for name in _overlay_nodes:
@@ -1183,18 +1278,15 @@ func _on_master_volume_changed(value: float) -> void:
 func _navigation_button(icon_kind: StringName, title: String, shortcut: String, callback: Callable) -> Button:
 	var button := Button.new()
 	button.name = title.replace(" ", "")
-	button.custom_minimum_size = Vector2(146, 64)
+	button.custom_minimum_size = Vector2(146, 60)
 	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	button.tooltip_text = "%s / %s" % [title, shortcut]
 	button.focus_mode = Control.FOCUS_ALL
-	button.add_theme_stylebox_override("normal", PIXEL_THEME.get_stylebox("normal", "Button"))
-	button.add_theme_stylebox_override("hover", PIXEL_THEME.get_stylebox("hover", "Button"))
-	button.add_theme_stylebox_override("pressed", PIXEL_THEME.get_stylebox("pressed", "Button"))
-	button.add_theme_stylebox_override("focus", PIXEL_THEME.get_stylebox("focus", "Button"))
 	var layout := HBoxContainer.new()
 	layout.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	layout.offset_left = 12
-	layout.offset_right = -12
+	layout.offset_left = 10
+	layout.offset_right = -10
+	layout.offset_bottom = -3
 	layout.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	layout.alignment = BoxContainer.ALIGNMENT_CENTER
 	layout.add_theme_constant_override("separation", 10)
@@ -1206,18 +1298,20 @@ func _navigation_button(icon_kind: StringName, title: String, shortcut: String, 
 	layout.add_child(icon)
 	var labels := VBoxContainer.new()
 	labels.alignment = BoxContainer.ALIGNMENT_CENTER
-	labels.add_theme_constant_override("separation", 4)
+	labels.add_theme_constant_override("separation", 3)
 	labels.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var title_label := _label(title, 12, PALE)
-	var shortcut_label := _label(shortcut, 12, CYAN)
+	var title_label := _tag(title, 12, PALE)
+	var shortcut_cap := EC.Keycap.new(shortcut, 12, 24.0, 18.0)
+	shortcut_cap.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	labels.add_child(title_label)
-	labels.add_child(shortcut_label)
+	labels.add_child(shortcut_cap)
 	layout.add_child(labels)
 	button.add_child(layout)
-	button.mouse_entered.connect(func(): title_label.add_theme_color_override("font_color", GOLD))
+	button.mouse_entered.connect(func(): title_label.add_theme_color_override("font_color", EUI.CUE))
 	button.mouse_exited.connect(func(): title_label.add_theme_color_override("font_color", PALE))
 	button.pressed.connect(callback)
 	return button
+
 
 func _nav_button_style(_accent: Color, highlighted: bool) -> StyleBox:
 	return PIXEL_THEME.get_stylebox("hover" if highlighted else "normal", "Button")
@@ -1230,18 +1324,20 @@ func _label(text: String, font_size: int, color: Color) -> Label:
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return label
 
-func _button(text: String, minimum_size: Vector2, accent: Color) -> Button:
+
+## Silkscreen caps label (the design's tags, keys and module titles).
+func _tag(text: String, font_size: int, color: Color) -> Label:
+	var label := _label(text, font_size, color)
+	label.theme_type_variation = &"EitoTag"
+	return label
+
+
+func _button(text: String, minimum_size: Vector2, _accent: Color) -> Button:
 	var button := Button.new()
 	button.text = text
 	button.custom_minimum_size = minimum_size
 	button.focus_mode = Control.FOCUS_ALL
-	button.add_theme_font_size_override("font_size", 11)
-	button.add_theme_color_override("font_color", PALE)
-	button.add_theme_color_override("font_hover_color", PALE)
-	button.add_theme_stylebox_override("normal", _button_style(accent, false))
-	button.add_theme_stylebox_override("hover", _button_style(accent, true))
-	button.add_theme_stylebox_override("pressed", _button_style(accent, true))
-	button.add_theme_stylebox_override("focus", _button_style(accent, true))
+	button.add_theme_font_size_override("font_size", 14)
 	return button
 
 
@@ -1250,7 +1346,7 @@ func _button_style(_accent: Color, highlighted: bool) -> StyleBox:
 
 func _panel_style(background: Color, border: Color, padding: float) -> StyleBox:
 	if padding >= 5:
-		var frame := PIXEL_THEME.get_stylebox("panel", "PanelContainer").duplicate() as StyleBoxTexture
+		var frame := PIXEL_THEME.get_stylebox("panel", "PanelContainer").duplicate() as StyleBox
 		frame.content_margin_left = padding
 		frame.content_margin_right = padding
 		frame.content_margin_top = padding
@@ -1297,7 +1393,7 @@ func _item_icon_texture(item_id: StringName) -> Texture2D:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if not _walking_visible or _active_overlay != &"":
+	if _operator_input_locked or not _walking_visible or _active_overlay != &"":
 		return
 	if event is InputEventMouseButton and event.pressed:
 		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
@@ -1309,7 +1405,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _unhandled_key_input(event: InputEvent) -> void:
-	if not _walking_visible or not (event is InputEventKey) or not event.pressed or event.echo:
+	if _operator_input_locked or not _walking_visible or not (event is InputEventKey) or not event.pressed or event.echo:
 		return
 	if event.keycode == KEY_F3 or event.keycode == KEY_QUOTELEFT or event.keycode == KEY_F1:
 		_toggle_dev_menu()
@@ -1438,17 +1534,31 @@ func set_story_objective(entry: Dictionary, completed_missions: int, optional_en
 	# Reuse the tracker and its world marker; optional checks never enter the
 	# chapter denominator or masquerade as additional required machine repairs.
 	set_ship_objectives([entry], {str(entry.id):true} if completed_missions==5 else {})
+	# One objective: give its title a full line under the location tag.
+	var only: Dictionary = _mission_rows.get(entry.id, {})
+	if not only.is_empty():
+		var title_label: Label = only["label"]
+		var row_node := title_label.get_parent()
+		row_node.remove_child(title_label)
+		var spacer := Control.new(); spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row_node.add_child(spacer); row_node.move_child(spacer, 1)
+		title_label.clip_text = false
+		title_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		title_label.custom_minimum_size.x = 300
+		title_label.add_theme_font_size_override("font_size", 20)
+		_mission_stack.add_child(title_label)
 	_mission_progress_label.text = "%d / 5 MISSIONS" % completed_missions
 	_mission_progress_bar.max_value = 5; _mission_progress_bar.value = completed_missions
-	var description := _label(str(entry.description), 12, PALE)
+	var description := _label(str(entry.description), 15, Color("#b4c3c1"))
 	description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	description.custom_minimum_size.x = 280
+	description.custom_minimum_size.x = 300
 	_mission_stack.add_child(description)
 	_mission_stack.add_child(HSeparator.new())
-	var optional := _label("OPTIONAL / %d OF 2 OBSERVATIONS" % mini(optional_completed,2) if optional_enabled else "OPTIONAL / EXPLORE AND INSPECT SHIP SYSTEMS", 10, MUTED)
+	var optional := _tag("OPTIONAL / %d OF 2 OBSERVATIONS" % mini(optional_completed,2) if optional_enabled else "OPTIONAL / EXPLORE SHIP SYSTEMS", 12, MUTED)
 	optional.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_mission_stack.add_child(optional)
-	_mission_panel.offset_bottom = 264
+	_mission_panel.offset_bottom = 300
 	_story_tracker_enabled=true
 	_fit_story_tracker.call_deferred()
 
@@ -1456,7 +1566,7 @@ func _fit_story_tracker() -> void:
 	# Wrapped text briefly reports a taller minimum before its first container
 	# layout. Refit when that minimum settles, including hidden startup layouts.
 	if _story_tracker_enabled and is_instance_valid(_mission_panel):
-		_mission_panel.size=Vector2(342,246)
+		_mission_panel.size=Vector2(360,minf(_mission_panel.get_combined_minimum_size().y,296.0))
 
 
 func _build_dev_menu_panel() -> void:
@@ -1468,16 +1578,17 @@ func _build_dev_menu_panel() -> void:
 	_dev_panel.offset_right = -18.0
 	_dev_panel.offset_bottom = 458.0
 	_dev_panel.visible = false
-	_dev_panel.add_theme_stylebox_override("panel", _panel_style(SURFACE, GOLD, 12.0))
+	_dev_panel.add_theme_stylebox_override("panel", ESTYLE.make("module", 14.0))
 	_root.add_child(_dev_panel)
 
 	var stack := VBoxContainer.new()
 	stack.add_theme_constant_override("separation", 8)
 	_dev_panel.add_child(stack)
+	stack.add_child(EC.Hazard.new(6))
 
 	var header := HBoxContainer.new()
 	header.add_theme_constant_override("separation", 8)
-	var title := _label("DEV MENU // LIGHTING TEST", 12, GOLD)
+	var title := EC.stamp(_tag("DEV MENU / LIGHTING TEST", 14, GOLD))
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header.add_child(title)
 	var close_btn := Button.new()
@@ -1490,7 +1601,7 @@ func _build_dev_menu_panel() -> void:
 	stack.add_child(header)
 	stack.add_child(HSeparator.new())
 
-	_dev_current_room_label = _label("OCCUPIED: HALLWAY", 12, CYAN)
+	_dev_current_room_label = _tag("OCCUPIED: HALLWAY", 12, EUI.PHOS)
 	_dev_current_room_label.clip_text = true
 	stack.add_child(_dev_current_room_label)
 
@@ -1519,14 +1630,14 @@ func _build_dev_menu_panel() -> void:
 	stack.add_child(row2)
 
 	stack.add_child(HSeparator.new())
-	stack.add_child(_label("TARGET ROOM FLICKER & WARP", 12, GOLD))
+	stack.add_child(_tag("TARGET ROOM FLICKER & WARP", 12, MUTED))
 
 	var room_nav := HBoxContainer.new()
 	room_nav.add_theme_constant_override("separation", 8)
 	var prev_btn := _button("<", Vector2(44, 38), CYAN)
 	prev_btn.pressed.connect(func(): _step_dev_room(-1))
 	room_nav.add_child(prev_btn)
-	_dev_room_name_label = _label("R01 Bridge", 12, PALE)
+	_dev_room_name_label = _label("R01 Bridge", 16, PALE)
 	_dev_room_name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_dev_room_name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_dev_room_name_label.clip_text = true
@@ -1559,7 +1670,7 @@ func _build_dev_menu_panel() -> void:
 	reset_btn.pressed.connect(_on_dev_reset_lights)
 	row3.add_child(reset_btn)
 	stack.add_child(row3)
-	stack.add_child(_label("SHIP MISSIONS / DEVELOPMENT ONLY", 11, GOLD))
+	stack.add_child(_tag("SHIP MISSIONS / DEVELOPMENT ONLY", 12, GOLD))
 	var scenarios := HBoxContainer.new()
 	for context in ["outbound","return"]:
 		var scenario := _button("TEST "+str(context).to_upper(),Vector2(170,36),CYAN)
@@ -1725,7 +1836,7 @@ func _refresh_dev_menu() -> void:
 
 
 func _select_hotbar(index: int) -> void:
-	if index < 0 or index >= _hotbar_items.size():
+	if _operator_input_locked or index < 0 or index >= _hotbar_items.size():
 		return
 	_selected_hotbar_index = index
 	_refresh_hotbar()

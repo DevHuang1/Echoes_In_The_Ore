@@ -575,4 +575,5 @@ func _on_hud_modal_state_changed(is_open: bool) -> void:
 
 
 func _update_player_walk_state() -> void:
+	if is_instance_valid(_walk_hud): _walk_hud.set_operator_input_locked(_ship_hide_phase != "outside")
 	player.set_physics_process(not (_arrival_briefing_open or _hud_modal_open or _task_console_open or _crew_dialogue_open or ship_control_locked()))

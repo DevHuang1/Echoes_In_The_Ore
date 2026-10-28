@@ -7,6 +7,7 @@ func _enter_tree() -> void:
 	_define_action(&"move_left", [KEY_A, KEY_LEFT])
 	_define_action(&"move_right", [KEY_D, KEY_RIGHT])
 	_define_action(&"interact", [KEY_E])
+	_define_action(&"hide", [KEY_H])
 	_define_action(&"toggle_dev_menu", [KEY_F3, KEY_QUOTELEFT, KEY_F1])
 
 

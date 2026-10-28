@@ -3,6 +3,7 @@ extends CharacterBody2D
 signal concealment_changed(concealed: bool, source_id: String)
 var is_concealed := false
 var concealment_source := ""
+var _conceal_visuals: Dictionary = {}
 
 const THURA_ATLAS := preload("res://art/characters/runtime/thura_walk_4dir.png")
 const CELL_SIZE := Vector2(313.5, 313.5)
@@ -53,6 +54,14 @@ func _physics_process(delta: float) -> void:
 		sprite.frame = 0
 
 
+func _process(_delta: float) -> void:
+	# Equipment visuals or lights may be updated by their own scripts. Keep all
+	# attached presentation hidden while the actor remains in cover.
+	if is_concealed:
+		for item in _conceal_visuals:
+			if is_instance_valid(item): item.visible = false
+
+
 func set_camera_bounds(bounds: Rect2) -> void:
 	_camera_bounds = bounds
 	_update_camera_limits()
@@ -73,8 +82,21 @@ func face_toward(target_position: Vector2) -> void:
 
 
 func set_concealment(value: bool, source_id: String) -> void:
+	if value and not is_concealed:
+		_conceal_visuals.clear()
+		for item in find_children("*", "CanvasItem", true, false):
+			if item is Camera2D: continue
+			_conceal_visuals[item] = item.visible
+	elif not value and is_concealed:
+		for item in _conceal_visuals:
+			if is_instance_valid(item): item.visible = bool(_conceal_visuals[item])
+		_conceal_visuals.clear()
 	is_concealed=value;concealment_source=source_id if value else ""
-	if is_instance_valid(sprite): sprite.visible=not value
+	if value:
+		for item in _conceal_visuals:
+			if is_instance_valid(item): item.visible = false
+	elif is_instance_valid(sprite):
+		sprite.visible = true
 	if value: add_to_group("concealed_players")
 	elif is_in_group("concealed_players"): remove_from_group("concealed_players")
 	set_meta("concealed",value);set_meta("concealment_source",concealment_source)
