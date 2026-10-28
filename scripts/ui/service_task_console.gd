@@ -2,6 +2,7 @@ class_name ServiceTaskConsole
 extends CanvasLayer
 
 const SKIN := preload("res://scripts/ui/pixel_ui.gd")
+const INSTRUMENT := preload("res://scripts/ui/equipment_ui.gd")
 
 signal task_completed(task_id: StringName)
 signal console_closed
@@ -302,7 +303,8 @@ class NutrientDiagram extends Control:
 		var aligned := all_aligned()
 		var pipe_y := size.y * 0.38
 		var tray_y := size.y * 0.68
-		var return_y := size.y * 0.87
+		# Reserve a fixed label band below the return pipe at compact height.
+		var return_y := size.y - 58.0
 		var pump_center := Vector2(58.0, pipe_y)
 		var valve_centers: Array[Vector2] = []
 		var tray_centers: Array[Vector2] = []
@@ -347,7 +349,7 @@ class NutrientDiagram extends Control:
 			_draw_pipe(drop_points, CYAN.darkened(0.12), 6.0)
 		var return_color := GREEN if aligned else CYAN.darkened(0.12)
 		_draw_pipe(PackedVector2Array([Vector2(tray_centers[2].x, return_y), Vector2(pump_center.x, return_y), Vector2(pump_center.x, pipe_y + 29.0)]), return_color, 7.0)
-		draw_string(font, Vector2(size.x - 114.0, return_y - 7.0), "RETURN LINE", HORIZONTAL_ALIGNMENT_LEFT, -1.0, 10, MUTED)
+		draw_string(font, Vector2(80.0, return_y - 12.0), "RETURN LINE", HORIZONTAL_ALIGNMENT_LEFT, -1.0, 12, MUTED)
 		_draw_flow_arrow(Vector2(size.x - 146.0, return_y), return_color)
 
 		for index in range(3):
@@ -680,6 +682,7 @@ var _filter_pressure_button: Button
 var _filter_stage := 0
 var _filter_rotation := 0
 var _filter_airflow := 18.0
+var _resume_progress := {}
 
 var _nutrient_diagram: NutrientDiagram
 var _nutrient_rotations: Array[int] = []
@@ -728,6 +731,7 @@ func setup(task_id: StringName, completed_count: int, task_total: int) -> void:
 func _ready() -> void:
 	layer = 20
 	_build_ui()
+	_restore_service_progress()
 	_root.modulate = Color(1.0, 1.0, 1.0, 0.0)
 	var tween := create_tween()
 	tween.tween_property(_root, "modulate", Color.WHITE, 0.22).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
@@ -744,7 +748,8 @@ func _ready() -> void:
 func _build_ui() -> void:
 	var is_research_computer := _task_id == &"lab_containment"
 	_root = Control.new()
-	SKIN.apply(_root)
+	if _is_labroom_task(): SKIN.apply(_root)
+	else: INSTRUMENT.apply(_root)
 	_root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_root.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(_root)
@@ -755,7 +760,7 @@ func _build_ui() -> void:
 	dimmer.mouse_filter = Control.MOUSE_FILTER_STOP
 	_root.add_child(dimmer)
 
-	var center := CenterContainer.new()
+	var center := Control.new()
 	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_root.add_child(center)
@@ -776,6 +781,8 @@ func _build_ui() -> void:
 	layout.add_child(divider)
 	layout.add_child(_build_body())
 	layout.add_child(_build_footer())
+	var chassis := INSTRUMENT.Chassis.new()
+	chassis.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT);frame.add_child(chassis)
 
 
 func _build_header() -> Control:
@@ -817,7 +824,7 @@ func _build_header() -> Control:
 	row.add_child(status_group)
 
 	_close_button = Button.new()
-	SKIN.close_button(_close_button)
+	_close_button.text="X";_close_button.custom_minimum_size=Vector2(42,42)
 	_close_button.pressed.connect(_close_console)
 	row.add_child(_close_button)
 	return row
@@ -829,7 +836,8 @@ func _build_body() -> Control:
 	var body := HBoxContainer.new()
 	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	body.add_theme_constant_override("separation", 14)
-	body.add_child(_build_sidebar())
+	var sidebar := _build_sidebar()
+	body.add_child(sidebar);sidebar.visible=false
 	body.add_child(_build_game_panel())
 	return body
 
@@ -896,7 +904,7 @@ func _build_game_panel() -> Control:
 	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	panel.add_theme_stylebox_override("panel", _panel_style(Color(0.035, 0.068, 0.087, 0.99), Color(0.34, 0.51, 0.55), 12.0))
 	_content_stack = VBoxContainer.new()
-	_content_stack.add_theme_constant_override("separation", 8)
+	_content_stack.add_theme_constant_override("separation", 6)
 	panel.add_child(_content_stack)
 
 	var game_heading := HBoxContainer.new()
@@ -904,17 +912,17 @@ func _build_game_panel() -> Control:
 	var number := "01"
 	var category := "ELECTRICAL // POWER BUS"
 	var title := "Calibrate Capacitor Banks"
-	var instruction := "Tune each capacitor bank into its target frequency window, then synchronize the power bus."
+	var instruction := "Tune all three banks into the labelled target windows."
 	if _task_id == &"air_filter":
 		number = "02"
 		category = "LIFE SUPPORT // O2 FILTRATION DUCT"
 		title = "Replace O2 Filter Canister"
-		instruction = "Release housing latch, rotate keyway 180°, seat replacement canister, and regulate airflow velocity to 62–72%."
+		instruction = "Release, align 180°, seat, then set airflow to 62–72%."
 	elif _task_id == &"nutrient_flow":
 		number = "03"
 		category = "HYDROPONICS // IRRIGATION MANIFOLD"
 		title = "Divert Nutrient Manifold"
-		instruction = "Rotate each manifold valve to clear conduit flow paths, then engage automated irrigation."
+		instruction = "Turn each valve to its marked guide, then restore flow."
 	_title_label = _label(title, 22, PALE)
 	var heading_stack := VBoxContainer.new()
 	heading_stack.add_theme_constant_override("separation", 3)
@@ -941,10 +949,11 @@ func _build_game_panel() -> Control:
 		_build_hydroponics_game()
 
 	_success_banner = _label("", 11, GREEN)
-	_success_banner.custom_minimum_size.y = 30.0
+	_success_banner.custom_minimum_size.y = 0.0
+	_success_banner.visible=false
 	_success_banner.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_content_stack.add_child(_success_banner)
-	_return_button = _button("[ RETURN TO SHIP ]", Vector2(190.0, 42.0), GOLD)
+	_return_button = _button("RETURN TO SHIP", Vector2(170.0, 32.0), GOLD)
 	_return_button.size_flags_horizontal = Control.SIZE_SHRINK_END
 	_return_button.visible = false
 	_return_button.pressed.connect(_close_console)
@@ -1607,7 +1616,7 @@ func _build_power_game() -> void:
 	workspace.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	workspace.add_theme_constant_override("separation", 12)
 	_power_diagram = PowerDiagram.new()
-	_power_diagram.custom_minimum_size = Vector2(350.0, 300.0)
+	_power_diagram.custom_minimum_size = Vector2(300.0, 220.0)
 	_power_diagram.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_power_diagram.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	for index in range(3):
@@ -1624,17 +1633,16 @@ func _build_power_game() -> void:
 	workspace.add_child(_power_diagram)
 
 	var control_panel := PanelContainer.new()
-	control_panel.custom_minimum_size.x = 390.0
+	control_panel.custom_minimum_size.x = 360.0
 	control_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	control_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.045, 0.084, 0.103), Color(0.24, 0.39, 0.43), 14.0))
+	control_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.045, 0.084, 0.103), Color(0.24, 0.39, 0.43), 8.0))
 	var control_stack := VBoxContainer.new()
 	control_stack.add_theme_constant_override("separation", 6)
 	control_panel.add_child(control_stack)
 	control_stack.add_child(_label("ENERGY RESERVOIRS", 10, GOLD))
 	for index in range(3):
 		var cell_panel := PanelContainer.new()
-		cell_panel.custom_minimum_size.y = 67.0
-		cell_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.045, 0.08, 0.096), Color(0.24, 0.39, 0.43), 9.0))
+		cell_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.045, 0.08, 0.096), Color(0.24, 0.39, 0.43), 5.0))
 		var cell_stack := VBoxContainer.new()
 		cell_stack.add_theme_constant_override("separation", 2)
 		cell_panel.add_child(cell_stack)
@@ -1668,7 +1676,7 @@ func _build_power_game() -> void:
 	workspace.add_child(control_panel)
 	_content_stack.add_child(workspace)
 
-	_power_sync_button = _button("[ ✔ SYNCHRONIZE POWER BUS ]", Vector2(0.0, 46.0), GOLD)
+	_power_sync_button = _button("SYNCHRONIZE BANKS", Vector2(0.0, 36.0), GOLD)
 	_power_sync_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_power_sync_button.disabled = true
 	_power_sync_button.pressed.connect(_on_power_sync_pressed)
@@ -1716,7 +1724,7 @@ func _build_hydroponics_game() -> void:
 	workspace.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	workspace.add_theme_constant_override("separation", 12)
 	_nutrient_diagram = NutrientDiagram.new()
-	_nutrient_diagram.custom_minimum_size = Vector2(350.0, 310.0)
+	_nutrient_diagram.custom_minimum_size = Vector2(300.0, 230.0)
 	_nutrient_diagram.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_nutrient_diagram.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_nutrient_diagram.rotations = _nutrient_rotations
@@ -1724,11 +1732,11 @@ func _build_hydroponics_game() -> void:
 	workspace.add_child(_nutrient_diagram)
 
 	var controls := PanelContainer.new()
-	controls.custom_minimum_size.x = 450.0
+	controls.custom_minimum_size.x = 390.0
 	controls.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	controls.add_theme_stylebox_override("panel", _panel_style(Color(0.045, 0.084, 0.103), Color(0.24, 0.39, 0.43), 13.0))
+	controls.add_theme_stylebox_override("panel", _panel_style(Color(0.045, 0.084, 0.103), Color(0.24, 0.39, 0.43), 8.0))
 	var control_stack := VBoxContainer.new()
-	control_stack.add_theme_constant_override("separation", 7)
+	control_stack.add_theme_constant_override("separation", 5)
 	controls.add_child(control_stack)
 	control_stack.add_child(_label("MANIFOLD VALVE ALIGNMENT", 10, GOLD))
 	var help := _label("Match each handle to its amber guide.", 10, MUTED)
@@ -1736,8 +1744,7 @@ func _build_hydroponics_game() -> void:
 	control_stack.add_child(help)
 	for index in range(3):
 		var row_panel := PanelContainer.new()
-		row_panel.custom_minimum_size.y = 57.0
-		row_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.045, 0.08, 0.096), Color(0.24, 0.39, 0.43), 7.0))
+		row_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.045, 0.08, 0.096), Color(0.24, 0.39, 0.43), 5.0))
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 7)
 		row_panel.add_child(row)
@@ -1753,7 +1760,7 @@ func _build_hydroponics_game() -> void:
 		value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		_nutrient_rotation_labels.append(value_label)
 		row.add_child(value_label)
-		var rotate_button := _button("TURN 90°", Vector2(102.0, 39.0), CYAN)
+		var rotate_button := _button("TURN 90°", Vector2(102.0, 32.0), CYAN)
 		rotate_button.pressed.connect(_on_nutrient_rotate_pressed.bind(index))
 		_nutrient_rotate_buttons.append(rotate_button)
 		row.add_child(rotate_button)
@@ -1762,7 +1769,7 @@ func _build_hydroponics_game() -> void:
 	_nutrient_status = _label("PUMP READY  /  MANIFOLD MISALIGNED", 9, GOLD)
 	control_stack.add_child(_nutrient_status)
 	control_stack.add_spacer(false)
-	_nutrient_restore_button = _button("[ ✔ RESTORE NUTRIENT IRRIGATION ]", Vector2(0.0, 46.0), GOLD)
+	_nutrient_restore_button = _button("RESTORE IRRIGATION", Vector2(0.0, 36.0), GOLD)
 	_nutrient_restore_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_nutrient_restore_button.disabled = true
 	_nutrient_restore_button.pressed.connect(_on_nutrient_flow_restore_pressed)
@@ -1831,7 +1838,7 @@ func _build_filter_game() -> void:
 	workspace.add_theme_constant_override("separation", 14)
 
 	_filter_diagram = FilterDiagram.new()
-	_filter_diagram.custom_minimum_size = Vector2(350.0, 320.0)
+	_filter_diagram.custom_minimum_size = Vector2(300.0, 230.0)
 	_filter_diagram.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_filter_diagram.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	workspace.add_child(_filter_diagram)
@@ -1945,7 +1952,7 @@ func _on_filter_seat_pressed() -> void:
 	_filter_pressure_slider.value_changed.connect(_on_filter_pressure_changed)
 	_filter_stage_controls.add_child(_filter_pressure_slider)
 	_filter_stage_controls.add_child(_pressure_scale())
-	_filter_pressure_button = _button("[ ✔ STABILIZE AIRFLOW & SEAL DUCT ]", Vector2(0.0, 46.0), GOLD)
+	_filter_pressure_button = _button("STABILIZE AIRFLOW + SEAL", Vector2(0.0, 46.0), GOLD)
 	_filter_pressure_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_filter_pressure_button.disabled = true
 	_filter_pressure_button.pressed.connect(_on_filter_pressure_locked)
@@ -1986,9 +1993,13 @@ func _complete_task(message: String) -> void:
 	for slider in _power_sliders:
 		slider.editable = false
 	_status_label.text = "SYSTEM RESTORED"
-	_status_label.add_theme_color_override("font_color", GREEN)
+	_status_label.add_theme_color_override("font_color", INSTRUMENT.WELL)
 	_status_light.color = GREEN
 	_success_banner.text = "✓   %s" % message
+	# The restored header lamp and return control provide completion feedback.
+	# Keep the full result as a tooltip without expanding the compact layout.
+	_success_banner.visible=false
+	_return_button.tooltip_text=message
 	_success_banner.add_theme_color_override("font_color", GREEN)
 	_progress_bar.value = mini(_completed_count + 1, _task_total)
 	_progress_label.text = "%02d / %02d TASKS COMPLETE" % [mini(_completed_count + 1, _task_total), _task_total]
@@ -2011,9 +2022,9 @@ func _refresh_filter_step_footer() -> void:
 
 func _build_footer() -> Control:
 	var footer := HBoxContainer.new()
-	footer.custom_minimum_size.y = 42.0
+	footer.custom_minimum_size.y = 22.0
 	footer.add_theme_constant_override("separation", 8)
-	footer.add_child(_label("DEVICE INTERFACE  /  LOCAL CONTROL" if _is_labroom_task() else "FIELD TERMINAL  /  EREBOS DEEP-SPACE SURVEY", 9, MUTED))
+	footer.add_child(_label("DEVICE INTERFACE / LOCAL CONTROL" if _is_labroom_task() else "ASTERIA-1 / SIMULATED SERVICE INSTRUMENTS", 12, INSTRUMENT.WELL))
 	footer.add_spacer(false)
 	footer.add_child(_label("ESC  CLOSE CONSOLE", 9, MUTED))
 	if is_instance_valid(_return_button):
@@ -2060,7 +2071,7 @@ func _panel_style(background: Color, _border: Color, padding: float) -> StyleBox
 		var fill := StyleBoxFlat.new()
 		fill.bg_color = background
 		return fill
-	return SKIN.panel(padding, padding < 16.0)
+	return INSTRUMENT.box(background,INSTRUMENT.SHADOW,int(padding))
 
 func _unhandled_key_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ESCAPE:
@@ -2078,3 +2089,35 @@ func _close_console() -> void:
 	await tween.finished
 	console_closed.emit()
 	queue_free()
+
+
+func set_resume_progress(data: Dictionary) -> void:
+	_resume_progress=data.duplicate(true)
+
+
+func progress_snapshot() -> Dictionary:
+	var charges: Array=[]
+	for slider in _power_sliders: charges.append(slider.value)
+	return {"task":str(_task_id),"power":charges,"filter_stage":_filter_stage,"filter_rotation":_filter_rotation,"filter_airflow":_filter_airflow,"nutrient_rotations":Array(_nutrient_rotations),"complete":_task_complete}
+
+
+func _restore_service_progress() -> void:
+	if _resume_progress.is_empty() or _resume_progress.get("task","")!=str(_task_id): return
+	if _task_id==&"auxiliary_power":
+		var values: Array=_resume_progress.get("power",[])
+		for i in range(mini(values.size(),_power_sliders.size())): _power_sliders[i].value=clampf(float(values[i]),0,100)
+	elif _task_id==&"air_filter":
+		var stage := clampi(int(_resume_progress.get("filter_stage",0)),0,2)
+		if stage>=1:
+			_on_filter_release_pressed()
+			var rotations := 2 if stage==2 else clampi(int(_resume_progress.get("filter_rotation",0)),0,3)
+			for i in range(rotations): _on_filter_rotate_pressed()
+		if stage==2:
+			_on_filter_seat_pressed()
+			_filter_pressure_slider.value=clampf(float(_resume_progress.get("filter_airflow",18)),0,100)
+	elif _task_id==&"nutrient_flow":
+		var rotations: Array=_resume_progress.get("nutrient_rotations",[])
+		for i in range(mini(rotations.size(),_nutrient_rotations.size())):
+			_nutrient_rotations[i]=posmod(int(rotations[i]),4)
+			_nutrient_diagram.rotations[i]=_nutrient_rotations[i]
+		_nutrient_diagram.queue_redraw();_update_nutrient_readouts()

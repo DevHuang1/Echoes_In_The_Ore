@@ -1,0 +1,330 @@
+{
+  "baseline_head": "747a1dcd6cc72be4bbaaeb976e0af01d3c67ed17",
+  "branch": "kaung",
+  "validated_at": "2026-10-27T03:19:15.120883+06:30",
+  "engine": "Godot 4.7.2 / Compatibility / NVIDIA OpenGL",
+  "window_sizes": [
+    "1280x720",
+    "1024x576"
+  ],
+  "tests": {
+    "state_save": {
+      "checks": 271,
+      "failures": [],
+      "exit_code": 0,
+      "log": "C:\\GodotProjects\\Echoes_In_The_Ore\\.godot\\ui_restyle_validation\\state_runtime_retry.log"
+    },
+    "physical": {
+      "checks": 663,
+      "failures": [],
+      "exit_code": 0,
+      "report": "C:\\GodotProjects\\Echoes_In_The_Ore\\.godot\\ui_restyle_validation\\interaction_report.json"
+    },
+    "focused_interface": {
+      "checks": 1361,
+      "failures": [],
+      "report": "C:\\GodotProjects\\Echoes_In_The_Ore\\.godot\\ui_restyle_validation\\interface_report.json"
+    },
+    "inherited_rendered_rollout": {
+      "checks": 1473,
+      "failures": [],
+      "capture_count": 146,
+      "report": "C:\\GodotProjects\\Echoes_In_The_Ore\\.godot\\ui_restyle_validation\\rollout_report.json"
+    },
+    "editor_import": {
+      "exit_code": 0,
+      "blocking_errors": [],
+      "log": "C:\\GodotProjects\\Echoes_In_The_Ore\\.godot\\ui_restyle_validation\\import_audit.log"
+    }
+  },
+  "scope_evidence": {
+    "seven_rooms": "Distinct live equipment diagrams/metrics, full outbound and return sequences, final two-size visual inspection.",
+    "all_actions": "Focused test opens all 52 hosts in both contexts and reveals every offered action; option counts and numeric ranges asserted.",
+    "original_tasks": "Original bank, filter, manifold controls complete in the connected walkthrough; partial filter save/reload and exact supply consumption asserted.",
+    "input": "Real mouse operation, keyboard tabs/option popup, pending numeric value and focus retention, Escape/reopen and loaded UI selectors asserted.",
+    "hud_preserved": "Original inventory drag/drop/equipment, hotbar/wheel, volume/Settings, blank map, modal behavior and original scene transit assertions inherited without weakening.",
+    "save_compatibility": "No state fields, schema, objective IDs, action ranges or serialized inventory ownership changed. Existing observations exposed via a read-only getter.",
+    "source_preservation": "All nine pre-existing edits byte-identical; HUD, project, scenes, art, props, collision, and three original validators unchanged.",
+    "graphics": "Native working Controls and original live drawings; original font/slider assets. No embedded reference screenshots, fabricated readings or map."
+  },
+  "changed_files": [
+    "docs/ship_interface_redesign.md",
+    "docs/ship_interface_validation.json",
+    "docs/ship_interface_validation.md",
+    "docs/ship_missions_playguide.md",
+    "scripts/ship/ship_mission_state.gd",
+    "scripts/ui/equipment_ui.gd",
+    "scripts/ui/equipment_ui.gd.uid",
+    "scripts/ui/service_task_console.gd",
+    "scripts/ui/ship_equipment_diagram.gd",
+    "scripts/ui/ship_equipment_diagram.gd.uid",
+    "scripts/ui/ship_procedure_panel.gd",
+    "scripts/ui/ship_station_presentation.gd",
+    "scripts/ui/ship_station_presentation.gd.uid",
+    "tools/ship_interface_rollout_validation.tscn",
+    "tools/ship_interface_validation.tscn",
+    "tools/validate_ship_interface_rollout.gd",
+    "tools/validate_ship_interface_rollout.gd.uid",
+    "tools/validate_ship_interfaces.gd",
+    "tools/validate_ship_interfaces.gd.uid"
+  ],
+  "final_source_sha256": {
+    "scripts/ship/ship_mission_state.gd": "7ffc174251915942d08761b83936d31bde4c307e3cb1b075d02a341e884a1884",
+    "scripts/ui/service_task_console.gd": "6edf4876e224188e773612d95cc40b3dba741e8225d77ee5e740c590a6a5dbe6",
+    "scripts/ui/ship_procedure_panel.gd": "b021ef31b4d63e1706921788294f9ff905e201f0635cb60563826ccb8e4ab928",
+    "scripts/ui/equipment_ui.gd": "b180191874f3064d94b4b9b3a5c20c8d2ad7d34c7afdd513f1ed950642c9e26a",
+    "scripts/ui/equipment_ui.gd.uid": "023d97050b0b17a31455412d5d9938cb342ae45ece34fe2426058414130b7e98",
+    "scripts/ui/ship_equipment_diagram.gd": "064b734b8eb3005c5d3ae0a93b05751d2519ebd981ed6ed20abe1e67fcf1caaf",
+    "scripts/ui/ship_equipment_diagram.gd.uid": "1b625dc3e411431ddc654e2f72846b7c88d4063b2d8085b7b2da122828cfd590",
+    "scripts/ui/ship_station_presentation.gd": "3e1da83c3cf328683d6f50d9e5b0a7a0988608a6dd3916d5abf86bb3d39b047a",
+    "scripts/ui/ship_station_presentation.gd.uid": "df5b51931c6f8bf3cd8e5d77e292c93d4e2c31dcf60db3620ee3894e48b5c5ff",
+    "tools/ship_interface_rollout_validation.tscn": "73c53087d73bffcbe90d53cf69ca3623cdab3f6c8af2a63791909334ab8197fc",
+    "tools/ship_interface_validation.tscn": "fc3fe3dada9d86c0e7a5d74a817b79ef0a0a157d28e8a4f595bd7732b079f961",
+    "tools/validate_ship_interface_rollout.gd": "ffc5cb34c2a5d2c2b0626813e39e55bb0d90b6baf5941805a6ceefee4d1a41a3",
+    "tools/validate_ship_interface_rollout.gd.uid": "867dda89714dea8d0275a7f887096cc7d9032502f313c6396bf2640855c9a148",
+    "tools/validate_ship_interfaces.gd": "bd4bf5ba6b527ed075ca4b7fae75f8480380ab81d7cf9cd5f2668e17ad241196",
+    "tools/validate_ship_interfaces.gd.uid": "edd81d440facf51447de65fa8f92648263f292c1902e88bd1a89f319efeaa587"
+  },
+  "visually_inspected_representatives": [
+    {
+      "path": "C:\\GodotProjects\\Echoes_In_The_Ore\\.godot\\ui_restyle_validation\\screenshots\\final_power_1280x720.png",
+      "sha256": "fd93ca7855719cbcc0127c0c31666b74ee58c1b5f3c4bb6a8caac46dd7ec35a0",
+      "visually_inspected": true
+    },
+    {
+      "path": "C:\\GodotProjects\\Echoes_In_The_Ore\\.godot\\ui_restyle_validation\\screenshots\\final_power_1024x576.png",
+      "sha256": "5d33312171bb1d9da8f9fc7ad2199f5724b64d8b16cbc334189727ab04c6b010",
+      "visually_inspected": true
+    },
+    {
+      "path": "C:\\GodotProjects\\Echoes_In_The_Ore\\.godot\\ui_restyle_validation\\screenshots\\final_cargo_1280x720.png",
+      "sha256": "0686f3d45535e3defe289304f223ec69adf7f3756717dd761cb09fd174082a89",
+      "visually_inspected": true
+    },
+    {
+      "path": "C:\\GodotProjects\\Echoes_In_The_Ore\\.godot\\ui_restyle_validation\\screenshots\\final_cargo_1024x576.png",
+      "sha256": "aba3d23c06aaaff03c1b5a52c696387012b929cda7575b78c19b610ee1de5bef",
+      "visually_inspected": true
+    },
+    {
+      "path": "C:\\GodotProjects\\Echoes_In_The_Ore\\.godot\\ui_restyle_validation\\screenshots\\final_engine_1280x720.png",
+      "sha256": "ba3b0ad492a9449b638cdb9a81d923d28afdf87085d927f898bd333e70874fdc",
+      "visually_inspected": true
+    },
+    {
+      "path": "C:\\GodotProjects\\Echoes_In_The_Ore\\.godot\\ui_restyle_validation\\screenshots\\final_engine_1024x576.png",
+      "sha256": "e17752cfd9288c33cfdb4daaf79f84f05f17ef3d7686dced92be4517179dd466",
+      "visually_inspected": true
+    },
+    {
+      "path": "C:\\GodotProjects\\Echoes_In_The_Ore\\.godot\\ui_restyle_validation\\screenshots\\final_life_1280x720.png",
+      "sha256": "248f636601aa6723442a47650ab35878799bd349ad1050d17e8c22c7092d88c6",
+      "visually_inspected": true
+    },
+    {
+      "path": "C:\\GodotProjects\\Echoes_In_The_Ore\\.godot\\ui_restyle_validation\\screenshots\\final_life_1024x576.png",
+      "sha256": "a179ae8022b658fde02de3cb59a3ac46dbc6ceb4cc06418eb020ad160842fbf9",
+      "visually_inspected": true
+    },
+    {
+      "path": "C:\\GodotProjects\\Echoes_In_The_Ore\\.godot\\ui_restyle_validation\\screenshots\\final_hydro_1280x720.png",
+      "sha256": "744bc8fa4509e26fed58dc8b0d224da0fd27defde2096a424869b9a949596cb3",
+      "visually_inspected": true
+    },
+    {
+      "path": "C:\\GodotProjects\\Echoes_In_The_Ore\\.godot\\ui_restyle_validation\\screenshots\\final_hydro_1024x576.png",
+      "sha256": "f33a73e5374386c2e8ec1f0857a56150344c570a1a34eba69c5b910623c88e57",
+      "visually_inspected": true
+    },
+    {
+      "path": "C:\\GodotProjects\\Echoes_In_The_Ore\\.godot\\ui_restyle_validation\\screenshots\\final_crew_1280x720.png",
+      "sha256": "901aa03c9b68a35f258c6611bc8905df28acbccc2ef46593078273c0720936d0",
+      "visually_inspected": true
+    },
+    {
+      "path": "C:\\GodotProjects\\Echoes_In_The_Ore\\.godot\\ui_restyle_validation\\screenshots\\final_crew_1024x576.png",
+      "sha256": "1fac6e1d1c279aa89dc4d8ea4f40005a9bde9ba44029d33f849d0a5e9f199824",
+      "visually_inspected": true
+    },
+    {
+      "path": "C:\\GodotProjects\\Echoes_In_The_Ore\\.godot\\ui_restyle_validation\\screenshots\\final_planning_1280x720.png",
+      "sha256": "768739dcfb683f6c082cfede3874969877df8ef47b23b391074baa0fd0cb61bb",
+      "visually_inspected": true
+    },
+    {
+      "path": "C:\\GodotProjects\\Echoes_In_The_Ore\\.godot\\ui_restyle_validation\\screenshots\\final_planning_1024x576.png",
+      "sha256": "19119f32882925127043ff8f81b6e0dafe263706f183903789376392adcc74cf",
+      "visually_inspected": true
+    },
+    {
+      "path": "C:\\GodotProjects\\Echoes_In_The_Ore\\.godot\\ui_restyle_validation\\screenshots\\final_navigation_1280x720.png",
+      "sha256": "3ff77a55b1088fe730e4560f40e7a460f32e3d8d597674bf54945910b1ed8fa8",
+      "visually_inspected": true
+    },
+    {
+      "path": "C:\\GodotProjects\\Echoes_In_The_Ore\\.godot\\ui_restyle_validation\\screenshots\\final_navigation_1024x576.png",
+      "sha256": "b0a6a6ae79e24b25460478567fef2e6ca6ebcefed4d9c69d697a5e1ef3885356",
+      "visually_inspected": true
+    },
+    {
+      "path": "C:\\GodotProjects\\Echoes_In_The_Ore\\.godot\\ui_restyle_validation\\screenshots\\final_communications_1280x720.png",
+      "sha256": "77050b1950a5f069c5d27c057745151503fbe7ea7f81189ea8663ad3620252dc",
+      "visually_inspected": true
+    },
+    {
+      "path": "C:\\GodotProjects\\Echoes_In_The_Ore\\.godot\\ui_restyle_validation\\screenshots\\final_communications_1024x576.png",
+      "sha256": "484fd004579cb2e5ea8e2488df303e6d21110a38fbcf068cda562c4b6c97af0c",
+      "visually_inspected": true
+    },
+    {
+      "path": "C:\\GodotProjects\\Echoes_In_The_Ore\\.godot\\ui_restyle_validation\\screenshots\\final_storage_1280x720.png",
+      "sha256": "1e3fc2ea245b5aa12e502f333aea9de2da68cd360edffe9a79c2ab63fc2af971",
+      "visually_inspected": true
+    },
+    {
+      "path": "C:\\GodotProjects\\Echoes_In_The_Ore\\.godot\\ui_restyle_validation\\screenshots\\final_storage_1024x576.png",
+      "sha256": "d7ff14a5e83256bc8d5a6e97cd3a87c981207b37e6602460815f514f495a7654",
+      "visually_inspected": true
+    },
+    {
+      "path": "C:\\GodotProjects\\Echoes_In_The_Ore\\.godot\\ui_restyle_validation\\screenshots\\final_records_1280x720.png",
+      "sha256": "cd57c19ca1400ad0b919c1b94236bfd631e3b833697c699247551f7066884ef5",
+      "visually_inspected": true
+    },
+    {
+      "path": "C:\\GodotProjects\\Echoes_In_The_Ore\\.godot\\ui_restyle_validation\\screenshots\\final_records_1024x576.png",
+      "sha256": "d7fbeea7c478a8dca753c6a7a714432d1ddd187308f721ce2896525b8f7860db",
+      "visually_inspected": true
+    },
+    {
+      "path": "C:\\GodotProjects\\Echoes_In_The_Ore\\.godot\\ui_restyle_validation\\screenshots\\final_report_1280x720.png",
+      "sha256": "1cb0755068af8ae2e8bb02910a09511cebfe03dd62b702168d8cee67e821b498",
+      "visually_inspected": true
+    },
+    {
+      "path": "C:\\GodotProjects\\Echoes_In_The_Ore\\.godot\\ui_restyle_validation\\screenshots\\final_report_1024x576.png",
+      "sha256": "cadd7eb96e9bad69bd6a1dd47a5767113ceab843e1c1053bc8757e431c77a652",
+      "visually_inspected": true
+    },
+    {
+      "path": "C:\\GodotProjects\\Echoes_In_The_Ore\\.godot\\ui_restyle_validation\\screenshots\\reviewed_auxiliary_power_active_1280x720.png",
+      "sha256": "2647e123d719fd0c97f8e00a7125990e4cbd4b8ef9838c0c004eaeec48015dac",
+      "visually_inspected": true
+    },
+    {
+      "path": "C:\\GodotProjects\\Echoes_In_The_Ore\\.godot\\ui_restyle_validation\\screenshots\\reviewed_auxiliary_power_active_1024x576.png",
+      "sha256": "aa2ce52e30826a363ad81df6cb7f039096e6747b6452425850e0cc2769bbb1cb",
+      "visually_inspected": true
+    },
+    {
+      "path": "C:\\GodotProjects\\Echoes_In_The_Ore\\.godot\\ui_restyle_validation\\screenshots\\reviewed_filter_regulation_1280x720.png",
+      "sha256": "2a458fe5129f3b36f94531280e525e9b66a2066aec7b927873622e5f64589ac6",
+      "visually_inspected": true
+    },
+    {
+      "path": "C:\\GodotProjects\\Echoes_In_The_Ore\\.godot\\ui_restyle_validation\\screenshots\\reviewed_filter_regulation_1024x576.png",
+      "sha256": "b73c8930b16cd59deda7b11b13cbf381ec1d58fbb7df79553f34730bc88568a9",
+      "visually_inspected": true
+    },
+    {
+      "path": "C:\\GodotProjects\\Echoes_In_The_Ore\\.godot\\ui_restyle_validation\\screenshots\\reviewed_nutrient_flow_complete_1280x720.png",
+      "sha256": "4bc4fb86bdfebf7d0f94fba2933e2af1864c15ed82c3a46f54214c4d6165e114",
+      "visually_inspected": true
+    },
+    {
+      "path": "C:\\GodotProjects\\Echoes_In_The_Ore\\.godot\\ui_restyle_validation\\screenshots\\reviewed_nutrient_flow_complete_1024x576.png",
+      "sha256": "f105fd22d0dde33041111e4339584320cd95c2ff823afbad7a2e0555bc34c139",
+      "visually_inspected": true
+    },
+    {
+      "path": "C:\\GodotProjects\\Echoes_In_The_Ore\\.godot\\ui_restyle_validation\\screenshots\\blocked_power_breaker_1280x720.png",
+      "sha256": "0cd8dc55a70566f82a52f5f8428ce8de6048fb0d3381af4db46673830a91a490",
+      "visually_inspected": true
+    },
+    {
+      "path": "C:\\GodotProjects\\Echoes_In_The_Ore\\.godot\\ui_restyle_validation\\screenshots\\blocked_power_breaker_1024x576.png",
+      "sha256": "9dd71eaef502595325933f099bc98ff02186a30e4c9b34394681c0b59c907021",
+      "visually_inspected": true
+    },
+    {
+      "path": "C:\\GodotProjects\\Echoes_In_The_Ore\\.godot\\ui_restyle_validation\\screenshots\\return_engine_valve_2_isolated_1280x720.png",
+      "sha256": "0b678a81eeb9adf7273a5aca9947799d8b61c53d8f849f4d41e3d082fd0b5c2d",
+      "visually_inspected": true
+    },
+    {
+      "path": "C:\\GodotProjects\\Echoes_In_The_Ore\\.godot\\ui_restyle_validation\\screenshots\\return_engine_valve_2_isolated_1024x576.png",
+      "sha256": "d9fbd7178c2049a6be397e6dea44bc49c8037f8a4c9a933dbc37b9bb6e9d6a75",
+      "visually_inspected": true
+    }
+  ],
+  "visual_review_notes": [
+    "Regular and compact hierarchy/readability reviewed for all seven room groups plus navigation, transmission, supplies, evidence/report and all three original service games.",
+    "Fixed compact observation clipping, engine wheel/pressure spacing, manifold label overlap, unsupported checkmark glyph, completion footer overflow.",
+    "Fixed refreshed SpinBox focus, applied-setting selector initialization, crew duty/room ID mismatch, and secondary-record tab selection.",
+    "Blocked, active isolation/fault and verified samples inspected; actual completed save supplies final measurements."
+  ],
+  "preserved_preexisting_edits": [
+    {
+      "path": "art/concepts/lab_prop_sheet.png.import",
+      "sha256": "e9eeefd71e036672b51a29f4e79bfb92766ce88c6512f504359c988d47794501",
+      "byte_identical": true
+    },
+    {
+      "path": "art/concepts/lab_props/data_archive.png.import",
+      "sha256": "a4393dabdbdb3386831394177f4b1d5f578352a1e8da20c058525f45cc477db3",
+      "byte_identical": true
+    },
+    {
+      "path": "art/concepts/lab_props/instrument_trolley.png.import",
+      "sha256": "fb804ba58dd55b953209b831648b6d2d701f6062129680adb76e4f49e50402c4",
+      "byte_identical": true
+    },
+    {
+      "path": "art/concepts/lab_props/research_console.png.import",
+      "sha256": "7a1e6aeae193fdced2d7019c1939bc10495c774cfdc36a0365b34abb43c1b380",
+      "byte_identical": true
+    },
+    {
+      "path": "art/concepts/lab_props/sample_containment.png.import",
+      "sha256": "50e0f3844d03f086065d0cd11d766fe0e8a11f9956845bacab26fe4fbac80e49",
+      "byte_identical": true
+    },
+    {
+      "path": "art/concepts/lab_props/sample_robot_arm.png.import",
+      "sha256": "d1a8d9fcfc543ccd42cc4bdfef9e703ac0e1129d87157543606603babcdb4a68",
+      "byte_identical": true
+    },
+    {
+      "path": "art/concepts/lab_props/specimen_analysis_table.png.import",
+      "sha256": "ee968230bf374d34927b14204fa4fc014bf4d185193900d62b8ff606fc2ca611",
+      "byte_identical": true
+    },
+    {
+      "path": "art/concepts/lab_room_layout_preview.png.import",
+      "sha256": "3dee92bb13fc1663cfafaee8b8f463cab5a94d5ad009615f548a11411374eb87",
+      "byte_identical": true
+    },
+    {
+      "path": "scenes/ship/bare_ship_walkthrough.tscn",
+      "sha256": "5c17d2bd01acb83949260bbb96aaaa082f9223691de6dc01b9fd65fa50b649a1",
+      "byte_identical": true
+    }
+  ],
+  "limitations": [
+    {
+      "issue": "Intermittent native repeated-scene-reload/shutdown crash",
+      "signature": "0xc0000005 / Godot.exe + 0x321fccb",
+      "current_run": "One run crashed after all 271 assertions; immediate normal-renderer retry passed 271 and exited 0.",
+      "baseline_comparison": "Pre-redesign scripts from 747a1dc with same saved scene/art also crashed during reload at the identical native address.",
+      "baseline_log": "C:\\GodotProjects\\Echoes_In_The_Ore\\.godot\\ui_restyle_validation\\baseline_compare.log",
+      "known_headless_issue": "Same fault signature as previously documented headless reload failure; underlying engine-level cause unresolved.",
+      "not_claimed": "No claim that repeated headless runtime reloads or every native shutdown is crash-free."
+    }
+  ],
+  "git_operations": {
+    "committed": false,
+    "pushed": false,
+    "merged": false,
+    "head_unchanged": true
+  }
+}

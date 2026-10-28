@@ -350,65 +350,8 @@ class WallLightFixture extends Node2D:
 				return Vector2.RIGHT
 
 	func _draw() -> void:
-		var t := _tangent()
-		var n := _inward_normal()
-		var half_len := bar_length * 0.5
-		var intensity := clampf(lit_amount, 0.0, 1.45)
-
-		# 1. Directional wall-wash light cone & halo projecting from the wall fixture into the room
-		if intensity > 0.01:
-			var cone_reach := 28.0 + 10.0 * minf(intensity, 1.2)
-			var cone_spread := half_len + 18.0
-			var p_wall_l := -t * (half_len - 1.0) + n * 1.5
-			var p_wall_r := t * (half_len - 1.0) + n * 1.5
-			var p_far_r := t * cone_spread + n * cone_reach
-			var p_far_l := -t * cone_spread + n * cone_reach
-			var outer_cone_col := Color(light_color.r, light_color.g, light_color.b, minf(0.11 * intensity, 0.20))
-			draw_colored_polygon(PackedVector2Array([p_wall_l, p_wall_r, p_far_r, p_far_l]), outer_cone_col)
-
-			var mid_reach := 16.0 + 6.0 * minf(intensity, 1.2)
-			var mid_spread := half_len + 9.0
-			var p_mid_r := t * mid_spread + n * mid_reach
-			var p_mid_l := -t * mid_spread + n * mid_reach
-			var mid_cone_col := Color(light_color.r, light_color.g, light_color.b, minf(0.18 * intensity, 0.30))
-			draw_colored_polygon(PackedVector2Array([p_wall_l, p_wall_r, p_mid_r, p_mid_l]), mid_cone_col)
-
-		# 2. Industrial wall sconce mounting bracket & armored bezel flush against the wall
-		var bracket_start := -t * (half_len + 2.5) - n * 1.5
-		var bracket_end := t * (half_len + 2.5) - n * 1.5
-		draw_line(bracket_start, bracket_end, Color(0.05, 0.07, 0.09, 0.96), 5.0, false)
-		draw_line(-t * (half_len + 1.5) - n * 1.0, t * (half_len + 1.5) - n * 1.0, Color(0.24, 0.29, 0.34, 0.96), 3.2, false)
-
-		# End-cap bolts on the wall housing
-		draw_circle(-t * (half_len + 1.2) - n * 0.8, 1.5, Color(0.12, 0.16, 0.20, 1.0))
-		draw_circle(t * (half_len + 1.2) - n * 0.8, 1.5, Color(0.12, 0.16, 0.20, 1.0))
-
-		# 3. Diffuser tube (dim slate-amber when unlit, bright warm/colored emitter when lit)
-		var tube_a := -t * (half_len - 1.5) + n * 0.6
-		var tube_b := t * (half_len - 1.5) + n * 0.6
-		draw_line(tube_a, tube_b, Color(0.14, 0.18, 0.22, 0.92), 2.6, false)
-
-		if intensity > 0.01:
-			var bloom_col := Color(light_color.r, light_color.g, light_color.b, minf(0.36 * intensity, 0.62))
-			var body_col := Color(
-				lerpf(light_color.r, 1.0, 0.25),
-				lerpf(light_color.g, 0.96, 0.25),
-				lerpf(light_color.b, 0.88, 0.25),
-				minf(0.92 * intensity, 1.0)
-			)
-			var core_col := Color(1.0, 0.98, 0.94, minf(0.98 * intensity, 1.0))
-			draw_line(tube_a, tube_b, bloom_col, 6.2, false)
-			draw_line(tube_a, tube_b, body_col, 2.6, false)
-			draw_line(
-				-t * (half_len - 3.0) + n * 0.6,
-				t * (half_len - 3.0) + n * 0.6,
-				core_col,
-				1.4,
-				false
-			)
-		else:
-			# Subtle standby indicator dot on the wall fixture when the room is unlit
-			draw_circle(n * 0.5, 1.0, Color(0.85, 0.48, 0.18, 0.55))
+		# Floor/wall light strip overlays removed per user request; illumination is handled by PointLight2D.
+		pass
 
 
 var _room_states: Array[Dictionary] = []
@@ -566,6 +509,13 @@ func _update_all_rooms(delta: float, snap_immediately: bool) -> void:
 		base_pos + Vector2(6.0, 0.0),
 	]
 
+	var extra_illum_points: Array[Vector2] = []
+	if player.has_method("get_active_illumination_points"):
+		var world_illum_pts: Array = player.call("get_active_illumination_points")
+		for wp in world_illum_pts:
+			var world_vec: Vector2 = wp
+			extra_illum_points.append(floor_layer.to_local(world_vec))
+
 	var detected_player_room: StringName = &""
 	for idx in range(_room_states.size()):
 		var room: Dictionary = _room_states[idx]
@@ -574,9 +524,13 @@ func _update_all_rooms(delta: float, snap_immediately: bool) -> void:
 		if occupied and detected_player_room == &"":
 			detected_player_room = room_id
 
+		var flare_or_tool_lit: bool = false
+		if not extra_illum_points.is_empty():
+			flare_or_tool_lit = _is_player_in_room(room, extra_illum_points)
+
 		var room_flicker_forced := flicker_all_rooms or bool(flicker_rooms.get(room_id, false))
 		var is_flickering := room_flicker_forced or (flicker_current_room and occupied)
-		var should_be_lit := occupied or force_all_lights_on or room_flicker_forced
+		var should_be_lit := occupied or flare_or_tool_lit or force_all_lights_on or room_flicker_forced
 
 		var target := 1.0 if should_be_lit else 0.0
 		var current: float = float(room["lit_factor"])

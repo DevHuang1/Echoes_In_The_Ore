@@ -1,8 +1,6 @@
 [gd_scene format=3 uid="uid://ddl36jsnqn5f8"]
 
 [ext_resource type="Script" uid="uid://mxdrvpc6q3b3" path="res://scripts/ship/bare_ship_walkthrough.gd" id="1_walkthrough"]
-[ext_resource type="Texture2D" uid="uid://cotd2rpnk8syv" path="res://art/concepts/Refined pixel-art spacecraft floor.png" id="2_floor"]
-[ext_resource type="Texture2D" uid="uid://msnfl0l2p2m7" path="res://art/concepts/ship_walls_valkyrie.png" id="3_walls"]
 [ext_resource type="PackedScene" path="res://scenes/player/player.tscn" id="4_player"]
 [ext_resource type="PackedScene" path="res://scenes/ship/space_backdrop.tscn" id="5_space"]
 [ext_resource type="PackedScene" uid="uid://b8lq0lk6k2n0l" path="res://scenes/ship/engine_plume.tscn" id="6_plume"]
@@ -13,6 +11,8 @@
 [ext_resource type="PackedScene" path="res://scenes/ship/props/life_support_room_props.tscn" id="11_life_support_props"]
 [ext_resource type="PackedScene" path="res://scenes/ship/crew/amara_okoye.tscn" id="12_amara"]
 [ext_resource type="PackedScene" path="res://scenes/ship/props/bridge_room_props.tscn" id="12_bridge_props"]
+[ext_resource type="Texture2D" uid="uid://gje5yq6384ev" path="res://art/concepts/crew_living_quarter_props/Sleeping Pod With Continuous Right-Side Ladder.png" id="12_si2gx"]
+[ext_resource type="Texture2D" uid="uid://dihsoxnp3jhpl" path="res://art/concepts/crew_living_quarter_props/Four-direction crew quarters drawer chest.png" id="13_e12q1"]
 [ext_resource type="PackedScene" path="res://scenes/ship/props/ship_vent_network.tscn" id="13_vent_network"]
 [ext_resource type="PackedScene" path="res://scenes/ship/props/ship_fog_halo.tscn" id="14_fog"]
 [ext_resource type="PackedScene" path="res://scenes/ship/props/crew_living_quarter_props.tscn" id="15_crew_quarters"]
@@ -172,7 +172,7 @@ position = Vector2(887, 443.5)
 [node name="FloorLayer" type="Sprite2D" parent="." unique_id=1971097640]
 z_index = -2
 texture_filter = 1
-texture = ExtResource("2_floor")
+texture = SubResource("ImageTexture_e12q1")
 centered = false
 
 [node name="ShipVentNetwork" parent="." unique_id=429064525 instance=ExtResource("13_vent_network")]
@@ -180,14 +180,11 @@ centered = false
 [node name="WallLayer" type="Sprite2D" parent="." unique_id=257802278]
 z_index = -1
 texture_filter = 1
-texture = ExtResource("3_walls")
+texture = SubResource("ImageTexture_sacqo")
 centered = false
 
-[node name="ExteriorAirlockGate" parent="." instance=ExtResource("17_airlock_gate")]
+[node name="ExteriorAirlockGate" parent="." unique_id=749605661 instance=ExtResource("17_airlock_gate")]
 position = Vector2(478.5, 242)
-opening_width = 96.0
-wall_depth = 34.0
-activation_distance = 76.0
 
 [node name="CenterRecessRoom" parent="." unique_id=688448454 instance=ExtResource("8_center_recess")]
 position = Vector2(682, 269)
@@ -442,6 +439,15 @@ position = Vector2(300, 450)
 position = Vector2(25, 67)
 artwork_scale = 0.06999999999999999
 
+[node name="Sprite2D" parent="CrewLivingQuarterProps/StackedCapsuleUnit" index="0"]
+position = Vector2(-22.54, -85.12)
+scale = Vector2(0.07, 0.07)
+texture = SubResource("AtlasTexture_37xbg")
+
+[node name="CollisionShape2D" parent="CrewLivingQuarterProps/StackedCapsuleUnit/StaticBody2D" index="0"]
+visible = false
+shape = SubResource("ConvexPolygonShape2D_r2wwa")
+
 [node name="PersonalComputerDesk" parent="CrewLivingQuarterProps" index="1"]
 position = Vector2(272, 11)
 
@@ -466,6 +472,12 @@ position = Vector2(358, 148)
 [node name="ThreeDrawerChest" parent="CrewLivingQuarterProps" index="8"]
 position = Vector2(155, 9)
 
+[node name="Sprite2D" parent="CrewLivingQuarterProps/ThreeDrawerChest" index="0"]
+texture = SubResource("AtlasTexture_rtbpg")
+
+[node name="CollisionShape2D" parent="CrewLivingQuarterProps/ThreeDrawerChest/StaticBody2D" index="0"]
+shape = SubResource("ConvexPolygonShape2D_3fgd4")
+
 [node name="StorageCabinet02" parent="CrewLivingQuarterProps" index="9"]
 position = Vector2(315, 24)
 artwork_scale = 0.1
@@ -473,11 +485,33 @@ artwork_scale = 0.1
 [node name="ThreeDrawerChest02" parent="CrewLivingQuarterProps" index="10"]
 position = Vector2(191, 9)
 
+[node name="Sprite2D" parent="CrewLivingQuarterProps/ThreeDrawerChest02" index="0"]
+texture = SubResource("AtlasTexture_2ity2")
+
+[node name="CollisionShape2D" parent="CrewLivingQuarterProps/ThreeDrawerChest02/StaticBody2D" index="0"]
+shape = SubResource("ConvexPolygonShape2D_rwqr3")
+
 [node name="StackedCapsuleUnit02" parent="CrewLivingQuarterProps" index="11"]
 position = Vector2(69, 68)
 
+[node name="Sprite2D" parent="CrewLivingQuarterProps/StackedCapsuleUnit02" index="0"]
+position = Vector2(-22.54, -85.12)
+scale = Vector2(0.07, 0.07)
+texture = SubResource("AtlasTexture_222ja")
+
+[node name="CollisionShape2D" parent="CrewLivingQuarterProps/StackedCapsuleUnit02/StaticBody2D" index="0"]
+shape = SubResource("ConvexPolygonShape2D_y7sgh")
+
 [node name="StackedCapsuleUnit03" parent="CrewLivingQuarterProps" index="12"]
 position = Vector2(114, 69)
+
+[node name="Sprite2D" parent="CrewLivingQuarterProps/StackedCapsuleUnit03" index="0"]
+position = Vector2(-22.54, -85.12)
+scale = Vector2(0.07, 0.07)
+texture = SubResource("AtlasTexture_2dbfr")
+
+[node name="CollisionShape2D" parent="CrewLivingQuarterProps/StackedCapsuleUnit03/StaticBody2D" index="0"]
+shape = SubResource("ConvexPolygonShape2D_ukwjx")
 
 [node name="PowerMaintenanceRoomProps" parent="." unique_id=1633341448 instance=ExtResource("10_power_maintenance_props")]
 position = Vector2(1058, 263)
@@ -492,19 +526,22 @@ position = Vector2(694, 383)
 position = Vector2(1340, 656)
 
 [node name="ShipDoors" parent="." unique_id=1388646547 instance=ExtResource("7_doors")]
-y_sort_enabled = true
 position = Vector2(3, -4)
 rotation = 0.00050925
 
-[node name="ShipRoomLighting" parent="." instance=ExtResource("18_room_lighting")]
+[node name="ShipRoomLighting" parent="." unique_id=391631989 instance=ExtResource("18_room_lighting")]
 
 [node name="UpperAftEnginePlume" parent="." unique_id=1590277352 instance=ExtResource("6_plume")]
 position = Vector2(1661.0001, 168)
 scale = Vector2(0.7, 0.4)
+sprite_frames = SubResource("SpriteFrames_gkx25")
+frame_progress = 0.4
 
 [node name="LowerAftEnginePlume" parent="." unique_id=922350946 instance=ExtResource("6_plume")]
 position = Vector2(1672, 576)
 scale = Vector2(0.62, 0.35)
+sprite_frames = SubResource("SpriteFrames_wtx6w")
+frame_progress = 0.4
 
 [node name="MaintenanceWorkshop" type="Node2D" parent="." unique_id=628216074]
 y_sort_enabled = true
@@ -698,3 +735,9 @@ position = Vector2(1049, 559)
 [editable path="EngineRoomProps"]
 [editable path="BridgeRoomProps"]
 [editable path="CrewLivingQuarterProps"]
+[editable path="CrewLivingQuarterProps/StackedCapsuleUnit"]
+[editable path="CrewLivingQuarterProps/ThreeDrawerChest"]
+[editable path="CrewLivingQuarterProps/ThreeDrawerChest02"]
+[editable path="CrewLivingQuarterProps/StackedCapsuleUnit02"]
+[editable path="CrewLivingQuarterProps/StackedCapsuleUnit03"]
+[editable path="ShuttleBayCargo"]

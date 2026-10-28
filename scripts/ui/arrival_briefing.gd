@@ -64,7 +64,7 @@ func _build_ui() -> void:
 	welcome.custom_minimum_size.y = 44.0
 	content.add_child(welcome)
 
-	var status := _label("VESSEL STATUS: DRIFTING IN LOW EREBOS ORBIT // DEFCON 4 TELEMETRY", 14, MUTED)
+	var status := _label("DAY 184 ABOARD ASTERIA-1 // PREPARING FOR THE EREBOS SURVEY", 14, MUTED)
 	content.add_child(status)
 
 	var divider := HSeparator.new()
@@ -88,7 +88,7 @@ func _build_ui() -> void:
 	content.add_child(cards)
 	cards.add_child(_info_card("[ 01 // DESTINATION ]", "EREBOS (MINOR PLANET)", "High-density ore survey target; anomalous magnetic signature."))
 	cards.add_child(_info_card("[ 02 // ASSIGNMENT ]", "PLANETARY GEOLOGY", "Lead specialist: autonomous drone deployment & core sampling."))
-	cards.add_child(_info_card("[ 03 // SHIP STATUS ]", "SERVICE TELEMETRY ALERT", "Aux power, life-support filtration, & hydroponics offline."))
+	cards.add_child(_info_card("[ 03 // FIRST WATCH ]", "REPORT TO THE BRIDGE", "Maya's assignment is waiting at the planning table. Other routine systems are running normally."))
 
 	var crew := _label(
 		"CREW ONBOARD:  Maya Chen (CDR) · Elias Ward (PLT) · Amara Okoye (MED) · Leila Haddad (ENG) · Mateo Ruiz (MIN)",
@@ -99,12 +99,12 @@ func _build_ui() -> void:
 	crew.custom_minimum_size.y = 32.0
 	content.add_child(crew)
 
-	var first_duty := _label("IMMEDIATE DIRECTIVE: Access engineering terminals to restore [AUX POWER], replace canister in [LIFE SUPPORT], and align irrigation in [HYDROPONICS]. Press [M] for tactical deck schematic.", 14, MUTED)
+	var first_duty := _label("FIRST OBJECTIVE: Go west through the bridge corridor. Use the planning table beside the main helm to receive Maya's watch assignment. She will explain the work before you begin.", 14, MUTED)
 	first_duty.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	content.add_child(first_duty)
 
 	_continue_button = Button.new()
-	_continue_button.text = "[ ✔ ENTER SHIP DECK  → ]"
+	_continue_button.text = "[ ENTER SHIP DECK  → ]"
 	_continue_button.custom_minimum_size = Vector2(250.0, 50.0)
 	_continue_button.size_flags_horizontal = Control.SIZE_SHRINK_END
 	_continue_button.add_theme_font_size_override("font_size", 16)

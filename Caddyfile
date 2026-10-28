@@ -1,0 +1,28 @@
+{
+	admin off
+	persist_config off
+	auto_https off
+}
+
+:{$PORT:8080} {
+	root * /srv
+	encode zstd gzip {
+		match {
+			header Content-Type application/wasm*
+			header Content-Type application/octet-stream
+			header Content-Type application/javascript*
+			header Content-Type text/*
+		}
+	}
+
+	@health path /healthz
+	handle @health {
+		respond "ok" 200
+	}
+
+	handle {
+		header Cache-Control "no-cache"
+		header X-Content-Type-Options "nosniff"
+		file_server
+	}
+}

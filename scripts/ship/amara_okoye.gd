@@ -407,6 +407,7 @@ func _process(delta: float) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if not _interaction_locks.is_empty(): return
 	if not _navigation_ready:
 		return
 	if _lab_route_active:
@@ -528,6 +529,14 @@ func _build_overhead_bubble() -> void:
 
 
 func _show_overhead_bark(tag: String, text: String, duration: float = 2.4) -> void:
+	if not _interaction_locks.is_empty(): return
+	var status: Dictionary = get_parent().get_meta("ship_system_state", {})
+	if status.has("hydro") and tag == "CREW GREETING":
+		text = "Hello, Thura. I'm watching the delivery readings today." if float(status.hydro.flow)<90 else "Good to see you, Thura. Delivery is holding steady."
+	if status.has("hydro") and tag != "CREW GREETING":
+		var hydro: Dictionary = status.hydro
+		text = "Delivery is low. I'll compare the pump and reservoir readings." if float(hydro.flow) < 90.0 else "Delivery is steady. I'll keep an eye on the beds."
+		if float(hydro.ec) > 2.4: text = "The reservoir reading has changed. We should check it before adding anything."
 	if not is_instance_valid(_bubble_root):
 		return
 	_bubble_tag_label.text = "AMARA OKOYE  •  " + tag.to_upper()
@@ -821,7 +830,10 @@ func _build_navigation() -> void:
 		push_warning("Amara could not find the ship floor for navigation.")
 		return
 
-	_floor_mask = floor_layer.texture.get_image()
+	# Use the same authoritative mask and origin as Thura, not the replacement
+	# visual floor texture. Furniture clearance is included in the route grid.
+	var actor := get_parent().get_node_or_null("Player") as ShipPlayer
+	_floor_mask = actor._walkable_floor_mask if actor != null and actor._walkable_floor_mask != null else floor_layer.texture.get_image()
 	if _floor_mask.is_compressed() and _floor_mask.decompress() != OK:
 		push_warning("Amara could not read the ship floor mask.")
 		_floor_mask = null
@@ -862,12 +874,14 @@ func _build_navigation() -> void:
 	_ship_zone_cells.clear()
 	for _zone in SHIP_ROAM_AREAS:
 		_ship_zone_cells.append([])
+	var navigation_exclusions: Array[RID] = []
 
 	for y in range(rows):
 		for x in range(columns):
 			var cell := Vector2i(x, y)
 			var center := _cell_to_world(cell)
 			var clear := true
+			if get_parent().has_method("_ship_body_clear") and not get_parent()._ship_body_clear(center, navigation_exclusions, true): clear = false
 			for sample_offset in clearance_samples:
 				if not _position_is_walkable(center + sample_offset):
 					clear = false
@@ -894,6 +908,7 @@ func _build_navigation() -> void:
 
 
 func set_in_dialogue(in_dialogue: bool) -> void:
+	set_interaction_lock(&"dialogue", in_dialogue)
 	if in_dialogue:
 		_hide_overhead_bark()
 		velocity = Vector2.ZERO
@@ -905,5 +920,12 @@ func set_in_dialogue(in_dialogue: bool) -> void:
 				var direction := player.global_position - global_position
 				if not direction.is_zero_approx():
 					_update_facing(direction)
+
+func set_interaction_lock(reason: StringName, locked: bool) -> void:
+	if locked:
+		_interaction_locks[reason] = true
+		_hide_overhead_bark()
+		velocity = Vector2.ZERO
+		_stop_walking()
 	else:
-		_idle_remaining = 2.0
+		_interaction_locks.erase(reason)

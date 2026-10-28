@@ -1,6 +1,10 @@
 extends Control
 
 const SKIN := preload("res://scripts/ui/pixel_ui.gd")
+const STORY := preload("res://scripts/ship/first_watch_story.gd")
+signal cue_finished(request_token: String, cue_id: String, outcome: String, landing_id: String)
+var _cue_context := {}
+var _bootstrap_story
 
 const GAMEPLAY_SCENE := "res://scenes/ship/bare_ship_walkthrough.tscn"
 const TYPEWRITER_CHARACTERS_PER_SECOND := 38.0
@@ -99,6 +103,9 @@ var _finished := false
 
 
 func _ready() -> void:
+	_bootstrap_story = STORY.new()
+	if Engine.has_meta("ship_story_bootstrap"): _bootstrap_story.restore(Engine.get_meta("ship_story_bootstrap"))
+	_cue_context = _bootstrap_story.request_cue("cue.thura.earth_years", "existing_montage")
 	SKIN.apply(self)
 	_build_ui()
 	_show_frame(0)
@@ -340,11 +347,24 @@ func _enter_game() -> void:
 		return
 	_transitioning = true
 	await _fade_to_alpha(1.0, TRANSITION_SECONDS)
+	var outcome := "completed" if _finished else "skipped"
+	if _cue_context.get("embedded", false):
+		cue_finished.emit(str(_cue_context.request_token), "cue.thura.earth_years", outcome, "ship")
+		return
 	var result := get_tree().change_scene_to_file(GAMEPLAY_SCENE)
 	if result != OK:
+		_bootstrap_story.finish_cue("cue.thura.earth_years", str(_cue_context.get("request_token","")), "failed")
+		_cue_context = _bootstrap_story.request_cue("cue.thura.earth_years", "existing_montage")
 		push_error("Could not open the ship walkthrough: %s" % GAMEPLAY_SCENE)
 		_transitioning = false
 		await _fade_to_alpha(0.0, TRANSITION_SECONDS)
+	else:
+		_bootstrap_story.finish_cue("cue.thura.earth_years", str(_cue_context.get("request_token","")), outcome)
+		Engine.set_meta("ship_story_bootstrap", _bootstrap_story.snapshot())
+
+func play_cue(context: Dictionary) -> void:
+	_cue_context = context.duplicate(true)
+	_cue_context.embedded = true
 
 
 func _fade_to_alpha(alpha: float, duration: float) -> void:
