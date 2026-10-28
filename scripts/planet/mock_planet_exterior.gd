@@ -474,6 +474,7 @@ func _collect_ore_sample(site_id: StringName) -> void:
 			_walk_hud.unlock_equipment_item(&"emergency_flare", false, "Erebos Surface Milestone (2 Sites): Emergency Flare unlocked!")
 		if _sampled_sites.has(&"north_viridian_ore") and not _walk_hud.has_equipment_item(&"industrial_plasma_cutter"):
 			_walk_hud.unlock_equipment_item(&"industrial_plasma_cutter", true, "Erebos Drill Breach Milestone: Recovered Ruiz's Industrial Plasma Cutter!")
+			_walk_hud.play_radio_transmission("MATEO RUIZ // DISTORTED COMMS", "The rig... it tore into an open cavern! Shadows climbing the drill bit! Thura, take the plasma cutter! Don't let it reach the— [SIGNAL TERMINATED]")
 
 	_save_planet_state()
 	_feedback_text = "%s\nEREBOS SITE K-12  %d / %d COMPLETE" % [completion, _sampled_sites.size(), ORE_SITES.size()]

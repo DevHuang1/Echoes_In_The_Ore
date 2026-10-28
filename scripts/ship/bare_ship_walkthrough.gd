@@ -122,7 +122,7 @@ const AMARA_INTERACTION_RADIUS: float = 66.0
 const CREW_TASK_INTERACTION_RADIUS: float = 64.0
 const STORY_STATION_INTERACTION_RADIUS: float = 68.0
 
-# Both of Amara's Hydroponics crew jobs must be completed to earn the Medical Injector
+# Both of Amara's Hydroponics crew jobs must be completed to earn Astrobiology Research Telemetry
 const AMARA_CREW_TASKS: Array[Dictionary] = [
 	{
 		"id": &"amara_nutrient_pump",
@@ -137,7 +137,7 @@ const AMARA_CREW_TASKS: Array[Dictionary] = [
 	},
 	{
 		"id": &"amara_seedling_sensor",
-		"title": "Amara (2/2): Calibrate seedling sensor (Med Injector)",
+		"title": "Amara (2/2): Calibrate seedling sensor (Astrobiology Log)",
 		"marker_label": "SEEDLINGS",
 		"station_path": NodePath("HydroponicsRoomProps/SeedlingRack"),
 		"interaction_offset": Vector2(44.0, 0.0),
@@ -203,7 +203,7 @@ const STORY_STATIONS: Array[Dictionary] = [
 		"marker_offset": Vector2(0.0, -34.0),
 		"prompt": "DRILL CORE CONTAINMENT   /   [E] INSPECT MASS ANOMALY",
 		"reward_item": &"",
-		"log_id": &"log_core_telemetry",
+		"log_id": &"log_chen_debate",
 	},
 	{
 		"id": &"subdeck_lift_descent",
@@ -213,19 +213,19 @@ const STORY_STATIONS: Array[Dictionary] = [
 		"interaction_offset": Vector2(0.0, 0.0),
 		"marker_offset": Vector2(0.0, -26.0),
 		"prompt": "SUB-DECK CARGO LIFT   /   [E] DESCEND TO SECOND FLOOR",
-		"reward_item": &"electrical_discharge_tool",
+		"reward_item": &"",
 		"log_id": &"",
 	},
 	{
 		"id": &"commanders_secret_bridge",
-		"title": "Confront Chen on Bridge (Unlocks Revolver)",
-		"marker_label": "BRIDGE TABLE",
+		"title": "Quarantine Standoff & Chen's Revolver",
+		"marker_label": "CHEN / BRIDGE",
 		"station_path": NodePath("BridgeRoomProps/MissionPlanningTable"),
 		"interaction_offset": Vector2(28.0, 0.0),
 		"marker_offset": Vector2(0.0, -24.0),
-		"prompt": "MISSION PLANNING TABLE   /   [E] CONFRONT COMMANDER CHEN",
+		"prompt": "MISSION PLANNING TABLE   /   [E] TALK TO COMMANDER CHEN",
 		"reward_item": &"captains_revolver",
-		"log_id": &"log_chen_debate",
+		"log_id": &"log_chen_farewell",
 	},
 	{
 		"id": &"act_v_finale_home",
@@ -1085,12 +1085,14 @@ func _evaluate_equipment_story_milestones() -> String:
 
 	# Milestone 1 (2 Main Tasks: May's Recording + Bridge Ship Piloting): Suit Flashlight [F]
 	if total_main >= 2 and _completed_story_stations.has(&"bridge_flight_piloting") and not _walk_hud.has_equipment_item(&"suit_flashlight"):
-		_walk_hud.unlock_equipment_item(&"suit_flashlight", true, "Milestone 1 (2 Tasks Complete): Bridge & Habitation checks cleared — Suit Flashlight [F] issued!")
+		_walk_hud.unlock_equipment_item(&"suit_flashlight", true, "Milestone 1 (2 Tasks Complete): Bridge & Habitation cleared — Suit Flashlight [F] online!")
+		_walk_hud.play_radio_transmission("SHIP AUTOMATION // AUDIO SYSTEM", "Navigation alignment confirmed. Suit shoulder beam online. Press [F] anytime to toggle light.")
 		unlocked_notes.append("MILESTONE UNLOCKED: SUIT FLASHLIGHT [F]")
 
 	# Milestone 2 (4 Main Tasks including Aux Power + Air Filter): Engineering Multitool
 	if total_main >= 4 and _completed_room_tasks.has(&"auxiliary_power") and _completed_room_tasks.has(&"air_filter") and not _walk_hud.has_equipment_item(&"engineering_multitool"):
 		_walk_hud.unlock_equipment_item(&"engineering_multitool", true, "Milestone 2 (4 Tasks Complete): Power & Life Support restored — Engineering Multitool issued!")
+		_walk_hud.play_radio_transmission("ENGINEERING DECK // SYSTEM", "Auxiliary power synced and life support pressurized. Engineering Multitool dispensed to your kit.")
 		unlocked_notes.append("MILESTONE UNLOCKED: ENGINEERING MULTITOOL")
 
 	# Milestone 3 (6 Main Tasks including Nutrient Flow + Drone Scan): Pressure Sealant & Mineral Survey Scanner
@@ -1099,16 +1101,19 @@ func _evaluate_equipment_story_milestones() -> String:
 			_walk_hud.unlock_equipment_item(&"pressure_sealant", false, "Milestone 3 (6 Tasks Complete): Hydroponics & Drone Bay calibrated — Pressure Sealant issued!")
 		if not _walk_hud.has_equipment_item(&"mineral_survey_scanner"):
 			_walk_hud.unlock_equipment_item(&"mineral_survey_scanner", true, "Milestone 3 (6 Tasks Complete): 4-Pulse Erebos telemetry isolated — Mineral Survey Scanner issued!")
+			_walk_hud.play_radio_transmission("ASTEROID TELEMETRY // COMMS", "Hydroponics routed. 4-pulse deep acoustic signature isolated from Erebos. Survey Scanner & Sealant issued.")
 			unlocked_notes.append("MILESTONE UNLOCKED: SURVEY SCANNER & PRESSURE SEALANT")
 
 	# Milestone 4 (7+ Main Tasks including Shuttle Bay Prep): Survey Beacon
 	if total_main >= 7 and _completed_story_stations.has(&"landing_prep_beacons") and not _walk_hud.has_equipment_item(&"survey_beacon"):
 		_walk_hud.unlock_equipment_item(&"survey_beacon", true, "Milestone 4 (7 Tasks Complete): Pre-descent checklist complete — Survey Beacon issued!")
+		_walk_hud.play_radio_transmission("COMMANDER MAYA CHEN // BRIDGE COMMS", "Descent checklist verified, Thura. Survey Beacons are in your kit. Be careful down at Site K-12.")
 		unlocked_notes.append("MILESTONE UNLOCKED: SURVEY BEACON")
 
-	# Milestone 5 (Confront Commander Chen on Bridge after 8+ tasks): Captain's Revolver
+	# Milestone 5 (Confront Commander Chen on Bridge): Captain's Revolver
 	if _completed_story_stations.has(&"commanders_secret_bridge") and not _walk_hud.has_equipment_item(&"captains_revolver"):
-		_walk_hud.unlock_equipment_item(&"captains_revolver", true, "Act IV Bridge Confrontation: Commander Chen's Revolver unlocked!")
+		_walk_hud.unlock_equipment_item(&"captains_revolver", true, "Act IV Climax: Commander Chen surrendered his service revolver!")
+		_walk_hud.play_radio_transmission("COMMANDER MAYA CHEN // FINAL ORDER", "It's locked from this side, Thura. Protect the navigation helm... and don't listen to the voices. That is my final command.")
 		unlocked_notes.append("MILESTONE UNLOCKED: CAPTAIN'S REVOLVER")
 
 	return "\n".join(unlocked_notes)
@@ -1380,6 +1385,9 @@ func _refresh_room_task_prompt() -> void:
 	_active_room_task_id = &""
 	_active_crew_task_id = &""
 	_active_story_station_id = &""
+	_active_lab_device_id = &""
+	_active_lab_door_repair = false
+	_active_locked_lab_door = false
 	_active_amara_interaction = false
 	_active_airlock_exit = false
 	_active_subdeck_descent = false
@@ -1397,9 +1405,45 @@ func _refresh_room_task_prompt() -> void:
 		_active_subdeck_descent = true
 		_walk_hud.set_interaction_prompt("SUB-DECK CARGO LIFT   /   [E] DESCEND TO SECOND FLOOR", true)
 		return
-	if is_instance_valid(amara) and player.global_position.distance_to(amara.global_position) <= AMARA_INTERACTION_RADIUS:
+	if _lab_door_repair_required:
+		var workbench := get_node_or_null("MaintenanceWorkshop/RepairWorkbench") as Node2D
+		if workbench != null:
+			var wb_pos: Vector2 = workbench.global_position + Vector2(0.0, 40.0)
+			if player.global_position.distance_to(wb_pos) <= 68.0:
+				_active_lab_door_repair = true
+				_walk_hud.set_interaction_prompt("MAINTENANCE WORKBENCH   /   [E] REPAIR LAB ACCESS CONTROLLER", true)
+				return
+		for door in _lab_pressure_doors():
+			if player.global_position.distance_to(door.global_position) <= 54.0:
+				_active_locked_lab_door = true
+				_walk_hud.set_interaction_prompt("LAB PRESSURE DOOR   /   [E] DOOR SEALED (CHECK WORKBENCH)", true)
+				return
+	if is_instance_valid(amara) and amara.visible and not _is_lab_destroyed() and player.global_position.distance_to(amara.global_position) <= AMARA_INTERACTION_RADIUS:
 		_active_amara_interaction = true
 		_walk_hud.set_interaction_prompt("DR. AMARA OKOYE   /   [E] TALK", true)
+		return
+	var closest_lab: Dictionary = {}
+	var closest_lab_dist: float = 64.0
+	for device in LAB_DEVICES:
+		var st_node: Node2D = get_node_or_null(device["station_path"]) as Node2D
+		if st_node == null:
+			continue
+		var dev_pos: Vector2 = _room_task_interaction_position(device, st_node)
+		var d: float = minf(player.global_position.distance_to(dev_pos), player.global_position.distance_to(st_node.global_position))
+		if d <= closest_lab_dist:
+			closest_lab_dist = d
+			closest_lab = device
+	if not closest_lab.is_empty():
+		_active_lab_device_id = closest_lab["id"]
+		var prompt_text: String = str(closest_lab["prompt"])
+		if _is_lab_destroyed():
+			if closest_lab["id"] == &"lab_specimen" and not _walk_hud.has_equipment_item(&"electrical_discharge_tool"):
+				prompt_text = "HIGH-VOLTAGE ANALYSIS BENCH   /   [E] SALVAGE ELECTRICAL DISCHARGE TOOL"
+			elif closest_lab["id"] == &"lab_trolley" and not _walk_hud.has_equipment_item(&"medical_injector"):
+				prompt_text = "OVERTURNED MED-CART   /   [E] SALVAGE MEDICAL INJECTOR"
+			else:
+				prompt_text = "WRECKED LAB STATION   /   [E] INSPECT DAMAGE"
+		_walk_hud.set_interaction_prompt(prompt_text, true)
 		return
 	var closest_crew_task: Dictionary = {}
 	var closest_crew_distance: float = CREW_TASK_INTERACTION_RADIUS
@@ -1534,7 +1578,9 @@ func _begin_amara_dialogue() -> void:
 		lines.append("I'm Dr. Amara Okoye, astrobiologist. Test the resonance rig on Erebos. If it fails, come back and report to me before you continue.")
 	else:
 		lines.append("I'm analyzing the rig failure from here. Bring me a sample from the exposed seam when you return.")
-	_crew_dialogue.start_dialogue(lines, offer_tasks)
+	if is_instance_valid(amara) and is_instance_valid(player):
+		player.face_toward(amara.global_position)
+	_crew_dialogue.start_dialogue(lines, offer_tasks, {"npc": amara, "speaker": "DR. AMARA OKOYE / ASTROBIOLOGIST / HYDROPONICS"})
 
 
 func _on_amara_dialogue_finished(accepted_tasks: bool) -> void:
@@ -1562,8 +1608,8 @@ func _unlock_crew_tasks_on_hud(force: bool = false) -> void:
 			"id": task["id"],
 			"title": task["title"],
 			"marker_label": task["marker_label"],
-			"reward_item": &"medical_injector" if task["id"] == &"amara_seedling_sensor" else &"",
-			"is_equipment_task": task["id"] == &"amara_seedling_sensor",
+			"reward_item": &"",
+			"is_equipment_task": false,
 			"position": _crew_task_interaction_position(task, station),
 			"marker_position": _task_marker_position(station, m_off),
 		})
@@ -1601,11 +1647,9 @@ func _complete_crew_task(task_id: StringName) -> void:
 			break
 	_completed_crew_tasks[task_id] = true
 	_walk_hud.set_task_completed(task_id)
-	# Only unlock the Medical Injector after BOTH of Amara's hydroponics tasks are complete!
-	if _completed_crew_tasks.size() >= AMARA_CREW_TASKS.size() and not _walk_hud.has_equipment_item(&"medical_injector"):
-		_walk_hud.unlock_equipment_item(&"medical_injector", true, "Both Hydroponics checks completed — Dr. Okoye issued Medical Injector!")
-		completion = "Both Hydroponics checks complete! Dr. Okoye issued: Medical Injector."
-	_walk_hud.record_audio_log(&"log_okoye_fields")
+	if _completed_crew_tasks.size() >= AMARA_CREW_TASKS.size():
+		completion = "Both Hydroponics checks complete! Dr. Okoye logged: Astrobiology Culture Telemetry."
+		_walk_hud.record_audio_log(&"log_okoye_fields")
 	_save_persistent_story_state()
 	_room_task_feedback = "%s\nAMARA'S JOBS  %d / %d COMPLETE" % [completion, _completed_crew_tasks.size(), AMARA_CREW_TASKS.size()]
 	_room_task_feedback_timer = 4.5
@@ -1757,30 +1801,30 @@ func _build_cutscene_data(station_id: StringName) -> Dictionary:
 		&"commanders_secret_bridge":
 			_walk_hud.set_story_act_label("ACT V — HOME")
 			return {
-				"act": "ACT IV — CHAPTER 4: THE COMMANDER'S SECRET",
+				"act": "ACT IV — CHAPTER 4: THE TRAGIC SURRENDER",
 				"clock": "ASTERIA-1 // BRIDGE COMMAND DECK",
-				"title": "YOU GAVE IT TRANSPORTATION",
+				"title": "THE TRAGIC SURRENDER",
 				"echo_pulse": true,
 				"reward": {
 					"name": "Captain's Revolver",
-					"desc": "Milestone 5 Complete: Commander Chen's emergency sidearm unlocked in Quick Bar!",
+					"desc": "Commander Chen surrendered his service revolver before sealing himself in quarantine!",
 					"texture": load("res://art/tools/icons/captains_revolver.png"),
 				},
 				"slides": [
 					{
 						"speaker": "DR. THURA MIN & COMMANDER MAYA CHEN // BRIDGE",
-						"text": "Thura uncovers the encrypted pre-departure telemetry on the Bridge planning table: Commander Chen knew the sample container was gaining mass before leaving Erebos.\n\nTHURA: \"You knew something was inside it.\"\nCHEN: \"I knew the reading was wrong.\"\nTHURA: \"You knew enough.\"",
+						"text": "Thura finds Commander Chen clutching his temples against the bridge viewport. The acoustic frequency of Erebos hums through the metal deck. Chen's hands are trembling as he grips his standard-issue service revolver.\n\nCHEN: \"Thura... do you hear them? Ward... Ruiz... even May from the Yangon archives. They're not speaking over the radio. They're echoing inside my own skull.\"\nTHURA: \"Commander, holster the weapon. We have to seal the flight deck.\"",
 					},
 					{
-						"speaker": "COMMANDER MAYA CHEN // BRIDGE",
-						"text": "CHEN: \"Two people were already gone. I thought bringing back the sample might tell us why.\"\n\nTHURA: \"You did not bring back an explanation. You gave it transportation.\"",
+						"speaker": "COMMANDER MAYA CHEN // THE FINAL ORDER",
+						"text": "CHEN: \"The ore... it doesn't just mimic sound. It copies memory. It's rewriting what I remember... every voice I ever loved. Two people were already gone. I thought bringing back the sample might tell us why, but I only gave it transportation.\"\n\nChen looks down at his service sidearm with tears in his eyes. With shaking hands, he reverses the grip and presses the cold steel into Thura's palm.\n\nCHEN: \"Take it. It's the only kinetic firearm on Asteria-1. Don't let that thing reach Earth. If you have to burn the core... burn it. That is my final command as captain.\"",
 					},
 					{
-						"speaker": "EMERGENCY CONTAINMENT BREACH // CHOICE",
-						"text": "Chen rushes to separate the contaminated cargo module manually. Over the intercom, the Echo imitates Elias Ward's voice pleading for the hatch to stay open. Chen hesitates as a black reflective silhouette lunges from the overhead conduit!",
+						"speaker": "QUARANTINE SEAL // CRITICAL CHOICE",
+						"text": "Chen steps back toward the inner decontamination airlock, keying the emergency manual lockdown. Over the bridge speakers, May's voice begs Chen not to shut the door. Chen's eyes glaze over as the acoustic hum surges through the bulkhead!",
 						"choices": [
-							{"id": &"save_chen", "label": "Restore emergency locks immediately & pull Commander Chen clear"},
-							{"id": &"seal_bridge", "label": "Seal the inner bridge bulkhead before the Echo breaches helm"},
+							{"id": &"save_chen", "label": "Override quarantine protocol — tackle Chen away from the airlock before the door seals"},
+							{"id": &"seal_bridge", "label": "Honor Chen's final order — seal the decontamination lock to protect the Bridge and helm"},
 						],
 					},
 				],
@@ -1830,12 +1874,14 @@ func _on_story_cutscene_finished(cutscene_id: StringName, choice_id: StringName)
 		_room_task_feedback = "TASK 1/2 COMPLETE  //  HEAD TO BRIDGE FLIGHT HELM (R01) TO PILOT ASTERIA-1 & UNLOCK SUIT LIGHT"
 		_room_task_feedback_timer = 5.5
 	elif cutscene_id == &"commanders_secret_bridge":
+		_walk_hud.record_audio_log(&"log_chen_farewell")
+		_walk_hud.play_radio_transmission("COMMANDER MAYA CHEN // FINAL ORDER", "It's locked from this side, Thura. Protect the navigation helm... and don't listen to the voices.")
 		if choice_id == &"save_chen":
 			_chen_rescued = true
 			_room_task_feedback = "COMMANDER CHEN RESCUED  //  CAPTAIN'S REVOLVER UNLOCKED  //  PROCEED TO HELM FOR ACT V"
 		else:
 			_chen_rescued = false
-			_room_task_feedback = "BRIDGE SEALED  //  CAPTAIN'S REVOLVER UNLOCKED  //  PROCEED TO HELM FOR ACT V"
+			_room_task_feedback = "QUARANTINE SEALED  //  CAPTAIN'S REVOLVER UNLOCKED  //  PROCEED TO HELM FOR ACT V"
 		_room_task_feedback_timer = 5.0
 		_save_persistent_story_state()
 	elif cutscene_id == &"act_v_finale_home" and choice_id != &"":
@@ -1956,6 +2002,19 @@ func _open_lab_device_console(device_id: StringName) -> void:
 			player.face_toward(station.global_position)
 		break
 	if _is_lab_destroyed() or (_is_ore_villain_spawned() and device_id == &"lab_containment"):
+		if device_id == &"lab_specimen" and not _walk_hud.has_equipment_item(&"electrical_discharge_tool"):
+			_walk_hud.unlock_equipment_item(&"electrical_discharge_tool", true, "Lab Outbreak: Salvaged high-voltage arc tool from wrecked specimen bench!")
+			_walk_hud.record_audio_log(&"log_okoye_containment_breach")
+			_walk_hud.play_radio_transmission("DR. AMARA OKOYE // RECORDED DISTRESS", "Thura! The entity is fluidic! Kinetic rounds won't stop it—overload its matrix with the high-voltage arc tool from my bench! Hurry!")
+			_room_task_feedback = "SALVAGED ELECTRICAL DISCHARGE TOOL  //  HIGH-VOLTAGE STUN WEAPON READY"
+			_room_task_feedback_timer = 5.0
+			return
+		elif device_id == &"lab_trolley" and not _walk_hud.has_equipment_item(&"medical_injector"):
+			_walk_hud.unlock_equipment_item(&"medical_injector", true, "Lab Outbreak: Salvaged emergency medical injector from overturned cart!")
+			_walk_hud.play_radio_transmission("MED-BAY SYSTEM // ALERT", "Emergency neural stimulant and coagulant injector recovered. Use to restore vital stability during resonance attacks.")
+			_room_task_feedback = "SALVAGED MEDICAL INJECTOR  //  EMERGENCY FIELD HEALING READY"
+			_room_task_feedback_timer = 5.0
+			return
 		_room_task_feedback = "LAB STATION OFFLINE  //  DESTROYED BY THE ECHO"
 		_room_task_feedback_timer = 3.5
 		return
@@ -1989,10 +2048,16 @@ func _open_lab_device_console(device_id: StringName) -> void:
 func _is_lab_device_interactable(device_id: StringName) -> bool:
 	if _echo_lab_return_active and not _lab_entry_reveal_started:
 		return false
+	if _is_lab_destroyed():
+		if device_id == &"lab_specimen":
+			return not _walk_hud.has_equipment_item(&"electrical_discharge_tool")
+		if device_id == &"lab_trolley":
+			return not _walk_hud.has_equipment_item(&"medical_injector")
+		return false
 	if device_id == &"lab_earth_comms":
 		return true
 	if device_id == &"lab_containment":
 		return _is_ore_sample_stored() or (_is_ore_sample_collected() and not _is_ore_sample_stored())
-	return false
+	return true
 
 

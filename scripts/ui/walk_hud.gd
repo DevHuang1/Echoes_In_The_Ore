@@ -25,42 +25,52 @@ const EDGE_SOFT := Color(0.24, 0.39, 0.43)
 const ITEM_DATA := {
 	&"captains_revolver": {
 		"name": "Captain's Revolver", "short": "REVOLVER", "color": ORANGE, "equip_slot": &"tool",
+		"desc": "Lethal 12mm service sidearm surrendered by Commander Chen. Kinetic rounds are deadly against structural cores and bulkheads.",
 		"texture": preload("res://art/tools/captains_revolver.png"), "icon_region": Rect2(35.0, 292.0, 960.0, 880.0),
 	},
 	&"industrial_plasma_cutter": {
 		"name": "Industrial Plasma Cutter", "short": "PLASMA", "color": GOLD, "equip_slot": &"tool",
+		"desc": "High-temperature thermal cutting beam recovered from Ruiz's drill rig. Cuts dense mineral lattices and wards off shadow entities.",
 		"texture": preload("res://art/tools/industrial_plasma_cutter.png"), "icon_region": Rect2(95.0, 340.0, 840.0, 650.0),
 	},
 	&"suit_flashlight": {
 		"name": "Suit Flashlight", "short": "LIGHT", "color": PALE, "equip_slot": &"suit",
+		"desc": "Harness-mounted high-intensity LED beam. Press [F] to illuminate darkened ship compartments and subsurface caverns.",
 		"texture": preload("res://art/tools/suit_flashlight.png"), "icon_region": Rect2(65.0, 360.0, 900.0, 620.0),
 	},
 	&"mineral_survey_scanner": {
 		"name": "Mineral Survey Scanner", "short": "SCANNER", "color": CYAN, "equip_slot": &"tool",
+		"desc": "Sub-harmonic acoustic detector. Maps ore density and tracks the four-pulse resonance signatures.",
 		"texture": preload("res://art/tools/mineral_survey_scanner.png"), "icon_region": Rect2(90.0, 232.0, 850.0, 940.0),
 	},
 	&"engineering_multitool": {
 		"name": "Engineering Multitool", "short": "MULTI", "color": GOLD, "equip_slot": &"tool",
+		"desc": "Standard Asteria-1 maintenance instrument. Used to calibrate relays, sync power cells, and bypass circuitry.",
 		"texture": preload("res://art/tools/engineering_multitool.png"), "icon_region": Rect2(45.0, 335.0, 930.0, 790.0),
 	},
 	&"survey_beacon": {
 		"name": "Survey Beacon", "short": "BEACON", "color": GOLD, "equip_slot": &"tool",
+		"desc": "Deployable high-gain locator transponder. Marks navigation waypoints and deep-trench exploration drop sites.",
 		"texture": preload("res://art/tools/survey_beacon.png"), "icon_region": Rect2(100.0, 350.0, 830.0, 780.0),
 	},
 	&"emergency_flare": {
 		"name": "Emergency Flare", "short": "FLARE", "color": ORANGE, "equip_slot": &"tool",
+		"desc": "High-output magnesium flare. Ignites intensely to illuminate broad subterranean spaces and distract entities.",
 		"texture": preload("res://art/tools/emergency_flare.png"), "icon_region": Rect2(220.0, 225.0, 740.0, 940.0),
 	},
 	&"pressure_sealant": {
 		"name": "Pressure Sealant", "short": "SEALANT", "color": CYAN, "equip_slot": &"tool",
+		"desc": "Rapid-curing polymer foam injector. Seals microscopic hull fractures and coolant manifold leaks.",
 		"texture": preload("res://art/tools/pressure_sealant.png"), "icon_region": Rect2(150.0, 390.0, 740.0, 780.0),
 	},
 	&"medical_injector": {
 		"name": "Medical Injector", "short": "MEDICAL", "color": GREEN, "equip_slot": &"tool",
+		"desc": "Emergency adrenaline and coagulant auto-injector salvaged from Dr. Okoye's lab med-cart.",
 		"texture": preload("res://art/tools/medical_injector.png"), "icon_region": Rect2(180.0, 250.0, 760.0, 925.0),
 	},
 	&"electrical_discharge_tool": {
 		"name": "Electrical Discharge Tool", "short": "DISCHARGE", "color": CYAN, "equip_slot": &"tool",
+		"desc": "High-voltage arc capacitor tool salvaged from the wrecked specimen table. Stuns colloidal fluid entities.",
 		"texture": preload("res://art/tools/electrical_discharge_tool.png"), "icon_region": Rect2(100.0, 410.0, 860.0, 710.0),
 	},
 }
@@ -386,7 +396,13 @@ class InventoryCell extends PanelContainer:
 		_icon.texture = item_texture if has_item else null
 		_name.text = short_label if has_item else ("EMPTY" if slot_kind == &"equipment" else "")
 		_name.add_theme_color_override("font_color", icon_color if has_item else CELL_MUTED)
-		tooltip_text = item_id.replace("_", " ").capitalize() if has_item else "Empty slot"
+		if has_item and ITEM_DATA.has(item_id):
+			var it_def: Dictionary = ITEM_DATA[item_id]
+			tooltip_text = "%s\n%s" % [str(it_def["name"]).to_upper(), str(it_def.get("desc", ""))]
+		elif has_item:
+			tooltip_text = item_id.replace("_", " ").capitalize()
+		else:
+			tooltip_text = "Empty slot"
 
 	func _gui_input(event: InputEvent) -> void:
 		if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
@@ -587,6 +603,13 @@ var _profile_progress_bar: ProgressBar
 var _profile_stats_label: Label
 var _profile_achievements_list: VBoxContainer
 var _profile_filter_buttons: Dictionary = {}
+var _profile_view_tab: StringName = &"achievements"
+var _profile_tab_buttons: Dictionary = {}
+var _comms_panel: PanelContainer = null
+var _comms_speaker_label: Label = null
+var _comms_message_label: Label = null
+var _comms_status_label: Label = null
+var _comms_timer: float = 0.0
 var _inventory_ach_summary_label: Label
 var _inventory_ach_bar: ProgressBar
 var _hotbar_items: Array[StringName] = [
@@ -684,6 +707,73 @@ const ACHIEVEMENTS_CATALOG: Array[Dictionary] = [
 	{"id": &"act_v_finale_home", "title": "Earthward", "desc": "Execute final helm protocol"},
 ]
 
+const AUDIO_LOGS_CATALOG: Array[Dictionary] = [
+	{
+		"id": &"log_may_message",
+		"title": "Paper Star",
+		"speaker": "May (Yangon)",
+		"act": "ACT I — SHIP",
+		"location": "Cabin Bunk Terminal",
+		"transcript": "May's personal farewell message from the Yangon spaceport rooftop. She handed Thura a folded foil origami paper star before launch, asking if astronauts ever get afraid. 'Remember: space only has the meaning you bring with you.'",
+	},
+	{
+		"id": &"log_okoye_fields",
+		"title": "Acoustic Growth Anomalies",
+		"speaker": "Dr. Amara Okoye",
+		"act": "ACT I — SHIP",
+		"location": "Hydroponics Console",
+		"transcript": "Astrobiology log 04. Okoye notes anomalous micro-harmonic vibrations resonating through the greenhouse fluid tubes. The root growth angles are orienting toward Erebos ahead of orbital insertion.",
+	},
+	{
+		"id": &"log_ruiz_sponsors",
+		"title": "Drill Governor Overclock",
+		"speaker": "Mateo Ruiz",
+		"act": "ACT I — SHIP",
+		"location": "Drone Maintenance Rig",
+		"transcript": "Ruiz venting frustration regarding corporate budgets. 'Management cut the core rig cooling lines by 40%. If the rock is hard crystal, I'm bypassing the safety governor myself. We aren't returning without our quota.'",
+	},
+	{
+		"id": &"log_okoye_crystals",
+		"title": "Reflective Lattice Scan",
+		"speaker": "Dr. Amara Okoye",
+		"act": "ACT II — EREBOS",
+		"location": "Site K-12 Hollow Formations",
+		"transcript": "Field survey recording. The cyan crystal formations at Site K-12 lack normal mineral cleavage planes. Under spectrum analysis, they do not merely reflect sunlight—they vibrate, absorbing and modulating acoustic pulses.",
+	},
+	{
+		"id": &"log_ruiz_breach",
+		"title": "Cavity Breach Mayday",
+		"speaker": "Mateo Ruiz",
+		"act": "ACT II — EREBOS",
+		"location": "Main Subsurface Drill Breach",
+		"transcript": "[HEAVY STATIC] The drill broke through! There's an open cavern down here... black structures like ribs. Wait—the rig lost all power! Something black is moving up the drill column! It's not stone, it's alive! [SIGNAL TERMINATED]",
+	},
+	{
+		"id": &"log_okoye_containment_breach",
+		"title": "Colloidal Fluidic Entity",
+		"speaker": "Dr. Amara Okoye",
+		"act": "ACT III — LAB",
+		"location": "Wrecked Specimen Bench",
+		"transcript": "Emergency recording! The containment glass fractured! The organism isn't mineral—it's a living colloidal suspension that mimics sound and memory! Kinetic rounds pass through its fluid mass! Use the high-voltage arc tool from my bench to stun it! [ALARM KLAXONS]",
+	},
+	{
+		"id": &"log_chen_debate",
+		"title": "Classified Mass Telemetry",
+		"speaker": "Commander Maya Chen",
+		"act": "ACT IV — BRIDGE",
+		"location": "Mission Planning Table",
+		"transcript": "Confidential flight log. Commander Chen confirms the specimen container gained 4.2 kilograms during ascent from Erebos. 'I chose not to alert Dr. Min. We lost two crew members. I needed the sample to prove their deaths were not in vain.'",
+	},
+	{
+		"id": &"log_chen_farewell",
+		"title": "Captain's Final Command",
+		"speaker": "Commander Maya Chen",
+		"act": "ACT IV — BRIDGE",
+		"location": "Decontamination Airlock",
+		"transcript": "My hands won't stop shaking. The acoustic humming in the walls... it's speaking in May's voice, Ruiz's voice, my own voice. Thura, take my revolver. Don't let that thing reach Earth. I'm sealing this hatch from the inside. Protect the navigation core.",
+	},
+]
+
 
 func setup(player: ShipPlayer, task_entries: Array[Dictionary], map_world_origin: Vector2, map_world_size: Vector2) -> void:
 	_player = player
@@ -720,6 +810,10 @@ func _process(delta: float) -> void:
 		_unlock_toast_timer = maxf(_unlock_toast_timer - delta, 0.0)
 		if is_zero_approx(_unlock_toast_timer) and is_instance_valid(_unlock_toast_panel):
 			_unlock_toast_panel.visible = false
+	if _comms_timer > 0.0:
+		_comms_timer = maxf(_comms_timer - delta, 0.0)
+		if is_zero_approx(_comms_timer) and is_instance_valid(_comms_panel):
+			_comms_panel.visible = false
 	if _achievement_toast_timer > 0.0:
 		_achievement_toast_timer = maxf(_achievement_toast_timer - delta, 0.0)
 		if is_zero_approx(_achievement_toast_timer):
@@ -751,6 +845,7 @@ func _build_ui() -> void:
 	_build_top_controls()
 	_build_dev_menu_panel()
 	_build_unlock_toast()
+	_build_comms_transmission_panel()
 	_build_context_prompt()
 	_build_hotbar()
 	_build_mobile_touch_controls()
@@ -973,6 +1068,48 @@ func _build_unlock_toast() -> void:
 	ach_vbox.add_child(_achievement_toast_badge)
 	ach_vbox.add_child(_achievement_toast_title)
 	ach_hbox.add_child(ach_vbox)
+
+
+func _build_comms_transmission_panel() -> void:
+	_comms_panel = PanelContainer.new()
+	_comms_panel.name = "CommsTransmissionPanel"
+	_comms_panel.anchor_left = 1.0
+	_comms_panel.anchor_right = 1.0
+	_comms_panel.anchor_top = 0.0
+	_comms_panel.anchor_bottom = 0.0
+	_comms_panel.offset_left = -440.0
+	_comms_panel.offset_right = -16.0
+	_comms_panel.offset_top = 172.0
+	_comms_panel.offset_bottom = 276.0
+	_comms_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_comms_panel.visible = false
+	_comms_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.012, 0.032, 0.048, 0.96), Color(0.24, 0.85, 0.72, 0.8), 8.0))
+	_root.add_child(_comms_panel)
+
+	var stack := VBoxContainer.new()
+	stack.add_theme_constant_override("separation", 4)
+	stack.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_comms_panel.add_child(stack)
+
+	var top_row := HBoxContainer.new()
+	top_row.add_theme_constant_override("separation", 6)
+	top_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	stack.add_child(top_row)
+
+	_comms_status_label = _label("[● STATIC INTERCOM]", 8, ORANGE)
+	top_row.add_child(_comms_status_label)
+	top_row.add_spacer(false)
+	_comms_speaker_label = _label("// TRANSMISSION", 9, GOLD)
+	top_row.add_child(_comms_speaker_label)
+
+	var sep := HSeparator.new()
+	sep.modulate = Color(0.3, 0.6, 0.6, 0.3)
+	stack.add_child(sep)
+
+	_comms_message_label = _label("", 9, PALE)
+	_comms_message_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_comms_message_label.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	stack.add_child(_comms_message_label)
 
 
 func _build_top_controls() -> void:
@@ -1338,7 +1475,22 @@ func _create_profile_overlay() -> void:
 
 	var top_bar := HBoxContainer.new()
 	top_bar.add_theme_constant_override("separation", 6)
-	top_bar.add_child(_label("ACHIEVEMENTS", 12, MUTED))
+	var tab_ach := _flat_filter_button("ACHIEVEMENTS")
+	tab_ach.pressed.connect(func():
+		_profile_view_tab = &"achievements"
+		_refresh_profile_overlay()
+	)
+	top_bar.add_child(tab_ach)
+	_profile_tab_buttons[&"achievements"] = tab_ach
+
+	var tab_logs := _flat_filter_button("AUDIO LOGS & DOSSIERS")
+	tab_logs.pressed.connect(func():
+		_profile_view_tab = &"logs"
+		_refresh_profile_overlay()
+	)
+	top_bar.add_child(tab_logs)
+	_profile_tab_buttons[&"logs"] = tab_logs
+
 	top_bar.add_spacer(false)
 	for filter_def in [["ALL", &"all"], ["UNLOCKED", &"unlocked"], ["LOCKED", &"locked"]]:
 		var f_label: String = filter_def[0]
@@ -2477,8 +2629,39 @@ func record_audio_log(log_id: StringName, _log_title: String = "") -> bool:
 		return false
 	_collected_logs[log_id] = true
 	_refresh_story_act_label()
+	_refresh_profile_overlay()
 	_save_persistent_inventory_state()
+	var def: Dictionary = get_audio_log_def(log_id)
+	if not def.is_empty():
+		var spk: String = str(def.get("speaker", "AUDIO INTERCEPT"))
+		var title_str: String = str(def.get("title", "DATAPAD")).to_upper()
+		var txt: String = str(def.get("transcript", ""))
+		play_radio_transmission(spk, "[DECRYPTED // %s]\n\"%s\"" % [title_str, txt])
 	return true
+
+
+func get_audio_log_def(log_id: StringName) -> Dictionary:
+	for def in AUDIO_LOGS_CATALOG:
+		if def["id"] == log_id:
+			return def
+	return {}
+
+
+func play_radio_transmission(speaker: String, text: String, is_static: bool = true) -> void:
+	if not is_instance_valid(_comms_panel):
+		return
+	if is_instance_valid(_comms_speaker_label):
+		_comms_speaker_label.text = ("// " + speaker).to_upper()
+	if is_instance_valid(_comms_status_label):
+		_comms_status_label.text = "[● STATIC INTERCOM]" if is_static else "[● SECURE LINK]"
+		_comms_status_label.add_theme_color_override("font_color", ORANGE if is_static else CYAN)
+	if is_instance_valid(_comms_message_label):
+		_comms_message_label.text = text
+	_comms_panel.visible = true
+	_comms_timer = 5.8
+	_comms_panel.modulate = Color(1.0, 1.0, 1.0, 0.0)
+	var tw := create_tween()
+	tw.tween_property(_comms_panel, "modulate:a", 1.0, 0.22).set_trans(Tween.TRANS_SINE)
 
 
 func set_story_act_label(act_label: String) -> void:
@@ -2643,43 +2826,98 @@ func _display_achievement_toast_now(title_text: String, _subtitle_text: String, 
 
 
 func _refresh_profile_overlay() -> void:
-	var total_count: int = ACHIEVEMENTS_CATALOG.size()
-	var unlocked_count: int = 0
-	for def in ACHIEVEMENTS_CATALOG:
-		if _unlocked_achievements.has(def["id"]):
-			unlocked_count += 1
+	for tid in _profile_tab_buttons:
+		var tb: Button = _profile_tab_buttons[tid] as Button
+		if is_instance_valid(tb):
+			var is_active: bool = (tid == _profile_view_tab)
+			tb.add_theme_color_override("font_color", GOLD if is_active else MUTED)
 
-	if is_instance_valid(_profile_score_label):
-		_profile_score_label.text = "%d / %d UNLOCKED" % [unlocked_count, total_count]
-	if is_instance_valid(_profile_progress_bar):
-		_profile_progress_bar.max_value = maxi(total_count, 1)
-		_profile_progress_bar.value = unlocked_count
-
-	for f_id in _profile_filter_buttons:
-		var btn: Button = _profile_filter_buttons[f_id] as Button
-		if is_instance_valid(btn):
-			var active: bool = (f_id == _achievement_filter)
-			btn.add_theme_color_override("font_color", GOLD if active else MUTED)
+	for fid in _profile_filter_buttons:
+		var fb: Button = _profile_filter_buttons[fid] as Button
+		if is_instance_valid(fb):
+			fb.visible = (_profile_view_tab == &"achievements")
+			var is_active: bool = (fid == _achievement_filter)
+			fb.add_theme_color_override("font_color", CYAN if is_active else MUTED)
 
 	if not is_instance_valid(_profile_achievements_list):
 		return
 	for child in _profile_achievements_list.get_children():
 		child.queue_free()
 
-	var shown_count: int = 0
-	for def in ACHIEVEMENTS_CATALOG:
-		var aid: StringName = def["id"]
-		var is_unlocked: bool = _unlocked_achievements.has(aid)
-		if _achievement_filter == &"unlocked" and not is_unlocked:
-			continue
-		if _achievement_filter == &"locked" and is_unlocked:
-			continue
-		shown_count += 1
-		_profile_achievements_list.add_child(_build_achievement_card(def, is_unlocked))
+	if _profile_view_tab == &"achievements":
+		var total_count: int = ACHIEVEMENTS_CATALOG.size()
+		var unlocked_count: int = 0
+		for def in ACHIEVEMENTS_CATALOG:
+			if _unlocked_achievements.has(def["id"]):
+				unlocked_count += 1
+		if is_instance_valid(_profile_score_label):
+			_profile_score_label.text = "%d / %d ACHIEVEMENTS" % [unlocked_count, total_count]
+		if is_instance_valid(_profile_progress_bar):
+			_profile_progress_bar.max_value = maxi(total_count, 1)
+			_profile_progress_bar.value = unlocked_count
 
-	if shown_count == 0:
-		var empty_lbl := _label("None yet.", 10, MUTED)
-		_profile_achievements_list.add_child(empty_lbl)
+		var shown_count: int = 0
+		for def in ACHIEVEMENTS_CATALOG:
+			var aid: StringName = def["id"]
+			var is_unlocked: bool = _unlocked_achievements.has(aid)
+			if _achievement_filter == &"unlocked" and not is_unlocked:
+				continue
+			if _achievement_filter == &"locked" and is_unlocked:
+				continue
+			shown_count += 1
+			_profile_achievements_list.add_child(_build_achievement_card(def, is_unlocked))
+		if shown_count == 0:
+			_profile_achievements_list.add_child(_label("None yet.", 10, MUTED))
+	else:
+		var total_logs: int = AUDIO_LOGS_CATALOG.size()
+		var unlocked_logs: int = 0
+		for log_def in AUDIO_LOGS_CATALOG:
+			if _collected_logs.has(log_def["id"]):
+				unlocked_logs += 1
+		if is_instance_valid(_profile_score_label):
+			_profile_score_label.text = "%d / %d LOGS DECRYPTED" % [unlocked_logs, total_logs]
+		if is_instance_valid(_profile_progress_bar):
+			_profile_progress_bar.max_value = maxi(total_logs, 1)
+			_profile_progress_bar.value = unlocked_logs
+
+		for log_def in AUDIO_LOGS_CATALOG:
+			var lid: StringName = log_def["id"]
+			var is_unlocked: bool = _collected_logs.has(lid)
+			_profile_achievements_list.add_child(_build_audio_log_card(log_def, is_unlocked))
+
+
+func _build_audio_log_card(log_def: Dictionary, is_unlocked: bool) -> Control:
+	var row_bg: Color = Color(0.04, 0.07, 0.09, 0.88) if is_unlocked else Color(0.018, 0.03, 0.042, 0.5)
+	var row_border: Color = Color(0.24, 0.95, 0.54, 0.55) if is_unlocked else Color(0.18, 0.26, 0.3, 0.35)
+	var card := PanelContainer.new()
+	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	card.add_theme_stylebox_override("panel", _flat_box(row_bg, row_border, 8.0, 10.0, 1))
+
+	var stack := VBoxContainer.new()
+	stack.add_theme_constant_override("separation", 3)
+	card.add_child(stack)
+
+	var hdr_row := HBoxContainer.new()
+	hdr_row.add_theme_constant_override("separation", 8)
+	stack.add_child(hdr_row)
+
+	var act_tag := _label("[%s // %s]" % [str(log_def.get("act", "ACT")), str(log_def.get("location", "DECK"))], 8, CYAN if is_unlocked else MUTED)
+	hdr_row.add_child(act_tag)
+	hdr_row.add_spacer(false)
+	var status_tag := _label("[● DECRYPTED]" if is_unlocked else "[LOCKED FILE]", 8, GREEN if is_unlocked else Color(0.85, 0.45, 0.35))
+	hdr_row.add_child(status_tag)
+
+	var title_text: String = str(log_def.get("title", "Audio Log"))
+	var speaker_text: String = str(log_def.get("speaker", "Unknown"))
+	var title_lbl := _label("%s  //  %s" % [title_text.to_upper(), speaker_text], 10, GOLD if is_unlocked else MUTED)
+	stack.add_child(title_lbl)
+
+	var body_text: String = str(log_def.get("transcript", "")) if is_unlocked else "[Encrypted audio datapad. Discover this station in Asteria-1 or Erebos to decrypt recording.]"
+	var body_lbl := _label(body_text, 9, PALE if is_unlocked else MUTED)
+	body_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	stack.add_child(body_lbl)
+
+	return card
 
 
 func _build_achievement_card(def: Dictionary, is_unlocked: bool) -> Control:

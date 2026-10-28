@@ -693,10 +693,13 @@ func _story_speak(id: String, speaker: String, lines: Array[String], choices: Ar
 	if bool(get("_task_console_open")): return false
 	set("_crew_dialogue_open", true)
 	var npc := get_node_or_null("AmaraOkoye")
-	if id.begins_with("amara.") and npc != null: npc.set_in_dialogue(true)
+	if id.begins_with("amara.") and npc != null:
+		npc.set_in_dialogue(true)
+		if is_instance_valid(_ship_player):
+			_ship_player.face_toward(npc.global_position)
 	_ship_player.sprite.stop()
 	_ship_hud.set_interaction_prompt("", false); call("_update_player_walk_state")
-	get("_crew_dialogue").start_dialogue(lines, false, {"id": id, "speaker": speaker, "choices": choices})
+	get("_crew_dialogue").start_dialogue(lines, false, {"id": id, "speaker": speaker, "choices": choices, "npc": npc if id.begins_with("amara.") else null})
 	return true
 
 func _story_assignment() -> void:
