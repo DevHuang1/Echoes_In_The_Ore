@@ -330,14 +330,10 @@ position = Vector2(410, 155)
 scale = Vector2(0.043, 0.043)
 
 [node name="Sprite" type="Sprite2D" parent="StorageCabinetRightView" unique_id=1522971010]
-position = Vector2(-7441.8594, -1766.988)
-scale = Vector2(1, 1.0007235)
 texture = ExtResource("30_manual_cabinet")
 
 [node name="Collision" type="StaticBody2D" parent="StorageCabinetRightView" unique_id=1635742186]
-position = Vector2(465.11624, 883.7209)
 collision_mask = 0
 
 [node name="Footprint" type="CollisionPolygon2D" parent="StorageCabinetRightView/Collision" unique_id=894729976]
-position = Vector2(-7860.4653, -3000)
-polygon = PackedVector2Array(-395.3496, 744.1865, -372.09375, 0, 348.83594, -93.02344, 395.34766, 581.3955)
+polygon = PackedVector2Array(-400, -380, 340, -380, 430, -40, 330, 470, -330, 470, -430, -40)

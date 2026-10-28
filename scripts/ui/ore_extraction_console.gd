@@ -2,6 +2,7 @@ class_name OreExtractionConsole
 extends CanvasLayer
 
 signal extraction_completed(site_id: StringName)
+signal machine_test_failed(site_id: StringName)
 signal modal_state_changed(is_open: bool)
 
 const PIXEL_THEME := preload("res://themes/ship_pixel_theme.tres")
@@ -9,6 +10,7 @@ const PALE := Color(0.94, 0.91, 0.82)
 const MUTED := Color(0.63, 0.72, 0.75)
 const CYAN := Color(0.45, 0.77, 0.82)
 const GREEN := Color(0.55, 0.84, 0.67)
+const ORANGE := Color(0.96, 0.56, 0.24)
 const PANEL := Color(0.025, 0.052, 0.068, 0.98)
 const DRILL_DURATION := 5.0
 
@@ -20,10 +22,12 @@ var _status_label: Label
 var _progress_bar: ProgressBar
 var _drill_button: Button
 var _close_button: Button
+var _test_only := false
 
 
 func open(site: Dictionary) -> void:
 	_site = site.duplicate(true)
+	_test_only = bool(_site.get("test_only", false))
 	layer = 20
 	_build_interface()
 	modal_state_changed.emit(true)
@@ -35,10 +39,19 @@ func _process(delta: float) -> void:
 	_elapsed = minf(_elapsed + delta, DRILL_DURATION)
 	var percent := int(roundf(_elapsed / DRILL_DURATION * 100.0))
 	_progress_bar.value = percent
-	_status_label.text = "CORE EXTRACTION IN PROGRESS  /  %d%%" % percent
+	var progress_label := "MACHINE TEST IN PROGRESS  /  " if _test_only else "CORE EXTRACTION IN PROGRESS  /  "
+	_status_label.text = "%s%d%%" % [progress_label, percent]
 	if _elapsed >= DRILL_DURATION:
 		_is_drilling = false
 		_completed = true
+		if _test_only:
+			_status_label.text = "TEST FAILED  /  BORE MOTOR WILL NOT IGNITE"
+			_status_label.add_theme_color_override("font_color", ORANGE)
+			_drill_button.text = "TEST FAILED"
+			_drill_button.disabled = true
+			_close_button.text = "CLOSE REPORT"
+			machine_test_failed.emit(StringName(_site.get("id", &"")))
+			return
 		_status_label.text = "CORE SAMPLE SECURED  /  READY FOR RETURN"
 		_status_label.add_theme_color_override("font_color", GREEN)
 		_drill_button.text = "SAMPLE SECURED"
@@ -95,7 +108,7 @@ func _build_interface() -> void:
 	column.add_child(header)
 	var title := Label.new()
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	title.text = "EXTRACTION CONTROL  /  %s" % str(_site.get("machine", "MINING RIG")).to_upper()
+	title.text = ("MACHINE TEST  /  " if _test_only else "EXTRACTION CONTROL  /  ") + str(_site.get("machine", "MINING RIG")).to_upper()
 	title.add_theme_font_size_override("font_size", 19)
 	title.add_theme_color_override("font_color", PALE)
 	header.add_child(title)
@@ -111,7 +124,7 @@ func _build_interface() -> void:
 	column.add_child(rule)
 
 	var descriptor := Label.new()
-	descriptor.text = "REMOTE DRILL TERMINAL  /  EREBOS SURVEY ZONE"
+	descriptor.text = "FIELD DIAGNOSTIC  /  EREBOS SURVEY ZONE" if _test_only else "REMOTE DRILL TERMINAL  /  EREBOS SURVEY ZONE"
 	descriptor.add_theme_font_size_override("font_size", 11)
 	descriptor.add_theme_color_override("font_color", MUTED)
 	column.add_child(descriptor)
@@ -130,7 +143,7 @@ func _build_interface() -> void:
 	spacer.custom_minimum_size = Vector2(0.0, 2.0)
 	column.add_child(spacer)
 	var status_title := Label.new()
-	status_title.text = "EXTRACTION STATUS"
+	status_title.text = "MACHINE TEST STATUS" if _test_only else "EXTRACTION STATUS"
 	status_title.add_theme_font_size_override("font_size", 11)
 	status_title.add_theme_color_override("font_color", MUTED)
 	column.add_child(status_title)
@@ -148,7 +161,7 @@ func _build_interface() -> void:
 	_progress_bar.add_theme_stylebox_override("fill", progress_fill)
 	column.add_child(_progress_bar)
 	_status_label = Label.new()
-	_status_label.text = "RIG STANDBY  /  CORE SAMPLE AVAILABLE"
+	_status_label.text = "RIG STANDBY  /  RUN DIAGNOSTIC" if _test_only else "RIG STANDBY  /  CORE SAMPLE AVAILABLE"
 	_status_label.add_theme_font_size_override("font_size", 12)
 	_status_label.add_theme_color_override("font_color", PALE)
 	column.add_child(_status_label)
@@ -158,7 +171,7 @@ func _build_interface() -> void:
 	controls.add_theme_constant_override("separation", 12)
 	column.add_child(controls)
 	_drill_button = Button.new()
-	_drill_button.text = "START EXTRACTION"
+	_drill_button.text = "RUN MACHINE TEST" if _test_only else "START EXTRACTION"
 	_drill_button.custom_minimum_size = Vector2(220.0, 46.0)
 	_drill_button.pressed.connect(_start_extraction)
 	controls.add_child(_drill_button)
@@ -188,15 +201,15 @@ func _start_extraction() -> void:
 	_elapsed = 0.0
 	_is_drilling = true
 	_drill_button.disabled = true
-	_close_button.text = "ABORT DRILL"
-	_status_label.text = "DRILLING INTO THE MINERAL SEAM  /  0%"
+	_close_button.text = "ABORT TEST" if _test_only else "ABORT DRILL"
+	_status_label.text = "TESTING THE CORE DRILL  /  0%" if _test_only else "DRILLING INTO THE MINERAL SEAM  /  0%"
 	_status_label.add_theme_color_override("font_color", CYAN)
 
 
 func _close_console() -> void:
 	if _is_drilling:
 		_is_drilling = false
-		_status_label.text = "EXTRACTION ABORTED  /  SAMPLE NOT COLLECTED"
+		_status_label.text = "TEST ABORTED  /  NO DIAGNOSTIC RESULT" if _test_only else "EXTRACTION ABORTED  /  SAMPLE NOT COLLECTED"
 		_drill_button.disabled = false
 		_drill_button.text = "RESTART EXTRACTION"
 		_close_button.text = "CLOSE CONSOLE"

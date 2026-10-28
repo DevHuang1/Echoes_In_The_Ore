@@ -16,6 +16,9 @@ const SUBDECK_LIFT_FLOOR_POS: Vector2 = Vector2(862.0, 321.0)
 const SUBDECK_RETURN_FLOOR_POS: Vector2 = Vector2(862.0, 350.0)
 const SUBDECK_LIFT_INTERACTION_RADIUS: float = 58.0
 const STORY_STATE_META_KEY: StringName = &"echoes_story_progression_state"
+const LAB_DOOR_REPAIR_TASK_ID := &"repair_lab_pressure_door"
+const LAB_ENTRY_TASK_ID := &"investigate_echo_lab"
+const RIG_REPORT_TASK_ID := &"report_failed_rig"
 
 # Strengthened multi-task storyline: individual tasks advance the story & ship systems,
 # and equipment is earned only after completing multi-task storyline milestones!
@@ -227,6 +230,12 @@ var _active_airlock_exit: bool = false
 var _active_subdeck_descent: bool = false
 var _transitioning_to_planet: bool = false
 var _subdeck_return_grace_timer: float = 0.0
+var _echo_lab_return_active: bool = false
+var _lab_door_repair_required: bool = false
+var _active_lab_door_repair: bool = false
+var _active_locked_lab_door: bool = false
+var _lab_door_repairing: bool = false
+var _lab_entry_reveal_started: bool = false
 var _chen_rescued: bool = false
 var _leila_rescued: bool = false
 var _tutorial_step: int = 1
@@ -241,6 +250,87 @@ func _load_sprite_png(sprite: Sprite2D, res_path: String) -> void:
 	var img: Image = Image.load_from_file(ProjectSettings.globalize_path(res_path))
 	if img != null and not img.is_empty():
 		sprite.texture = ImageTexture.create_from_image(img)
+
+
+func _has_heard_ore_echo() -> bool:
+	return Engine.has_meta(&"resonance_echo_heard") and bool(Engine.get_meta(&"resonance_echo_heard"))
+
+
+func _is_rig_test_failed() -> bool:
+	return Engine.has_meta(&"erebos_rig_test_failed") and bool(Engine.get_meta(&"erebos_rig_test_failed"))
+
+
+func _is_rig_failure_reported() -> bool:
+	return Engine.has_meta(&"erebos_rig_failure_reported") and bool(Engine.get_meta(&"erebos_rig_failure_reported"))
+
+
+func _has_repaired_lab_door() -> bool:
+	return Engine.has_meta(&"resonance_lab_door_repaired") and bool(Engine.get_meta(&"resonance_lab_door_repaired"))
+
+
+func _lab_pressure_door() -> ShipPressureDoor:
+	return get_node_or_null("ShipDoors/CentralBayNorthEntry") as ShipPressureDoor
+
+
+func _lab_pressure_doors() -> Array[ShipPressureDoor]:
+	var doors: Array[ShipPressureDoor] = []
+	for door_path in [
+		"ShipDoors/CentralBayNorthEntry",
+		"ShipDoors/LowerDeckCenterEntry",
+		"ShipDoors/LowerDeckCenterEntry2",
+		"ShipDoors/LowerDeckCenterEntry3",
+	]:
+		var door := get_node_or_null(door_path) as ShipPressureDoor
+		if door != null:
+			doors.append(door)
+	return doors
+
+
+func _set_lab_doors_locked(locked: bool) -> void:
+	for door in _lab_pressure_doors():
+		door.set_locked(locked)
+
+
+func _lab_door_repair_task_entry() -> Dictionary:
+	var workbench := get_node_or_null("MaintenanceWorkshop/RepairWorkbench") as Node2D
+	var marker_position := Vector2(732.0, 606.0)
+	var interaction_position := Vector2(732.0, 651.0)
+	if workbench != null:
+		interaction_position = workbench.global_position + Vector2(0.0, 40.0)
+		marker_position = workbench.global_position + Vector2(0.0, -42.0)
+	return {
+		"id": LAB_DOOR_REPAIR_TASK_ID,
+		"title": "Restore all sealed laboratory doors",
+		"marker_label": "LAB ACCESS REPAIR",
+		"position": interaction_position,
+		"marker_position": marker_position,
+	}
+
+
+func _lab_entry_task_entry() -> Dictionary:
+	var door := _lab_pressure_door()
+	var door_position := door.global_position if door != null else Vector2(686.0, 435.0)
+	return {
+		"id": LAB_ENTRY_TASK_ID,
+		"title": "Enter the lab and investigate the echo",
+		"marker_label": "LAB ACCESS",
+		"position": door_position + Vector2(0.0, 48.0),
+		"marker_position": door_position + Vector2(0.0, -34.0),
+	}
+
+
+func _rig_report_task_entry() -> Dictionary:
+	var amara_node: Node2D = get_node_or_null("AmaraOkoye") as Node2D
+	var amara_pos := amara_node.global_position if is_instance_valid(amara_node) else Vector2(250.0, 700.0)
+	var marker_position := amara_pos + Vector2(0.0, -48.0)
+	var interaction_position := amara_pos + Vector2(0.0, 38.0)
+	return {
+		"id": RIG_REPORT_TASK_ID,
+		"title": "Report the failed extraction rig to Dr. Okoye",
+		"marker_label": "REPORT TO AMARA",
+		"position": interaction_position,
+		"marker_position": marker_position,
+	}
 
 
 func _ready() -> void:
@@ -304,8 +394,16 @@ func _ready() -> void:
 			"position": interaction_pos,
 			"marker_position": _task_marker_position(station_node, m_off),
 		})
+	if _lab_door_repair_required:
+		hud_task_entries.append(_lab_door_repair_task_entry())
+	elif _echo_lab_return_active:
+		hud_task_entries.append(_lab_entry_task_entry())
+	if returning_from_planet and _is_rig_test_failed() and not _is_rig_failure_reported():
+		hud_task_entries.append(_rig_report_task_entry())
 	_walk_hud = WALK_HUD_SCENE.instantiate() as WalkHud
 	_walk_hud.setup(player, hud_task_entries, floor_layer.global_position, FLOOR_TEXTURE.get_size())
+	if _echo_lab_return_active and not _lab_door_repair_required:
+		_walk_hud.set_task_completed(LAB_DOOR_REPAIR_TASK_ID)
 	_walk_hud.modal_state_changed.connect(_on_hud_modal_state_changed)
 	add_child(_walk_hud)
 
@@ -346,6 +444,12 @@ func _ready() -> void:
 		_walk_hud.set_walking_visible(true)
 		_room_task_feedback = "CARGO LIFT CYCLE COMPLETE  //  MAIN DECK (LEVEL 01)"
 		_room_task_feedback_timer = 3.5
+		if _echo_lab_return_active:
+			_room_task_feedback = ""
+			_room_task_feedback_timer = 0.0
+		elif _is_rig_test_failed() and not _is_rig_failure_reported():
+			_room_task_feedback = "RIG TEST FAILED  //  REPORT TO DR. OKOYE"
+			_room_task_feedback_timer = 6.0
 		_update_player_walk_state()
 	elif briefing_already_shown:
 		_arrival_briefing_open = false
@@ -469,6 +573,28 @@ func _process(delta: float) -> void:
 				return
 
 	_refresh_room_task_prompt()
+
+
+func _update_echo_lab_entry() -> void:
+	if not _echo_lab_return_active or _lab_door_repair_required or _lab_entry_reveal_started or _lab_door_repairing:
+		return
+	for door in _lab_pressure_doors():
+		var player_in_door_space := door.to_local(player.global_position)
+		var lab_room := get_node_or_null("LabRoom") as Node2D
+		if lab_room == null:
+			return
+		var threshold := door.wall_depth * 0.5 + 24.0
+		var is_bottom_entry := door.global_position.y > lab_room.to_global(Vector2(0.0, 150.0)).y
+		var crossed_into_lab := player_in_door_space.y > threshold
+		if is_bottom_entry:
+			crossed_into_lab = player_in_door_space.y < -threshold
+		if not crossed_into_lab or absf(player_in_door_space.x) > door.opening_width * 0.5 + 22.0:
+			continue
+		_lab_entry_reveal_started = true
+		Engine.set_meta(&"resonance_lab_entered_after_echo", true)
+		_walk_hud.set_task_completed(LAB_ENTRY_TASK_ID)
+		_echo_lab_return_active = false
+		return
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -605,6 +731,42 @@ func _on_room_task_completed(task_id: StringName) -> void:
 	if not milestone_note.is_empty():
 		_room_task_feedback += "\n" + milestone_note
 	_pending_room_task_feedback = _room_task_feedback
+
+
+func _repair_lab_pressure_door() -> void:
+	if not _lab_door_repair_required or _lab_door_repairing:
+		return
+	var door := _lab_pressure_door()
+	if door == null:
+		_room_task_feedback = "LAB DOOR CONTROLLER NOT FOUND  //  CHECK THE SHIP MAP"
+		_room_task_feedback_timer = 4.0
+		return
+	_lab_door_repairing = true
+	player.set_physics_process(false)
+	player.face_toward(door.global_position)
+	var workbench := get_node_or_null("MaintenanceWorkshop/RepairWorkbench") as CanvasItem
+	if workbench != null:
+		var sparks := create_tween()
+		sparks.set_loops(4)
+		sparks.tween_property(workbench, "modulate", Color(1.0, 0.69, 0.32), 0.18)
+		sparks.tween_property(workbench, "modulate", Color.WHITE, 0.18)
+	for phase in ["ISOLATING THE DAMAGED LAB INTERLOCK...", "BYPASSING THE JAMMED PRESSURE SEAL...", "RESTORING THE DOOR ACTUATOR..."]:
+		_walk_hud.set_interaction_prompt(str(phase), true)
+		await get_tree().create_timer(0.72).timeout
+		if not is_inside_tree():
+			return
+	if workbench != null:
+		workbench.modulate = Color.WHITE
+	_set_lab_doors_locked(false)
+	Engine.set_meta(&"resonance_lab_door_repaired", true)
+	_lab_door_repair_required = false
+	_lab_door_repairing = false
+	_walk_hud.set_task_completed(LAB_DOOR_REPAIR_TASK_ID)
+	_walk_hud.add_task_entry(_lab_entry_task_entry())
+	_room_task_feedback = "LAB ACCESS RESTORED  //  FOLLOW THE ORE ECHO INSIDE"
+	_room_task_feedback_timer = 5.0
+	_update_player_walk_state()
+	_walk_hud.set_interaction_prompt("LAB ACCESS RESTORED   /   RETURN INSIDE AND FOLLOW THE ECHO", true)
 
 
 func _on_room_task_console_closed() -> void:

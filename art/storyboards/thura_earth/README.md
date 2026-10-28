@@ -10,6 +10,7 @@ An eight-frame backstory storyboard for Dr. Thura Min, following the character h
 6. **Neutral buoyancy** — He rehearses spacecraft repair in an underwater training facility.
 7. **Selected for the mission** — Thura stands before the research spacecraft in his flight suit.
 8. **May's paper star** — His younger sister gives him the star folded from one of their mother's old lesson books.
+9. **Thadingyut star memory** — At the festival, young Thura plays with a sparkler, then asks his mother about a bright star. The cutscene uses three distinct shots: the rooftop celebration, their close family moment, and the mother pointing to the star.
 
 These are visual story concepts; they are not currently wired into a game scene.
 
