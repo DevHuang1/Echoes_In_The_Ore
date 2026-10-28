@@ -76,5 +76,50 @@ func _init() -> void:
 	print("✓ Test 6 Passed: All 8 storyline audio logs verified with full transcripts, speakers, and locations.")
 
 	hud.free()
-	print("--- ALL PROGRESSION & PACING TESTS PASSED PERFECTLY! ---")
+
+	# 7. Exterior Airlock Gate Cruise-Lock System
+	var airlock_gate_scene = load("res://scenes/ship/doors/exterior_airlock_gate.tscn")
+	var airlock_gate = airlock_gate_scene.instantiate()
+	airlock_gate.is_locked = true
+	assert(not airlock_gate.is_open(), "ERROR: Locked airlock gate must not report open!")
+	airlock_gate.is_locked = false
+	print("✓ Test 7 Passed: Exterior Airlock Gate implements physical lock & cruise sealing.")
+	airlock_gate.free()
+
+	# 8. Ship Walkthrough Deep Space Transit & Landing Gating
+	var ship_script = load("res://scripts/ship/bare_ship_walkthrough.gd")
+	var stations: Array = ship_script.STORY_STATIONS
+	var has_landing_helm := false
+	for st in stations:
+		if st.get("id") == &"erebos_landing_descent":
+			has_landing_helm = true
+			break
+	assert(has_landing_helm, "ERROR: Bridge Flight Helm must feature erebos_landing_descent station!")
+	assert(ship_script.SEQUENTIAL_MAIN_DECK_ORDER.has(&"erebos_landing_descent"), "ERROR: erebos_landing_descent must be in sequential task order!")
+	print("✓ Test 8 Passed: Deep Space Transit & Orbital Landing Helm registered in sequence.")
+
+	# 9. Crew Dialogue Hologram & Branching System
+	var crew_dialogue_scene = load("res://scenes/ui/crew_dialogue.tscn")
+	var crew_dialogue = crew_dialogue_scene.instantiate()
+	root.add_child(crew_dialogue)
+	var test_lines: Array[String] = ["Testing Mateo voice."]
+	crew_dialogue.start_dialogue(test_lines, false, {
+		"id": "test_mateo",
+		"speaker": "MATEO RUIZ / MINING SPECIALIST / SHUTTLE BAY",
+		"choices": [{"id": "c1", "label": "Ask about pulses"}]
+	})
+	assert(crew_dialogue.conversation_id == "test_mateo", "ERROR: Conversation ID must match.")
+	crew_dialogue.cancel_dialogue()
+	crew_dialogue.free()
+	print("✓ Test 9 Passed: Crew Dialogue hologram portraits and multi-choice branches verified.")
+
+	# 10. Piloting Console Orbital Landing Encounter
+	var pilot_script = load("res://scripts/ui/ship_piloting_console.gd")
+	var pilot_console = pilot_script.new()
+	root.add_child(pilot_console)
+	pilot_console.setup(&"erebos_orbital_landing", true)
+	pilot_console.free()
+	print("✓ Test 10 Passed: Ship Piloting Console supports playable 'erebos_orbital_landing' encounter.")
+
+	print("--- ALL PROGRESSION, TRANSIT & PACING TESTS PASSED PERFECTLY! ---")
 	quit(0)

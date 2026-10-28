@@ -270,42 +270,79 @@ func _start_autopilot_or_alert_sequence() -> void:
 func _enter_phase(new_phase: int) -> void:
 	_phase = new_phase
 	_phase_timer = 0.0
+	var is_landing := (_encounter_id == &"erebos_orbital_landing")
 	match _phase:
 		0:
-			_mode_badge.text = "[ AUTOPILOT: CRUISE LOCKED ]"
-			_mode_badge.add_theme_color_override("font_color", GREEN)
-			_comms_speaker_label.text = "ELIAS WARD // BRIDGE FLIGHT DECK"
-			_comms_speaker_label.add_theme_color_override("font_color", CYAN)
-			_comms_text_label.text = "\"Autopilot is holding Asteria-1 on the orbital approach vector toward Erebos. Wait — forward lidar is picking up a dense Shearwater asteroid swarm ahead! Grab the controls or press [WASD / Arrows]!\""
-			_action_button.visible = true
-			_action_button.text = "[ TAKE MANUAL HELM NOW ]"
+			if is_landing:
+				_mode_badge.text = "[ DESCENT VECTOR: SITE K-12 LOCKED ]"
+				_mode_badge.add_theme_color_override("font_color", CYAN)
+				_comms_speaker_label.text = "COMMANDER MAYA CHEN // BRIDGE HELM"
+				_comms_speaker_label.add_theme_color_override("font_color", GOLD)
+				_comms_text_label.text = "\"All stations, brace for atmospheric insertion. We are entering the gravity well of Erebos. Thura, manual retro-steering is yours to keep us aligned with Site K-12!\""
+				_action_button.visible = true
+				_action_button.text = "[ ENGAGE RETRO-DESCENT STEERING ]"
+			else:
+				_mode_badge.text = "[ AUTOPILOT: CRUISE LOCKED ]"
+				_mode_badge.add_theme_color_override("font_color", GREEN)
+				_comms_speaker_label.text = "ELIAS WARD // BRIDGE FLIGHT DECK"
+				_comms_speaker_label.add_theme_color_override("font_color", CYAN)
+				_comms_text_label.text = "\"Autopilot is holding Asteria-1 on the orbital approach vector toward Erebos. Wait — forward lidar is picking up a dense Shearwater asteroid swarm ahead! Grab the controls or press [WASD / Arrows]!\""
+				_action_button.visible = true
+				_action_button.text = "[ TAKE MANUAL HELM NOW ]"
 			_close_button.visible = true
 		1:
-			_mode_badge.text = "[ ⚠ PROXIMITY ALERT — AUTOPILOT DISENGAGED ]"
-			_mode_badge.add_theme_color_override("font_color", ALERT_RED)
-			_comms_speaker_label.text = "⚠ COLLISION WARNING // ASTEROID SWARM CUTSCENE"
-			_comms_speaker_label.add_theme_color_override("font_color", ALERT_RED)
-			_comms_text_label.text = "DENSE EREBOS ASTEROID SWARM DETECTED IN FLIGHT CORRIDOR!\nAutopilot thrusters cannot compute a safe path through the tumbling ore fragments.\nELIAS WARD: \"Thura, manual helm is yours! Steer with [WASD / Arrows] and fire the bow deflector with [Space / Left Click]!\""
-			_action_button.visible = true
-			_action_button.text = "[ ENGAGE MANUAL EVASION  › ]"
+			if is_landing:
+				_mode_badge.text = "[ ⚠ GRAVITATIONAL TURBULENCE & CRAGS ]"
+				_mode_badge.add_theme_color_override("font_color", ALERT_RED)
+				_comms_speaker_label.text = "DESCENT TELEMETRY // SEVERE TURBULENCE"
+				_comms_speaker_label.add_theme_color_override("font_color", ALERT_RED)
+				_comms_text_label.text = "CRAGS AND DUST PILLARS RISING FAST ACROSS THE DESCENT CORRIDOR!\nFire retro-pulses with [Space / LMB] and dodge thermal vents with [WASD / Arrows] to reach the landing pad!"
+				_action_button.visible = true
+				_action_button.text = "[ ENGAGE RETRO-STEERING  › ]"
+			else:
+				_mode_badge.text = "[ ⚠ PROXIMITY ALERT — AUTOPILOT DISENGAGED ]"
+				_mode_badge.add_theme_color_override("font_color", ALERT_RED)
+				_comms_speaker_label.text = "⚠ COLLISION WARNING // ASTEROID SWARM CUTSCENE"
+				_comms_speaker_label.add_theme_color_override("font_color", ALERT_RED)
+				_comms_text_label.text = "DENSE EREBOS ASTEROID SWARM DETECTED IN FLIGHT CORRIDOR!\nAutopilot thrusters cannot compute a safe path through the tumbling ore fragments.\nELIAS WARD: \"Thura, manual helm is yours! Steer with [WASD / Arrows] and fire the bow deflector with [Space / Left Click]!\""
+				_action_button.visible = true
+				_action_button.text = "[ ENGAGE MANUAL EVASION  › ]"
 			_close_button.visible = true
 		2:
-			_mode_badge.text = "[ MANUAL HELM CONTROL ACTIVE ]"
-			_mode_badge.add_theme_color_override("font_color", ORANGE)
-			_comms_speaker_label.text = "MANUAL EVASION // DODGE & SHATTER INCOMING ASTEROIDS"
-			_comms_speaker_label.add_theme_color_override("font_color", GOLD)
-			_comms_text_label.text = "Steer Asteria-1 with Joystick / [WASD / Arrows] to dodge incoming asteroids! Tap [FIRE PULSE] or [Space] to fire the forward Pulse Deflector!"
-			_action_button.visible = true
-			_action_button.text = "[ FIRE PULSE DEFLECTOR ]"
+			if is_landing:
+				_mode_badge.text = "[ ACTIVE DESCENT NAVIGATION ]"
+				_mode_badge.add_theme_color_override("font_color", ORANGE)
+				_comms_speaker_label.text = "RETRO-BURN // STABILIZE & ALIGN WITH SITE K-12"
+				_comms_speaker_label.add_theme_color_override("font_color", GOLD)
+				_comms_text_label.text = "Steer Asteria-1 with [WASD / Arrows] around rising terrain! Tap [FIRE PULSE] or [Space] to clear surface debris!"
+				_action_button.visible = true
+				_action_button.text = "[ FIRE RETRO-PULSE ]"
+			else:
+				_mode_badge.text = "[ MANUAL HELM CONTROL ACTIVE ]"
+				_mode_badge.add_theme_color_override("font_color", ORANGE)
+				_comms_speaker_label.text = "MANUAL EVASION // DODGE & SHATTER INCOMING ASTEROIDS"
+				_comms_speaker_label.add_theme_color_override("font_color", GOLD)
+				_comms_text_label.text = "Steer Asteria-1 with Joystick / [WASD / Arrows] to dodge incoming asteroids! Tap [FIRE PULSE] or [Space] to fire the forward Pulse Deflector!"
+				_action_button.visible = true
+				_action_button.text = "[ FIRE PULSE DEFLECTOR ]"
 			_close_button.visible = true
 		3:
-			_mode_badge.text = "[ AUTOPILOT: RESTORED & NOMINAL ]"
-			_mode_badge.add_theme_color_override("font_color", GREEN)
-			_comms_speaker_label.text = "ELIAS WARD & COMMANDER CHEN // BRIDGE INTERCOM"
-			_comms_speaker_label.add_theme_color_override("font_color", GREEN)
-			_comms_text_label.text = "\"We're clear of the asteroid swarm! Autopilot has re-acquired the Erebos orbital lock and resumed steady cruise. Outstanding flying, Thura.\""
-			_action_button.visible = true
-			_action_button.text = "[ COMPLETE & RETURN TO DECK  → ]"
+			if is_landing:
+				_mode_badge.text = "[ TOUCHDOWN CONFIRMED // SITE K-12 ]"
+				_mode_badge.add_theme_color_override("font_color", GREEN)
+				_comms_speaker_label.text = "COMMANDER MAYA CHEN // SHIPWIDE INTERCOM"
+				_comms_speaker_label.add_theme_color_override("font_color", GREEN)
+				_comms_text_label.text = "\"Touchdown confirmed! Hydraulic struts locked into bedrock. Asteria-1 has arrived at Site K-12. Outstanding landing piloting, Thura.\""
+				_action_button.visible = true
+				_action_button.text = "[ COMPLETE TOUCHDOWN & UNLOCK AIRLOCK  → ]"
+			else:
+				_mode_badge.text = "[ AUTOPILOT: RESTORED & NOMINAL ]"
+				_mode_badge.add_theme_color_override("font_color", GREEN)
+				_comms_speaker_label.text = "ELIAS WARD & COMMANDER CHEN // BRIDGE INTERCOM"
+				_comms_speaker_label.add_theme_color_override("font_color", GREEN)
+				_comms_text_label.text = "\"We're clear of the asteroid swarm! Autopilot has re-acquired the Erebos orbital lock and resumed steady cruise. Outstanding flying, Thura.\""
+				_action_button.visible = true
+				_action_button.text = "[ COMPLETE & RETURN TO DECK  → ]"
 			_close_button.visible = true
 
 

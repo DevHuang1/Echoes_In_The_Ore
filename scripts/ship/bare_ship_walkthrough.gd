@@ -15,6 +15,7 @@ const WALK_HUD_SCENE: PackedScene = preload("res://scenes/ui/walk_hud.tscn")
 const CREW_DIALOGUE_SCENE: PackedScene = preload("res://scenes/ui/crew_dialogue.tscn")
 const STORY_CUTSCENE_SCRIPT: Script = preload("res://scripts/ui/story_cutscene_overlay.gd")
 const SHIP_PILOTING_SCRIPT: Script = preload("res://scripts/ui/ship_piloting_console.gd")
+const CREW_MEMBER_NPC_SCRIPT: Script = preload("res://scripts/ship/crew/crew_member_npc.gd")
 const MOCK_PLANET_SCENE_PATH: String = "res://scenes/planet/mock_planet_exterior.tscn"
 const SECOND_FLOOR_SCENE_PATH: String = "res://scenes/ship/second_floor_subdeck.tscn"
 const AIRLOCK_INTERACTION_RADIUS: float = 92.0
@@ -85,28 +86,36 @@ const ROOM_TASKS: Array[Dictionary] = [
 		"id": &"auxiliary_power",
 		"title": "Reconnect aux power bus (Task 3/4 -> Multitool)",
 		"marker_label": "AUX POWER",
+		"room_name": "Power Core",
+		"action_hint": "Reconnect aux power bus capacitor banks",
 		"station_path": NodePath("PowerMaintenanceRoomProps/PowerCellModule"),
 		"marker_offset": Vector2(0.0, -24.0),
 		"prompt": "AUXILIARY POWER CELL   /   [E] RECONNECT POWER BUS",
 		"completion": "Auxiliary power bus synced (1/2 Engineering checks complete — finish Life Support to unlock Engineering Multitool).",
 		"reward_item": &"",
+		"milestone_reward": &"engineering_multitool",
 		"log_id": &"log_leila_power",
 	},
 	{
 		"id": &"air_filter",
 		"title": "Replace air scrubber (Unlocks Multitool)",
 		"marker_label": "LIFE SUPPORT",
+		"room_name": "Life Support",
+		"action_hint": "Replace scrubber cartridge on life-support unit",
 		"station_path": NodePath("LifeSupportRoomProps/FilterCartridge"),
 		"marker_offset": Vector2(0.0, -26.0),
 		"prompt": "LIFE-SUPPORT FILTER   /   [E] REPLACE SCRUBBER CARTRIDGE",
 		"completion": "Life-support scrubbers online! Milestone reached (4 Tasks): Engineering Multitool unlocked!",
 		"reward_item": &"engineering_multitool",
+		"milestone_reward": &"engineering_multitool",
 		"log_id": &"",
 	},
 	{
 		"id": &"nutrient_flow",
 		"title": "Route nutrient flow (Task 5/6 -> Scanner & Sealant)",
 		"marker_label": "HYDROPONICS",
+		"room_name": "Greenhouse",
+		"action_hint": "Align nutrient delivery manifold valves",
 		"station_path": NodePath("HydroponicsRoomProps/ControlConsole"),
 		"interaction_offset": Vector2(32.0, 0.0),
 		"marker_offset": Vector2(0.0, -22.0),
@@ -114,6 +123,7 @@ const ROOM_TASKS: Array[Dictionary] = [
 		"prompt": "HYDROPONICS CONSOLE   /   [E] ROUTE NUTRIENTS",
 		"completion": "Nutrient manifold aligned (1/2 Science checks complete — calibrate Drone Array next to unlock Scanner & Sealant).",
 		"reward_item": &"",
+		"milestone_reward": &"mineral_survey_scanner",
 		"log_id": &"log_okoye_fields",
 	},
 ]
@@ -154,83 +164,120 @@ const STORY_STATIONS: Array[Dictionary] = [
 		"id": &"cabin_may_recording",
 		"title": "Play May's Yangon message (Task 1/2 -> Suit Light)",
 		"marker_label": "CREW BUNK",
+		"room_name": "Living Quarters",
+		"action_hint": "Examine Thura's personal terminal desk",
 		"station_path": NodePath("CrewLivingQuarterProps/PersonalComputerDesk"),
 		"interaction_offset": Vector2(0.0, 44.0),
 		"marker_offset": Vector2(0.0, -24.0),
 		"prompt": "THURA'S BUNK & TERMINAL   /   [E] PLAY MAY'S RECORDING",
 		"reward_item": &"",
+		"milestone_reward": &"suit_flashlight",
 		"log_id": &"log_may_message",
 	},
 	{
 		"id": &"bridge_flight_piloting",
 		"title": "Pilot ship & evade asteroids (Unlocks Suit Light [F])",
 		"marker_label": "PILOT HELM",
+		"room_name": "Navigation Bridge",
+		"action_hint": "Take manual helm console and evade asteroid swarm",
 		"station_path": NodePath("BridgeRoomProps/UpperBowFlightConsole"),
 		"interaction_offset": Vector2(28.0, 14.0),
 		"marker_offset": Vector2(0.0, -26.0),
 		"prompt": "BRIDGE FLIGHT HELM   /   [E] MONITOR AUTOPILOT & PILOT SHIP",
 		"reward_item": &"suit_flashlight",
+		"milestone_reward": &"suit_flashlight",
 		"log_id": &"",
 	},
 	{
 		"id": &"drone_vibration_scan",
 		"title": "Scan Erebos drone feed (Unlocks Scanner & Sealant)",
 		"marker_label": "DRONE BAY",
+		"room_name": "Cargo Bay",
+		"action_hint": "Isolate deep acoustic vibration feed from drone rig",
 		"station_path": NodePath("CargoBayProps/MaintenanceTrolley"),
 		"interaction_offset": Vector2(-34.0, 0.0),
 		"marker_offset": Vector2(0.0, -34.0),
 		"prompt": "MINING DRONE RIG   /   [E] REPAIR DRONE & SCAN EREBOS",
 		"reward_item": &"mineral_survey_scanner",
+		"milestone_reward": &"mineral_survey_scanner",
 		"log_id": &"log_ruiz_sponsors",
 	},
 	{
 		"id": &"landing_prep_beacons",
 		"title": "Prep Site K-12 gear (Unlocks Survey Beacon)",
 		"marker_label": "SHUTTLE BAY",
+		"room_name": "Shuttle Bay",
+		"action_hint": "Calibrate locator transponders in landing crate",
 		"station_path": NodePath("ShuttleBayCargo"),
 		"interaction_offset": Vector2(-42.0, -18.0),
 		"marker_offset": Vector2(-16.0, -38.0),
 		"prompt": "SHUTTLE LANDING CRATES   /   [E] PREP SITE K-12 BEACONS",
 		"reward_item": &"survey_beacon",
+		"milestone_reward": &"survey_beacon",
 		"log_id": &"log_ward_daughter",
+	},
+	{
+		"id": &"erebos_landing_descent",
+		"title": "Initiate Erebos landing descent (Site K-12)",
+		"marker_label": "LANDING HELM",
+		"room_name": "Navigation Bridge",
+		"action_hint": "Align orbit and fire descent thrusters for Site K-12",
+		"station_path": NodePath("BridgeRoomProps/MainHelmConsole"),
+		"interaction_offset": Vector2(36.0, 0.0),
+		"marker_offset": Vector2(-6.0, -28.0),
+		"prompt": "BRIDGE FLIGHT HELM   /   [E] INITIATE EREBOS ORBITAL LANDING",
+		"reward_item": &"",
+		"milestone_reward": &"emergency_flare",
+		"log_id": &"",
 	},
 	{
 		"id": &"cargo_breach_inspection",
 		"title": "Inspect breached drill core (Act IV Hunt)",
 		"marker_label": "SAMPLE CORE",
+		"room_name": "Cargo Bay",
+		"action_hint": "Inspect breached core containment pod scale",
 		"station_path": NodePath("CargoBayProps/CargoInspectionScale"),
 		"interaction_offset": Vector2(-38.0, 12.0),
 		"marker_offset": Vector2(0.0, -34.0),
 		"prompt": "DRILL CORE CONTAINMENT   /   [E] INSPECT MASS ANOMALY",
 		"reward_item": &"",
+		"milestone_reward": &"electrical_discharge_tool",
 		"log_id": &"log_chen_debate",
 	},
 	{
 		"id": &"subdeck_lift_descent",
 		"title": "Descend to Second Floor (Sub-Deck 02 Tasks)",
 		"marker_label": "SUB-DECK 02",
+		"room_name": "Center Recess",
+		"action_hint": "Activate freight lift to access Sub-Deck 02",
 		"station_path": NodePath("CenterRecessRoom/SubDeckAccessLift"),
 		"interaction_offset": Vector2(0.0, 0.0),
 		"marker_offset": Vector2(0.0, -26.0),
 		"prompt": "SUB-DECK CARGO LIFT   /   [E] DESCEND TO SECOND FLOOR",
 		"reward_item": &"",
+		"milestone_reward": &"electrical_discharge_tool",
 		"log_id": &"",
 	},
 	{
 		"id": &"commanders_secret_bridge",
 		"title": "Quarantine Standoff & Chen's Revolver",
 		"marker_label": "CHEN / BRIDGE",
+		"room_name": "Navigation Bridge",
+		"action_hint": "Confront Commander Chen at the mission planning table",
 		"station_path": NodePath("BridgeRoomProps/MissionPlanningTable"),
 		"interaction_offset": Vector2(28.0, 0.0),
 		"marker_offset": Vector2(0.0, -24.0),
 		"prompt": "MISSION PLANNING TABLE   /   [E] TALK TO COMMANDER CHEN",
 		"reward_item": &"captains_revolver",
+		"milestone_reward": &"captains_revolver",
 		"log_id": &"log_chen_farewell",
 	},
 	{
 		"id": &"act_v_finale_home",
 		"title": "Execute Final Containment Plan",
 		"marker_label": "FINALE / HELM",
+		"room_name": "Navigation Bridge",
+		"action_hint": "Execute Earth return sequence & airlock seal protocol",
 		"station_path": NodePath("BridgeRoomProps/MainHelmConsole"),
 		"interaction_offset": Vector2(36.0, 0.0),
 		"marker_offset": Vector2(-6.0, -28.0),
@@ -249,6 +296,7 @@ const SEQUENTIAL_MAIN_DECK_ORDER: Array[StringName] = [
 	&"nutrient_flow",
 	&"drone_vibration_scan",
 	&"landing_prep_beacons",
+	&"erebos_landing_descent",
 	&"cargo_breach_inspection",
 	&"subdeck_lift_descent",
 	&"commanders_secret_bridge",
@@ -283,10 +331,15 @@ var _amara_intro_seen: bool = false
 var _crew_tasks_unlocked: bool = false
 var _completed_crew_tasks: Dictionary = {}
 var _active_amara_interaction: bool = false
+var _active_mateo_interaction: bool = false
+var _active_chen_interaction: bool = false
+var _mateo_npc: Node2D = null
+var _chen_npc: Node2D = null
 var _active_crew_task_id: StringName = &""
 var _active_airlock_exit: bool = false
 var _active_subdeck_descent: bool = false
 var _transitioning_to_planet: bool = false
+var _returning_from_planet: bool = false
 var _subdeck_return_grace_timer: float = 0.0
 var _echo_lab_return_active: bool = false
 var _lab_door_repair_required: bool = false
@@ -938,8 +991,14 @@ func _ready() -> void:
 	var camera_bounds: Rect2 = Rect2(floor_layer.global_position, map_size)
 	player.set_camera_bounds(camera_bounds)
 
-	var returning_from_planet: bool = Engine.has_meta(&"returning_from_planet") and bool(Engine.get_meta(&"returning_from_planet"))
+	_returning_from_planet = Engine.has_meta(&"returning_from_planet") and bool(Engine.get_meta(&"returning_from_planet"))
+	var returning_from_planet: bool = _returning_from_planet
 	var returning_from_second_floor: bool = Engine.has_meta(&"returning_from_second_floor") and bool(Engine.get_meta(&"returning_from_second_floor"))
+	var is_continue: bool = Engine.has_meta("ship_story_continue_path")
+	if not returning_from_planet and not returning_from_second_floor and not is_continue:
+		if Engine.has_meta(&"echoes_campaign_inventory_state") and Engine.has_meta(&"ship_story_bootstrap"):
+			Engine.remove_meta(&"echoes_campaign_inventory_state")
+			Engine.remove_meta(&"echoes_story_progression_state")
 	if returning_from_planet:
 		Engine.remove_meta(&"returning_from_planet")
 		player.global_position = floor_layer.to_global(AIRLOCK_RETURN_FLOOR_POS)
@@ -973,8 +1032,11 @@ func _ready() -> void:
 			"id": entry_def["id"],
 			"title": entry_def["title"],
 			"marker_label": entry_def["marker_label"],
+			"room_name": entry_def.get("room_name", "Ship Deck"),
+			"action_hint": entry_def.get("action_hint", ""),
 			"reward_item": entry_def.get("reward_item", &""),
-			"is_equipment_task": StringName(entry_def.get("reward_item", &"")) != &"",
+			"milestone_reward": entry_def.get("milestone_reward", entry_def.get("reward_item", &"")),
+			"is_equipment_task": StringName(entry_def.get("reward_item", &"")) != &"" or StringName(entry_def.get("milestone_reward", &"")) != &"",
 			"position": interaction_pos,
 			"marker_position": _task_marker_position(station_node, m_off),
 		})
@@ -1008,7 +1070,8 @@ func _ready() -> void:
 	add_child(_interactive_highlights_canvas)
 
 	_crew_dialogue = CREW_DIALOGUE_SCENE.instantiate() as CrewDialogue
-	_crew_dialogue.dialogue_finished.connect(_on_amara_dialogue_finished)
+	_crew_dialogue.dialogue_finished.connect(_on_crew_dialogue_finished)
+	_crew_dialogue.conversation_finished.connect(_on_crew_conversation_finished)
 	add_child(_crew_dialogue)
 
 	_story_cutscene = STORY_CUTSCENE_SCRIPT.new() as CanvasLayer
@@ -1026,6 +1089,10 @@ func _ready() -> void:
 	elif returning_from_second_floor:
 		_arrival_briefing_open = false
 		_walk_hud.set_walking_visible(true)
+		if _is_ship_landed():
+			_walk_hud.set_story_act_label("ACT II — EREBOS // SITE K-12")
+		else:
+			_walk_hud.set_story_act_label("ACT I — DEEP SPACE TRANSIT // DAY 184")
 		_room_task_feedback = "CARGO LIFT CYCLE COMPLETE  //  MAIN DECK (LEVEL 01)"
 		_room_task_feedback_timer = 3.5
 		if _echo_lab_return_active:
@@ -1038,13 +1105,32 @@ func _ready() -> void:
 	elif briefing_already_shown:
 		_arrival_briefing_open = false
 		_walk_hud.set_walking_visible(true)
+		if _is_ship_landed():
+			_walk_hud.set_story_act_label("ACT II — EREBOS // SITE K-12")
+		else:
+			_walk_hud.set_story_act_label("ACT I — DEEP SPACE TRANSIT // DAY 184")
 		_update_player_walk_state()
 	else:
+		_walk_hud.set_story_act_label("ACT I — DEEP SPACE TRANSIT // DAY 184")
 		Engine.set_meta(&"echoes_arrival_briefing_shown", true)
 		_walk_hud.set_walking_visible(false)
 		var arrival_briefing: Node = ARRIVAL_BRIEFING_SCENE.instantiate()
 		arrival_briefing.connect(&"dismissed", _on_arrival_briefing_dismissed)
 		add_child(arrival_briefing)
+
+	if is_instance_valid(exterior_airlock):
+		exterior_airlock.set("is_locked", not _is_ship_landed())
+	_setup_crew_characters()
+
+
+func _is_ship_landed() -> bool:
+	if _returning_from_planet:
+		return true
+	if Engine.has_meta(&"ship_landed_on_erebos") and bool(Engine.get_meta(&"ship_landed_on_erebos")):
+		return true
+	if _completed_story_stations.has(&"erebos_landing_descent"):
+		return true
+	return false
 
 
 func _load_persistent_story_state() -> void:
@@ -1058,6 +1144,8 @@ func _load_persistent_story_state() -> void:
 	_amara_intro_seen = bool(st.get("amara_intro_seen", false))
 	_chen_rescued = bool(st.get("chen_rescued", false))
 	_leila_rescued = bool(st.get("leila_rescued", false))
+	if bool(st.get("ship_landed_on_erebos", false)) or _completed_story_stations.has(&"erebos_landing_descent"):
+		Engine.set_meta(&"ship_landed_on_erebos", true)
 
 
 func _save_persistent_story_state() -> void:
@@ -1072,6 +1160,8 @@ func _save_persistent_story_state() -> void:
 	st["amara_intro_seen"] = _amara_intro_seen
 	st["chen_rescued"] = _chen_rescued
 	st["leila_rescued"] = _leila_rescued
+	st["ship_landed_on_erebos"] = _is_ship_landed()
+	Engine.set_meta(STORY_STATE_META_KEY, st)
 	Engine.set_meta(STORY_STATE_META_KEY, st)
 
 
@@ -1156,8 +1246,12 @@ func _process(delta: float) -> void:
 		var local_floor_pos: Vector2 = floor_layer.to_local(player.global_position)
 		if is_instance_valid(exterior_airlock) and exterior_airlock.has_method("is_open") and bool(exterior_airlock.call("is_open")):
 			if local_floor_pos.x >= 434.0 and local_floor_pos.x <= 523.0 and local_floor_pos.y <= 278.0 and Input.is_action_pressed(&"move_up"):
-				_exit_ship_to_planet()
-				return
+				if _is_ship_landed():
+					_exit_ship_to_planet()
+					return
+				else:
+					_room_task_feedback = "AIRLOCK CRUISE-LOCKED  //  SHIP IN DEEP-SPACE CRUISE (DAY 184)\nINITIATE LANDING DESCENT AT BRIDGE FLIGHT HELM"
+					_room_task_feedback_timer = 4.0
 		if _subdeck_return_grace_timer <= 0.0:
 			if local_floor_pos.x >= 826.0 and local_floor_pos.x <= 898.0 and local_floor_pos.y >= 296.0 and local_floor_pos.y <= 326.0 and Input.is_action_pressed(&"move_up"):
 				_descend_to_second_floor()
@@ -1208,7 +1302,11 @@ func _unhandled_input(event: InputEvent) -> void:
 		_room_task_feedback = "LABORATORY ACCESS SEALED  //  RESTORE ACCESS AT REPAIR WORKBENCH"
 		_room_task_feedback_timer = 4.0
 		return
-	if _active_amara_interaction:
+	if _active_chen_interaction:
+		_begin_chen_dialogue()
+	elif _active_mateo_interaction:
+		_begin_mateo_dialogue()
+	elif _active_amara_interaction:
 		_begin_amara_dialogue()
 	elif _active_crew_task_id != &"":
 		_complete_crew_task(_active_crew_task_id)
@@ -1224,6 +1322,12 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _exit_ship_to_planet() -> void:
+	if not _is_ship_landed():
+		_room_task_feedback = "AIRLOCK CRUISE-LOCKED  //  SHIP IN DEEP-SPACE CRUISE (DAY 184)\nCOMPLETE PRE-DESCENT TASKS & INITIATE DESCENT AT BRIDGE HELM"
+		_room_task_feedback_timer = 5.0
+		if is_instance_valid(_walk_hud):
+			_walk_hud.play_radio_transmission("AIRLOCK CONTROLLER // ACCESS DENIED", "Exterior airlock cannot cycle while Asteria-1 is in deep-space cruise. Complete maintenance & initiate orbital landing at the Bridge Flight Helm.")
+		return
 	if _transitioning_to_planet:
 		return
 	_save_persistent_story_state()
@@ -1266,7 +1370,25 @@ func _open_ship_piloting_console(encounter_id: StringName, is_emergency: bool) -
 func _on_ship_piloting_completed(encounter_id: StringName, hull_remaining: float) -> void:
 	_piloting_console_open = false
 	_autopilot_asteroid_timer = 95.0
-	if encounter_id == &"bridge_flight_piloting" and not _completed_story_stations.has(&"bridge_flight_piloting"):
+	if encounter_id == &"erebos_orbital_landing":
+		_completed_story_stations[&"erebos_landing_descent"] = true
+		_walk_hud.set_task_completed(&"erebos_landing_descent")
+		Engine.set_meta(&"ship_landed_on_erebos", true)
+		_save_persistent_story_state()
+		var touchdown_cutscene := _build_cutscene_data(&"erebos_touchdown_confirmed")
+		if not touchdown_cutscene.is_empty() and is_instance_valid(_story_cutscene):
+			_cutscene_open = true
+			_walk_hud.set_walking_visible(false)
+			_update_player_walk_state()
+			_story_cutscene.call(&"play_cutscene", &"erebos_touchdown_confirmed", touchdown_cutscene)
+			return
+		_walk_hud.set_story_act_label("ACT II — EREBOS // SITE K-12")
+		if is_instance_valid(exterior_airlock):
+			exterior_airlock.set("is_locked", false)
+		_walk_hud.play_radio_transmission("COMMANDER MAYA CHEN // SHIPWIDE", "Exterior airlock unlocked. Touchdown confirmed at Site K-12.")
+		_room_task_feedback = "TOUCHDOWN CONFIRMED (HULL %d%%)  //  EXTERIOR AIRLOCK UNLOCKED FOR SURFACE OPERATIONS" % roundi(hull_remaining)
+		_room_task_feedback_timer = 6.0
+	elif encounter_id == &"bridge_flight_piloting" and not _completed_story_stations.has(&"bridge_flight_piloting"):
 		_completed_story_stations[&"bridge_flight_piloting"] = true
 		_walk_hud.set_task_completed(&"bridge_flight_piloting")
 		var milestone_msg: String = _evaluate_equipment_story_milestones()
@@ -1389,6 +1511,8 @@ func _refresh_room_task_prompt() -> void:
 	_active_lab_door_repair = false
 	_active_locked_lab_door = false
 	_active_amara_interaction = false
+	_active_chen_interaction = false
+	_active_mateo_interaction = false
 	_active_airlock_exit = false
 	_active_subdeck_descent = false
 	if _crew_dialogue_open or _cutscene_open or _piloting_console_open or not _arrival_briefing_open and (_hud_modal_open or _task_console_open):
@@ -1398,7 +1522,10 @@ func _refresh_room_task_prompt() -> void:
 		var airlock_access_pos: Vector2 = exterior_airlock.global_position + Vector2(0.0, 28.0)
 		if player.global_position.distance_to(airlock_access_pos) <= AIRLOCK_INTERACTION_RADIUS:
 			_active_airlock_exit = true
-			_walk_hud.set_interaction_prompt("EXTERIOR AIRLOCK   /   [E] EXIT TO EREBOS (SITE K-12)", true)
+			if _is_ship_landed():
+				_walk_hud.set_interaction_prompt("EXTERIOR AIRLOCK   /   [E] EXIT TO EREBOS (SITE K-12)", true)
+			else:
+				_walk_hud.set_interaction_prompt("EXTERIOR AIRLOCK   /   [E] CRUISE-LOCKED (DEEP SPACE TRANSIT DAY 184)", true)
 			return
 	var subdeck_lift_world_pos: Vector2 = floor_layer.to_global(SUBDECK_LIFT_FLOOR_POS)
 	if player.global_position.distance_to(subdeck_lift_world_pos) <= SUBDECK_LIFT_INTERACTION_RADIUS:
@@ -1421,6 +1548,14 @@ func _refresh_room_task_prompt() -> void:
 	if is_instance_valid(amara) and amara.visible and not _is_lab_destroyed() and player.global_position.distance_to(amara.global_position) <= AMARA_INTERACTION_RADIUS:
 		_active_amara_interaction = true
 		_walk_hud.set_interaction_prompt("DR. AMARA OKOYE   /   [E] TALK", true)
+		return
+	if is_instance_valid(_chen_npc) and _chen_npc.visible and not _is_lab_destroyed() and player.global_position.distance_to(_chen_npc.global_position) <= 68.0:
+		_active_chen_interaction = true
+		_walk_hud.set_interaction_prompt("COMMANDER MAYA CHEN   /   [E] TALK (EXPEDITION COMMANDER)", true)
+		return
+	if is_instance_valid(_mateo_npc) and _mateo_npc.visible and not _is_lab_destroyed() and player.global_position.distance_to(_mateo_npc.global_position) <= 68.0:
+		_active_mateo_interaction = true
+		_walk_hud.set_interaction_prompt("MATEO RUIZ   /   [E] TALK (MINING SPECIALIST)", true)
 		return
 	var closest_lab: Dictionary = {}
 	var closest_lab_dist: float = 64.0
@@ -1497,8 +1632,8 @@ func _refresh_room_task_prompt() -> void:
 	var upper_chair_node: Node2D = get_node_or_null("BridgeRoomProps/UpperStationChair") as Node2D
 	for st in STORY_STATIONS:
 		var st_id: StringName = st["id"]
-		# Allow re-triggering the Bridge Flight Piloting helm & the Act V finale anytime!
-		if _completed_story_stations.has(st_id) and st_id != &"act_v_finale_home" and st_id != &"bridge_flight_piloting":
+		# Allow re-triggering the Bridge Flight Piloting helm, Landing Helm & Act V finale
+		if _completed_story_stations.has(st_id) and st_id != &"act_v_finale_home" and st_id != &"bridge_flight_piloting" and st_id != &"erebos_landing_descent":
 			continue
 		var st_node: Node2D = get_node_or_null(st["station_path"]) as Node2D
 		if st_node == null:
@@ -1509,7 +1644,7 @@ func _refresh_room_task_prompt() -> void:
 			player.global_position.distance_to(st_node.global_position)
 		)
 		# Also let the player drive the ship right from the Bridge helm/station chairs at the ship head!
-		if st_id == &"bridge_flight_piloting":
+		if st_id == &"bridge_flight_piloting" or st_id == &"erebos_landing_descent":
 			if is_instance_valid(helm_chair_node):
 				d = minf(d, player.global_position.distance_to(helm_chair_node.global_position))
 			if is_instance_valid(upper_chair_node):
@@ -1519,7 +1654,13 @@ func _refresh_room_task_prompt() -> void:
 			closest_story = st
 	if not closest_story.is_empty():
 		_active_story_station_id = closest_story["id"]
-		_walk_hud.set_interaction_prompt(closest_story["prompt"], true)
+		var prompt_text: String = str(closest_story["prompt"])
+		if _active_story_station_id == &"erebos_landing_descent":
+			if _is_ship_landed():
+				prompt_text = "BRIDGE FLIGHT HELM   /   [E] DESCENT TELEMETRY (LANDED AT SITE K-12)"
+			elif _get_total_completed_main_tasks() < 7 and not _completed_story_stations.has(&"landing_prep_beacons"):
+				prompt_text = "BRIDGE FLIGHT HELM   /   [E] DESCENT LOCKED (COMPLETE PRE-DESCENT TASKS FIRST)"
+		_walk_hud.set_interaction_prompt(prompt_text, true)
 		return
 
 	if _room_task_feedback_timer > 0.0:
@@ -1588,6 +1729,269 @@ func _begin_amara_dialogue() -> void:
 	if is_instance_valid(amara) and is_instance_valid(player):
 		player.face_toward(amara.global_position)
 	_crew_dialogue.start_dialogue(lines, offer_tasks, {"npc": amara, "speaker": "DR. AMARA OKOYE / ASTROBIOLOGIST / HYDROPONICS"})
+
+
+func _begin_mateo_dialogue() -> void:
+	if _crew_dialogue_open:
+		return
+	_crew_dialogue_open = true
+	_walk_hud.set_walking_visible(false)
+	_update_player_walk_state()
+	_walk_hud.set_interaction_prompt("", false)
+	if is_instance_valid(player) and is_instance_valid(_mateo_npc):
+		player.face_toward(_mateo_npc.global_position)
+		if _mateo_npc.has_method("face_toward"):
+			_mateo_npc.face_toward(player.global_position)
+
+	var lines: Array[String] = []
+	var choices: Array[Dictionary] = []
+	if not _is_ship_landed():
+		lines.append("Thura. Checking the shuttle tie-downs and heavy drill anchors before we hit the atmosphere.")
+		lines.append("Aegis Mining gave us good gear, but the telemetry from Site K-12 has been giving me a bad feeling.")
+		lines.append("That 4-pulse, 7-second vibration my autonomous drone picked up from the ore basin... natural seismic echoes don't hold a metronome beat like that.")
+		choices.append({"id": "mateo_sponsor", "label": "Ask about Aegis Mining's commercial agenda"})
+		choices.append({"id": "mateo_pulses", "label": "Ask about the 4-pulse acoustic vibration"})
+		choices.append({"id": "mateo_rig", "label": "Ask for advice on operating the extraction rig"})
+	else:
+		lines.append("We're down on Site K-12. That was a rough retro-burn through the crags, but Asteria-1 held together.")
+		lines.append("Exterior airlock is open. Mind the 0.84G gravity — your suit thrusters will feel lighter, but inertia is still your enemy.")
+		choices.append({"id": "mateo_surface", "label": "Ask about surface hazards at Site K-12"})
+		choices.append({"id": "mateo_gear", "label": "Confirm extraction rig telemetry"})
+
+	_crew_dialogue.start_dialogue(lines, false, {
+		"id": "mateo_ruiz",
+		"speaker": "MATEO RUIZ / MINING SPECIALIST / SHUTTLE BAY",
+		"npc": _mateo_npc,
+		"choices": choices
+	})
+
+
+func _begin_chen_dialogue() -> void:
+	if _crew_dialogue_open:
+		return
+	_crew_dialogue_open = true
+	_walk_hud.set_walking_visible(false)
+	_update_player_walk_state()
+	_walk_hud.set_interaction_prompt("", false)
+	if is_instance_valid(player) and is_instance_valid(_chen_npc):
+		player.face_toward(_chen_npc.global_position)
+		if _chen_npc.has_method("face_toward"):
+			_chen_npc.face_toward(player.global_position)
+
+	var lines: Array[String] = []
+	var choices: Array[Dictionary] = []
+	if not _is_ship_landed():
+		var total_main := _get_total_completed_main_tasks()
+		lines.append("Dr. Min. Day 184 of transit. We are on the final orbital approach vector above Erebos.")
+		if total_main < 7:
+			lines.append("Before I authorize de-orbit burn and atmospheric insertion at the Bridge Flight Helm, ensure all engineering and hydroponics maintenance protocols are completed.")
+		else:
+			lines.append("All pre-descent systems are green. Whenever you are ready, take the Bridge Flight Helm and initiate the orbital landing descent to Site K-12.")
+		choices.append({"id": "chen_directives", "label": "Review mission landing objectives for Site K-12"})
+		choices.append({"id": "chen_mother", "label": "Ask about her memory of your mother in Yangon"})
+		choices.append({"id": "chen_quarantine", "label": "Review biological quarantine regulations"})
+	else:
+		lines.append("Touchdown confirmed at Site K-12. Telemetry shows atmospheric pressure at 1.02 atm, gravity at 0.84G.")
+		lines.append("The exterior airlock is cycling. Step out onto Erebos when you have your survey kit ready, Thura.")
+		choices.append({"id": "chen_k12_orders", "label": "Confirm surface exploration rules of engagement"})
+		choices.append({"id": "chen_crew_status", "label": "Check Bridge comms telemetry"})
+
+	_crew_dialogue.start_dialogue(lines, false, {
+		"id": "commander_chen",
+		"speaker": "COMMANDER MAYA CHEN / EXPEDITION COMMANDER / BRIDGE",
+		"npc": _chen_npc,
+		"choices": choices
+	})
+
+
+func _on_crew_dialogue_finished(accepted_tasks: bool) -> void:
+	_crew_dialogue_open = false
+	if is_instance_valid(amara) and amara.has_method("set_in_dialogue"):
+		amara.set_in_dialogue(false)
+	if is_instance_valid(_mateo_npc) and _mateo_npc.has_method("set_in_dialogue"):
+		_mateo_npc.call("set_in_dialogue", false)
+	if is_instance_valid(_chen_npc) and _chen_npc.has_method("set_in_dialogue"):
+		_chen_npc.call("set_in_dialogue", false)
+	_on_amara_dialogue_finished(accepted_tasks)
+
+
+func _on_crew_conversation_finished(conv_id: String, result_id: String) -> void:
+	_crew_dialogue_open = false
+	if is_instance_valid(amara) and amara.has_method("set_in_dialogue"):
+		amara.set_in_dialogue(false)
+	if is_instance_valid(_mateo_npc) and _mateo_npc.has_method("set_in_dialogue"):
+		_mateo_npc.call("set_in_dialogue", false)
+	if is_instance_valid(_chen_npc) and _chen_npc.has_method("set_in_dialogue"):
+		_chen_npc.call("set_in_dialogue", false)
+
+	if conv_id == "mateo_ruiz":
+		_handle_mateo_dialogue_result(result_id)
+	elif conv_id == "commander_chen":
+		_handle_chen_dialogue_result(result_id)
+	else:
+		_walk_hud.set_walking_visible(not _arrival_briefing_open)
+		_update_player_walk_state()
+
+
+func _handle_mateo_dialogue_result(result_id: String) -> void:
+	var response_lines: Array[String] = []
+	match result_id:
+		"mateo_sponsor":
+			response_lines = [
+				"Aegis Mining funded the Asteria-1 expedition with tens of billions of credits. They aren't interested in academic papers on crystalline physics.",
+				"They want high-purity yield and industrial applications. But look around this ship — corporate gave us five crew members and an automated extraction rig to do the work of fifty miners.",
+				"Just stay vigilant. The higher-ups back on Earth won't know if something goes wrong until days later."
+			]
+		"mateo_pulses":
+			response_lines = [
+				"I've spent eight years listening to seismic sensors on Callisto and Ganymede. Tectonic stress sounds like grinding iron, rumble, silence, random spikes.",
+				"Erebos doesn't sound like that. Four rhythmic acoustic pulses... exactly seven seconds of absolute dead silence... then four pulses again.",
+				"It's like a submarine pinging through bedrock. When we touch down, check the sensor telemetry before you touch any mineral seam."
+			]
+		"mateo_rig":
+			response_lines = [
+				"The automated extraction rig is parked at the rim of Site K-12. If the ground team needs to run a core sample, make sure the borehole anchors are locked into solid basalt.",
+				"And keep your Mining Plasma Cutter handy. If the drill head jams, a quick thermal cut to the slag guide will clear the drive shaft."
+			]
+		"mateo_surface":
+			response_lines = [
+				"The surface of Erebos has almost no atmosphere — just a thin haze of sulfur and particulate ore. Visibility drops fast in crater valleys.",
+				"Keep your Suit Flashlight [F] charged, and plant your Survey Beacons at high points so you don't lose the landing pad."
+			]
+		"mateo_gear":
+			response_lines = [
+				"Telemetry says the extraction rig is on standby. All sensor telemetry will relay straight back to my console here in the Shuttle Bay.",
+				"If you hear any weird acoustic frequencies over your suit comms, ping me immediately."
+			]
+		_:
+			_walk_hud.set_walking_visible(not _arrival_briefing_open)
+			_update_player_walk_state()
+			return
+
+	_crew_dialogue_open = true
+	_walk_hud.set_walking_visible(false)
+	_update_player_walk_state()
+	_crew_dialogue.start_dialogue(response_lines, false, {
+		"id": "mateo_ruiz_reply",
+		"speaker": "MATEO RUIZ / MINING SPECIALIST / SHUTTLE BAY",
+		"npc": _mateo_npc
+	})
+
+
+func _handle_chen_dialogue_result(result_id: String) -> void:
+	var response_lines: Array[String] = []
+	match result_id:
+		"chen_directives":
+			response_lines = [
+				"Our flight and surface directives for Site K-12 are clear and non-negotiable.",
+				"First: Deploy high-gain Survey Beacons to calibrate our surface triangulation grid. Second: Verify the status of the automated extraction rig. Third: Collect a crystalline resonance sample for Dr. Okoye's lab.",
+				"Do not deviate from the mission perimeter, Dr. Min. The safety of Asteria-1 depends on discipline."
+			]
+		"chen_mother":
+			response_lines = [
+				"I served with Dr. Khin Win during the Pacific Acoustic Mapping initiative twenty years ago.",
+				"When corporate insisted that brute-force lidar was enough for deep space exploration, your mother stood in front of the board and proved that sound waves carry information across barriers light cannot penetrate.",
+				"She was a brilliant scientist, Thura. She taught you well — keep her paper star safe in your flight suit."
+			]
+		"chen_quarantine":
+			response_lines = [
+				"Directive 44-B is absolute. Any unknown ore sample must be transported in a hermetically sealed container directly to the Laboratory containment tank.",
+				"No member of the crew may bypass bio-decontamination seals. If containment is ever compromised, the Bridge and living quarters will be sealed immediately."
+			]
+		"chen_k12_orders":
+			response_lines = [
+				"We have achieved touchdown on Site K-12. The landing struts are anchored into the iron basalt.",
+				"Keep your comms channel open on Frequency 9. If you encounter any structural anomalies or sensory distortions, return to the airlock immediately."
+			]
+		"chen_crew_status":
+			response_lines = [
+				"Bridge telemetry is monitoring Asteria-1 systems. Life support, power grid, and navigation are holding nominal.",
+				"Ward is at the flight controls, Ruiz is monitoring cargo, and Okoye is ready in Hydroponics. We are all counting on you out there."
+			]
+		_:
+			_walk_hud.set_walking_visible(not _arrival_briefing_open)
+			_update_player_walk_state()
+			return
+
+	_crew_dialogue_open = true
+	_walk_hud.set_walking_visible(false)
+	_update_player_walk_state()
+	_crew_dialogue.start_dialogue(response_lines, false, {
+		"id": "commander_chen_reply",
+		"speaker": "COMMANDER MAYA CHEN / EXPEDITION COMMANDER / BRIDGE",
+		"npc": _chen_npc
+	})
+
+
+func _setup_crew_characters() -> void:
+	if is_instance_valid(_mateo_npc) or is_instance_valid(_chen_npc):
+		return
+
+	# Mateo Ruiz - Mining Specialist in Cargo / Shuttle Bay
+	var mateo: CharacterBody2D = CREW_MEMBER_NPC_SCRIPT.new() as CharacterBody2D
+	mateo.name = "MateoRuiz"
+	mateo.global_position = Vector2(1310.0, 640.0)
+	mateo.collision_layer = 4
+	mateo.collision_mask = 1
+	var mateo_col := CollisionShape2D.new()
+	var mateo_shape := CircleShape2D.new()
+	mateo_shape.radius = 8.0
+	mateo_col.shape = mateo_shape
+	mateo.add_child(mateo_col)
+
+	var mateo_sprite := Sprite2D.new()
+	mateo_sprite.name = "Sprite2D"
+	mateo_sprite.texture = preload("res://art/characters/runtime/amara_walk_4dir.png")
+	mateo_sprite.region_enabled = true
+	mateo_sprite.region_rect = Rect2(0.0, 0.0, 240.0, 240.0)
+	mateo_sprite.scale = Vector2(0.11, 0.11)
+	mateo_sprite.modulate = Color(1.0, 0.78, 0.52)
+	mateo_sprite.position = Vector2(0.0, -4.0)
+	mateo.add_child(mateo_sprite)
+
+	var mateo_badge := Label.new()
+	mateo_badge.text = "[ MATEO RUIZ / MINING ]"
+	mateo_badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	mateo_badge.add_theme_font_size_override("font_size", 8)
+	mateo_badge.add_theme_color_override("font_color", Color(1.0, 0.68, 0.28, 0.9))
+	mateo_badge.position = Vector2(-70.0, -32.0)
+	mateo_badge.size = Vector2(140.0, 16.0)
+	mateo.add_child(mateo_badge)
+	add_child(mateo)
+	_mateo_npc = mateo
+
+	# Commander Maya Chen - Bridge Mission Planning Table
+	var chen: CharacterBody2D = CREW_MEMBER_NPC_SCRIPT.new() as CharacterBody2D
+	chen.name = "CommanderChen"
+	chen.global_position = Vector2(258.0, 348.0)
+	chen.collision_layer = 4
+	chen.collision_mask = 1
+	var chen_col := CollisionShape2D.new()
+	var chen_shape := CircleShape2D.new()
+	chen_shape.radius = 8.0
+	chen_col.shape = chen_shape
+	chen.add_child(chen_col)
+
+	var chen_sprite := Sprite2D.new()
+	chen_sprite.name = "Sprite2D"
+	chen_sprite.texture = preload("res://art/characters/runtime/amara_walk_4dir.png")
+	chen_sprite.region_enabled = true
+	chen_sprite.region_rect = Rect2(0.0, 0.0, 240.0, 240.0)
+	chen_sprite.scale = Vector2(0.11, 0.11)
+	chen_sprite.modulate = Color(0.96, 0.90, 0.65)
+	chen_sprite.position = Vector2(0.0, -4.0)
+	chen.add_child(chen_sprite)
+
+	var chen_badge := Label.new()
+	chen_badge.text = "[ CDR MAYA CHEN / COMMAND ]"
+	chen_badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	chen_badge.add_theme_font_size_override("font_size", 8)
+	chen_badge.add_theme_color_override("font_color", Color(0.98, 0.84, 0.35, 0.9))
+	chen_badge.position = Vector2(-75.0, -32.0)
+	chen_badge.size = Vector2(150.0, 16.0)
+	chen.add_child(chen_badge)
+	add_child(chen)
+	_chen_npc = chen
 
 
 func _on_amara_dialogue_finished(accepted_tasks: bool) -> void:
@@ -1670,6 +2074,24 @@ func _trigger_story_station(station_id: StringName) -> void:
 	if station_id == &"bridge_flight_piloting":
 		_open_ship_piloting_console(&"bridge_flight_piloting", false)
 		return
+
+	if station_id == &"erebos_landing_descent":
+		if _is_ship_landed():
+			_room_task_feedback = "ASTERIA-1 IS SECURELY LANDED AT SITE K-12  //  EXTERIOR AIRLOCK OPEN FOR SURFACE OPS"
+			_room_task_feedback_timer = 4.0
+			return
+		var total_main: int = _get_total_completed_main_tasks()
+		if total_main < 7 and not _completed_story_stations.has(&"landing_prep_beacons"):
+			_room_task_feedback = "DESCENT LOCKED  //  COMPLETE PRE-DESCENT TASKS FIRST (POWER, LIFE SUPPORT, DRONE, BEACONS)"
+			_room_task_feedback_timer = 4.5
+			return
+		var cutscene_data: Dictionary = _build_cutscene_data(&"erebos_landing_descent")
+		if not cutscene_data.is_empty():
+			_cutscene_open = true
+			_walk_hud.set_walking_visible(false)
+			_update_player_walk_state()
+			_story_cutscene.call(&"play_cutscene", &"erebos_landing_descent", cutscene_data)
+			return
 
 	var st_def: Dictionary = {}
 	for st in STORY_STATIONS:
@@ -1776,7 +2198,42 @@ func _build_cutscene_data(station_id: StringName) -> Dictionary:
 				"slides": [
 					{
 						"speaker": "ELIAS WARD // PILOT & NAVIGATION OFFICER (LOG 5/8)",
-						"text": "ELIAS WARD: \"All pre-descent engineering and science tasks are green. Here's your Survey Beacon kit, Thura. I just recorded three terrible knock-knock jokes for my daughter back in Houston, so make sure we come back from this rock.\"\n\nCOMMANDER MAYA CHEN (INTERCOM): \"Orbital lock over Site K-12 is green. Thura, take the Exterior Airlock to descend to Erebos.\"",
+						"text": "ELIAS WARD: \"All pre-descent engineering and science tasks are green. Here's your Survey Beacon kit, Thura. I just recorded three terrible knock-knock jokes for my daughter back in Houston, so make sure we come back from this rock.\"\n\nCOMMANDER MAYA CHEN (INTERCOM): \"Pre-descent checklist verified. Thura, report to the Bridge Flight Helm to take manual retro-control and initiate our orbital landing descent to Site K-12!\"",
+					},
+				],
+			}
+		&"erebos_landing_descent":
+			return {
+				"act": "ACT I — THE DESCENT // ORBITAL INSERTION",
+				"clock": "ASTERIA-1 // DAY 184 // EREBOS EXOSPHERE",
+				"title": "ATMOSPHERIC INSERTION & RETRO-BURN",
+				"echo_pulse": false,
+				"slides": [
+					{
+						"speaker": "COMMANDER MAYA CHEN // SHIPWIDE DESCENT ALERT",
+						"image": "res://art/overview/space_frames/asteria_space_backdrop_38.jpg",
+						"text": "COMMANDER MAYA CHEN: \"All hands, this is Commander Chen. De-orbit burn sequence initiated. Main retro-thrusters firing in 3... 2... 1.\n\nAsteria-1 has breached the upper gravity well of Erebos. Thura, manual retro-steering is yours at the Bridge Helm — guide our descent corridor toward Site K-12!\"",
+					},
+					{
+						"speaker": "PILOT ELIAS WARD // BRIDGE FLIGHT DECK",
+						"text": "ELIAS WARD: \"Severe gravitational turbulence detected! Towering basalt crags and iron dust plumes are rising fast across the descent trajectory!\n\nAutopilot is disengaging! Thura, take the helm controls — dodge the crags with [WASD / Arrows] and clear dust vents with retro-pulses [Space / LMB] to bring us down safely!\"",
+					},
+				],
+			}
+		&"erebos_touchdown_confirmed":
+			return {
+				"act": "ACT II — TOUCHDOWN // SITE K-12",
+				"clock": "EREBOS BASALT CRATER // SITE K-12 // 0.84G SURFACE",
+				"title": "TOUCHDOWN CONFIRMED",
+				"echo_pulse": true,
+				"slides": [
+					{
+						"speaker": "DESCENT TELEMETRY // SITE K-12 BEDROCK",
+						"text": "THUD! The massive hydraulic landing struts of Asteria-1 bite into the resonant basalt bedrock of Erebos.\n\nShock absorbers hiss as planetary equalization cycles engage. Through the bridge viewports, the jagged black horizon of Erebos stretches out under a rust-colored twilight sky.",
+					},
+					{
+						"speaker": "COMMANDER MAYA CHEN // SHIPWIDE INTERCOM",
+						"text": "COMMANDER MAYA CHEN: \"Touchdown confirmed! Asteria-1 is safely down on Site K-12.\n\nAtmospheric pressure: 1.02 atm. Gravity: 0.84G. All deck seals are green and holding.\n\nExterior Airlock is now depressurized and unlocked for surface operations. Dr. Min, don your EVA gear and begin extraction survey. Good luck out there.\"",
 					},
 				],
 			}
@@ -1880,6 +2337,21 @@ func _on_story_cutscene_finished(cutscene_id: StringName, choice_id: StringName)
 	if cutscene_id == &"cabin_may_recording":
 		_room_task_feedback = "TASK 1/2 COMPLETE  //  HEAD TO BRIDGE FLIGHT HELM (R01) TO PILOT ASTERIA-1 & UNLOCK SUIT LIGHT"
 		_room_task_feedback_timer = 5.5
+	elif cutscene_id == &"erebos_landing_descent":
+		# Launch playable flight retro-burn descent encounter!
+		_open_ship_piloting_console(&"erebos_orbital_landing", true)
+		return
+	elif cutscene_id == &"erebos_touchdown_confirmed":
+		Engine.set_meta(&"ship_landed_on_erebos", true)
+		_completed_story_stations[&"erebos_landing_descent"] = true
+		_walk_hud.set_task_completed(&"erebos_landing_descent")
+		_walk_hud.set_story_act_label("ACT II — EREBOS // SITE K-12")
+		if is_instance_valid(exterior_airlock):
+			exterior_airlock.set("is_locked", false)
+		_walk_hud.play_radio_transmission("COMMANDER MAYA CHEN // SHIPWIDE", "Exterior airlock unlocked. Remember: stay within telemetry range of the extraction rig.")
+		_room_task_feedback = "TOUCHDOWN CONFIRMED ON EREBOS (SITE K-12)  //  EXTERIOR AIRLOCK UNLOCKED FOR SURFACE OPERATIONS"
+		_room_task_feedback_timer = 6.0
+		_save_persistent_story_state()
 	elif cutscene_id == &"commanders_secret_bridge":
 		_walk_hud.record_audio_log(&"log_chen_farewell")
 		_walk_hud.play_radio_transmission("COMMANDER MAYA CHEN // FINAL ORDER", "It's locked from this side, Thura. Protect the navigation helm... and don't listen to the voices.")

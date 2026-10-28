@@ -31,7 +31,7 @@ const ITEM_DATA := {
 	&"industrial_plasma_cutter": {
 		"name": "Industrial Plasma Cutter", "short": "PLASMA", "color": GOLD, "equip_slot": &"tool",
 		"desc": "High-temperature thermal cutting beam recovered from Ruiz's drill rig. Cuts dense mineral lattices and wards off shadow entities.",
-		"texture": preload("res://art/tools/industrial_plasma_cutter.png"), "icon_region": Rect2(95.0, 340.0, 840.0, 650.0),
+		"texture": preload("res://art/tools/industrial_plasma_cutter.png"), "icon_region": Rect2(89.0, 340.0, 840.0, 650.0),
 	},
 	&"suit_flashlight": {
 		"name": "Suit Flashlight", "short": "LIGHT", "color": PALE, "equip_slot": &"suit",
@@ -75,6 +75,34 @@ const ITEM_DATA := {
 	},
 }
 
+const ITEM_LIMITS: Dictionary = {
+	&"emergency_flare": {
+		"default": 5,
+		"max": 10,
+		"unit": "FLARES",
+	},
+	&"captains_revolver": {
+		"default": 6,
+		"max": 18,
+		"unit": "ROUNDS",
+	},
+	&"survey_beacon": {
+		"default": 3,
+		"max": 6,
+		"unit": "BEACONS",
+	},
+	&"medical_injector": {
+		"default": 3,
+		"max": 5,
+		"unit": "DOSES",
+	},
+	&"pressure_sealant": {
+		"default": 50,
+		"max": 100,
+		"unit": "PSI",
+	},
+}
+
 const EQUIPMENT_SLOTS: Array[StringName] = [&"head", &"suit", &"pack", &"tool"]
 const EQUIPMENT_LABELS := [&"HEAD", &"SUIT", &"PACK", &"TOOL"]
 const HOTBAR_KEY_CODES: Array[int] = [KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6, KEY_7, KEY_8, KEY_9]
@@ -91,6 +119,15 @@ class PixelIcon extends Control:
 		var unit := maxf(1, floorf(minf(size.x, size.y) / 24.0))
 		var origin := ((size - Vector2.ONE * unit * 24.0) * 0.5).floor()
 		match icon_kind:
+			&"tasks":
+				_block(origin, unit, 4, 3, 16, 18, tint.darkened(0.4), false)
+				_block(origin, unit, 7, 1, 10, 4, tint)
+				_block(origin, unit, 7, 7, 10, 2, ICON_PALE)
+				_block(origin, unit, 7, 11, 10, 2, ICON_PALE)
+				_block(origin, unit, 7, 15, 10, 2, ICON_PALE)
+				_block(origin, unit, 5, 7, 2, 2, Color(0.48, 0.93, 0.64))
+				_block(origin, unit, 5, 11, 2, 2, Color(0.48, 0.93, 0.64))
+				_block(origin, unit, 5, 15, 2, 2, Color(1.0, 0.78, 0.38))
 			&"map":
 				_block(origin, unit, 2, 5, 20, 14, tint.darkened(0.45), false)
 				_block(origin, unit, 4, 7, 4, 10, tint)
@@ -316,13 +353,14 @@ class InventoryCell extends PanelContainer:
 	var icon_color := Color(0.36, 0.9, 1.0)
 	var is_selected := false
 	var item_texture: Texture2D
+	var item_amount: int = -1
 	var icon_size := 27.0
 	var _badge: Label
 	var _icon: TextureRect
 	var _name: Label
 	var _hovered := false
 
-	func configure(kind: StringName, index: int, item: StringName, item_short: String, tint: Color, selected: bool, label_override := "", texture: Texture2D = null) -> void:
+	func configure(kind: StringName, index: int, item: StringName, item_short: String, tint: Color, selected: bool, label_override := "", texture: Texture2D = null, amount: int = -1) -> void:
 		slot_kind = kind
 		slot_index = index
 		item_id = item
@@ -331,6 +369,7 @@ class InventoryCell extends PanelContainer:
 		is_selected = selected
 		slot_label = label_override
 		item_texture = texture
+		item_amount = amount
 		var available_width := maxf(custom_minimum_size.x - 12.0, 20.0)
 		var available_height := maxf(custom_minimum_size.y - 25.0, 20.0)
 		icon_size = minf(42.0, minf(available_width, available_height))
@@ -376,12 +415,13 @@ class InventoryCell extends PanelContainer:
 			var limit := 40.0 if slot_kind == &"hotbar" else 64.0
 			_icon.custom_minimum_size = Vector2.ONE * maxf(20, minf(limit, minf(size.x - 16, size.y - 32)))
 
-	func set_item(item: StringName, item_short: String, tint: Color, selected: bool, texture: Texture2D = null) -> void:
+	func set_item(item: StringName, item_short: String, tint: Color, selected: bool, texture: Texture2D = null, amount: int = -1) -> void:
 		item_id = item
 		short_label = item_short
 		icon_color = tint
 		is_selected = selected
 		item_texture = texture
+		item_amount = amount
 		_refresh()
 
 	func _refresh() -> void:
@@ -394,11 +434,22 @@ class InventoryCell extends PanelContainer:
 		var has_item := item_id != &""
 		_icon.visible = has_item
 		_icon.texture = item_texture if has_item else null
-		_name.text = short_label if has_item else ("EMPTY" if slot_kind == &"equipment" else "")
-		_name.add_theme_color_override("font_color", icon_color if has_item else CELL_MUTED)
+		if has_item:
+			if item_amount >= 0:
+				_name.text = "%s x%d" % [short_label, item_amount] if item_amount > 0 else "%s 0" % short_label
+				_name.add_theme_color_override("font_color", icon_color if item_amount > 0 else Color(1.0, 0.42, 0.35))
+			else:
+				_name.text = short_label
+				_name.add_theme_color_override("font_color", icon_color)
+		else:
+			_name.text = ("EMPTY" if slot_kind == &"equipment" else "")
+			_name.add_theme_color_override("font_color", CELL_MUTED)
 		if has_item and ITEM_DATA.has(item_id):
 			var it_def: Dictionary = ITEM_DATA[item_id]
-			tooltip_text = "%s\n%s" % [str(it_def["name"]).to_upper(), str(it_def.get("desc", ""))]
+			var amt_str: String = ""
+			if item_amount >= 0:
+				amt_str = " [%d REMAINING]" % item_amount
+			tooltip_text = "%s%s\n%s" % [str(it_def["name"]).to_upper(), amt_str, str(it_def.get("desc", ""))]
 		elif has_item:
 			tooltip_text = item_id.replace("_", " ").capitalize()
 		else:
@@ -576,6 +627,24 @@ var _mission_progress_label: Label
 var _mission_progress_bar: ProgressBar
 var _mission_rows: Dictionary = {}
 var _mission_summary_label: Label
+var _active_task_card: PanelContainer
+var _active_room_tag: Label
+var _active_priority_tag: Label
+var _active_task_title: Label
+var _active_action_hint: Label
+var _active_reward_card: PanelContainer
+var _active_reward_icon: TextureRect
+var _active_reward_badge: Label
+var _active_reward_name: Label
+var _active_reward_desc: Label
+var _upcoming_task_row: HBoxContainer
+var _upcoming_task_label: Label
+var _tasks_dossier_btn: Button
+var _tasks_list_container: VBoxContainer
+var _tasks_arsenal_container: VBoxContainer
+var _tasks_filter_tab: StringName = &"all"
+var _tasks_filter_buttons: Dictionary = {}
+var _pulse_anim_time: float = 0.0
 var _cargo_count_label: Label
 var _context_prompt: PanelContainer
 var _context_label: Label
@@ -672,6 +741,7 @@ var _mobile_drop_btn: Button = null
 var _dropped_world_items: Array[Dictionary] = []
 var _world_dropped_canvas: Node2D = null
 var _world_drop_pulse: float = 0.0
+var _item_amounts: Dictionary = {}
 const DEV_FLICKER_STYLES: Array[StringName] = [&"erratic", &"strobe", &"brownout", &"pulse"]
 const DEV_FLICKER_SPEEDS: Array[float] = [0.5, 1.0, 1.5, 2.5]
 const CAMPAIGN_META_KEY: StringName = &"echoes_campaign_inventory_state"
@@ -686,6 +756,99 @@ const ALL_PROGRESSION_ITEMS: Array[StringName] = [
 	&"industrial_plasma_cutter",
 	&"electrical_discharge_tool",
 	&"captains_revolver",
+]
+
+const ARSENAL_CATALOG: Array[Dictionary] = [
+	{
+		"id": &"captains_revolver",
+		"category": "LETHAL WEAPON",
+		"category_color": Color(1.0, 0.45, 0.25),
+		"role": "12mm Kinetic Service Sidearm",
+		"desc": "Standard-issue lethal sidearm surrendered by Commander Chen. Kinetic rounds pierce armor and blast structural bulkheads.",
+		"unlock_lore": "Act IV Climax: Confront Commander Chen on Bridge during quarantine standoff.",
+		"task_id": &"commanders_secret_bridge",
+	},
+	{
+		"id": &"industrial_plasma_cutter",
+		"category": "HEAVY WEAPON",
+		"category_color": Color(1.0, 0.78, 0.38),
+		"role": "Thermal Plasma Cutting Beam",
+		"desc": "High-temperature cutting beam recovered from Ruiz's rig. Slices through mineral crystalline lattice and repels shadow entities.",
+		"unlock_lore": "Act II Erebos: Investigate the drilling rig breach cavity and recover Mateo Ruiz's cutter.",
+		"task_id": &"north_viridian_ore",
+	},
+	{
+		"id": &"electrical_discharge_tool",
+		"category": "STUN WEAPON",
+		"category_color": Color(0.36, 0.9, 1.0),
+		"role": "High-Voltage Arc Capacitor Tool",
+		"desc": "Discharges high-voltage electric bursts that disrupt the acoustic and cellular matrix of colloidal fluid entities.",
+		"unlock_lore": "Act III Lab Outbreak: Salvage from wrecked specimen bench (or rescue Leila in Sub-Deck 02).",
+		"task_id": &"lab_specimen",
+	},
+	{
+		"id": &"mineral_survey_scanner",
+		"category": "SURVEY INSTRUMENT",
+		"category_color": Color(0.36, 0.9, 1.0),
+		"role": "Sub-Harmonic Acoustic Detector",
+		"desc": "Scans sub-surface ore density and tracks the four-pulse harmonic resonance frequency.",
+		"unlock_lore": "Act I Milestone 3: Route hydroponics nutrient flow and isolate drone vibration telemetry.",
+		"task_id": &"drone_vibration_scan",
+	},
+	{
+		"id": &"survey_beacon",
+		"category": "RECON INSTRUMENT",
+		"category_color": Color(1.0, 0.78, 0.38),
+		"role": "Deployable Waypoint Transponder",
+		"desc": "Marks surface landing targets and deep cavern drop sites for planetary descent.",
+		"unlock_lore": "Act I Milestone 4: Complete pre-descent shuttle bay beacon checklist.",
+		"task_id": &"landing_prep_beacons",
+	},
+	{
+		"id": &"emergency_flare",
+		"category": "TACTICAL UTILITY",
+		"category_color": Color(1.0, 0.5, 0.2),
+		"role": "High-Output Magnesium Flare",
+		"desc": "Ignites brilliantly to illuminate pitch-black caverns and distract hostile resonance forms.",
+		"unlock_lore": "Act II Erebos: Survey at least 2 crystal anomaly sites on the planet surface.",
+		"task_id": &"rig_test",
+	},
+	{
+		"id": &"suit_flashlight",
+		"category": "SUIT GEAR",
+		"category_color": Color(0.94, 0.91, 0.82),
+		"role": "Shoulder-Mounted High-Intensity LED Beam",
+		"desc": "Shoulder-mounted floodlight. Press [F] anytime to illuminate darkened ship compartments.",
+		"unlock_lore": "Act I Milestone 1: Listen to May's Yangon message & pilot ship through asteroid swarm.",
+		"task_id": &"bridge_flight_piloting",
+	},
+	{
+		"id": &"engineering_multitool",
+		"category": "MAINTENANCE TOOL",
+		"category_color": Color(1.0, 0.78, 0.38),
+		"role": "Standard Diagnostic Instrument",
+		"desc": "Used to calibrate power cells, bypass faulty relays, and synchronize electrical buses.",
+		"unlock_lore": "Act I Milestone 2: Reconnect aux power bus and replace life-support scrubber cartridge.",
+		"task_id": &"air_filter",
+	},
+	{
+		"id": &"pressure_sealant",
+		"category": "MAINTENANCE TOOL",
+		"category_color": Color(0.36, 0.9, 1.0),
+		"role": "Polymer Hull Sealant Injector",
+		"desc": "Rapid-curing polymer foam injector. Seals microscopic hull breaches and fluid manifolds.",
+		"unlock_lore": "Act I Milestone 3: Route hydroponics nutrient flow in greenhouse.",
+		"task_id": &"nutrient_flow",
+	},
+	{
+		"id": &"medical_injector",
+		"category": "TACTICAL UTILITY",
+		"category_color": Color(0.48, 0.93, 0.64),
+		"role": "Neural Stimulant Auto-Injector",
+		"desc": "Dispenses adrenaline and synthetic coagulant. Stabilizes vital signs during resonance attacks.",
+		"unlock_lore": "Act III Lab Outbreak: Salvage emergency medical injector from overturned cart in med-lab.",
+		"task_id": &"lab_trolley",
+	},
 ]
 
 const ACHIEVEMENTS_CATALOG: Array[Dictionary] = [
@@ -788,6 +951,13 @@ func setup(player: ShipPlayer, task_entries: Array[Dictionary], map_world_origin
 	_storage_items.fill(&"")
 	_load_persistent_inventory_state()
 	_ensure_world_dropped_canvas()
+	if is_instance_valid(_player):
+		if not _player.equipment_amount_changed.is_connected(_on_player_equipment_amount_changed):
+			_player.equipment_amount_changed.connect(_on_player_equipment_amount_changed)
+		if not _player.equipment_depleted.is_connected(_on_player_equipment_depleted):
+			_player.equipment_depleted.connect(_on_player_equipment_depleted)
+		if _player.has_method("sync_equipment_amounts"):
+			_player.sync_equipment_amounts(_item_amounts)
 	_sync_player_equipped_item()
 
 
@@ -872,41 +1042,144 @@ func _build_mission_panel() -> void:
 	panel.anchor_bottom = 0.0
 	panel.offset_left = 16.0
 	panel.offset_top = 16.0
-	panel.offset_right = 400.0
-	panel.offset_bottom = 126.0
-	var mission_style := _panel_style(SURFACE, Color(1.0, 0.78, 0.38, 0.94), 10.0)
+	panel.offset_right = 430.0
+	panel.offset_bottom = 270.0
+	var mission_style := _panel_style(Color(0.015, 0.028, 0.044, 0.95), Color(0.24, 0.65, 0.85, 0.9), 10.0)
 	panel.add_theme_stylebox_override("panel", mission_style)
 	_root.add_child(panel)
+
 	var stack := VBoxContainer.new()
 	_mission_stack = stack
-	stack.add_theme_constant_override("separation", 4)
+	stack.add_theme_constant_override("separation", 6)
 	panel.add_child(stack)
+
+	# 1. Header Bar: Dot + Title + Step Badge + [T] Dossier Button
 	var heading := HBoxContainer.new()
 	heading.alignment = BoxContainer.ALIGNMENT_CENTER
-	var hdr_lbl: Label = _label("CURRENT OBJECTIVE", 9, Color(0.24, 0.95, 0.54))
+	heading.add_theme_constant_override("separation", 6)
+
+	var live_dot := Label.new()
+	live_dot.text = "●"
+	live_dot.add_theme_color_override("font_color", Color(0.24, 0.95, 0.54))
+	live_dot.add_theme_font_size_override("font_size", 10)
+	heading.add_child(live_dot)
+
+	var hdr_lbl: Label = _label("TACTICAL WATCH TASKS", 10, Color(1.0, 0.82, 0.4))
 	hdr_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	heading.add_child(hdr_lbl)
+
 	heading.add_spacer(false)
-	_mission_progress_label = _label("STEP 01 / 01", 9, Color(0.48, 0.93, 0.64))
+
+	_mission_progress_label = _label("STEP 01 / 11", 9, Color(0.48, 0.93, 0.64))
 	_mission_progress_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	heading.add_child(_mission_progress_label)
+
+	_tasks_dossier_btn = Button.new()
+	_tasks_dossier_btn.text = "[T] DOSSIER"
+	_tasks_dossier_btn.custom_minimum_size = Vector2(78, 22)
+	_tasks_dossier_btn.tooltip_text = "Open full Mission & Weapon Progression Dossier [T]"
+	_tasks_dossier_btn.add_theme_font_size_override("font_size", 8)
+	_tasks_dossier_btn.add_theme_color_override("font_color", CYAN)
+	_tasks_dossier_btn.add_theme_stylebox_override("normal", _panel_style(Color(0.02, 0.06, 0.09, 0.9), CYAN, 4.0))
+	_tasks_dossier_btn.add_theme_stylebox_override("hover", _panel_style(Color(0.04, 0.12, 0.18, 0.95), GOLD, 4.0))
+	_tasks_dossier_btn.pressed.connect(_open_profile)
+	heading.add_child(_tasks_dossier_btn)
 	stack.add_child(heading)
+
+	# 2. Progress Bar
 	_mission_progress_bar = ProgressBar.new()
 	_mission_progress_bar.min_value = 0.0
 	_mission_progress_bar.max_value = maxi(_task_entries.size(), 1)
 	_mission_progress_bar.show_percentage = false
-	_mission_progress_bar.custom_minimum_size.y = 5.0
-	_mission_progress_bar.add_theme_stylebox_override("background", _panel_style(Color(0.02, 0.05, 0.07), Color(0.12, 0.22, 0.25), 0.0))
+	_mission_progress_bar.custom_minimum_size.y = 4.0
+	_mission_progress_bar.add_theme_stylebox_override("background", _panel_style(Color(0.015, 0.03, 0.045), Color(0.12, 0.22, 0.28), 0.0))
 	_mission_progress_bar.add_theme_stylebox_override("fill", _panel_style(Color(0.24, 0.95, 0.54), Color(0.24, 0.95, 0.54), 0.0))
 	stack.add_child(_mission_progress_bar)
+
+	# 3. Sector & Story Act Subtitle
 	_story_act_label = _label("%s  //  GEAR %02d/10  ·  LOGS %d/8" % [_current_story_act, _unlocked_items.size(), _collected_logs.size()], 8, CYAN)
 	_story_act_label.clip_text = true
 	stack.add_child(_story_act_label)
+
+	# 4. Hero Active Task Card
+	_active_task_card = PanelContainer.new()
+	_active_task_card.name = "ActiveTaskCard"
+	var card_style := _panel_style(Color(0.022, 0.045, 0.068, 0.96), Color(0.32, 0.72, 0.88, 0.7), 6.0)
+	_active_task_card.add_theme_stylebox_override("panel", card_style)
+	var card_vbox := VBoxContainer.new()
+	card_vbox.add_theme_constant_override("separation", 3)
+	_active_task_card.add_child(card_vbox)
+
+	var card_top := HBoxContainer.new()
+	card_top.add_theme_constant_override("separation", 6)
+	_active_room_tag = _label("[CREW LIVING QUARTERS]", 8, CYAN)
+	_active_priority_tag = _label("ACTIVE OBJECTIVE", 8, ORANGE)
+	card_top.add_child(_active_room_tag)
+	card_top.add_spacer(false)
+	card_top.add_child(_active_priority_tag)
+	card_vbox.add_child(card_top)
+
+	_active_task_title = _label("Play May's Yangon message", 11, PALE)
+	_active_task_title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	card_vbox.add_child(_active_task_title)
+
+	_active_action_hint = _label("▶ Access Thura's terminal desk at your bunk", 9, Color(0.68, 0.86, 0.9))
+	_active_action_hint.clip_text = true
+	card_vbox.add_child(_active_action_hint)
+	stack.add_child(_active_task_card)
+
+	# 5. Dedicated Weapon / Arsenal Reward Preview Card
+	_active_reward_card = PanelContainer.new()
+	_active_reward_card.name = "ActiveRewardCard"
+	var rew_style := _panel_style(Color(0.015, 0.035, 0.055, 0.94), Color(1.0, 0.78, 0.38, 0.65), 5.0)
+	_active_reward_card.add_theme_stylebox_override("panel", rew_style)
+	var rew_hbox := HBoxContainer.new()
+	rew_hbox.add_theme_constant_override("separation", 8)
+	rew_hbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	_active_reward_card.add_child(rew_hbox)
+
+	var icon_frame := PanelContainer.new()
+	icon_frame.custom_minimum_size = Vector2(30, 30)
+	icon_frame.add_theme_stylebox_override("panel", _panel_style(Color(0.02, 0.05, 0.08), GOLD, 3.0))
+	_active_reward_icon = TextureRect.new()
+	_active_reward_icon.custom_minimum_size = Vector2(26, 26)
+	_active_reward_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_active_reward_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_active_reward_icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	icon_frame.add_child(_active_reward_icon)
+	rew_hbox.add_child(icon_frame)
+
+	var rew_vbox := VBoxContainer.new()
+	rew_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	rew_vbox.add_theme_constant_override("separation", 1)
+	_active_reward_badge = _label("ARSENAL MILESTONE REWARD:", 8, GOLD)
+	_active_reward_name = _label("SUIT FLASHLIGHT [F]  (LOCKED 🔒)", 9, CYAN)
+	_active_reward_desc = _label("Complete current task to advance towards this reward", 8, Color(0.7, 0.82, 0.86))
+	_active_reward_desc.clip_text = true
+	rew_vbox.add_child(_active_reward_badge)
+	rew_vbox.add_child(_active_reward_name)
+	rew_vbox.add_child(_active_reward_desc)
+	rew_hbox.add_child(rew_vbox)
+	stack.add_child(_active_reward_card)
+
+	# 6. Upcoming Next Task Preview Row
+	_upcoming_task_row = HBoxContainer.new()
+	_upcoming_task_row.add_theme_constant_override("separation", 6)
+	var nxt_tag := _label("[NEXT]", 8, Color(0.45, 0.65, 0.7))
+	_upcoming_task_label = _label("Pilot ship & evade asteroids", 8, Color(0.55, 0.72, 0.78))
+	_upcoming_task_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_upcoming_task_label.clip_text = true
+	_upcoming_task_row.add_child(nxt_tag)
+	_upcoming_task_row.add_child(_upcoming_task_label)
+	stack.add_child(_upcoming_task_row)
+
+	# 7. Rows for dynamic tasks / secondary tasks
 	for entry in _task_entries:
 		_add_mission_row(entry)
-	_mission_summary_label = _label("", 8, MUTED)
+
+	# 8. Footer
+	_mission_summary_label = _label("✔ 0/%d Complete  ·  Press [T] for Weapon Roadmap" % maxi(_task_entries.size(), 1), 8, MUTED)
 	_mission_summary_label.clip_text = true
-	_mission_summary_label.visible = false
 	stack.add_child(_mission_summary_label)
 
 
@@ -1116,12 +1389,13 @@ func _build_top_controls() -> void:
 	var controls := HBoxContainer.new()
 	controls.name = "TopRightControls"
 	controls.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
-	controls.offset_left = -760.0
+	controls.offset_left = -860.0
 	controls.offset_top = 18.0
 	controls.offset_right = -18.0
 	controls.offset_bottom = 82.0
-	controls.add_theme_constant_override("separation", 8)
+	controls.add_theme_constant_override("separation", 6)
 	_root.add_child(controls)
+	controls.add_child(_navigation_button(&"tasks", "TASKS", "T", _open_tasks))
 	controls.add_child(_navigation_button(&"map", "SHIP MAP", "M", _open_map))
 	controls.add_child(_navigation_button(&"inventory", "INVENTORY", "I", _open_inventory))
 	controls.add_child(_navigation_button(&"profile", "PROFILE", "P", _open_profile))
@@ -1598,7 +1872,7 @@ func _create_modal_shell(title: String, desired_size: Vector2) -> Dictionary:
 	var heading := HBoxContainer.new()
 	heading.add_theme_constant_override("separation", 12)
 	var icon := PixelIcon.new()
-	icon.icon_kind = &"map" if title == "SHIP MAP" else &"settings" if title == "SHIP SETTINGS" else &"profile" if title == "PROFILE" else &"inventory"
+	icon.icon_kind = &"map" if title == "SHIP MAP" else &"settings" if title == "SHIP SETTINGS" else &"profile" if title == "PROFILE" else &"tasks" if ("MISSION" in title or "TASK" in title) else &"inventory"
 	icon.tint = GOLD
 	icon.custom_minimum_size = Vector2(32, 32)
 	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -1771,43 +2045,97 @@ func _refresh_mission_panel() -> void:
 		_mission_progress_label.add_theme_color_override("font_color", Color(0.48, 0.93, 0.64))
 	_mission_progress_bar.max_value = maxi(total, 1)
 	_mission_progress_bar.value = completed_count
+	_refresh_story_act_label()
 
 	var active_ids: Array[StringName] = _get_active_sequential_task_ids()
-	var visible_row_count: int = 0
+
+	# 1. Determine active primary task and next preview task
+	var active_entry: Dictionary = {}
+	var next_entry: Dictionary = {}
+	var found_active := false
+	for entry in _task_entries:
+		var tid: StringName = StringName(entry.get("id", &""))
+		if not bool(_task_completed.get(tid, false)):
+			if not found_active:
+				active_entry = entry
+				found_active = true
+			elif next_entry.is_empty() and not String(tid).begins_with("amara_"):
+				next_entry = entry
+
+	if is_instance_valid(_active_task_card):
+		if found_active and not active_entry.is_empty():
+			var room_tag_text: String = str(active_entry.get("room_name", active_entry.get("marker_label", "MAIN DECK"))).to_upper()
+			_active_room_tag.text = "[%s]" % room_tag_text
+			_active_priority_tag.text = "ACTIVE OBJECTIVE"
+			_active_priority_tag.add_theme_color_override("font_color", ORANGE)
+			_active_task_title.text = str(active_entry.get("title", "Ship duty"))
+			var hint: String = str(active_entry.get("action_hint", "Proceed to location and press [E] to interact"))
+			_active_action_hint.text = "▶ %s" % hint
+
+			var r_item: StringName = StringName(active_entry.get("reward_item", &""))
+			var m_item: StringName = StringName(active_entry.get("milestone_reward", r_item))
+			if r_item != &"" and ITEM_DATA.has(r_item):
+				_active_reward_icon.texture = _item_icon_texture(r_item)
+				_active_reward_badge.text = "⚡ WEAPON / GEAR UNLOCKS ON THIS TASK:"
+				_active_reward_badge.add_theme_color_override("font_color", GOLD)
+				_active_reward_name.text = str(ITEM_DATA[r_item]["name"]).to_upper()
+				_active_reward_desc.text = "Complete current objective to obtain this weapon!"
+				_active_reward_card.visible = true
+			elif m_item != &"" and ITEM_DATA.has(m_item):
+				_active_reward_icon.texture = _item_icon_texture(m_item)
+				_active_reward_badge.text = "NEXT ARSENAL REWARD IN PROGRESS:"
+				_active_reward_badge.add_theme_color_override("font_color", CYAN)
+				_active_reward_name.text = "%s  (LOCKED 🔒)" % str(ITEM_DATA[m_item]["name"]).to_upper()
+				_active_reward_desc.text = "Advance current objective to unlock"
+				_active_reward_card.visible = true
+			else:
+				_active_reward_badge.text = "WEAPON STATUS: UNARMED"
+				_active_reward_badge.add_theme_color_override("font_color", MUTED)
+				_active_reward_name.text = "COMPLETE TASKS TO OBTAIN WEAPONS"
+				_active_reward_desc.text = "All weapons are locked until duties are complete."
+				_active_reward_icon.texture = _item_icon_texture(&"captains_revolver")
+				_active_reward_card.visible = true
+
+			if not next_entry.is_empty() and is_instance_valid(_upcoming_task_row):
+				_upcoming_task_label.text = str(next_entry.get("title", "Next ship duty"))
+				_upcoming_task_row.visible = true
+			elif is_instance_valid(_upcoming_task_row):
+				_upcoming_task_row.visible = false
+		else:
+			_active_room_tag.text = "[ALL OBJECTIVES COMPLETE]"
+			_active_priority_tag.text = "WATCH COMPLETE"
+			_active_priority_tag.add_theme_color_override("font_color", GREEN)
+			_active_task_title.text = "All sector tasks executed successfully"
+			_active_action_hint.text = "All sector weapons & gear unlocked."
+			_active_reward_badge.text = "ARSENAL STATUS:"
+			_active_reward_name.text = "ALL WEAPONS & GEAR SECURED"
+			_active_reward_desc.text = "Loadout fully operational"
+			_active_reward_icon.texture = _item_icon_texture(&"captains_revolver")
+			if is_instance_valid(_upcoming_task_row):
+				_upcoming_task_row.visible = false
+
+	# 2. Update secondary / crew duty rows
 	for task_id in _mission_rows:
 		var row_data: Dictionary = _mission_rows[task_id]
 		var row_ctrl: Control = row_data["row"] as Control
 		var row_icon: TaskRowIcon = row_data["icon"] as TaskRowIcon
 		var is_complete: bool = bool(_task_completed.get(task_id, false))
-		var is_eq: bool = bool(row_data.get("is_eq", false))
-		var show_row: bool = active_ids.has(task_id) or (active_ids.is_empty() and is_complete)
+		var is_side: bool = String(task_id).begins_with("amara_")
+		var show_row: bool = is_side and (active_ids.has(task_id) or is_complete)
 		row_ctrl.visible = show_row
-		if show_row:
-			visible_row_count += 1
 		if is_instance_valid(row_icon):
 			row_icon.is_complete = is_complete
 			row_icon.queue_redraw()
 		if is_complete:
 			row_data["mark"].text = "DONE"
 			row_data["mark"].add_theme_color_override("font_color", GREEN)
-			row_data["label"].add_theme_color_override("font_color", Color(0.52, 0.72, 0.65))
-			row_data["tag"].add_theme_color_override("font_color", Color(0.38, 0.58, 0.50))
 		else:
-			row_data["mark"].text = "GEAR" if is_eq else "ACTIVE"
-			row_data["mark"].add_theme_color_override("font_color", CYAN if is_eq else ORANGE)
-			row_data["label"].add_theme_color_override("font_color", PALE)
-			row_data["tag"].add_theme_color_override("font_color", CYAN if is_eq else GOLD)
+			row_data["mark"].text = "DUTY"
+			row_data["mark"].add_theme_color_override("font_color", CYAN)
 
 	if is_instance_valid(_mission_summary_label):
-		if completed_count > 0 and not active_ids.is_empty():
-			_mission_summary_label.text = "✔ %d/%d COMPLETED  ·  NEXT UNLOCKS AFTER CURRENT STEP" % [completed_count, total]
-			_mission_summary_label.visible = true
-			visible_row_count += 1
-		else:
-			_mission_summary_label.visible = false
+		_mission_summary_label.text = "✔ %d/%d Tasks Complete  ·  [T] View Arsenal Roadmap" % [completed_count, total]
 
-	if is_instance_valid(_mission_panel):
-		_mission_panel.offset_bottom = 86.0 + float(maxi(visible_row_count, 1)) * 24.0
 	_update_map_markers()
 
 
@@ -1932,20 +2260,24 @@ func _item_fits_equipment_slot(item_id: StringName, slot_index: int) -> bool:
 func _refresh_hotbar() -> void:
 	for index in range(_hotbar_slots.size()):
 		var item_id: StringName = _hotbar_items[index]
-		_hotbar_slots[index].set_item(item_id, _short_item_name(item_id), _item_color(item_id), index == _selected_hotbar_index, _item_icon_texture(item_id))
+		var amt: int = get_item_amount(item_id) if is_item_limited(item_id) else -1
+		_hotbar_slots[index].set_item(item_id, _short_item_name(item_id), _item_color(item_id), index == _selected_hotbar_index, _item_icon_texture(item_id), amt)
 
 
 func _refresh_inventory_cells() -> void:
 	for index in range(_storage_cells.size()):
 		var item_id: StringName = _storage_items[index]
-		_storage_cells[index].set_item(item_id, _short_item_name(item_id), _item_color(item_id), false, _item_icon_texture(item_id))
+		var amt: int = get_item_amount(item_id) if is_item_limited(item_id) else -1
+		_storage_cells[index].set_item(item_id, _short_item_name(item_id), _item_color(item_id), false, _item_icon_texture(item_id), amt)
 	for index in range(_inventory_hotbar_cells.size()):
 		var item_id: StringName = _hotbar_items[index]
-		_inventory_hotbar_cells[index].set_item(item_id, _short_item_name(item_id), _item_color(item_id), index == _selected_hotbar_index, _item_icon_texture(item_id))
+		var amt: int = get_item_amount(item_id) if is_item_limited(item_id) else -1
+		_inventory_hotbar_cells[index].set_item(item_id, _short_item_name(item_id), _item_color(item_id), index == _selected_hotbar_index, _item_icon_texture(item_id), amt)
 	for index in range(_equipment_cells.size()):
 		var slot_id: StringName = EQUIPMENT_SLOTS[index]
 		var item_id: StringName = StringName(_equipment_items.get(slot_id, &""))
-		_equipment_cells[index].set_item(item_id, _short_item_name(item_id), _item_color(item_id), false, _item_icon_texture(item_id))
+		var amt: int = get_item_amount(item_id) if is_item_limited(item_id) else -1
+		_equipment_cells[index].set_item(item_id, _short_item_name(item_id), _item_color(item_id), false, _item_icon_texture(item_id), amt)
 	if is_instance_valid(_cargo_count_label):
 		var used_slots := 0
 		for item_id in _storage_items:
@@ -1967,6 +2299,10 @@ func _open_inventory() -> void:
 func _open_profile() -> void:
 	_refresh_profile_overlay()
 	_open_overlay(&"profile")
+
+
+func _open_tasks() -> void:
+	_open_profile()
 
 
 func _open_settings() -> void:
@@ -2214,6 +2550,10 @@ func _unhandled_key_input(event: InputEvent) -> void:
 			_open_settings()
 		get_viewport().set_input_as_handled()
 		return
+	if event.keycode == KEY_T and _active_overlay == &"tasks":
+		_close_overlay()
+		get_viewport().set_input_as_handled()
+		return
 	if event.keycode == KEY_M and _active_overlay == &"map":
 		_close_overlay()
 		get_viewport().set_input_as_handled()
@@ -2227,6 +2567,10 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		return
 	if _active_overlay != &"":
+		return
+	if event.keycode == KEY_T:
+		_open_tasks()
+		get_viewport().set_input_as_handled()
 		return
 	if event.keycode == KEY_I:
 		_open_inventory()
@@ -2384,6 +2728,10 @@ func _build_dev_menu_panel() -> void:
 	gear_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	gear_btn.pressed.connect(unlock_all_equipment_items)
 	stack.add_child(gear_btn)
+	var restock_btn := _button("DEV: RESTOCK FLARES & AMMO", Vector2(200, 36), GOLD)
+	restock_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	restock_btn.pressed.connect(restock_all_equipment_amounts)
+	stack.add_child(restock_btn)
 	var pilot_dev_btn: Button = _button("DEV: TRIGGER ASTEROID CUTSCENE", Vector2(200, 36), ORANGE)
 	pilot_dev_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	pilot_dev_btn.pressed.connect(_on_dev_trigger_asteroid_cutscene)
@@ -2585,7 +2933,15 @@ func _load_persistent_inventory_state() -> void:
 		_current_story_act = str(state.get("story_act", "ACT I — THE LONG APPROACH"))
 		var suit_item: StringName = StringName(_equipment_items.get(&"suit", &""))
 		var flashlight_unlocked: bool = _unlocked_items.has(&"suit_flashlight") or suit_item == &"suit_flashlight"
+		var saved_amounts: Dictionary = state.get("item_amounts", {})
+		for item_id in saved_amounts:
+			_item_amounts[StringName(item_id)] = int(saved_amounts[item_id])
+		for item_id in _unlocked_items:
+			if ITEM_LIMITS.has(item_id) and not _item_amounts.has(item_id):
+				_item_amounts[item_id] = ITEM_LIMITS[item_id]["default"]
 		if is_instance_valid(_player):
+			if _player.has_method("sync_equipment_amounts"):
+				_player.sync_equipment_amounts(_item_amounts)
 			if _player.has_method("set_suit_flashlight_unlocked"):
 				_player.set_suit_flashlight_unlocked(flashlight_unlocked)
 			if _player.has_method("set_suit_flashlight_enabled"):
@@ -2602,6 +2958,7 @@ func _save_persistent_inventory_state() -> void:
 		"hotbar": _hotbar_items.duplicate(),
 		"storage": _storage_items.duplicate(),
 		"equipment": _equipment_items.duplicate(),
+		"item_amounts": _item_amounts.duplicate(),
 		"selected_hotbar_index": _selected_hotbar_index,
 		"unlocked_items": _unlocked_items.duplicate(),
 		"collected_logs": _collected_logs.duplicate(),
@@ -2610,6 +2967,78 @@ func _save_persistent_inventory_state() -> void:
 		"flashlight_enabled": flashlight_on,
 	}
 	Engine.set_meta(CAMPAIGN_META_KEY, state)
+
+
+func is_item_limited(item_id: StringName) -> bool:
+	return ITEM_LIMITS.has(item_id)
+
+
+func get_item_amount(item_id: StringName) -> int:
+	if not ITEM_LIMITS.has(item_id):
+		return -1
+	if not _item_amounts.has(item_id):
+		_item_amounts[item_id] = ITEM_LIMITS[item_id]["default"]
+	return int(_item_amounts[item_id])
+
+
+func get_item_max_amount(item_id: StringName) -> int:
+	if not ITEM_LIMITS.has(item_id):
+		return -1
+	return int(ITEM_LIMITS[item_id]["max"])
+
+
+func set_item_amount(item_id: StringName, amount: int) -> void:
+	if not ITEM_LIMITS.has(item_id):
+		return
+	var max_amt: int = int(ITEM_LIMITS[item_id]["max"])
+	_item_amounts[item_id] = clampi(amount, 0, max_amt)
+	if is_instance_valid(_player) and _player.has_method("set_equipment_amount"):
+		_player.set_equipment_amount(item_id, _item_amounts[item_id])
+	_refresh_hotbar()
+	_refresh_inventory_cells()
+	_update_equipped_status_banner()
+	_save_persistent_inventory_state()
+
+
+func add_item_amount(item_id: StringName, delta: int) -> int:
+	if not ITEM_LIMITS.has(item_id):
+		return -1
+	var cur: int = get_item_amount(item_id)
+	var max_amt: int = int(ITEM_LIMITS[item_id]["max"])
+	var new_amt: int = clampi(cur + delta, 0, max_amt)
+	set_item_amount(item_id, new_amt)
+	return new_amt
+
+
+func restock_all_equipment_amounts() -> void:
+	for item_id in ITEM_LIMITS:
+		_item_amounts[item_id] = int(ITEM_LIMITS[item_id]["max"])
+		if is_instance_valid(_player) and _player.has_method("set_equipment_amount"):
+			_player.set_equipment_amount(item_id, _item_amounts[item_id])
+	_refresh_hotbar()
+	_refresh_inventory_cells()
+	_update_equipped_status_banner()
+	_save_persistent_inventory_state()
+	if is_instance_valid(_equipped_status_label):
+		_equipped_status_label.text = "ALL FLARES, ROUNDS, BEACONS & DOSES RESTOCKED TO MAXIMUM"
+		_equipped_status_label.add_theme_color_override("font_color", GREEN)
+
+
+func _on_player_equipment_amount_changed(item_id: StringName, remaining_amount: int) -> void:
+	_item_amounts[item_id] = remaining_amount
+	_refresh_hotbar()
+	_refresh_inventory_cells()
+	_update_equipped_status_banner()
+	_save_persistent_inventory_state()
+
+
+func _on_player_equipment_depleted(item_id: StringName) -> void:
+	if not ITEM_DATA.has(item_id):
+		return
+	var iname: String = str(ITEM_DATA[item_id]["name"]).to_upper()
+	if is_instance_valid(_equipped_status_label):
+		_equipped_status_label.text = "OUT OF %s (0 LEFT)   //   RESTOCK AT STORAGE OR SHIP CRATES" % iname
+		_equipped_status_label.add_theme_color_override("font_color", Color(1.0, 0.42, 0.35))
 
 
 func has_equipment_item(item_id: StringName) -> bool:
@@ -2680,6 +3109,14 @@ func unlock_equipment_item(item_id: StringName, equip_immediately: bool = true, 
 		return false
 	var already_had: bool = _unlocked_items.has(item_id)
 	_unlocked_items[item_id] = true
+	if ITEM_LIMITS.has(item_id):
+		if not _item_amounts.has(item_id) or int(_item_amounts[item_id]) <= 0:
+			_item_amounts[item_id] = int(ITEM_LIMITS[item_id]["default"])
+		else:
+			_item_amounts[item_id] = mini(int(_item_amounts[item_id]) + int(ITEM_LIMITS[item_id]["default"]), int(ITEM_LIMITS[item_id]["max"]))
+		if is_instance_valid(_player) and _player.has_method("set_equipment_amount"):
+			_player.set_equipment_amount(item_id, _item_amounts[item_id])
+
 	var eq_slot: StringName = ITEM_DATA[item_id]["equip_slot"]
 	if eq_slot == &"suit":
 		_equipment_items[&"suit"] = item_id
@@ -2722,8 +3159,10 @@ func unlock_equipment_item(item_id: StringName, equip_immediately: bool = true, 
 func unlock_all_equipment_items() -> void:
 	for item_id in ALL_PROGRESSION_ITEMS:
 		unlock_equipment_item(item_id, false, "Dev Menu Full Loadout")
+		if is_item_limited(item_id):
+			set_item_amount(item_id, get_item_max_amount(item_id))
 	_select_hotbar(0, false)
-	show_equipment_unlocked_toast(&"captains_revolver", "ALL 10 EQUIPMENT ITEMS UNLOCKED")
+	show_equipment_unlocked_toast(&"captains_revolver", "ALL 10 EQUIPMENT ITEMS UNLOCKED & RESTOCKED")
 
 
 func show_equipment_unlocked_toast(item_id: StringName, reason_text: String = "") -> void:
@@ -3016,8 +3455,17 @@ func _update_equipped_status_banner() -> void:
 	var light_str: String = ("ON" if light_on else "OFF") if light_unlocked else "LOCKED"
 	if active_item != &"" and ITEM_DATA.has(active_item):
 		var full_name: String = str(ITEM_DATA[active_item]["name"]).to_upper()
-		_equipped_status_label.text = "EQUIPPED: %s   //   [SHOOT / SPACE] USE   [PICK UP / E]   [DROP / G]   [F] LIGHT: %s" % [full_name, light_str]
-		_equipped_status_label.add_theme_color_override("font_color", _item_color(active_item))
+		var amt_str: String = ""
+		var banner_color: Color = _item_color(active_item)
+		if is_item_limited(active_item):
+			var cur_amt: int = get_item_amount(active_item)
+			if cur_amt > 0:
+				amt_str = " [x%d]" % cur_amt
+			else:
+				amt_str = " [EMPTY / 0 LEFT]"
+				banner_color = Color(1.0, 0.42, 0.35)
+		_equipped_status_label.text = "EQUIPPED: %s%s   //   [SHOOT / SPACE] USE   [PICK UP / E]   [DROP / G]   [F] LIGHT: %s" % [full_name, amt_str, light_str]
+		_equipped_status_label.add_theme_color_override("font_color", banner_color)
 	else:
 		_equipped_status_label.text = "UNARMED // [PICK UP] GEAR OR COMPLETE TASKS   //   [F] SUIT LIGHT: %s" % light_str
 		_equipped_status_label.add_theme_color_override("font_color", MUTED)
@@ -3165,20 +3613,26 @@ func _ensure_world_dropped_canvas() -> void:
 		_dropped_world_items.append({
 			"item_id": &"captains_revolver",
 			"pos": spawn_center + Vector2(-42.0, 8.0),
+			"amount": 6,
 		})
 		_dropped_world_items.append({
 			"item_id": &"industrial_plasma_cutter",
 			"pos": spawn_center + Vector2(42.0, 8.0),
+			"amount": -1,
 		})
 
 
-func _spawn_world_dropped_item(item_id: StringName, world_pos: Vector2) -> void:
+func _spawn_world_dropped_item(item_id: StringName, world_pos: Vector2, item_amount: int = -1) -> void:
 	if item_id == &"" or not ITEM_DATA.has(item_id):
 		return
 	_ensure_world_dropped_canvas()
+	var amt: int = item_amount
+	if amt < 0 and is_item_limited(item_id):
+		amt = get_item_amount(item_id)
 	_dropped_world_items.append({
 		"item_id": item_id,
 		"pos": world_pos,
+		"amount": amt,
 	})
 	if is_instance_valid(_world_dropped_canvas):
 		_world_dropped_canvas.queue_redraw()
@@ -3220,7 +3674,10 @@ func _on_world_dropped_canvas_draw() -> void:
 			var icon_rect := Rect2(pos - Vector2(10.0, 10.0), Vector2(20.0, 20.0))
 			_world_dropped_canvas.draw_texture_rect(tex, icon_rect, false)
 		if font != null and is_instance_valid(_player) and _player.global_position.distance_to(entry["pos"]) <= 96.0:
-			var lbl_str: String = "[PICK UP] %s" % _short_item_name(item_id)
+			var amt_suffix := ""
+			if entry.has("amount") and int(entry["amount"]) >= 0:
+				amt_suffix = " (x%d)" % int(entry["amount"])
+			var lbl_str: String = "[PICK UP] %s%s" % [_short_item_name(item_id), amt_suffix]
 			_world_dropped_canvas.draw_string(font, pos + Vector2(-42.0, -16.0), lbl_str, HORIZONTAL_ALIGNMENT_CENTER, 84.0, 8, PALE)
 
 
@@ -3255,7 +3712,12 @@ func drop_active_item() -> bool:
 			_player.set_touch_shoot_held(false)
 		var offset_dir: Vector2 = _player._get_facing_vector() if _player.has_method("_get_facing_vector") else Vector2.DOWN
 		drop_pos = _player.global_position + offset_dir * 20.0
-	_spawn_world_dropped_item(dropped_id, drop_pos)
+	var cur_amt: int = get_item_amount(dropped_id) if is_item_limited(dropped_id) else -1
+	_spawn_world_dropped_item(dropped_id, drop_pos, cur_amt)
+	if is_item_limited(dropped_id):
+		_item_amounts[dropped_id] = 0
+		if is_instance_valid(_player) and _player.has_method("set_equipment_amount"):
+			_player.set_equipment_amount(dropped_id, 0)
 
 	_refresh_hotbar()
 	_refresh_inventory_cells()
@@ -3277,10 +3739,11 @@ func pickup_nearby_or_interact() -> bool:
 	if near_idx >= 0:
 		var picked_entry: Dictionary = _dropped_world_items[near_idx]
 		var picked_id: StringName = picked_entry["item_id"]
+		var picked_amt: int = int(picked_entry.get("amount", -1))
 		_dropped_world_items.remove_at(near_idx)
 		if is_instance_valid(_world_dropped_canvas):
 			_world_dropped_canvas.queue_redraw()
-		_equip_or_store_picked_item(picked_id)
+		_equip_or_store_picked_item(picked_id, picked_amt)
 		return true
 
 	# 2. If standing at an active station/task prompt, trigger the [E] interact action
@@ -3300,10 +3763,11 @@ func pickup_nearby_or_interact() -> bool:
 	if room_idx >= 0:
 		var picked_entry2: Dictionary = _dropped_world_items[room_idx]
 		var picked_id2: StringName = picked_entry2["item_id"]
+		var picked_amt2: int = int(picked_entry2.get("amount", -1))
 		_dropped_world_items.remove_at(room_idx)
 		if is_instance_valid(_world_dropped_canvas):
 			_world_dropped_canvas.queue_redraw()
-		_equip_or_store_picked_item(picked_id2)
+		_equip_or_store_picked_item(picked_id2, picked_amt2)
 		return true
 
 	# 4. Otherwise, if unarmed and an item is in hotbar or storage, equip it into hand
@@ -3321,10 +3785,18 @@ func pickup_nearby_or_interact() -> bool:
 	return false
 
 
-func _equip_or_store_picked_item(item_id: StringName) -> void:
+func _equip_or_store_picked_item(item_id: StringName, picked_amount: int = -1) -> void:
 	if item_id == &"" or not ITEM_DATA.has(item_id):
 		return
 	_unlocked_items[item_id] = true
+	if is_item_limited(item_id):
+		var add_amt: int = picked_amount if picked_amount >= 0 else int(ITEM_LIMITS[item_id]["default"])
+		if _item_amounts.has(item_id):
+			_item_amounts[item_id] = mini(int(_item_amounts[item_id]) + add_amt, int(ITEM_LIMITS[item_id]["max"]))
+		else:
+			_item_amounts[item_id] = mini(add_amt, int(ITEM_LIMITS[item_id]["max"]))
+		if is_instance_valid(_player) and _player.has_method("set_equipment_amount"):
+			_player.set_equipment_amount(item_id, _item_amounts[item_id])
 	var slot_idx: int = _hotbar_items.find(item_id)
 	if slot_idx < 0:
 		for i in range(_hotbar_items.size()):

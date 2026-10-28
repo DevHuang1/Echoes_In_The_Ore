@@ -20,6 +20,12 @@ const TRANSITION_TIME := 0.34
 		_refresh_preview()
 @export_range(32.0, 160.0, 1.0) var activation_distance: float = 84.0
 @export_range(0.2, 5.0, 0.1) var close_delay: float = 1.4
+@export var is_locked: bool = false:
+	set(value):
+		is_locked = value
+		if is_locked and (_is_open or _target_open):
+			_set_open_target(false)
+		queue_redraw()
 
 @onready var left_door_panel: Sprite2D = $LeftDoorPanel
 @onready var right_door_panel: Sprite2D = $RightDoorPanel
@@ -51,6 +57,8 @@ func _ready() -> void:
 
 
 func is_open() -> bool:
+	if is_locked:
+		return false
 	return _is_open or _target_open
 
 
@@ -67,6 +75,8 @@ func _draw() -> void:
 		var gx: float = float(i) * (opening_width * 0.12)
 		draw_line(Vector2(gx, -half_h + 4.0), Vector2(gx, half_h - 4.0), Color(0.16, 0.24, 0.30, 0.75), 1.5)
 	draw_rect(outer_rect, Color(0.30, 0.42, 0.48, 0.92), false, 1.5)
+	if is_locked:
+		draw_rect(Rect2(Vector2(-half_w + 4.0, -half_h + 1.0), Vector2(opening_width - 8.0, 3.0)), Color(1.0, 0.22, 0.18, 0.95), true)
 
 
 func _refresh_preview() -> void:
@@ -102,6 +112,10 @@ func _apply_open_progress(progress: float) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if is_locked:
+		if _is_open or _target_open:
+			_set_open_target(false)
+		return
 	var actor_near: bool = _is_actor_near()
 	if actor_near:
 		_close_timer = close_delay

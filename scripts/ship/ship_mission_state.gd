@@ -38,7 +38,7 @@ func reset(context: String) -> void:
 	stocks = {
 		"quarters.drawer.1":{"filter_cartridge":2,"scrubber_media":2},
 		"quarters.drawer.2":{"nutrient_buffer":2,"coolant_charge":2},
-		"quarters.wardrobe":{"engineering_multitool":1,"pressure_sealant":1},
+		"quarters.wardrobe":{},
 		"cargo.locker":{"filter_cartridge":2,"coolant_charge":3,"scrubber_media":2,"nutrient_buffer":2},
 		"cargo.cylinders":{"coolant_charge":2,"oxygen_reserve":2,"inert_purge":2},
 		"engine.locker.1":{}, "engine.locker.2":{}, "shuttle.bundle":{},

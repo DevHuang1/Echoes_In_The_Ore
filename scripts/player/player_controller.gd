@@ -3,6 +3,8 @@ extends CharacterBody2D
 
 signal equipment_changed(equipped_item_id: StringName, flashlight_active: bool)
 signal equipment_used(item_id: StringName)
+signal equipment_amount_changed(item_id: StringName, remaining_amount: int)
+signal equipment_depleted(item_id: StringName)
 
 const THURA_ATLAS: Texture2D = preload("res://art/characters/runtime/thura_walk_4dir.png")
 const THURA_SIT_DOWN: Texture2D = preload("res://art/characters/runtime/thura_sit_down.png")
@@ -87,7 +89,7 @@ const HELD_EQUIPMENT_VISUALS: Dictionary = {
 	},
 	&"industrial_plasma_cutter": {
 		"texture": preload("res://art/tools/industrial_plasma_cutter.png"),
-		"region": Rect2i(95, 340, 840, 650),
+		"region": Rect2i(89, 340, 840, 650),
 		"scale": Vector2(0.19, 0.19),
 		"glow_color": Color(0.38, 0.94, 1.0, 0.94),
 		"light_energy": 0.32,
@@ -166,6 +168,29 @@ const CONTINUOUS_TOOLS: Array[StringName] = [
 	&"pressure_sealant",
 ]
 
+const LIMITED_EQUIPMENT: Dictionary = {
+	&"emergency_flare": {
+		"default": 5,
+		"max": 10,
+	},
+	&"captains_revolver": {
+		"default": 6,
+		"max": 18,
+	},
+	&"survey_beacon": {
+		"default": 3,
+		"max": 6,
+	},
+	&"medical_injector": {
+		"default": 3,
+		"max": 5,
+	},
+	&"pressure_sealant": {
+		"default": 50,
+		"max": 100,
+	},
+}
+
 @export var move_speed: float = 150.0
 @export var sprite_scale: Vector2 = Vector2(0.12, 0.12)
 
@@ -221,12 +246,68 @@ var _standing_sprite_scale: Vector2 = Vector2.ONE
 var _standing_sprite_position: Vector2 = Vector2.ZERO
 var _sitting_pose_active: bool = false
 var _walkable_blocker_polygons: Array[PackedVector2Array] = []
+var _equipment_amounts: Dictionary = {}
+
+
+func is_item_limited(item_id: StringName) -> bool:
+	return LIMITED_EQUIPMENT.has(item_id)
+
+
+func get_equipment_amount(item_id: StringName) -> int:
+	if not LIMITED_EQUIPMENT.has(item_id):
+		return -1
+	if not _equipment_amounts.has(item_id):
+		_equipment_amounts[item_id] = LIMITED_EQUIPMENT[item_id]["default"]
+	return int(_equipment_amounts[item_id])
+
+
+func get_equipment_max_amount(item_id: StringName) -> int:
+	if not LIMITED_EQUIPMENT.has(item_id):
+		return -1
+	return int(LIMITED_EQUIPMENT[item_id]["max"])
+
+
+func set_equipment_amount(item_id: StringName, amount: int) -> void:
+	if not LIMITED_EQUIPMENT.has(item_id):
+		return
+	var max_amt: int = int(LIMITED_EQUIPMENT[item_id]["max"])
+	_equipment_amounts[item_id] = clampi(amount, 0, max_amt)
+	equipment_amount_changed.emit(item_id, _equipment_amounts[item_id])
+	_update_equipment_transform()
+
+
+func has_ammo_for_item(item_id: StringName) -> bool:
+	if not LIMITED_EQUIPMENT.has(item_id):
+		return true
+	return get_equipment_amount(item_id) > 0
+
+
+func consume_item_amount(item_id: StringName, count: int = 1) -> bool:
+	if not LIMITED_EQUIPMENT.has(item_id):
+		return true
+	var cur: int = get_equipment_amount(item_id)
+	if cur < count:
+		equipment_depleted.emit(item_id)
+		return false
+	_equipment_amounts[item_id] = cur - count
+	equipment_amount_changed.emit(item_id, _equipment_amounts[item_id])
+	if _equipment_amounts[item_id] <= 0:
+		equipment_depleted.emit(item_id)
+	_update_equipment_transform()
+	return true
+
+
+func sync_equipment_amounts(amounts: Dictionary) -> void:
+	for k in amounts:
+		_equipment_amounts[k] = int(amounts[k])
+	_update_equipment_transform()
 
 
 func _ready() -> void:
 	add_to_group("ship_player")
 	_configure_sprite_animations()
 	_setup_equipment_visual_nodes()
+	_apply_equipped_visuals()
 	sprite.scale = sprite_scale
 	_standing_sprite_scale = sprite.scale
 	_standing_sprite_position = sprite.position
@@ -360,6 +441,11 @@ func start_using_equipment(aim_at_mouse: bool = true) -> void:
 
 	_is_using_tool = true
 	if CONTINUOUS_TOOLS.has(active_tool):
+		if active_tool == &"pressure_sealant" and not has_ammo_for_item(&"pressure_sealant"):
+			_is_using_tool = false
+			_action_cooldown = 0.35
+			equipment_depleted.emit(&"pressure_sealant")
+			return
 		_action_anim_duration = 0.35
 		_action_anim_timer = 0.35
 		equipment_used.emit(active_tool)
@@ -370,15 +456,35 @@ func start_using_equipment(aim_at_mouse: bool = true) -> void:
 
 	match active_tool:
 		&"captains_revolver":
+			if not has_ammo_for_item(&"captains_revolver"):
+				_action_cooldown = 0.35
+				equipment_depleted.emit(&"captains_revolver")
+				return
 			_fire_captains_revolver()
+			consume_item_amount(&"captains_revolver", 1)
 		&"emergency_flare":
+			if not has_ammo_for_item(&"emergency_flare"):
+				_action_cooldown = 0.35
+				equipment_depleted.emit(&"emergency_flare")
+				return
 			_shoot_emergency_flare()
+			consume_item_amount(&"emergency_flare", 1)
 		&"mineral_survey_scanner":
 			_trigger_mineral_scanner()
 		&"survey_beacon":
+			if not has_ammo_for_item(&"survey_beacon"):
+				_action_cooldown = 0.35
+				equipment_depleted.emit(&"survey_beacon")
+				return
 			_deploy_survey_beacon()
+			consume_item_amount(&"survey_beacon", 1)
 		&"medical_injector":
+			if not has_ammo_for_item(&"medical_injector"):
+				_action_cooldown = 0.35
+				equipment_depleted.emit(&"medical_injector")
+				return
 			_trigger_medical_injector()
+			consume_item_amount(&"medical_injector", 1)
 		&"suit_flashlight":
 			if not _suit_flashlight_enabled:
 				set_suit_flashlight_enabled(true)
@@ -417,7 +523,7 @@ func get_active_illumination_points() -> Array[Vector2]:
 		pts.append(_action_impact_light.global_position)
 	if _flashlight_overcharge_timer > 0.01 and _suit_flashlight_enabled:
 		pts.append(global_position + _get_facing_vector() * 72.0)
-	if _equipped_item_id == &"emergency_flare":
+	if _equipped_item_id == &"emergency_flare" and get_equipment_amount(&"emergency_flare") > 0:
 		pts.append(global_position)
 	return pts
 
@@ -630,9 +736,15 @@ func _update_continuous_tool_action(delta: float) -> void:
 				var muzzle: Vector2 = _get_muzzle_world_pos()
 				_laser_beam_length = _raycast_floor_distance(muzzle, _aim_dir, 235.0)
 			elif _equipped_item_id == &"pressure_sealant":
+				if not has_ammo_for_item(&"pressure_sealant"):
+					_is_using_tool = false
+					_action_anim_timer = 0.0
+					equipment_depleted.emit(&"pressure_sealant")
+					return
 				_spray_emit_accum += delta
 				if _spray_emit_accum >= 0.08:
 					_spray_emit_accum = 0.0
+					consume_item_amount(&"pressure_sealant", 1)
 					var muzzle_s: Vector2 = _get_muzzle_world_pos()
 					var max_d: float = _raycast_floor_distance(muzzle_s, _aim_dir, 72.0)
 					var d_rand: float = clampf(22.0 + fposmod(_pulse_time * 37.0, maxf(max_d - 18.0, 12.0)), 14.0, max_d)
@@ -888,23 +1000,25 @@ func is_suit_flashlight_enabled() -> bool:
 
 
 func _apply_equipped_visuals() -> void:
-	var was_playing: bool = sprite.is_playing()
+	var was_playing: bool = sprite.is_playing() if is_instance_valid(sprite) else false
 	var custom_frames: SpriteFrames = _get_custom_walk_frames(_equipped_item_id)
 	if custom_frames != null:
 		_using_custom_walk_sheet = true
-		sprite.sprite_frames = custom_frames
-		sprite.animation = _facing_animation
-		if was_playing:
-			sprite.play(_facing_animation)
+		if is_instance_valid(sprite):
+			sprite.sprite_frames = custom_frames
+			sprite.animation = _facing_animation
+			if was_playing:
+				sprite.play(_facing_animation)
 		if is_instance_valid(_held_item_sprite):
 			_held_item_sprite.visible = false
 	else:
 		_using_custom_walk_sheet = false
-		if _default_frames != null and sprite.sprite_frames != _default_frames:
-			sprite.sprite_frames = _default_frames
-			sprite.animation = _facing_animation
-			if was_playing:
-				sprite.play(_facing_animation)
+		if is_instance_valid(sprite):
+			if _default_frames != null and sprite.sprite_frames != _default_frames:
+				sprite.sprite_frames = _default_frames
+				sprite.animation = _facing_animation
+				if was_playing:
+					sprite.play(_facing_animation)
 		if is_instance_valid(_held_item_sprite):
 			if _equipped_item_id != &"" and HELD_EQUIPMENT_VISUALS.has(_equipped_item_id):
 				var vdef: Dictionary = HELD_EQUIPMENT_VISUALS[_equipped_item_id]
@@ -1073,8 +1187,22 @@ func _update_equipment_transform() -> void:
 	if _recoil_amount > 0.01:
 		action_offset = -f_dir * (_recoil_amount * 5.2) + Vector2(0.0, -_recoil_amount * 1.8)
 		action_rot = (-0.42 if not flip_h_val else 0.42) * _recoil_amount
-	elif _action_anim_timer > 0.01:
+	elif _action_anim_timer > 0.01 or _is_using_tool:
 		match _equipped_item_id:
+			&"industrial_plasma_cutter":
+				var aim_angle: float = _aim_dir.angle()
+				if flip_h_val:
+					action_rot = clampf(wrapf(aim_angle - PI, -PI, PI), -0.85, 0.85)
+				else:
+					action_rot = clampf(wrapf(aim_angle, -PI, PI), -0.85, 0.85)
+				if _is_using_tool:
+					action_offset = f_dir * (1.2 + sin(_pulse_time * 26.0) * 0.7)
+			&"captains_revolver":
+				var aim_angle: float = _aim_dir.angle()
+				if flip_h_val:
+					action_rot = clampf(wrapf(aim_angle - PI, -PI, PI), -0.75, 0.75)
+				else:
+					action_rot = clampf(wrapf(aim_angle, -PI, PI), -0.75, 0.75)
 			&"engineering_multitool":
 				action_offset = f_dir * (2.2 + sin(_pulse_time * 14.0) * 1.2)
 				action_rot = sin(_pulse_time * 18.0) * 0.14
@@ -1090,7 +1218,7 @@ func _update_equipment_transform() -> void:
 				action_offset = f_dir * 2.5
 				action_rot = sweep_ang
 
-	if is_instance_valid(_held_item_sprite) and _held_item_sprite.visible:
+	if is_instance_valid(_held_item_sprite):
 		_held_item_sprite.position = hand_offset + action_offset
 		_held_item_sprite.flip_h = flip_h_val
 		_held_item_sprite.rotation = rot_val - equip_pop * 0.45 + action_rot
@@ -1098,12 +1226,19 @@ func _update_equipment_transform() -> void:
 		if HELD_EQUIPMENT_VISUALS.has(_equipped_item_id):
 			var base_sc: Vector2 = HELD_EQUIPMENT_VISUALS[_equipped_item_id]["scale"]
 			_held_item_sprite.scale = base_sc * (1.0 + equip_pop)
-
-	if is_instance_valid(_equipment_light) and _equipment_light.enabled:
-		_equipment_light.position = hand_offset + f_dir * 12.0
 		if _equipped_item_id == &"emergency_flare":
-			var base_e: float = float(HELD_EQUIPMENT_VISUALS[&"emergency_flare"]["light_energy"])
-			_equipment_light.energy = base_e * (0.88 + 0.18 * sin(_pulse_time * 3.2))
+			_held_item_sprite.visible = (get_equipment_amount(&"emergency_flare") > 0)
+
+	if is_instance_valid(_equipment_light):
+		if _equipped_item_id == &"emergency_flare":
+			var has_flares: bool = get_equipment_amount(&"emergency_flare") > 0
+			_equipment_light.enabled = has_flares
+			if has_flares:
+				_equipment_light.position = hand_offset + f_dir * 12.0
+				var base_e: float = float(HELD_EQUIPMENT_VISUALS[&"emergency_flare"]["light_energy"])
+				_equipment_light.energy = base_e * (0.88 + 0.18 * sin(_pulse_time * 3.2))
+		elif _equipment_light.enabled:
+			_equipment_light.position = hand_offset + f_dir * 12.0
 
 	if is_instance_valid(_flashlight_light):
 		_flashlight_light.enabled = _suit_flashlight_enabled
@@ -1143,10 +1278,12 @@ func _on_fx_overlay_draw() -> void:
 		var gcol: Color = vdef["glow_color"]
 		var tip_pos: Vector2 = to_local(_get_muzzle_world_pos())
 		var pulse: float = 0.75 + 0.25 * sin(_pulse_time * 2.0)
-		_fx_overlay.draw_circle(tip_pos, 3.4 * pulse, Color(gcol.r, gcol.g, gcol.b, 0.22 * pulse))
-		_fx_overlay.draw_circle(tip_pos, 1.3, Color(1.0, 0.98, 0.92, 0.75 * pulse))
+		var flare_depleted: bool = (_equipped_item_id == &"emergency_flare" and get_equipment_amount(&"emergency_flare") <= 0)
+		if not flare_depleted:
+			_fx_overlay.draw_circle(tip_pos, 3.4 * pulse, Color(gcol.r, gcol.g, gcol.b, 0.22 * pulse))
+			_fx_overlay.draw_circle(tip_pos, 1.3, Color(1.0, 0.98, 0.92, 0.75 * pulse))
 
-		if _equipped_item_id == &"emergency_flare":
+		if _equipped_item_id == &"emergency_flare" and not flare_depleted:
 			# Handheld flare burning flame & sparks
 			var fl_flicker: float = 0.80 + 0.30 * sin(_pulse_time * 7.5)
 			_fx_overlay.draw_circle(tip_pos, 6.5 * fl_flicker, Color(1.0, 0.35, 0.12, 0.28))

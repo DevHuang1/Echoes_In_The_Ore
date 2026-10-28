@@ -14,6 +14,7 @@ const PALE := Color(0.94, 0.91, 0.82)
 const MUTED := Color(0.59, 0.69, 0.73)
 const GOLD := Color(1.0, 0.77, 0.34)
 const CYAN := Color(0.38, 0.88, 0.98)
+const ORANGE := Color(1.0, 0.68, 0.32)
 const EMERALD := Color(0.42, 0.92, 0.65)
 const DARK_BG := Color(0.018, 0.032, 0.048, 0.96)
 const BORDER_CYAN := Color(0.24, 0.58, 0.74, 0.85)
@@ -99,7 +100,9 @@ func _ready() -> void:
 	set_process_input(true)
 	set_process(true)
 	_root.hide()
-	get_viewport().size_changed.connect(_resize_bubble)
+	var vp := get_viewport()
+	if is_instance_valid(vp):
+		vp.size_changed.connect(_resize_bubble)
 	_resize_bubble()
 
 
@@ -203,6 +206,8 @@ func _process(delta: float) -> void:
 
 
 func start_dialogue(lines: Array[String], offer_enabled: bool = false, context: Dictionary = {}) -> void:
+	if not is_node_ready():
+		_ready()
 	if lines.is_empty():
 		return
 	_lines = lines.duplicate()
@@ -353,10 +358,15 @@ func cancel_dialogue() -> void:
 # ------------------------------------------------------------------------------
 
 func _start_cutscene_camera(context: Dictionary) -> void:
+	if not is_inside_tree():
+		return
+	var tree := get_tree()
+	if tree == null:
+		return
 	# Locate ShipPlayer and active Camera2D
-	var players := get_tree().get_nodes_in_group("ship_player")
+	var players := tree.get_nodes_in_group("ship_player")
 	var player: Node2D = players[0] if not players.is_empty() else null
-	if player == null:
+	if player == null and is_instance_valid(get_parent()):
 		player = get_parent().get_node_or_null("Player") as Node2D
 
 	if not is_instance_valid(player):
@@ -735,6 +745,11 @@ func _determine_speaker_kind(speaker_text: String) -> void:
 		_npc_name_label.text = "LEILA HADDAD / ENG"
 		_npc_name_label.add_theme_color_override("font_color", CYAN)
 		_npc_portrait_rect.texture = _create_hologram_tex(CYAN)
+	elif upper.contains("MATEO") or upper.contains("RUIZ"):
+		_current_speaker_kind = "terminal"
+		_npc_name_label.text = "MATEO RUIZ / MINING"
+		_npc_name_label.add_theme_color_override("font_color", ORANGE)
+		_npc_portrait_rect.texture = _create_hologram_tex(ORANGE)
 	else:
 		_current_speaker_kind = "terminal"
 		_npc_name_label.text = "ASTERIA COMMS"
@@ -796,15 +811,19 @@ func _update_portrait_animations(delta: float) -> void:
 func _animate_cutscene_open() -> void:
 	# Subtle entrance tween for dialogue bubble and letterboxes
 	if is_instance_valid(_top_bar) and is_instance_valid(_bottom_bar):
+		var vp := get_viewport()
+		var vp_h: float = vp.get_visible_rect().size.y if is_instance_valid(vp) else 720.0
 		_top_bar.position.y = -50.0
-		_bottom_bar.position.y = get_viewport().get_visible_rect().size.y + 10.0
+		_bottom_bar.position.y = vp_h + 10.0
+		if not is_inside_tree():
+			return
 		var tween := create_tween().set_parallel(true)
 		tween.tween_property(_top_bar, "position:y", 0.0, 0.28).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-		tween.tween_property(_bottom_bar, "position:y", get_viewport().get_visible_rect().size.y - 44.0, 0.28).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+		tween.tween_property(_bottom_bar, "position:y", vp_h - 44.0, 0.28).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 
 
 func _play_sfx(stream: AudioStream, vol_db: float = 0.0) -> void:
-	if stream == null or not is_instance_valid(_sfx_player):
+	if stream == null or not is_instance_valid(_sfx_player) or not is_inside_tree():
 		return
 	_sfx_player.stream = stream
 	_sfx_player.volume_db = vol_db
@@ -812,7 +831,7 @@ func _play_sfx(stream: AudioStream, vol_db: float = 0.0) -> void:
 
 
 func _play_voice_blip() -> void:
-	if not is_instance_valid(_voice_player):
+	if not is_instance_valid(_voice_player) or not is_inside_tree():
 		return
 	var stream: AudioStreamWAV = _snd_speech_amara
 	match _current_speaker_kind:
@@ -832,7 +851,8 @@ func _play_voice_blip() -> void:
 func _resize_bubble() -> void:
 	if not is_instance_valid(_portraits_container):
 		return
-	var vp_w := get_viewport().get_visible_rect().size.x
+	var vp := get_viewport()
+	var vp_w: float = vp.get_visible_rect().size.x if is_instance_valid(vp) else 1280.0
 	var container_width := clampf(vp_w - 60.0, 720.0, 1080.0)
 	_portraits_container.offset_left = -container_width * 0.5
 	_portraits_container.offset_right = container_width * 0.5

@@ -157,6 +157,29 @@ func _on_start_pressed() -> void:
 	if _start_button.disabled:
 		return
 	_start_button.disabled = true
+	# Clear previous session persistent metadata for fresh expedition start
+	for meta_k in [
+		&"echoes_campaign_inventory_state",
+		&"echoes_story_progression_state",
+		&"echoes_arrival_briefing_shown",
+		&"resonance_ore_sample_collected",
+		&"resonance_ore_sample_stored",
+		&"returning_from_planet",
+		&"returning_from_second_floor",
+		&"ship_story_continue_path",
+		&"suit_flashlight_unlocked",
+		&"engineering_multitool_unlocked",
+		&"pressure_sealant_unlocked",
+		&"mineral_survey_scanner_unlocked",
+		&"survey_beacon_unlocked",
+		&"emergency_flare_unlocked",
+		&"industrial_plasma_cutter_unlocked",
+		&"electrical_discharge_tool_unlocked",
+		&"medical_injector_unlocked",
+		&"captains_revolver_unlocked",
+	]:
+		if Engine.has_meta(meta_k):
+			Engine.remove_meta(meta_k)
 	Engine.set_meta("ship_story_bootstrap", STORY.new().snapshot())
 	await _fade_to_black()
 	var result := get_tree().change_scene_to_file(INTRO_SCENE)
