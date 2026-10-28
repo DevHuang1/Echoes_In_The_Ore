@@ -94,7 +94,10 @@ func ship_is_initialized() -> bool:
 	return _ship_ready and _ship_state!=null
 
 func ship_control_locked() -> bool:
-	return _ship_hide_phase != "outside" or not _ship_cue_active.is_empty() or not _ship_pending_continue_path.is_empty()
+	# Story cues are presentation state; their briefing/dialogue overlays own any
+	# required pause. A pending cue must never strand the player after an overlay
+	# fails to dismiss or its completion callback is missed.
+	return _ship_hide_phase != "outside" or not _ship_pending_continue_path.is_empty()
 
 func ship_process(delta: float) -> void:
 	if not ship_is_initialized(): return
