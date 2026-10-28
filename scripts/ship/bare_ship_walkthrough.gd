@@ -1565,7 +1565,7 @@ func _begin_amara_dialogue() -> void:
 	_update_player_walk_state()
 	_walk_hud.set_interaction_prompt("", false)
 	var lines: Array[String] = []
-	var offer_tasks := false
+	var offer_tasks := not _crew_tasks_unlocked and not _is_ore_sample_stored()
 	if _is_ore_sample_stored() and not _is_ore_villain_spawned():
 		lines.append("The Erebos ore is secured. I'm running the chamber checks and monitoring its response from the research console.")
 		if Engine.has_meta(&"resonance_ore_stimulated") and bool(Engine.get_meta(&"resonance_ore_stimulated")):
@@ -1574,6 +1574,13 @@ func _begin_amara_dialogue() -> void:
 		Engine.set_meta(&"erebos_rig_failure_reported", true)
 		_walk_hud.set_task_completed(RIG_REPORT_TASK_ID)
 		lines.append("You were right to come back. The rig's drive is damaged; don't try to force it again. I can see a resonance seam in the western crater. Bring me a small sample so I can study what the failed drill disturbed.")
+	elif offer_tasks:
+		if first_meeting:
+			lines.append("I'm Dr. Amara Okoye, astrobiologist. I keep the grow beds alive and monitor bio-systems.")
+			lines.append("The nutrient pump needs an inspection, and the seedling rack's humidity sensor needs recalibrating.")
+		else:
+			lines.append("I've got two hydroponics jobs that could use another set of hands: the nutrient pump and the seedling rack sensor.")
+		lines.append("Want to take them? I'll mark a reachable service point beside each station on your ship map.")
 	elif first_meeting:
 		lines.append("I'm Dr. Amara Okoye, astrobiologist. Test the resonance rig on Erebos. If it fails, come back and report to me before you continue.")
 	else:
