@@ -3,6 +3,7 @@ extends CanvasLayer
 
 signal modal_state_changed(is_open: bool)
 
+const SKIN := preload("res://scripts/ui/pixel_ui.gd")
 const PIXEL_THEME := preload("res://themes/ship_pixel_theme.tres")
 const MAP_CONTENT_VISIBLE := true
 const MAP_FLOOR_TEXTURE := preload("res://art/concepts/Refined pixel-art spacecraft floor.png")
@@ -16,6 +17,7 @@ const MUTED := Color(0.7, 0.8, 0.83)
 const CYAN := Color(0.36, 0.9, 1.0)
 const ORANGE := Color(1.0, 0.68, 0.32)
 const GREEN := Color(0.48, 0.93, 0.64)
+const RED := Color(1.0, 0.35, 0.35)
 const SURFACE := Color(0.035, 0.055, 0.085)
 const SURFACE_RAISED := Color(0.042, 0.084, 0.103)
 const SURFACE_HOVER := Color(0.068, 0.125, 0.141)
@@ -627,6 +629,14 @@ var _mission_progress_label: Label
 var _mission_progress_bar: ProgressBar
 var _mission_rows: Dictionary = {}
 var _mission_summary_label: Label
+var _mission_tracker_minimized: bool = false
+var _mission_minimize_btn: Button
+var _mission_details_box: VBoxContainer
+var _objective_toast: PanelContainer
+var _objective_toast_title: Label
+var _objective_toast_sub: Label
+var _objective_toast_timer: float = 0.0
+var _last_active_task_id: StringName = &""
 var _active_task_card: PanelContainer
 var _active_room_tag: Label
 var _active_priority_tag: Label
@@ -642,8 +652,21 @@ var _upcoming_task_label: Label
 var _tasks_dossier_btn: Button
 var _tasks_list_container: VBoxContainer
 var _tasks_arsenal_container: VBoxContainer
+var _tasks_main_tab: StringName = &"tasks"
+var _tasks_main_tab_buttons: Dictionary = {}
+var _tasks_tab_view: VBoxContainer
+var _arsenal_tab_view: VBoxContainer
+var _tasks_progress_bar: ProgressBar
 var _tasks_filter_tab: StringName = &"all"
 var _tasks_filter_buttons: Dictionary = {}
+var _arsenal_filter_tab: StringName = &"all"
+var _arsenal_filter_buttons: Dictionary = {}
+var _tasks_status_summary_label: Label
+var _tasks_arsenal_summary_label: Label
+var _tasks_arsenal_bar: ProgressBar
+var _top_controls: HBoxContainer
+var _quickbar_frame: PanelContainer
+var _status_pill: PanelContainer
 var _pulse_anim_time: float = 0.0
 var _cargo_count_label: Label
 var _context_prompt: PanelContainer
@@ -711,7 +734,7 @@ var _map_floor_layer: TextureRect
 var _map_wall_layer: TextureRect
 var _custom_map_floor_tex: Texture2D = null
 var _custom_map_wall_tex: Texture2D = null
-var _show_all_active_tasks: bool = false
+var _show_all_active_tasks: bool = true
 var _map_player_marker: Control
 var _map_task_markers: Dictionary = {}
 var _world_task_markers: Dictionary = {}
@@ -733,6 +756,10 @@ var _dev_speed_btn: Button
 var _dev_room_flicker_btn: Button
 var _dev_force_lights_btn: Button
 var _dev_selected_room_index := 0
+var _dev_sections: Dictionary = {}
+var _dev_tab_buttons: Dictionary = {}
+var _dev_active_tab: StringName = &"all"
+var _dev_god_mode_active: bool = false
 var _mobile_controls_layer: Control = null
 var _mobile_joystick: MobileTouchJoystick = null
 var _mobile_shoot_btn: Button = null
@@ -959,6 +986,24 @@ func setup(player: ShipPlayer, task_entries: Array[Dictionary], map_world_origin
 		if _player.has_method("sync_equipment_amounts"):
 			_player.sync_equipment_amounts(_item_amounts)
 	_sync_player_equipped_item()
+	if is_instance_valid(_world_task_marker_layer):
+		for marker in _world_task_markers.values():
+			if is_instance_valid(marker):
+				marker.queue_free()
+		_world_task_markers.clear()
+		for entry in _task_entries:
+			_add_world_task_marker(entry)
+	if is_instance_valid(_map_canvas):
+		for m_data in _map_task_markers.values():
+			var pin = m_data.get("marker")
+			if is_instance_valid(pin):
+				pin.queue_free()
+		_map_task_markers.clear()
+		for entry in _task_entries:
+			_add_map_task_marker(entry)
+	_refresh_mission_panel()
+	_refresh_tasks_overlay()
+	_update_world_task_markers()
 
 
 func _ready() -> void:
@@ -966,7 +1011,8 @@ func _ready() -> void:
 	_build_ui()
 	set_process_unhandled_input(true)
 	set_process_unhandled_key_input(true)
-	get_viewport().size_changed.connect(_queue_resize)
+	if get_viewport() != null:
+		get_viewport().size_changed.connect(_queue_resize)
 	_queue_resize()
 
 
@@ -976,6 +1022,17 @@ func _process(delta: float) -> void:
 		_world_dropped_canvas.queue_redraw()
 	_update_world_task_markers()
 	_refresh_mobile_controls()
+	if _objective_toast_timer > 0.0:
+		_objective_toast_timer = maxf(_objective_toast_timer - delta, 0.0)
+		if is_instance_valid(_objective_toast):
+			if _objective_toast_timer > 3.0:
+				_objective_toast.modulate.a = clampf((3.5 - _objective_toast_timer) / 0.5, 0.0, 1.0)
+			elif _objective_toast_timer < 0.5:
+				_objective_toast.modulate.a = clampf(_objective_toast_timer / 0.5, 0.0, 1.0)
+			else:
+				_objective_toast.modulate.a = 1.0
+			if is_zero_approx(_objective_toast_timer):
+				_objective_toast.visible = false
 	if _unlock_toast_timer > 0.0:
 		_unlock_toast_timer = maxf(_unlock_toast_timer - delta, 0.0)
 		if is_zero_approx(_unlock_toast_timer) and is_instance_valid(_unlock_toast_panel):
@@ -999,6 +1056,20 @@ func _process(delta: float) -> void:
 
 
 func _build_ui() -> void:
+	if is_instance_valid(_root):
+		_root.queue_free()
+	_hotbar_slots.clear()
+	_storage_cells.clear()
+	_inventory_hotbar_cells.clear()
+	_equipment_cells.clear()
+	_overlay_nodes.clear()
+	_modal_frames.clear()
+	_mission_rows.clear()
+	_world_task_markers.clear()
+	_map_task_markers.clear()
+	if _storage_items.size() < 27:
+		_storage_items.resize(27)
+		_storage_items.fill(&"")
 	_root = Control.new()
 	_root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_root.name = "HUD"
@@ -1022,10 +1093,12 @@ func _build_ui() -> void:
 	_create_map_overlay()
 	for entry in _task_entries:
 		_add_world_task_marker(entry)
+	_create_tasks_overlay()
 	_create_inventory_overlay()
 	_create_profile_overlay()
 	_create_settings_overlay()
 	_refresh_mission_panel()
+	_refresh_tasks_overlay()
 	_refresh_inventory_cells()
 	_refresh_profile_overlay()
 	_refresh_hotbar()
@@ -1042,18 +1115,18 @@ func _build_mission_panel() -> void:
 	panel.anchor_bottom = 0.0
 	panel.offset_left = 16.0
 	panel.offset_top = 16.0
-	panel.offset_right = 430.0
-	panel.offset_bottom = 270.0
-	var mission_style := _panel_style(Color(0.015, 0.028, 0.044, 0.95), Color(0.24, 0.65, 0.85, 0.9), 10.0)
+	panel.offset_right = 350.0
+	panel.offset_bottom = 126.0
+	var mission_style := _panel_style(Color(0.012, 0.024, 0.038, 0.92), Color(0.24, 0.65, 0.85, 0.75), 8.0)
 	panel.add_theme_stylebox_override("panel", mission_style)
 	_root.add_child(panel)
 
 	var stack := VBoxContainer.new()
 	_mission_stack = stack
-	stack.add_theme_constant_override("separation", 6)
+	stack.add_theme_constant_override("separation", 5)
 	panel.add_child(stack)
 
-	# 1. Header Bar: Dot + Title + Step Badge + [T] Dossier Button
+	# 1. Header Bar: Dot + "ACTIVE OBJECTIVE" + Step Badge + [-] Minimize + [T] Dossier Button
 	var heading := HBoxContainer.new()
 	heading.alignment = BoxContainer.ALIGNMENT_CENTER
 	heading.add_theme_constant_override("separation", 6)
@@ -1064,123 +1137,140 @@ func _build_mission_panel() -> void:
 	live_dot.add_theme_font_size_override("font_size", 10)
 	heading.add_child(live_dot)
 
-	var hdr_lbl: Label = _label("TACTICAL WATCH TASKS", 10, Color(1.0, 0.82, 0.4))
+	var hdr_lbl: Label = SKIN.clean_label("ACTIVE OBJECTIVE", SKIN.FONT_SMALL, GOLD)
 	hdr_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	heading.add_child(hdr_lbl)
 
 	heading.add_spacer(false)
 
-	_mission_progress_label = _label("STEP 01 / 11", 9, Color(0.48, 0.93, 0.64))
+	_mission_progress_label = SKIN.pixel_label("STEP 01 / 11", SKIN.FONT_TELEMETRY, GREEN)
 	_mission_progress_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	heading.add_child(_mission_progress_label)
 
+	_mission_minimize_btn = Button.new()
+	_mission_minimize_btn.text = "—"
+	_mission_minimize_btn.custom_minimum_size = Vector2(22, 20)
+	_mission_minimize_btn.tooltip_text = "Minimize / Expand Objective Tracker"
+	_mission_minimize_btn.add_theme_font_size_override("font_size", 9)
+	_mission_minimize_btn.add_theme_color_override("font_color", PALE)
+	_mission_minimize_btn.add_theme_stylebox_override("normal", _panel_style(Color(0.02, 0.05, 0.08, 0.8), Color(0.3, 0.5, 0.6, 0.6), 3.0))
+	_mission_minimize_btn.add_theme_stylebox_override("hover", _panel_style(Color(0.05, 0.12, 0.18, 0.95), GOLD, 3.0))
+	_mission_minimize_btn.pressed.connect(_toggle_mission_tracker_minimized)
+	heading.add_child(_mission_minimize_btn)
+
 	_tasks_dossier_btn = Button.new()
-	_tasks_dossier_btn.text = "[T] DOSSIER"
-	_tasks_dossier_btn.custom_minimum_size = Vector2(78, 22)
-	_tasks_dossier_btn.tooltip_text = "Open full Mission & Weapon Progression Dossier [T]"
-	_tasks_dossier_btn.add_theme_font_size_override("font_size", 8)
+	_tasks_dossier_btn.text = "[T]"
+	_tasks_dossier_btn.custom_minimum_size = Vector2(28, 20)
+	_tasks_dossier_btn.tooltip_text = "Open full Mission Dossier & Arsenal [T]"
+	_tasks_dossier_btn.add_theme_font_size_override("font_size", 9)
 	_tasks_dossier_btn.add_theme_color_override("font_color", CYAN)
-	_tasks_dossier_btn.add_theme_stylebox_override("normal", _panel_style(Color(0.02, 0.06, 0.09, 0.9), CYAN, 4.0))
-	_tasks_dossier_btn.add_theme_stylebox_override("hover", _panel_style(Color(0.04, 0.12, 0.18, 0.95), GOLD, 4.0))
-	_tasks_dossier_btn.pressed.connect(_open_profile)
+	_tasks_dossier_btn.add_theme_stylebox_override("normal", _panel_style(Color(0.02, 0.06, 0.09, 0.9), CYAN, 3.0))
+	_tasks_dossier_btn.add_theme_stylebox_override("hover", _panel_style(Color(0.04, 0.12, 0.18, 0.95), GOLD, 3.0))
+	_tasks_dossier_btn.pressed.connect(_open_tasks)
 	heading.add_child(_tasks_dossier_btn)
 	stack.add_child(heading)
 
-	# 2. Progress Bar
+	# 2. Sleek Slim Progress Bar
 	_mission_progress_bar = ProgressBar.new()
 	_mission_progress_bar.min_value = 0.0
 	_mission_progress_bar.max_value = maxi(_task_entries.size(), 1)
 	_mission_progress_bar.show_percentage = false
-	_mission_progress_bar.custom_minimum_size.y = 4.0
+	_mission_progress_bar.custom_minimum_size.y = 3.0
 	_mission_progress_bar.add_theme_stylebox_override("background", _panel_style(Color(0.015, 0.03, 0.045), Color(0.12, 0.22, 0.28), 0.0))
 	_mission_progress_bar.add_theme_stylebox_override("fill", _panel_style(Color(0.24, 0.95, 0.54), Color(0.24, 0.95, 0.54), 0.0))
 	stack.add_child(_mission_progress_bar)
 
-	# 3. Sector & Story Act Subtitle
-	_story_act_label = _label("%s  //  GEAR %02d/10  ·  LOGS %d/8" % [_current_story_act, _unlocked_items.size(), _collected_logs.size()], 8, CYAN)
-	_story_act_label.clip_text = true
-	stack.add_child(_story_act_label)
-
-	# 4. Hero Active Task Card
-	_active_task_card = PanelContainer.new()
-	_active_task_card.name = "ActiveTaskCard"
-	var card_style := _panel_style(Color(0.022, 0.045, 0.068, 0.96), Color(0.32, 0.72, 0.88, 0.7), 6.0)
-	_active_task_card.add_theme_stylebox_override("panel", card_style)
-	var card_vbox := VBoxContainer.new()
-	card_vbox.add_theme_constant_override("separation", 3)
-	_active_task_card.add_child(card_vbox)
+	# 3. Details Box (collapsible via minimize button)
+	_mission_details_box = VBoxContainer.new()
+	_mission_details_box.name = "MissionDetailsBox"
+	_mission_details_box.add_theme_constant_override("separation", 3)
+	stack.add_child(_mission_details_box)
 
 	var card_top := HBoxContainer.new()
 	card_top.add_theme_constant_override("separation", 6)
-	_active_room_tag = _label("[CREW LIVING QUARTERS]", 8, CYAN)
-	_active_priority_tag = _label("ACTIVE OBJECTIVE", 8, ORANGE)
+	_active_room_tag = SKIN.pixel_label("[CREW LIVING QUARTERS]", SKIN.FONT_TELEMETRY, CYAN)
+	_active_priority_tag = SKIN.clean_label("CURRENT", SKIN.FONT_TINY, ORANGE)
 	card_top.add_child(_active_room_tag)
 	card_top.add_spacer(false)
 	card_top.add_child(_active_priority_tag)
-	card_vbox.add_child(card_top)
+	_mission_details_box.add_child(card_top)
 
-	_active_task_title = _label("Play May's Yangon message", 11, PALE)
+	_active_task_title = SKIN.clean_label("Play May's Yangon message", SKIN.FONT_BODY, PALE)
 	_active_task_title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	card_vbox.add_child(_active_task_title)
+	_mission_details_box.add_child(_active_task_title)
 
-	_active_action_hint = _label("▶ Access Thura's terminal desk at your bunk", 9, Color(0.68, 0.86, 0.9))
-	_active_action_hint.clip_text = true
-	card_vbox.add_child(_active_action_hint)
-	stack.add_child(_active_task_card)
+	_active_action_hint = SKIN.clean_label("▶ Access Thura's terminal desk at your bunk", SKIN.FONT_SMALL, Color(0.72, 0.88, 0.94))
+	_active_action_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_mission_details_box.add_child(_active_action_hint)
 
-	# 5. Dedicated Weapon / Arsenal Reward Preview Card
-	_active_reward_card = PanelContainer.new()
-	_active_reward_card.name = "ActiveRewardCard"
-	var rew_style := _panel_style(Color(0.015, 0.035, 0.055, 0.94), Color(1.0, 0.78, 0.38, 0.65), 5.0)
-	_active_reward_card.add_theme_stylebox_override("panel", rew_style)
-	var rew_hbox := HBoxContainer.new()
-	rew_hbox.add_theme_constant_override("separation", 8)
-	rew_hbox.alignment = BoxContainer.ALIGNMENT_CENTER
-	_active_reward_card.add_child(rew_hbox)
+	_build_objective_toast()
 
-	var icon_frame := PanelContainer.new()
-	icon_frame.custom_minimum_size = Vector2(30, 30)
-	icon_frame.add_theme_stylebox_override("panel", _panel_style(Color(0.02, 0.05, 0.08), GOLD, 3.0))
-	_active_reward_icon = TextureRect.new()
-	_active_reward_icon.custom_minimum_size = Vector2(26, 26)
-	_active_reward_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	_active_reward_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	_active_reward_icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	icon_frame.add_child(_active_reward_icon)
-	rew_hbox.add_child(icon_frame)
 
-	var rew_vbox := VBoxContainer.new()
-	rew_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	rew_vbox.add_theme_constant_override("separation", 1)
-	_active_reward_badge = _label("ARSENAL MILESTONE REWARD:", 8, GOLD)
-	_active_reward_name = _label("SUIT FLASHLIGHT [F]  (LOCKED 🔒)", 9, CYAN)
-	_active_reward_desc = _label("Complete current task to advance towards this reward", 8, Color(0.7, 0.82, 0.86))
-	_active_reward_desc.clip_text = true
-	rew_vbox.add_child(_active_reward_badge)
-	rew_vbox.add_child(_active_reward_name)
-	rew_vbox.add_child(_active_reward_desc)
-	rew_hbox.add_child(rew_vbox)
-	stack.add_child(_active_reward_card)
+func _toggle_mission_tracker_minimized() -> void:
+	_mission_tracker_minimized = not _mission_tracker_minimized
+	if is_instance_valid(_mission_details_box):
+		_mission_details_box.visible = not _mission_tracker_minimized
+	if is_instance_valid(_mission_minimize_btn):
+		_mission_minimize_btn.text = "+" if _mission_tracker_minimized else "—"
+	if is_instance_valid(_mission_panel):
+		_mission_panel.offset_bottom = _mission_panel.offset_top + (36.0 if _mission_tracker_minimized else 126.0)
 
-	# 6. Upcoming Next Task Preview Row
-	_upcoming_task_row = HBoxContainer.new()
-	_upcoming_task_row.add_theme_constant_override("separation", 6)
-	var nxt_tag := _label("[NEXT]", 8, Color(0.45, 0.65, 0.7))
-	_upcoming_task_label = _label("Pilot ship & evade asteroids", 8, Color(0.55, 0.72, 0.78))
-	_upcoming_task_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_upcoming_task_label.clip_text = true
-	_upcoming_task_row.add_child(nxt_tag)
-	_upcoming_task_row.add_child(_upcoming_task_label)
-	stack.add_child(_upcoming_task_row)
 
-	# 7. Rows for dynamic tasks / secondary tasks
-	for entry in _task_entries:
-		_add_mission_row(entry)
+func _build_objective_toast() -> void:
+	var toast := PanelContainer.new()
+	_objective_toast = toast
+	toast.name = "ObjectiveToast"
+	toast.anchor_left = 0.5
+	toast.anchor_top = 0.0
+	toast.anchor_right = 0.5
+	toast.anchor_bottom = 0.0
+	toast.offset_left = -220.0
+	toast.offset_top = 18.0
+	toast.offset_right = 220.0
+	toast.offset_bottom = 74.0
+	var toast_style := _panel_style(Color(0.015, 0.035, 0.055, 0.96), Color(0.24, 0.95, 0.54, 0.9), 6.0)
+	toast.add_theme_stylebox_override("panel", toast_style)
+	toast.visible = false
+	toast.modulate.a = 0.0
+	_root.add_child(toast)
 
-	# 8. Footer
-	_mission_summary_label = _label("✔ 0/%d Complete  ·  Press [T] for Weapon Roadmap" % maxi(_task_entries.size(), 1), 8, MUTED)
-	_mission_summary_label.clip_text = true
-	stack.add_child(_mission_summary_label)
+	var toast_vbox := VBoxContainer.new()
+	toast_vbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	toast_vbox.add_theme_constant_override("separation", 2)
+	toast.add_child(toast_vbox)
+
+	_objective_toast_title = SKIN.clean_label("✔ OBJECTIVE COMPLETED", SKIN.FONT_SUBHEAD, Color(0.24, 0.95, 0.54))
+	_objective_toast_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	toast_vbox.add_child(_objective_toast_title)
+
+	_objective_toast_sub = SKIN.clean_label("", SKIN.FONT_SMALL, PALE)
+	_objective_toast_sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_objective_toast_sub.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	toast_vbox.add_child(_objective_toast_sub)
+
+
+func show_objective_toast(title: String, subtitle: String, is_complete: bool = false) -> void:
+	if not is_instance_valid(_objective_toast) or not is_instance_valid(_objective_toast_title):
+		return
+	_objective_toast_title.text = title
+	_objective_toast_title.add_theme_color_override("font_color", GREEN if is_complete else GOLD)
+	_objective_toast_sub.text = subtitle
+	_objective_toast.visible = true
+	_objective_toast_timer = 3.5
+	_play_mission_chime(is_complete)
+
+
+func _play_mission_chime(is_complete: bool) -> void:
+	if not is_inside_tree():
+		return
+	var player := AudioStreamPlayer.new()
+	player.bus = &"Master"
+	add_child(player)
+	var freq: float = 1174.66 if is_complete else 880.0
+	var tone: AudioStreamWAV = DialogueAudioSynth.generate_tone(freq, 0.35 if is_complete else 0.2, 0.01, 0.12, "octave" if is_complete else "two_tone", 0.4)
+	player.stream = tone
+	player.play()
+	player.finished.connect(player.queue_free)
 
 
 func _is_equipment_task_entry(entry: Dictionary) -> bool:
@@ -1387,6 +1477,7 @@ func _build_comms_transmission_panel() -> void:
 
 func _build_top_controls() -> void:
 	var controls := HBoxContainer.new()
+	_top_controls = controls
 	controls.name = "TopRightControls"
 	controls.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
 	controls.offset_left = -860.0
@@ -1438,6 +1529,7 @@ func _build_context_prompt() -> void:
 
 func _build_hotbar() -> void:
 	var status_pill := PanelContainer.new()
+	_status_pill = status_pill
 	status_pill.name = "EquippedStatusPill"
 	status_pill.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
 	status_pill.offset_left = -334.0
@@ -1455,6 +1547,7 @@ func _build_hotbar() -> void:
 	bar.name = "Hotbar"
 	bar.add_theme_constant_override("separation", 4)
 	var frame := PanelContainer.new()
+	_quickbar_frame = frame
 	frame.name = "QuickbarFrame"
 	frame.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
 	frame.offset_left = -334.0
@@ -1792,6 +1885,123 @@ func _create_profile_overlay() -> void:
 	scroll.add_child(_profile_achievements_list)
 
 
+func _create_tasks_overlay() -> void:
+	var modal := _create_modal_shell("MISSION DOSSIER & TASKS", Vector2(940, 580))
+	_overlay_nodes[&"tasks"] = modal["root"]
+	var content: VBoxContainer = modal["content"]
+	content.add_theme_constant_override("separation", 10)
+
+	var columns := HBoxContainer.new()
+	columns.name = "TasksColumns"
+	columns.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	columns.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	columns.add_theme_constant_override("separation", 16)
+	content.add_child(columns)
+
+	# --- Left Column: Assigned Watch Duties ---
+	var left_col := VBoxContainer.new()
+	left_col.name = "LeftTasksColumn"
+	left_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	left_col.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	left_col.size_flags_stretch_ratio = 1.15
+	left_col.add_theme_constant_override("separation", 8)
+	columns.add_child(left_col)
+
+	var left_header := HBoxContainer.new()
+	left_header.add_theme_constant_override("separation", 8)
+	var left_title := SKIN.clean_label("WATCH TASKS & OBJECTIVES", SKIN.FONT_SUBHEAD, GOLD)
+	left_title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	left_header.add_child(left_title)
+	left_header.add_spacer(false)
+	_tasks_status_summary_label = SKIN.pixel_label("0 / 0 COMPLETED", SKIN.FONT_SMALL, GREEN)
+	_tasks_status_summary_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	left_header.add_child(_tasks_status_summary_label)
+	left_col.add_child(left_header)
+
+	var filter_bar := HBoxContainer.new()
+	filter_bar.add_theme_constant_override("separation", 6)
+	for filter_def in [["ALL TASKS", &"all"], ["ACTIVE", &"active"], ["COMPLETED", &"completed"]]:
+		var f_label: String = filter_def[0]
+		var f_id: StringName = filter_def[1]
+		var f_btn := _flat_filter_button(f_label)
+		f_btn.pressed.connect(func():
+			_tasks_filter_tab = f_id
+			_refresh_tasks_overlay()
+		)
+		filter_bar.add_child(f_btn)
+		_tasks_filter_buttons[f_id] = f_btn
+	left_col.add_child(filter_bar)
+
+	var hint_banner := SKIN.clean_label("Complete watch tasks to clear security locks and earn survival gear.", SKIN.FONT_SMALL, Color(0.6, 0.75, 0.82))
+	left_col.add_child(hint_banner)
+
+	var tasks_scroll := ScrollContainer.new()
+	tasks_scroll.name = "TasksScroll"
+	tasks_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	tasks_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	tasks_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	left_col.add_child(tasks_scroll)
+
+	_tasks_list_container = VBoxContainer.new()
+	_tasks_list_container.name = "TasksList"
+	_tasks_list_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_tasks_list_container.add_theme_constant_override("separation", 8)
+	tasks_scroll.add_child(_tasks_list_container)
+
+	# --- Vertical Divider ---
+	var divider := VSeparator.new()
+	divider.modulate = Color(1.0, 1.0, 1.0, 0.25)
+	columns.add_child(divider)
+
+	# --- Right Column: Arsenal & Weapon Progression Showcase ---
+	var right_col := VBoxContainer.new()
+	right_col.name = "RightArsenalColumn"
+	right_col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	right_col.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	right_col.size_flags_stretch_ratio = 1.0
+	right_col.add_theme_constant_override("separation", 8)
+	columns.add_child(right_col)
+
+	var right_header := HBoxContainer.new()
+	right_header.add_theme_constant_override("separation", 8)
+	var right_title := Label.new()
+	right_title.name = "Label"
+	SKIN.style_label(right_title, true, SKIN.FONT_SUBHEAD, GOLD)
+	right_title.text = "SURVIVAL ARSENAL & WEAPONS"
+	right_title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	right_header.add_child(right_title)
+	right_header.add_spacer(false)
+	_tasks_arsenal_summary_label = SKIN.pixel_label("0 / 10 UNLOCKED", SKIN.FONT_SMALL, GOLD)
+	_tasks_arsenal_summary_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	right_header.add_child(_tasks_arsenal_summary_label)
+	right_col.add_child(right_header)
+
+	_tasks_arsenal_bar = ProgressBar.new()
+	_tasks_arsenal_bar.min_value = 0.0
+	_tasks_arsenal_bar.max_value = maxi(ARSENAL_CATALOG.size(), 1)
+	_tasks_arsenal_bar.show_percentage = false
+	_tasks_arsenal_bar.custom_minimum_size.y = 4.0
+	_tasks_arsenal_bar.add_theme_stylebox_override("background", _flat_box(Color(0.02, 0.05, 0.07), Color.TRANSPARENT, 0.0, 0.0, 0))
+	_tasks_arsenal_bar.add_theme_stylebox_override("fill", _flat_box(GOLD, Color.TRANSPARENT, 0.0, 0.0, 0))
+	right_col.add_child(_tasks_arsenal_bar)
+
+	var rule_banner := SKIN.clean_label("WEAPONS ARE LOCKED AT START // EARNED ONLY BY COMPLETING TASKS", SKIN.FONT_SMALL, Color(1.0, 0.78, 0.42))
+	right_col.add_child(rule_banner)
+
+	var arsenal_scroll := ScrollContainer.new()
+	arsenal_scroll.name = "ArsenalScroll"
+	arsenal_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	arsenal_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	arsenal_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	right_col.add_child(arsenal_scroll)
+
+	_tasks_arsenal_container = VBoxContainer.new()
+	_tasks_arsenal_container.name = "ArsenalList"
+	_tasks_arsenal_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_tasks_arsenal_container.add_theme_constant_override("separation", 8)
+	arsenal_scroll.add_child(_tasks_arsenal_container)
+
+
 func _create_settings_overlay() -> void:
 	var modal := _create_modal_shell("SHIP SETTINGS", Vector2(860, 548))
 	_overlay_nodes[&"settings"] = modal["root"]
@@ -1857,7 +2067,7 @@ func _create_modal_shell(title: String, desired_size: Vector2) -> Dictionary:
 	overlay.visible = false
 	_root.add_child(overlay)
 	var dimmer := ColorRect.new()
-	dimmer.color = Color(0.008, 0.014, 0.025, 0.86)
+	dimmer.color = Color(0.005, 0.012, 0.02, 0.94)
 	dimmer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	overlay.add_child(dimmer)
 	var frame := PanelContainer.new()
@@ -1872,7 +2082,7 @@ func _create_modal_shell(title: String, desired_size: Vector2) -> Dictionary:
 	var heading := HBoxContainer.new()
 	heading.add_theme_constant_override("separation", 12)
 	var icon := PixelIcon.new()
-	icon.icon_kind = &"map" if title == "SHIP MAP" else &"settings" if title == "SHIP SETTINGS" else &"profile" if title == "PROFILE" else &"tasks" if ("MISSION" in title or "TASK" in title) else &"inventory"
+	icon.icon_kind = &"map" if title == "SHIP MAP" else &"settings" if title == "SHIP SETTINGS" else &"profile" if title == "PROFILE" else &"tasks" if ("MISSION" in title or "TASK" in title or "DOSSIER" in title) else &"inventory"
 	icon.tint = GOLD
 	icon.custom_minimum_size = Vector2(32, 32)
 	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -1976,7 +2186,7 @@ func is_task_unlocked_in_sequence(task_id: StringName) -> bool:
 
 
 func _update_world_task_markers() -> void:
-	if not is_instance_valid(_world_task_marker_layer):
+	if not is_instance_valid(_world_task_marker_layer) or get_viewport() == null:
 		return
 	var canvas_transform := get_viewport().get_canvas_transform()
 	var visible_rect := get_viewport().get_visible_rect()
@@ -2068,36 +2278,43 @@ func _refresh_mission_panel() -> void:
 			_active_room_tag.text = "[%s]" % room_tag_text
 			_active_priority_tag.text = "ACTIVE OBJECTIVE"
 			_active_priority_tag.add_theme_color_override("font_color", ORANGE)
-			_active_task_title.text = str(active_entry.get("title", "Ship duty"))
+			_active_task_title.text = _format_clean_title(str(active_entry.get("title", "Ship duty")))
 			var hint: String = str(active_entry.get("action_hint", "Proceed to location and press [E] to interact"))
 			_active_action_hint.text = "▶ %s" % hint
 
-			var r_item: StringName = StringName(active_entry.get("reward_item", &""))
-			var m_item: StringName = StringName(active_entry.get("milestone_reward", r_item))
-			if r_item != &"" and ITEM_DATA.has(r_item):
-				_active_reward_icon.texture = _item_icon_texture(r_item)
-				_active_reward_badge.text = "⚡ WEAPON / GEAR UNLOCKS ON THIS TASK:"
-				_active_reward_badge.add_theme_color_override("font_color", GOLD)
-				_active_reward_name.text = str(ITEM_DATA[r_item]["name"]).to_upper()
-				_active_reward_desc.text = "Complete current objective to obtain this weapon!"
-				_active_reward_card.visible = true
-			elif m_item != &"" and ITEM_DATA.has(m_item):
-				_active_reward_icon.texture = _item_icon_texture(m_item)
-				_active_reward_badge.text = "NEXT ARSENAL REWARD IN PROGRESS:"
-				_active_reward_badge.add_theme_color_override("font_color", CYAN)
-				_active_reward_name.text = "%s  (LOCKED 🔒)" % str(ITEM_DATA[m_item]["name"]).to_upper()
-				_active_reward_desc.text = "Advance current objective to unlock"
-				_active_reward_card.visible = true
-			else:
-				_active_reward_badge.text = "WEAPON STATUS: UNARMED"
-				_active_reward_badge.add_theme_color_override("font_color", MUTED)
-				_active_reward_name.text = "COMPLETE TASKS TO OBTAIN WEAPONS"
-				_active_reward_desc.text = "All weapons are locked until duties are complete."
-				_active_reward_icon.texture = _item_icon_texture(&"captains_revolver")
-				_active_reward_card.visible = true
+			var cur_id: StringName = StringName(active_entry.get("id", &""))
+			if _last_active_task_id != &"" and _last_active_task_id != cur_id:
+				var new_title := _format_clean_title(str(active_entry.get("title", "Next Duty")))
+				show_objective_toast("⚡ NEW OBJECTIVE", new_title, false)
+			_last_active_task_id = cur_id
+
+			if is_instance_valid(_active_reward_card):
+				var r_item: StringName = StringName(active_entry.get("reward_item", &""))
+				var m_item: StringName = StringName(active_entry.get("milestone_reward", r_item))
+				if r_item != &"" and ITEM_DATA.has(r_item):
+					_active_reward_icon.texture = _item_icon_texture(r_item)
+					_active_reward_badge.text = "⚡ WEAPON / GEAR UNLOCKS ON THIS TASK:"
+					_active_reward_badge.add_theme_color_override("font_color", GOLD)
+					_active_reward_name.text = str(ITEM_DATA[r_item]["name"]).to_upper()
+					_active_reward_desc.text = "Complete current objective to obtain this weapon!"
+					_active_reward_card.visible = true
+				elif m_item != &"" and ITEM_DATA.has(m_item):
+					_active_reward_icon.texture = _item_icon_texture(m_item)
+					_active_reward_badge.text = "NEXT ARSENAL REWARD IN PROGRESS:"
+					_active_reward_badge.add_theme_color_override("font_color", CYAN)
+					_active_reward_name.text = "%s  (LOCKED 🔒)" % str(ITEM_DATA[m_item]["name"]).to_upper()
+					_active_reward_desc.text = "Advance current objective to unlock"
+					_active_reward_card.visible = true
+				else:
+					_active_reward_badge.text = "WEAPON STATUS: UNARMED"
+					_active_reward_badge.add_theme_color_override("font_color", MUTED)
+					_active_reward_name.text = "COMPLETE TASKS TO OBTAIN WEAPONS"
+					_active_reward_desc.text = "All weapons are locked until duties are complete."
+					_active_reward_icon.texture = _item_icon_texture(&"captains_revolver")
+					_active_reward_card.visible = true
 
 			if not next_entry.is_empty() and is_instance_valid(_upcoming_task_row):
-				_upcoming_task_label.text = str(next_entry.get("title", "Next ship duty"))
+				_upcoming_task_label.text = _format_clean_title(str(next_entry.get("title", "Next ship duty")))
 				_upcoming_task_row.visible = true
 			elif is_instance_valid(_upcoming_task_row):
 				_upcoming_task_row.visible = false
@@ -2107,10 +2324,11 @@ func _refresh_mission_panel() -> void:
 			_active_priority_tag.add_theme_color_override("font_color", GREEN)
 			_active_task_title.text = "All sector tasks executed successfully"
 			_active_action_hint.text = "All sector weapons & gear unlocked."
-			_active_reward_badge.text = "ARSENAL STATUS:"
-			_active_reward_name.text = "ALL WEAPONS & GEAR SECURED"
-			_active_reward_desc.text = "Loadout fully operational"
-			_active_reward_icon.texture = _item_icon_texture(&"captains_revolver")
+			if is_instance_valid(_active_reward_card):
+				_active_reward_badge.text = "ARSENAL STATUS:"
+				_active_reward_name.text = "ALL WEAPONS & GEAR SECURED"
+				_active_reward_desc.text = "Loadout fully operational"
+				_active_reward_icon.texture = _item_icon_texture(&"captains_revolver")
 			if is_instance_valid(_upcoming_task_row):
 				_upcoming_task_row.visible = false
 
@@ -2144,7 +2362,16 @@ func set_task_completed(task_id: StringName, silent: bool = false) -> void:
 		var was_already_done: bool = bool(_task_completed[task_id])
 		_task_completed[task_id] = true
 		_refresh_mission_panel()
+		_refresh_tasks_overlay()
 		_update_world_task_markers()
+		if not silent and not was_already_done:
+			var completed_title := ""
+			for entry in _task_entries:
+				if StringName(entry.get("id", &"")) == task_id:
+					completed_title = _format_clean_title(str(entry.get("title", "Duty")))
+					break
+			if not completed_title.is_empty():
+				show_objective_toast("✔ OBJECTIVE COMPLETED", completed_title, true)
 		unlock_achievement(task_id, silent or was_already_done)
 	else:
 		unlock_achievement(task_id, silent)
@@ -2301,8 +2528,25 @@ func _open_profile() -> void:
 	_open_overlay(&"profile")
 
 
+func _set_hud_gameplay_elements_visible(is_vis: bool) -> void:
+	if is_instance_valid(_mission_panel):
+		_mission_panel.visible = is_vis
+	if is_instance_valid(_top_controls):
+		_top_controls.visible = is_vis
+	if is_instance_valid(_quickbar_frame):
+		_quickbar_frame.visible = is_vis
+	if is_instance_valid(_status_pill):
+		_status_pill.visible = is_vis
+	if is_instance_valid(_world_task_marker_layer):
+		_world_task_marker_layer.visible = is_vis
+	if is_instance_valid(_context_prompt):
+		_context_prompt.visible = false
+
+
 func _open_tasks() -> void:
-	_open_profile()
+	_tasks_main_tab = &"tasks"
+	_refresh_tasks_overlay()
+	_open_overlay(&"tasks")
 
 
 func _open_settings() -> void:
@@ -2315,16 +2559,17 @@ func _open_overlay(overlay_name: StringName) -> void:
 	for name in _overlay_nodes:
 		_overlay_nodes[name].visible = name == overlay_name
 	var was_closed := _active_overlay == &""
-	if was_closed:
+	if was_closed and get_viewport() != null:
 		_previous_focus = get_viewport().gui_get_focus_owner()
 	_active_overlay = overlay_name
 	if was_closed:
-		_context_prompt.visible = false
+		_set_hud_gameplay_elements_visible(false)
 		modal_state_changed.emit(true)
 	if overlay_name == &"map":
 		_update_map_markers()
 	var close := _overlay_nodes[overlay_name].find_child("Close", true, false) as Button
-	close.grab_focus()
+	if is_instance_valid(close) and close.is_inside_tree():
+		close.grab_focus()
 	_queue_resize()
 
 
@@ -2334,7 +2579,7 @@ func _close_overlay() -> void:
 	for overlay in _overlay_nodes.values():
 		overlay.visible = false
 	_active_overlay = &""
-	_context_prompt.visible = false
+	_set_hud_gameplay_elements_visible(true)
 	modal_state_changed.emit(false)
 	if is_instance_valid(_previous_focus) and _previous_focus.is_visible_in_tree():
 		_previous_focus.grab_focus()
@@ -2394,15 +2639,31 @@ func _navigation_button(icon_kind: StringName, title: String, shortcut: String, 
 func _nav_button_style(_accent: Color, highlighted: bool) -> StyleBox:
 	return PIXEL_THEME.get_stylebox("hover" if highlighted else "normal", "Button")
 
+func _format_clean_title(raw_title: String) -> String:
+	var clean := raw_title.strip_edges()
+	if clean.begins_with("Amara: "):
+		clean = clean.substr(7).strip_edges()
+	var paren_pos := clean.find("(")
+	if paren_pos != -1:
+		var sub := clean.substr(paren_pos)
+		if sub.find("Task") != -1 or sub.find("Unlock") != -1 or sub.find("->") != -1 or sub.find("Multitool") != -1 or sub.find("Suit Light") != -1 or sub.find("Plasma") != -1 or sub.find("Discharger") != -1 or sub.find("Scanner") != -1 or sub.find("Act IV") != -1:
+			clean = clean.substr(0, paren_pos).strip_edges()
+	var angle_pos := clean.find("<")
+	if angle_pos != -1:
+		clean = clean.substr(0, angle_pos).strip_edges()
+	return clean
+
+
 func _label(text: String, font_size: int, color: Color) -> Label:
 	var label := Label.new()
 	label.text = text
-	var clean_size: int = 13 if font_size >= 16 else (11 if font_size >= 13 else (10 if font_size >= 11 else maxi(font_size, 8)))
+	var clean_size: int = maxi(font_size, 10)
 	label.add_theme_font_size_override("font_size", clean_size)
 	label.add_theme_constant_override("line_spacing", 4)
 	label.add_theme_color_override("font_color", color)
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return label
+
 
 func _button(text: String, minimum_size: Vector2, accent: Color) -> Button:
 	var button := Button.new()
@@ -2422,18 +2683,16 @@ func _button(text: String, minimum_size: Vector2, accent: Color) -> Button:
 func _button_style(_accent: Color, highlighted: bool) -> StyleBox:
 	return PIXEL_THEME.get_stylebox("hover" if highlighted else "normal", "Button")
 
+
 func _panel_style(background: Color, border: Color, padding: float) -> StyleBox:
-	if padding >= 5:
-		var frame := PIXEL_THEME.get_stylebox("panel", "PanelContainer").duplicate() as StyleBoxTexture
-		frame.content_margin_left = padding
-		frame.content_margin_right = padding
-		frame.content_margin_top = padding
-		frame.content_margin_bottom = padding
-		return frame
 	var style := StyleBoxFlat.new()
 	style.bg_color = background
 	style.border_color = border
 	style.set_border_width_all(1)
+	style.content_margin_left = padding
+	style.content_margin_right = padding
+	style.content_margin_top = padding
+	style.content_margin_bottom = padding
 	style.anti_aliasing = false
 	return style
 
@@ -2620,143 +2879,725 @@ func _get_room_lighting() -> Node2D:
 	return null
 
 
+func _set_dev_active_tab(tab_id: StringName) -> void:
+	_dev_active_tab = tab_id
+	for t_id in _dev_tab_buttons:
+		var btn: Button = _dev_tab_buttons[t_id]
+		if is_instance_valid(btn):
+			if t_id == tab_id:
+				btn.add_theme_color_override("font_color", GOLD)
+				btn.add_theme_stylebox_override("normal", _button_style(GOLD, true))
+			else:
+				btn.add_theme_color_override("font_color", MUTED)
+				btn.add_theme_stylebox_override("normal", _button_style(MUTED, false))
+	for s_id in _dev_sections:
+		var sec: Control = _dev_sections[s_id]
+		if is_instance_valid(sec):
+			sec.visible = (tab_id == &"all" or tab_id == s_id)
+
+
+func _dev_section_container(parent: Control, section_id: StringName, title_text: String, title_col: Color) -> VBoxContainer:
+	var sec_box := VBoxContainer.new()
+	sec_box.name = "DevSection_" + String(section_id)
+	sec_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	sec_box.add_theme_constant_override("separation", 6)
+
+	var header := _label(title_text, 11, title_col)
+	header.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	sec_box.add_child(header)
+	sec_box.add_child(HSeparator.new())
+
+	parent.add_child(sec_box)
+	_dev_sections[section_id] = sec_box
+	return sec_box
+
+
+func _dev_btn(text: String, callback: Callable, color: Color = CYAN, height: float = 34.0) -> Button:
+	var btn := _button(text, Vector2(0, height), color)
+	btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	btn.pressed.connect(callback)
+	return btn
+
+
+func _dev_row(btn1: Control, btn2: Control = null, btn3: Control = null) -> HBoxContainer:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 6)
+	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	if btn1 != null:
+		btn1.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(btn1)
+	if btn2 != null:
+		btn2.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(btn2)
+	if btn3 != null:
+		btn3.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(btn3)
+	return row
+
+
 func _build_dev_menu_panel() -> void:
 	_dev_panel = PanelContainer.new()
 	_dev_panel.name = "DevMenuPanel"
 	_dev_panel.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
-	_dev_panel.offset_left = -410.0
-	_dev_panel.offset_top = 88.0
-	_dev_panel.offset_right = -18.0
-	_dev_panel.offset_bottom = 502.0
+	_dev_panel.offset_left = -540.0
+	_dev_panel.offset_top = 20.0
+	_dev_panel.offset_right = -16.0
+	_dev_panel.offset_bottom = 700.0
 	_dev_panel.visible = false
+	_dev_panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	_dev_panel.add_theme_stylebox_override("panel", _panel_style(SURFACE, GOLD, 12.0))
-	_root.add_child(_dev_panel)
+	if _root != null:
+		_root.add_child(_dev_panel)
+	else:
+		add_child(_dev_panel)
 
-	var stack := VBoxContainer.new()
-	stack.add_theme_constant_override("separation", 8)
-	_dev_panel.add_child(stack)
+	var main_stack := VBoxContainer.new()
+	main_stack.add_theme_constant_override("separation", 6)
+	_dev_panel.add_child(main_stack)
 
+	# 1. Header
 	var header := HBoxContainer.new()
 	header.add_theme_constant_override("separation", 8)
-	var title := _label("DEV MENU // LIGHTING TEST", 12, GOLD)
+	var title := _label("DEV MENU // ALL SCENARIOS & GAMEPLAY TESTER", 11, GOLD)
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header.add_child(title)
 	var close_btn := Button.new()
 	close_btn.name = "DevClose"
 	close_btn.text = "X"
 	close_btn.theme_type_variation = &"CloseButton"
-	close_btn.custom_minimum_size = Vector2(36, 36)
+	close_btn.custom_minimum_size = Vector2(34, 30)
 	close_btn.pressed.connect(func(): _dev_panel.visible = false)
 	header.add_child(close_btn)
-	stack.add_child(header)
-	stack.add_child(HSeparator.new())
+	main_stack.add_child(header)
+	main_stack.add_child(HSeparator.new())
 
-	_dev_current_room_label = _label("OCCUPIED: HALLWAY", 12, CYAN)
-	_dev_current_room_label.clip_text = true
-	stack.add_child(_dev_current_room_label)
+	# 2. Filter Tabs
+	var tabs_row := HBoxContainer.new()
+	tabs_row.add_theme_constant_override("separation", 4)
+	var tab_defs: Array = [
+		[&"all", "ALL"],
+		[&"monster", "👾 MONSTER"],
+		[&"flight", "🚀 FLIGHT"],
+		[&"story", "🎬 STORY"],
+		[&"warp", "🚪 WARP"],
+		[&"cheats", "💡 CHEATS"]
+	]
+	for tab_pair in tab_defs:
+		var tab_id: StringName = tab_pair[0]
+		var tab_title: String = tab_pair[1]
+		var t_btn := Button.new()
+		t_btn.text = tab_title
+		t_btn.custom_minimum_size = Vector2(74, 28)
+		t_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		t_btn.pressed.connect(func(): _set_dev_active_tab(tab_id))
+		tabs_row.add_child(t_btn)
+		_dev_tab_buttons[tab_id] = t_btn
+	main_stack.add_child(tabs_row)
+	main_stack.add_child(HSeparator.new())
 
-	var row1 := HBoxContainer.new()
-	row1.add_theme_constant_override("separation", 8)
-	_dev_flicker_here_btn = _button("FLICKER HERE: OFF", Vector2(176, 38), ORANGE)
-	_dev_flicker_here_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_dev_flicker_here_btn.pressed.connect(_on_dev_toggle_flicker_here)
-	row1.add_child(_dev_flicker_here_btn)
-	_dev_flicker_all_btn = _button("FLICKER ALL: OFF", Vector2(176, 38), ORANGE)
-	_dev_flicker_all_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_dev_flicker_all_btn.pressed.connect(_on_dev_toggle_flicker_all)
-	row1.add_child(_dev_flicker_all_btn)
-	stack.add_child(row1)
+	# 3. Scroll Container for Sections
+	var scroll := ScrollContainer.new()
+	scroll.name = "DevScroll"
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	main_stack.add_child(scroll)
 
-	var row2 := HBoxContainer.new()
-	row2.add_theme_constant_override("separation", 8)
-	_dev_style_btn = _button("MODE: ERRATIC", Vector2(176, 38), CYAN)
-	_dev_style_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_dev_style_btn.pressed.connect(_on_dev_cycle_style)
-	row2.add_child(_dev_style_btn)
-	_dev_speed_btn = _button("SPEED: 1.0X", Vector2(176, 38), CYAN)
-	_dev_speed_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_dev_speed_btn.pressed.connect(_on_dev_cycle_speed)
-	row2.add_child(_dev_speed_btn)
-	stack.add_child(row2)
+	var content_box := VBoxContainer.new()
+	content_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	content_box.add_theme_constant_override("separation", 14)
+	scroll.add_child(content_box)
 
-	stack.add_child(HSeparator.new())
-	stack.add_child(_label("TARGET ROOM FLICKER & WARP", 12, GOLD))
+	# SECTION 1: MONSTER & AMARA SCENARIOS
+	var sec_monster := _dev_section_container(content_box, &"monster", "👾 MONSTER & AMARA INFECTION SCENARIOS", ORANGE)
+	sec_monster.add_child(_dev_row(
+		_dev_btn("CHASE: STAGE 1 (INFECTED AMARA)", func(): _on_dev_spawn_monster_chase(1), CYAN),
+		_dev_btn("CHASE: STAGE 2 (MUTATED AMARA)", func(): _on_dev_spawn_monster_chase(2), ORANGE)
+	))
+	sec_monster.add_child(_dev_row(
+		_dev_btn("CHASE: FINAL FORM (BONE SCYTHE)", func(): _on_dev_spawn_monster_chase(3), RED),
+		_dev_btn("CHASE: ORIGINAL LIQUID ORE", func(): _on_dev_spawn_monster_chase(0), CYAN)
+	))
+	sec_monster.add_child(_dev_row(
+		_dev_btn("TRIGGER MED BAY AMBUSH (WARD & AMARA)", _on_dev_trigger_medbay_ambush, GOLD),
+		_dev_btn("TRIGGER LAB BREACH RAMPAGE", _on_dev_trigger_lab_breach, RED)
+	))
+	sec_monster.add_child(_dev_row(
+		_dev_btn("FORCE RETREAT INTO DUCTS", _on_dev_retreat_monster_ducts, MUTED),
+		_dev_btn("DESPAWN MONSTER", _on_dev_despawn_monster, MUTED)
+	))
+	sec_monster.add_child(_dev_row(
+		_dev_btn("TEST REPEL: EMERGENCY FLARE", func(): _on_dev_repel_monster_test(&"emergency_flare"), ORANGE),
+		_dev_btn("TEST REPEL: PLASMA CUTTER", func(): _on_dev_repel_monster_test(&"plasma_cutter"), CYAN)
+	))
 
+	# SECTION 2: 3D FLIGHT & BLACK HOLE DRIVING
+	var sec_flight := _dev_section_container(content_box, &"flight", "🚀 3D FLIGHT COCKPIT & SPACE HAZARDS", CYAN)
+	sec_flight.add_child(_dev_row(
+		_dev_btn("DRIVE: BLACK HOLE SLINGSHOT (3D)", func(): _on_dev_trigger_piloting_encounter(&"black_hole_slingshot"), ORANGE),
+		_dev_btn("DRIVE: ASTEROID SWARM (3D)", func(): _on_dev_trigger_piloting_encounter(&"bridge_flight_piloting"), CYAN)
+	))
+	sec_flight.add_child(_dev_row(
+		_dev_btn("DRIVE: STAR VEERING (3D)", func(): _on_dev_trigger_piloting_encounter(&"star_veering"), GOLD),
+		_dev_btn("DRIVE: EREBOS LANDING RINGS (3D)", func(): _on_dev_trigger_piloting_encounter(&"erebos_orbital_landing"), GREEN)
+	))
+	sec_flight.add_child(_dev_row(
+		_dev_btn("BACKDROP: BLACK HOLE ACCRETION", func(): _on_dev_set_cosmic_sector(&"black_hole"), ORANGE),
+		_dev_btn("BACKDROP: ASTEROID BELT", func(): _on_dev_set_cosmic_sector(&"asteroid_belt"), CYAN)
+	))
+	sec_flight.add_child(_dev_row(
+		_dev_btn("BACKDROP: STELLAR CORONA", func(): _on_dev_set_cosmic_sector(&"stellar_corona"), GOLD),
+		_dev_btn("BACKDROP: NORMAL DEEP SPACE", func(): _on_dev_set_cosmic_sector(&"normal_space"), MUTED)
+	))
+	sec_flight.add_child(_dev_row(
+		_dev_btn("TRIGGER RANDOM EMERGENCY ASTEROID CUTSCENE", _on_dev_trigger_asteroid_cutscene, ORANGE)
+	))
+
+	# SECTION 3: STORY CUTSCENES & PROLOGUES
+	var sec_story := _dev_section_container(content_box, &"story", "🎬 STORY CUTSCENES, PROLOGUE & EPILOGUES", GOLD)
+	sec_story.add_child(_dev_row(
+		_dev_btn("ACT V FINALE: HOMECOMING", func(): _on_dev_play_station_cutscene(&"act_v_finale_home"), GOLD),
+		_dev_btn("COMMANDER'S SECRET BRIDGE LOG", func(): _on_dev_play_station_cutscene(&"commanders_secret_bridge"), CYAN)
+	))
+	sec_story.add_child(_dev_row(
+		_dev_btn("CABIN MAY AUDIO RECORDING", func(): _on_dev_play_station_cutscene(&"cabin_may_recording"), GOLD),
+		_dev_btn("CARGO BREACH INVESTIGATION", func(): _on_dev_play_station_cutscene(&"cargo_breach_inspection"), ORANGE)
+	))
+	sec_story.add_child(_dev_row(
+		_dev_btn("EREBOS TOUCHDOWN CUTSCENE", func(): _on_dev_play_station_cutscene(&"erebos_touchdown_confirmed"), GREEN),
+		_dev_btn("SUBDECK SHADOW NEST CHECK", func(): _on_dev_play_station_cutscene(&"subdeck_shadow_nest_check"), ORANGE)
+	))
+	sec_story.add_child(_dev_row(
+		_dev_btn("PLAY PROLOGUE MONTAGE (EARTH YEARS)", _on_dev_play_prologue_montage, CYAN),
+		_dev_btn("PLAY THADINGYUT MEMORY (FESTIVAL)", _on_dev_play_thadingyut_cutscene, GOLD)
+	))
+	sec_story.add_child(_dev_row(
+		_dev_btn("PLAY ARRIVAL BRIEFING (DAY 184)", _on_dev_play_arrival_briefing, CYAN),
+		_dev_btn("EPILOGUE 1: DAWN (RETURN HOME)", func(): _on_dev_play_epilogue(&"ending_dawn"), GREEN)
+	))
+	sec_story.add_child(_dev_row(
+		_dev_btn("EPILOGUE 2: THE LAST TRAJECTORY", func(): _on_dev_play_epilogue(&"ending_trajectory"), ORANGE),
+		_dev_btn("EPILOGUE 3: HOMECOMING", func(): _on_dev_play_epilogue(&"ending_homecoming"), RED)
+	))
+	sec_story.add_child(_dev_row(
+		_dev_btn("EPILOGUE 4: VOICES (TRANSMIT)", func(): _on_dev_play_epilogue(&"ending_voices"), CYAN)
+	))
+
+	# SECTION 4: WARP & ROOM NAVIGATION
+	var sec_warp := _dev_section_container(content_box, &"warp", "🚪 WARP & NAVIGATION", GREEN)
+	sec_warp.add_child(_dev_row(
+		_dev_btn("WARP: DECK 1 (MAIN SHIP)", func(): _on_dev_warp_to_deck("res://scenes/ship/bare_ship_walkthrough.tscn", Vector2(400, 300)), CYAN),
+		_dev_btn("WARP: DECK 2 (LOWER SUBDECK)", func(): _on_dev_warp_to_deck("res://scenes/ship/second_floor_subdeck.tscn", Vector2(882, 385)), ORANGE)
+	))
+	sec_warp.add_child(_dev_row(
+		_dev_btn("WARP: EREBOS SURFACE (EXTERIOR)", func(): _on_dev_warp_to_deck("res://scenes/planet/mock_planet_exterior.tscn", Vector2(1060, 520)), GREEN)
+	))
+	sec_warp.add_child(_dev_row(
+		_dev_btn("[D1] R01 Bridge", func(): _on_dev_warp_to_room_coords("res://scenes/ship/bare_ship_walkthrough.tscn", Vector2(200.0, 350.0), "R01 Bridge"), CYAN),
+		_dev_btn("[D1] R03 Med Bay", func(): _on_dev_warp_to_room_coords("res://scenes/ship/bare_ship_walkthrough.tscn", Vector2(850.0, 160.0), "R03 Med Bay"), CYAN)
+	))
+	sec_warp.add_child(_dev_row(
+		_dev_btn("[D1] R04 Research Lab", func(): _on_dev_warp_to_room_coords("res://scenes/ship/bare_ship_walkthrough.tscn", Vector2(430.0, 480.0), "R04 Research Lab"), CYAN),
+		_dev_btn("[D1] R07 Crew Quarters", func(): _on_dev_warp_to_room_coords("res://scenes/ship/bare_ship_walkthrough.tscn", Vector2(485.0, 550.0), "R07 Crew Quarters"), CYAN)
+	))
+	sec_warp.add_child(_dev_row(
+		_dev_btn("[D1] R06 Engine Room", func(): _on_dev_warp_to_room_coords("res://scenes/ship/bare_ship_walkthrough.tscn", Vector2(1472.0, 390.0), "R06 Engine Room"), CYAN),
+		_dev_btn("[D1] R05 Life Support", func(): _on_dev_warp_to_room_coords("res://scenes/ship/bare_ship_walkthrough.tscn", Vector2(1275.0, 336.0), "R05 Life Support"), CYAN)
+	))
+	sec_warp.add_child(_dev_row(
+		_dev_btn("[D2] S04 Tool Workshop", func(): _on_dev_warp_to_room_coords("res://scenes/ship/second_floor_subdeck.tscn", Vector2(535.0, 675.0), "S04 Tool Workshop"), ORANGE),
+		_dev_btn("[D2] S06 Shadow Nest", func(): _on_dev_warp_to_room_coords("res://scenes/ship/second_floor_subdeck.tscn", Vector2(1600.0, 680.0), "S06 Shadow Nest"), ORANGE)
+	))
+	sec_warp.add_child(_dev_row(
+		_dev_btn("[SURF] Central Drill Rig", func(): _on_dev_warp_to_room_coords("res://scenes/planet/mock_planet_exterior.tscn", Vector2(1060.0, 520.0), "Erebos Central Rig"), GREEN),
+		_dev_btn("[SURF] Hollow Crystals", func(): _on_dev_warp_to_room_coords("res://scenes/planet/mock_planet_exterior.tscn", Vector2(310.0, 435.0), "Erebos Crystal Site"), GREEN)
+	))
+
+	var nav_lbl := _label("DYNAMIC ROOM LIGHTING & TELEPORT", 10, GOLD)
+	sec_warp.add_child(nav_lbl)
 	var room_nav := HBoxContainer.new()
 	room_nav.add_theme_constant_override("separation", 8)
-	var prev_btn := _button("<", Vector2(44, 38), CYAN)
+	var prev_btn := _button("<", Vector2(44, 34), CYAN)
 	prev_btn.pressed.connect(func(): _step_dev_room(-1))
 	room_nav.add_child(prev_btn)
-	_dev_room_name_label = _label("R01 Bridge", 12, PALE)
+	_dev_room_name_label = _label("R01 Bridge", 11, PALE)
 	_dev_room_name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_dev_room_name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_dev_room_name_label.clip_text = true
 	room_nav.add_child(_dev_room_name_label)
-	var next_btn := _button(">", Vector2(44, 38), CYAN)
+	var next_btn := _button(">", Vector2(44, 34), CYAN)
 	next_btn.pressed.connect(func(): _step_dev_room(1))
 	room_nav.add_child(next_btn)
-	stack.add_child(room_nav)
+	sec_warp.add_child(room_nav)
 
 	var room_actions := HBoxContainer.new()
 	room_actions.add_theme_constant_override("separation", 8)
-	_dev_room_flicker_btn = _button("ROOM FLICKER: OFF", Vector2(176, 38), ORANGE)
+	_dev_room_flicker_btn = _button("ROOM FLICKER: OFF", Vector2(0, 34), ORANGE)
 	_dev_room_flicker_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_dev_room_flicker_btn.pressed.connect(_on_dev_toggle_selected_room_flicker)
 	room_actions.add_child(_dev_room_flicker_btn)
-	var warp_btn := _button("WARP TO ROOM", Vector2(176, 38), GREEN)
+	var warp_btn := _button("WARP TO ROOM", Vector2(0, 34), GREEN)
 	warp_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	warp_btn.pressed.connect(_on_dev_warp_to_selected_room)
 	room_actions.add_child(warp_btn)
-	stack.add_child(room_actions)
+	sec_warp.add_child(room_actions)
 
-	var row3 := HBoxContainer.new()
-	row3.add_theme_constant_override("separation", 8)
-	_dev_force_lights_btn = _button("ALL LIT: OFF", Vector2(114, 38), GOLD)
+	# SECTION 5: CHEATS, GEAR & LIGHTING
+	var sec_cheats := _dev_section_container(content_box, &"cheats", "💡 CHEATS, GEAR & LIGHTING TUNING", MUTED)
+	sec_cheats.add_child(_dev_row(
+		_dev_btn("TOGGLE GOD MODE (STEALTH / INVULNERABLE)", _on_dev_toggle_god_mode, GREEN),
+		_dev_btn("UNLOCK ALL 10 GEAR ITEMS", unlock_all_equipment_items, GREEN)
+	))
+	sec_cheats.add_child(_dev_row(
+		_dev_btn("RESTOCK ALL FLARES & AMMO", restock_all_equipment_amounts, GOLD),
+		_dev_btn("COMPLETE ALL MAIN & CREW TASKS", _on_dev_complete_all_tasks, GOLD)
+	))
+	sec_cheats.add_child(_dev_row(
+		_dev_btn("UNLOCK NEXT ACHIEVEMENT", _on_dev_unlock_next_achievement, CYAN),
+		_dev_btn("UNLOCK ALL ACHIEVEMENTS", _on_dev_unlock_all_achievements, CYAN)
+	))
+	sec_cheats.add_child(_dev_row(
+		_dev_btn("CREW FATE: SET ALL SURVIVED", func(): _on_dev_override_crew_survival(true), GREEN),
+		_dev_btn("CREW FATE: SET ALL INFECTED / LOST", func(): _on_dev_override_crew_survival(false), RED)
+	))
+
+	_dev_current_room_label = _label("OCCUPIED: HALLWAY", 11, CYAN)
+	_dev_current_room_label.clip_text = true
+	sec_cheats.add_child(_dev_current_room_label)
+
+	var f_row1 := HBoxContainer.new()
+	f_row1.add_theme_constant_override("separation", 8)
+	_dev_flicker_here_btn = _button("FLICKER HERE: OFF", Vector2(0, 34), ORANGE)
+	_dev_flicker_here_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_dev_flicker_here_btn.pressed.connect(_on_dev_toggle_flicker_here)
+	f_row1.add_child(_dev_flicker_here_btn)
+	_dev_flicker_all_btn = _button("FLICKER ALL: OFF", Vector2(0, 34), ORANGE)
+	_dev_flicker_all_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_dev_flicker_all_btn.pressed.connect(_on_dev_toggle_flicker_all)
+	f_row1.add_child(_dev_flicker_all_btn)
+	sec_cheats.add_child(f_row1)
+
+	var f_row2 := HBoxContainer.new()
+	f_row2.add_theme_constant_override("separation", 8)
+	_dev_style_btn = _button("MODE: ERRATIC", Vector2(0, 34), CYAN)
+	_dev_style_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_dev_style_btn.pressed.connect(_on_dev_cycle_style)
+	f_row2.add_child(_dev_style_btn)
+	_dev_speed_btn = _button("SPEED: 1.0X", Vector2(0, 34), CYAN)
+	_dev_speed_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_dev_speed_btn.pressed.connect(_on_dev_cycle_speed)
+	f_row2.add_child(_dev_speed_btn)
+	sec_cheats.add_child(f_row2)
+
+	var f_row3 := HBoxContainer.new()
+	f_row3.add_theme_constant_override("separation", 8)
+	_dev_force_lights_btn = _button("ALL LIT: OFF", Vector2(0, 34), GOLD)
 	_dev_force_lights_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_dev_force_lights_btn.pressed.connect(_on_dev_toggle_force_lights)
-	row3.add_child(_dev_force_lights_btn)
-	var reset_btn := _button("RESET", Vector2(104, 38), MUTED)
+	f_row3.add_child(_dev_force_lights_btn)
+	var reset_btn := _button("RESET ALL LIGHTS", Vector2(0, 34), MUTED)
 	reset_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	reset_btn.pressed.connect(_on_dev_reset_lights)
-	row3.add_child(reset_btn)
-	var deck_btn := _button("SWITCH DECK", Vector2(124, 38), CYAN)
-	deck_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	deck_btn.pressed.connect(_on_dev_switch_deck)
-	row3.add_child(deck_btn)
-	stack.add_child(row3)
-	var gear_btn := _button("DEV: UNLOCK ALL 10 GEAR ITEMS", Vector2(200, 36), GREEN)
-	gear_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	gear_btn.pressed.connect(unlock_all_equipment_items)
-	stack.add_child(gear_btn)
-	var restock_btn := _button("DEV: RESTOCK FLARES & AMMO", Vector2(200, 36), GOLD)
-	restock_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	restock_btn.pressed.connect(restock_all_equipment_amounts)
-	stack.add_child(restock_btn)
-	var pilot_dev_btn: Button = _button("DEV: TRIGGER ASTEROID CUTSCENE", Vector2(200, 36), ORANGE)
-	pilot_dev_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	pilot_dev_btn.pressed.connect(_on_dev_trigger_asteroid_cutscene)
-	stack.add_child(pilot_dev_btn)
-	var ach_dev_btn := _button("DEV: UNLOCK NEXT ACHIEVEMENT", Vector2(200, 36), GOLD)
-	ach_dev_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	ach_dev_btn.pressed.connect(_on_dev_unlock_next_achievement)
-	stack.add_child(ach_dev_btn)
+	f_row3.add_child(reset_btn)
+	sec_cheats.add_child(f_row3)
+
+	_set_dev_active_tab(&"all")
+
+
+func _on_dev_spawn_monster_chase(stage: int) -> void:
+	if is_instance_valid(_dev_panel):
+		_dev_panel.visible = false
+	if not is_inside_tree():
+		return
+	var tree := get_tree()
+	var current_scene := tree.current_scene
+	if current_scene == null:
+		return
+	var villain: Node2D = tree.get_first_node_in_group("resonance_ore_villain") as Node2D
+	if villain == null and current_scene.has_node("ResonanceOreVillain"):
+		villain = current_scene.get_node("ResonanceOreVillain") as Node2D
+
+	if villain == null:
+		var villain_scene := load("res://scenes/ship/crew/resonance_ore_villain.tscn") as PackedScene
+		if villain_scene != null:
+			villain = villain_scene.instantiate() as Node2D
+			var spawn_parent: Node = current_scene
+			var floor_layer := current_scene.get_node_or_null("FloorLayer")
+			if floor_layer != null:
+				spawn_parent = floor_layer
+			spawn_parent.add_child(villain)
+
+	if villain != null:
+		if is_instance_valid(_player):
+			var spawn_offset := Vector2(160.0, 0.0)
+			villain.global_position = _player.global_position + spawn_offset
+		villain.set("stalk_player_distance", 9999.0)
+		villain.set("is_active", true)
+		villain.set("in_ducts", false)
+		villain.visible = true
+		match stage:
+			1:
+				if villain.has_method("fuse_with_amara"):
+					villain.call("fuse_with_amara")
+			2:
+				if villain.has_method("mutate_to_stage2"):
+					villain.call("mutate_to_stage2")
+			3:
+				if villain.has_method("mutate_to_final_form"):
+					villain.call("mutate_to_final_form")
+			_:
+				villain.set("current_stage", 0)
+				villain.set("is_fused_with_amara", false)
+				villain.set("stalk_speed", 58.0)
+				if villain.has_node("AnimatedSprite2D"):
+					var spr := villain.get_node("AnimatedSprite2D") as AnimatedSprite2D
+					spr.modulate = Color(0.3, 0.85, 1.0, 0.9)
+					spr.scale = Vector2.ONE
+
+		var lighting := _get_room_lighting()
+		if lighting != null and lighting.has_method("set_flicker_current_room"):
+			lighting.call("set_flicker_current_room", true)
+			lighting.call("set_flicker_style", &"strobe")
+
+		var stage_name := "ORIGINAL LIQUID ORE"
+		var stage_color := CYAN
+		match stage:
+			1:
+				stage_name = "STAGE 1 (INFECTED AMARA)"
+				stage_color = CYAN
+			2:
+				stage_name = "STAGE 2 (MUTATED AMARA)"
+				stage_color = ORANGE
+			3:
+				stage_name = "STAGE 3 (FINAL FORM TITAN)"
+				stage_color = RED
+		show_achievement_popup("PURSUIT TRIGGERED: " + stage_name, "Monster tracking at distance 9999", "DEV CHASE", stage_color)
+
+
+func _on_dev_retreat_monster_ducts() -> void:
+	if not is_inside_tree():
+		return
+	var tree := get_tree()
+	var villain: Node2D = tree.get_first_node_in_group("resonance_ore_villain") as Node2D
+	var cur_scene := tree.current_scene
+	if villain == null and cur_scene != null and cur_scene.has_node("ResonanceOreVillain"):
+		villain = cur_scene.get_node("ResonanceOreVillain") as Node2D
+	if villain != null and villain.has_method("disappear_into_ducts"):
+		villain.call("disappear_into_ducts")
+		show_achievement_popup("MONSTER RETREATED", "Villain entered ship ventilation ducts", "DEV MONSTER", CYAN)
+
+
+func _on_dev_despawn_monster() -> void:
+	if not is_inside_tree():
+		return
+	var tree := get_tree()
+	var villains := tree.get_nodes_in_group("resonance_ore_villain")
+	for v in villains:
+		v.queue_free()
+	var cur_scene := tree.current_scene
+	if cur_scene != null and cur_scene.has_node("ResonanceOreVillain"):
+		cur_scene.get_node("ResonanceOreVillain").queue_free()
+	show_achievement_popup("MONSTER DESPAWNED", "All villain instances removed", "DEV MONSTER", MUTED)
+
+
+func _on_dev_repel_monster_test(tool_id: StringName) -> void:
+	if not is_inside_tree():
+		return
+	var tree := get_tree()
+	var villain: Node2D = tree.get_first_node_in_group("resonance_ore_villain") as Node2D
+	var cur_scene := tree.current_scene
+	if villain == null and cur_scene != null and cur_scene.has_node("ResonanceOreVillain"):
+		villain = cur_scene.get_node("ResonanceOreVillain") as Node2D
+	if villain != null and villain.has_method("repel_with_tool"):
+		var p_pos := _player.global_position if is_instance_valid(_player) else Vector2.ZERO
+		villain.call("repel_with_tool", tool_id, p_pos)
+		show_achievement_popup("REPEL SIGNAL SENT", "Tested tool: %s" % tool_id, "DEV TEST", ORANGE)
+
+
+func _on_dev_trigger_medbay_ambush() -> void:
+	if is_instance_valid(_dev_panel):
+		_dev_panel.visible = false
+	if not is_inside_tree():
+		return
+	var tree := get_tree()
+	var cur_scene := tree.current_scene
+	var target_medbay := Vector2(760.0, 200.0)
+	if cur_scene != null and cur_scene.scene_file_path == "res://scenes/ship/bare_ship_walkthrough.tscn":
+		if is_instance_valid(_player):
+			_player.global_position = target_medbay
+			if _player.camera != null:
+				_player.camera.reset_smoothing()
+		if cur_scene.has_method("_play_medbay_ambush_sequence"):
+			cur_scene.call(&"_play_medbay_ambush_sequence")
+	else:
+		Engine.set_meta(&"dev_warp_target", target_medbay)
+		Engine.set_meta(&"dev_trigger_ambush", true)
+		tree.change_scene_to_file("res://scenes/ship/bare_ship_walkthrough.tscn")
+
+
+func _on_dev_trigger_lab_breach() -> void:
+	if is_instance_valid(_dev_panel):
+		_dev_panel.visible = false
+	if not is_inside_tree():
+		return
+	var tree := get_tree()
+	var cur_scene := tree.current_scene
+	var target_lab := Vector2(430.0, 480.0)
+	if cur_scene != null and cur_scene.scene_file_path == "res://scenes/ship/bare_ship_walkthrough.tscn":
+		if is_instance_valid(_player):
+			_player.global_position = target_lab
+			if _player.camera != null:
+				_player.camera.reset_smoothing()
+		if cur_scene.has_method("_spawn_resonance_ore_villain"):
+			cur_scene.call(&"_spawn_resonance_ore_villain", true)
+		if cur_scene.has_method("_play_lab_breach_wave"):
+			cur_scene.call(&"_play_lab_breach_wave")
+		if cur_scene.has_method("_apply_lab_destruction_stage"):
+			cur_scene.call(&"_apply_lab_destruction_stage", 2, true)
+		show_achievement_popup("LAB BREACH TRIGGERED", "Containment shattered & ore unleashed", "DEV LAB", RED)
+	else:
+		Engine.set_meta(&"dev_warp_target", target_lab)
+		Engine.set_meta(&"dev_trigger_lab_breach", true)
+		tree.change_scene_to_file("res://scenes/ship/bare_ship_walkthrough.tscn")
+
+
+func _on_dev_trigger_piloting_encounter(encounter_id: StringName) -> void:
+	if is_instance_valid(_dev_panel):
+		_dev_panel.visible = false
+	if not is_inside_tree():
+		return
+	var tree := get_tree()
+	var cur_scene := tree.current_scene
+	if cur_scene != null and cur_scene.has_method("_open_ship_piloting_console"):
+		cur_scene.call(&"_open_ship_piloting_console", encounter_id, true)
+		return
+
+	var pilot_script := load("res://scripts/ui/ship_piloting_console.gd") as Script
+	if pilot_script != null:
+		var pilot_console: CanvasLayer = pilot_script.new() as CanvasLayer
+		if pilot_console != null:
+			set_walking_visible(false)
+			pilot_console.call(&"setup", encounter_id, true)
+			pilot_console.connect(&"piloting_closed", func(): set_walking_visible(true))
+			tree.root.add_child(pilot_console)
+
+
+func _on_dev_set_cosmic_sector(sector_id: StringName) -> void:
+	if not is_inside_tree():
+		return
+	var tree := get_tree()
+	var cur_scene := tree.current_scene
+	var backdrop: Node2D = null
+	if cur_scene != null:
+		backdrop = cur_scene.get_node_or_null("SpaceBackdrop") as Node2D
+		if backdrop == null and cur_scene.get("space_backdrop") != null:
+			backdrop = cur_scene.get("space_backdrop") as Node2D
+	if backdrop == null:
+		var found := tree.get_nodes_in_group("space_backdrop")
+		if not found.is_empty():
+			backdrop = found[0] as Node2D
+	if backdrop != null and backdrop.has_method("set_cosmic_sector"):
+		backdrop.call("set_cosmic_sector", sector_id, 1.5)
+		show_achievement_popup("COSMIC SECTOR: " + str(sector_id).to_upper(), "Accretion/starfield blend active", "DEV COSMOS", GOLD)
+
+
+func _on_dev_play_station_cutscene(station_id: StringName) -> void:
+	if is_instance_valid(_dev_panel):
+		_dev_panel.visible = false
+	if not is_inside_tree():
+		return
+	var tree := get_tree()
+	var cur_scene := tree.current_scene
+	if cur_scene != null and cur_scene.has_method("_trigger_story_station"):
+		cur_scene.call(&"_trigger_story_station", station_id)
+		return
+	if cur_scene != null and cur_scene.has_method("_build_cutscene_data"):
+		var cutscene_data: Dictionary = cur_scene.call(&"_build_cutscene_data", station_id)
+		if not cutscene_data.is_empty():
+			var overlay_script := load("res://scripts/ui/story_cutscene_overlay.gd") as Script
+			if overlay_script != null:
+				var overlay: CanvasLayer = overlay_script.new() as CanvasLayer
+				set_walking_visible(false)
+				overlay.connect(&"cutscene_finished", func(_c_id, _ch_id):
+					set_walking_visible(true)
+					overlay.queue_free()
+				)
+				tree.root.add_child(overlay)
+				overlay.call(&"play_cutscene", station_id, cutscene_data)
+
+
+func _on_dev_play_prologue_montage() -> void:
+	if is_instance_valid(_dev_panel):
+		_dev_panel.visible = false
+	if not is_inside_tree():
+		return
+	var tree := get_tree()
+	tree.change_scene_to_file("res://scenes/ui/earth_years_montage.tscn")
+
+
+func _on_dev_play_thadingyut_cutscene() -> void:
+	if is_instance_valid(_dev_panel):
+		_dev_panel.visible = false
+	if not is_inside_tree():
+		return
+	var tree := get_tree()
+	var cutscene_res := load("res://scenes/ui/thadingyut_memory_cutscene.tscn") as PackedScene
+	if cutscene_res != null:
+		var cutscene := cutscene_res.instantiate() as Control
+		tree.root.add_child(cutscene)
+
+
+func _on_dev_play_arrival_briefing() -> void:
+	if is_instance_valid(_dev_panel):
+		_dev_panel.visible = false
+	if not is_inside_tree():
+		return
+	var tree := get_tree()
+	var briefing_res := load("res://scenes/ui/arrival_briefing.tscn") as PackedScene
+	if briefing_res != null:
+		var briefing := briefing_res.instantiate() as CanvasLayer
+		briefing.connect(&"dismissed", func(): briefing.queue_free())
+		tree.root.add_child(briefing)
+
+
+func _on_dev_play_epilogue(ending_id: StringName) -> void:
+	if is_instance_valid(_dev_panel):
+		_dev_panel.visible = false
+	if not is_inside_tree():
+		return
+	var tree := get_tree()
+	var cur_scene := tree.current_scene
+	if cur_scene != null and cur_scene.has_method("_play_ending_epilogue"):
+		cur_scene.call(&"_play_ending_epilogue", ending_id)
+
+
+func _on_dev_warp_to_deck(scene_path: String, target_pos: Vector2) -> void:
+	if is_instance_valid(_dev_panel):
+		_dev_panel.visible = false
+	if not is_inside_tree():
+		return
+	var tree := get_tree()
+	var cur_scene := tree.current_scene
+	if cur_scene != null and cur_scene.scene_file_path == scene_path:
+		if is_instance_valid(_player):
+			_player.global_position = target_pos
+			if _player.camera != null:
+				_player.camera.reset_smoothing()
+		return
+	Engine.set_meta(&"dev_warp_target", target_pos)
+	tree.change_scene_to_file(scene_path)
+
+
+func _on_dev_warp_to_room_coords(scene_path: String, coords: Vector2, room_name: String) -> void:
+	if is_instance_valid(_dev_panel):
+		_dev_panel.visible = false
+	if not is_inside_tree():
+		return
+	var tree := get_tree()
+	var cur_scene := tree.current_scene
+	if cur_scene != null and cur_scene.scene_file_path == scene_path:
+		if is_instance_valid(_player):
+			_player.global_position = coords
+			if _player.camera != null:
+				_player.camera.reset_smoothing()
+			show_achievement_popup("WARPED TO " + room_name.to_upper(), "Coordinates: %s" % str(coords), "DEV WARP", CYAN)
+		return
+	Engine.set_meta(&"dev_warp_target", coords)
+	tree.change_scene_to_file(scene_path)
+
+
+func _on_dev_toggle_god_mode() -> void:
+	_dev_god_mode_active = not _dev_god_mode_active
+	if is_instance_valid(_player):
+		_player.is_concealed = _dev_god_mode_active
+		if _dev_god_mode_active:
+			_player.modulate = Color(0.6, 1.0, 0.9, 0.7)
+			show_achievement_popup("GOD MODE: ENABLED", "Invisible to monster & invulnerable", "DEV CHEAT", GREEN)
+		else:
+			_player.modulate = Color(1.0, 1.0, 1.0, 1.0)
+			show_achievement_popup("GOD MODE: DISABLED", "Standard vulnerability restored", "DEV CHEAT", MUTED)
+
+
+func _on_dev_complete_all_tasks() -> void:
+	var tasks_to_complete: Array[StringName] = [
+		&"cabin_may_recording",
+		&"bridge_flight_piloting",
+		&"auxiliary_power",
+		&"air_filter",
+		&"nutrient_flow",
+		&"drone_vibration_scan",
+		&"landing_prep_beacons",
+		&"erebos_landing_descent",
+		&"cargo_breach_inspection",
+		&"commanders_secret_bridge",
+		&"subdeck_workshop_power",
+		&"act_v_finale_home"
+	]
+	for t in tasks_to_complete:
+		_task_completed[t] = true
+	if is_inside_tree():
+		var tree := get_tree()
+		var cur_scene: Node = tree.current_scene if tree != null else null
+		if cur_scene != null and cur_scene.get("_completed_story_stations") != null:
+			var st_dict: Dictionary = cur_scene.get("_completed_story_stations")
+			for t in tasks_to_complete:
+				st_dict[t] = true
+		if cur_scene != null and cur_scene.get("_completed_crew_tasks") != null:
+			var cr_dict: Dictionary = cur_scene.get("_completed_crew_tasks")
+			for t in tasks_to_complete:
+				cr_dict[t] = true
+	_validate_inventory_against_task_progression()
+	_refresh_mission_panel()
+	_refresh_tasks_overlay()
+	_save_persistent_inventory_state()
+	show_achievement_popup("ALL MISSIONS CLEARED", "All main and crew tasks marked complete", "DEV PROGRESS", GOLD)
+
+
+func _on_dev_unlock_all_achievements() -> void:
+	for def in ACHIEVEMENTS_CATALOG:
+		var aid: StringName = def["id"]
+		unlock_achievement(aid, false)
+	show_achievement_popup("ALL ACHIEVEMENTS UNLOCKED", "Every medal awarded", "DEV ACHIEVE", GOLD)
+
+
+func _on_dev_override_crew_survival(all_survive: bool) -> void:
+	Engine.set_meta(&"commander_chen_saved", all_survive)
+	Engine.set_meta(&"mateo_ruiz_saved", all_survive)
+	Engine.set_meta(&"leila_rescued", all_survive)
+	Engine.set_meta(&"elias_ward_saved", all_survive)
+	if is_inside_tree():
+		var tree := get_tree()
+		var current_scene: Node = tree.current_scene if tree != null else null
+		if current_scene != null:
+			if current_scene.get("_chen_rescued") != null:
+				current_scene.set("_chen_rescued", all_survive)
+			if current_scene.get("_leila_rescued") != null:
+				current_scene.set("_leila_rescued", all_survive)
+	var status_text := "ALL CREW SURVIVED (CHEN, MATEO, LEILA, WARD)" if all_survive else "ALL CREW FALLEN / SACRIFICED"
+	show_achievement_popup("CREW FATE OVERRIDE", status_text, "DEV STORY", GREEN if all_survive else RED)
 
 
 func _on_dev_trigger_asteroid_cutscene() -> void:
 	if is_instance_valid(_dev_panel):
 		_dev_panel.visible = false
-	var current_scene: Node = get_tree().current_scene
+	if not is_inside_tree():
+		return
+	var tree := get_tree()
+	var current_scene: Node = tree.current_scene
 	if current_scene != null and current_scene.has_method("trigger_emergency_asteroid_cutscene"):
 		current_scene.call("trigger_emergency_asteroid_cutscene")
 
 
 func _on_dev_switch_deck() -> void:
-	var current_scene := get_tree().current_scene
+	if not is_inside_tree():
+		return
+	var tree := get_tree()
+	var current_scene := tree.current_scene
 	if current_scene != null and current_scene.scene_file_path == "res://scenes/ship/second_floor_subdeck.tscn":
 		Engine.set_meta(&"returning_from_second_floor", true)
-		get_tree().change_scene_to_file("res://scenes/ship/bare_ship_walkthrough.tscn")
+		tree.change_scene_to_file("res://scenes/ship/bare_ship_walkthrough.tscn")
 	else:
-		get_tree().change_scene_to_file("res://scenes/ship/second_floor_subdeck.tscn")
+		tree.change_scene_to_file("res://scenes/ship/second_floor_subdeck.tscn")
 
 
 func _toggle_dev_menu() -> void:
@@ -2891,24 +3732,32 @@ func _refresh_dev_menu() -> void:
 		if def["id"] == cur_id:
 			cur_label = str(def.get("label", String(cur_id))).to_upper()
 			break
-	_dev_current_room_label.text = "OCCUPIED: " + cur_label
+	if is_instance_valid(_dev_current_room_label):
+		_dev_current_room_label.text = "OCCUPIED: " + cur_label
 	var here_on: bool = bool(lighting.call("is_flicker_current_room"))
 	var all_on: bool = bool(lighting.call("is_flicker_all_rooms"))
 	var cur_style: String = String(lighting.call("get_flicker_style")).to_upper()
 	var cur_speed: float = float(lighting.call("get_flicker_speed"))
 	var all_lit: bool = bool(lighting.call("is_force_all_lights_on"))
-	_dev_flicker_here_btn.text = "FLICKER HERE: " + ("ON" if here_on else "OFF")
-	_dev_flicker_all_btn.text = "FLICKER ALL: " + ("ON" if all_on else "OFF")
-	_dev_style_btn.text = "MODE: " + cur_style
-	_dev_speed_btn.text = "SPEED: %.1fX" % cur_speed
-	_dev_force_lights_btn.text = "ALL LIT: " + ("ON" if all_lit else "OFF")
+	if is_instance_valid(_dev_flicker_here_btn):
+		_dev_flicker_here_btn.text = "FLICKER HERE: " + ("ON" if here_on else "OFF")
+	if is_instance_valid(_dev_flicker_all_btn):
+		_dev_flicker_all_btn.text = "FLICKER ALL: " + ("ON" if all_on else "OFF")
+	if is_instance_valid(_dev_style_btn):
+		_dev_style_btn.text = "MODE: " + cur_style
+	if is_instance_valid(_dev_speed_btn):
+		_dev_speed_btn.text = "SPEED: %.1fX" % cur_speed
+	if is_instance_valid(_dev_force_lights_btn):
+		_dev_force_lights_btn.text = "ALL LIT: " + ("ON" if all_lit else "OFF")
 	if not defs.is_empty():
 		_dev_selected_room_index = clampi(_dev_selected_room_index, 0, defs.size() - 1)
 		var sel_def: Dictionary = defs[_dev_selected_room_index]
 		var sel_id: StringName = sel_def["id"]
-		_dev_room_name_label.text = str(sel_def.get("label", String(sel_id)))
+		if is_instance_valid(_dev_room_name_label):
+			_dev_room_name_label.text = str(sel_def.get("label", String(sel_id)))
 		var room_on: bool = bool(lighting.call("is_room_flickering", sel_id))
-		_dev_room_flicker_btn.text = "ROOM FLICKER: " + ("ON" if room_on else "OFF")
+		if is_instance_valid(_dev_room_flicker_btn):
+			_dev_room_flicker_btn.text = "ROOM FLICKER: " + ("ON" if room_on else "OFF")
 
 
 func _load_persistent_inventory_state() -> void:
@@ -2931,14 +3780,15 @@ func _load_persistent_inventory_state() -> void:
 		_collected_logs = state.get("collected_logs", {}).duplicate()
 		_unlocked_achievements = state.get("unlocked_achievements", {}).duplicate()
 		_current_story_act = str(state.get("story_act", "ACT I — THE LONG APPROACH"))
-		var suit_item: StringName = StringName(_equipment_items.get(&"suit", &""))
-		var flashlight_unlocked: bool = _unlocked_items.has(&"suit_flashlight") or suit_item == &"suit_flashlight"
 		var saved_amounts: Dictionary = state.get("item_amounts", {})
 		for item_id in saved_amounts:
 			_item_amounts[StringName(item_id)] = int(saved_amounts[item_id])
 		for item_id in _unlocked_items:
 			if ITEM_LIMITS.has(item_id) and not _item_amounts.has(item_id):
 				_item_amounts[item_id] = ITEM_LIMITS[item_id]["default"]
+		_validate_inventory_against_task_progression()
+		var suit_item: StringName = StringName(_equipment_items.get(&"suit", &""))
+		var flashlight_unlocked: bool = _unlocked_items.has(&"suit_flashlight") or suit_item == &"suit_flashlight"
 		if is_instance_valid(_player):
 			if _player.has_method("sync_equipment_amounts"):
 				_player.sync_equipment_amounts(_item_amounts)
@@ -2947,7 +3797,64 @@ func _load_persistent_inventory_state() -> void:
 			if _player.has_method("set_suit_flashlight_enabled"):
 				_player.set_suit_flashlight_enabled(bool(state.get("flashlight_enabled", flashlight_unlocked)))
 	else:
+		_validate_inventory_against_task_progression()
 		_save_persistent_inventory_state()
+
+
+func _is_progression_item_allowed(item_id: StringName) -> bool:
+	if not ALL_PROGRESSION_ITEMS.has(item_id):
+		return true
+	if Engine.has_meta(str(item_id) + "_unlocked") and bool(Engine.get_meta(str(item_id) + "_unlocked")):
+		return true
+	match item_id:
+		&"suit_flashlight":
+			return bool(_task_completed.get(&"bridge_flight_piloting", false))
+		&"engineering_multitool":
+			return bool(_task_completed.get(&"air_filter", false)) or bool(_task_completed.get(&"subdeck_workshop_power", false))
+		&"pressure_sealant":
+			return bool(_task_completed.get(&"nutrient_flow", false)) or bool(_task_completed.get(&"drone_vibration_scan", false)) or bool(_task_completed.get(&"subdeck_coolant_manifold", false))
+		&"mineral_survey_scanner":
+			return bool(_task_completed.get(&"drone_vibration_scan", false))
+		&"survey_beacon":
+			return bool(_task_completed.get(&"landing_prep_beacons", false))
+		&"emergency_flare":
+			return bool(_task_completed.get(&"rig_test", false)) or bool(_task_completed.get(&"subdeck_inventory_manifest", false)) or bool(_task_completed.get(&"west_cyan_ore", false))
+		&"industrial_plasma_cutter":
+			return bool(_task_completed.get(&"north_viridian_ore", false)) or bool(_task_completed.get(&"subdeck_shadow_nest_check", false))
+		&"electrical_discharge_tool":
+			return bool(_task_completed.get(&"lab_specimen", false)) or bool(_task_completed.get(&"subdeck_pipe_pressure", false))
+		&"medical_injector":
+			return bool(_task_completed.get(&"lab_trolley", false))
+		&"captains_revolver":
+			return bool(_task_completed.get(&"commanders_secret_bridge", false)) or bool(_task_completed.get(&"act_v_finale_home", false))
+	return false
+
+
+func _validate_inventory_against_task_progression() -> void:
+	for item_id in ALL_PROGRESSION_ITEMS:
+		if not _is_progression_item_allowed(item_id):
+			if _unlocked_items.has(item_id):
+				_unlocked_items.erase(item_id)
+			for i in range(_hotbar_items.size()):
+				if _hotbar_items[i] == item_id:
+					_hotbar_items[i] = &""
+			for s in range(_storage_items.size()):
+				if _storage_items[s] == item_id:
+					_storage_items[s] = &""
+			for slot in _equipment_items:
+				if _equipment_items[slot] == item_id:
+					_equipment_items[slot] = &""
+			if _item_amounts.has(item_id):
+				_item_amounts.erase(item_id)
+
+	var has_hotbar_item := false
+	for i in range(_hotbar_items.size()):
+		if _hotbar_items[i] != &"":
+			has_hotbar_item = true
+			break
+	if not has_hotbar_item:
+		_selected_hotbar_index = 0
+		_equipment_items[&"tool"] = &""
 
 
 func _save_persistent_inventory_state() -> void:
@@ -3053,12 +3960,30 @@ func get_collected_logs_count() -> int:
 	return _collected_logs.size()
 
 
+func get_equipment_items() -> Dictionary:
+	return _equipment_items.duplicate()
+
+
+func get_hotbar_items() -> Array[StringName]:
+	return _hotbar_items.duplicate()
+
+
+func get_storage_items() -> Array[StringName]:
+	return _storage_items.duplicate()
+
+
+func get_active_overlay() -> StringName:
+	return _active_overlay
+
+
 func record_audio_log(log_id: StringName, _log_title: String = "") -> bool:
 	if log_id == &"" or _collected_logs.has(log_id):
 		return false
 	_collected_logs[log_id] = true
 	_refresh_story_act_label()
 	_refresh_profile_overlay()
+	_refresh_mission_panel()
+	_refresh_tasks_overlay()
 	_save_persistent_inventory_state()
 	var def: Dictionary = get_audio_log_def(log_id)
 	if not def.is_empty():
@@ -3107,6 +4032,7 @@ func _refresh_story_act_label() -> void:
 func unlock_equipment_item(item_id: StringName, equip_immediately: bool = true, reason_text: String = "") -> bool:
 	if item_id == &"" or not ITEM_DATA.has(item_id):
 		return false
+	Engine.set_meta(str(item_id) + "_unlocked", true)
 	var already_had: bool = _unlocked_items.has(item_id)
 	_unlocked_items[item_id] = true
 	if ITEM_LIMITS.has(item_id):
@@ -3151,6 +4077,8 @@ func unlock_equipment_item(item_id: StringName, equip_immediately: bool = true, 
 	if _unlocked_items.size() >= ALL_PROGRESSION_ITEMS.size():
 		unlock_achievement(&"full_arsenal_mastery", false)
 	_refresh_profile_overlay()
+	_refresh_mission_panel()
+	_refresh_tasks_overlay()
 	if not already_had:
 		show_equipment_unlocked_toast(item_id, reason_text)
 	return not already_had
@@ -3210,6 +4138,8 @@ func unlock_achievement(ach_id: StringName, silent: bool = false) -> bool:
 	_unlocked_achievements[ach_id] = true
 	_save_persistent_inventory_state()
 	_refresh_profile_overlay()
+	_refresh_mission_panel()
+	_refresh_tasks_overlay()
 	if not already_unlocked and not silent:
 		show_achievement_popup(str(def["title"]))
 	return not already_unlocked
@@ -3391,6 +4321,246 @@ func _build_achievement_card(def: Dictionary, is_unlocked: bool) -> Control:
 	hbox.add_child(status_lbl)
 
 	return card
+
+
+func _refresh_tasks_overlay() -> void:
+	if not is_instance_valid(_tasks_list_container) or not is_instance_valid(_tasks_arsenal_container):
+		return
+
+	# Update sub-filter button states for tasks
+	for f_id in _tasks_filter_buttons:
+		var btn: Button = _tasks_filter_buttons[f_id]
+		var is_active: bool = (f_id == _tasks_filter_tab)
+		btn.add_theme_color_override("font_color", GOLD if is_active else MUTED)
+		var f_bg := Color(0.05, 0.09, 0.13, 0.9) if is_active else Color(0.02, 0.035, 0.05, 0.5)
+		var f_border: Color = GOLD if is_active else Color(0.18, 0.28, 0.34, 0.45)
+		btn.add_theme_stylebox_override("normal", _flat_box(f_bg, f_border, 10.0, 4.0, 1))
+
+	# 2. Populate Tasks List
+	for child in _tasks_list_container.get_children():
+		_tasks_list_container.remove_child(child)
+		child.queue_free()
+
+	var completed_tasks := 0
+	for tid in _task_completed:
+		if bool(_task_completed[tid]):
+			completed_tasks += 1
+	var total_tasks := _task_entries.size()
+	if is_instance_valid(_tasks_status_summary_label):
+		_tasks_status_summary_label.text = "%d / %d COMPLETED" % [completed_tasks, maxi(total_tasks, 1)]
+		_tasks_status_summary_label.add_theme_color_override("font_color", GREEN if completed_tasks >= total_tasks and total_tasks > 0 else Color(0.48, 0.93, 0.64))
+
+	if is_instance_valid(_tasks_progress_bar):
+		_tasks_progress_bar.max_value = maxi(total_tasks, 1)
+		_tasks_progress_bar.value = completed_tasks
+
+	var active_ids := _get_active_sequential_task_ids()
+	var step_idx := 0
+	for entry in _task_entries:
+		step_idx += 1
+		var tid: StringName = StringName(entry.get("id", &""))
+		var is_done: bool = bool(_task_completed.get(tid, false))
+		var is_active_task: bool = active_ids.has(tid)
+
+		if _tasks_filter_tab == &"active" and is_done:
+			continue
+		if _tasks_filter_tab == &"active" and not is_active_task:
+			continue
+		if _tasks_filter_tab == &"completed" and not is_done:
+			continue
+
+		var card := PanelContainer.new()
+		var card_bg: Color
+		var card_border: Color
+		if is_done:
+			card_bg = Color(0.012, 0.032, 0.022, 0.92)
+			card_border = Color(0.2, 0.52, 0.34, 0.5)
+		elif is_active_task:
+			card_bg = Color(0.016, 0.045, 0.065, 0.96)
+			card_border = Color(0.35, 0.82, 0.98, 0.85)
+		else:
+			card_bg = Color(0.016, 0.025, 0.036, 0.88)
+			card_border = Color(0.18, 0.28, 0.36, 0.45)
+
+		card.add_theme_stylebox_override("panel", _flat_box(card_bg, card_border, 16.0, 10.0, 1))
+
+		var card_box := VBoxContainer.new()
+		card_box.add_theme_constant_override("separation", 4)
+		card.add_child(card_box)
+
+		# Top header row: Room · Step · Status
+		var card_top := HBoxContainer.new()
+		card_top.add_theme_constant_override("separation", 8)
+
+		var room_text: String = str(entry.get("room_name", entry.get("marker_label", "MAIN DECK"))).to_upper()
+		var room_lbl := _label(room_text, 10, CYAN if not is_done else Color(0.48, 0.72, 0.62))
+		card_top.add_child(room_lbl)
+
+		var bullet := _label("·", 10, MUTED)
+		card_top.add_child(bullet)
+
+		var step_lbl := _label("STEP %02d" % step_idx, 10, MUTED)
+		card_top.add_child(step_lbl)
+
+		card_top.add_spacer(false)
+
+		var status_badge := Label.new()
+		status_badge.add_theme_font_size_override("font_size", 10)
+		if is_done:
+			status_badge.text = "COMPLETED ✔"
+			status_badge.add_theme_color_override("font_color", GREEN)
+		elif is_active_task:
+			status_badge.text = "● ACTIVE OBJECTIVE"
+			status_badge.add_theme_color_override("font_color", ORANGE)
+		else:
+			status_badge.text = "PENDING"
+			status_badge.add_theme_color_override("font_color", Color(0.45, 0.55, 0.62))
+		card_top.add_child(status_badge)
+		card_box.add_child(card_top)
+
+		# Task title (clean, readable)
+		var clean_title := _format_clean_title(str(entry.get("title", "Watch Duty")))
+		var title_lbl := _label(clean_title, 13, PALE if not is_done else Color(0.72, 0.84, 0.76))
+		title_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		card_box.add_child(title_lbl)
+
+		# Action hint
+		var hint_str: String = str(entry.get("action_hint", entry.get("prompt", "")))
+		if not hint_str.is_empty():
+			var hint_lbl := _label("▶  " + hint_str, 10, Color(0.68, 0.84, 0.9) if not is_done else Color(0.48, 0.62, 0.55))
+			hint_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			card_box.add_child(hint_lbl)
+
+		# Reward preview row
+		var r_item: StringName = StringName(entry.get("reward_item", &""))
+		var m_item: StringName = StringName(entry.get("milestone_reward", r_item))
+		if r_item != &"" and ITEM_DATA.has(r_item):
+			var r_name: String = str(ITEM_DATA[r_item]["name"]).to_upper()
+			var r_lbl := Label.new()
+			r_lbl.add_theme_font_size_override("font_size", 10)
+			if is_done:
+				r_lbl.text = "★ WEAPON SECURED: " + r_name
+				r_lbl.add_theme_color_override("font_color", GREEN)
+			else:
+				r_lbl.text = "⚡ UNLOCKS WEAPON: " + r_name
+				r_lbl.add_theme_color_override("font_color", GOLD)
+			card_box.add_child(r_lbl)
+		elif m_item != &"" and ITEM_DATA.has(m_item):
+			var m_name: String = str(ITEM_DATA[m_item]["name"]).to_upper()
+			var m_lbl := Label.new()
+			m_lbl.add_theme_font_size_override("font_size", 10)
+			if is_done:
+				m_lbl.text = "✓ CONTRIBUTED TOWARDS: " + m_name
+				m_lbl.add_theme_color_override("font_color", Color(0.48, 0.93, 0.64))
+			else:
+				m_lbl.text = "◈ ADVANCES ARSENAL MILESTONE: " + m_name
+				m_lbl.add_theme_color_override("font_color", CYAN)
+			card_box.add_child(m_lbl)
+
+		_tasks_list_container.add_child(card)
+
+	# 3. Populate Arsenal Progression Showcase
+	for child in _tasks_arsenal_container.get_children():
+		_tasks_arsenal_container.remove_child(child)
+		child.queue_free()
+
+	var unlocked_arsenal_count := 0
+	for item_def in ARSENAL_CATALOG:
+		var item_id: StringName = item_def["id"]
+		var is_unlocked: bool = _unlocked_items.has(item_id) or (Engine.has_meta(str(item_id) + "_unlocked") and bool(Engine.get_meta(str(item_id) + "_unlocked")))
+		if is_unlocked:
+			unlocked_arsenal_count += 1
+
+		if _arsenal_filter_tab == &"unlocked" and not is_unlocked:
+			continue
+		if _arsenal_filter_tab == &"locked" and is_unlocked:
+			continue
+
+		var card := PanelContainer.new()
+		var card_bg := Color(0.015, 0.038, 0.028, 0.95) if is_unlocked else Color(0.016, 0.025, 0.036, 0.88)
+		var card_border := Color(0.24, 0.82, 0.52, 0.7) if is_unlocked else Color(0.18, 0.28, 0.35, 0.45)
+		card.add_theme_stylebox_override("panel", _flat_box(card_bg, card_border, 16.0, 10.0, 1))
+
+		var card_hbox := HBoxContainer.new()
+		card_hbox.add_theme_constant_override("separation", 14)
+		card.add_child(card_hbox)
+
+		# Icon thumbnail
+		var icon_frame := PanelContainer.new()
+		icon_frame.custom_minimum_size = Vector2(44, 44)
+		icon_frame.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		var if_bg := Color(0.02, 0.05, 0.04) if is_unlocked else Color(0.018, 0.025, 0.032)
+		var if_border: Color = item_def["category_color"] if is_unlocked else Color(0.25, 0.35, 0.4)
+		icon_frame.add_theme_stylebox_override("panel", _flat_box(if_bg, if_border, 4.0, 4.0, 1))
+
+		var icon_rect := TextureRect.new()
+		icon_rect.custom_minimum_size = Vector2(36, 36)
+		icon_rect.texture = _item_icon_texture(item_id)
+		icon_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		icon_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		icon_rect.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		if not is_unlocked:
+			icon_rect.modulate = Color(0.38, 0.48, 0.55, 0.55)
+		icon_frame.add_child(icon_rect)
+		card_hbox.add_child(icon_frame)
+
+		# Details stack
+		var details := VBoxContainer.new()
+		details.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		details.add_theme_constant_override("separation", 3)
+		card_hbox.add_child(details)
+
+		# Header row
+		var d_top := HBoxContainer.new()
+		d_top.add_theme_constant_override("separation", 8)
+
+		var cat_lbl := _label(str(item_def["category"]), 10, item_def["category_color"])
+		d_top.add_child(cat_lbl)
+
+		var bullet := _label("·", 10, MUTED)
+		d_top.add_child(bullet)
+
+		var name_str: String = str(ITEM_DATA[item_id]["name"]).to_upper() if ITEM_DATA.has(item_id) else str(item_id).to_upper()
+		var name_lbl := _label(name_str, 12, PALE if is_unlocked else Color(0.72, 0.82, 0.88))
+		d_top.add_child(name_lbl)
+
+		d_top.add_spacer(false)
+
+		var status_badge := Label.new()
+		status_badge.add_theme_font_size_override("font_size", 10)
+		if is_unlocked:
+			var is_equipped: bool = _equipment_items.values().has(item_id) or _hotbar_items.has(item_id)
+			status_badge.text = "EQUIPPED" if is_equipped else "AUTHORIZED ✔"
+			status_badge.add_theme_color_override("font_color", GREEN)
+		else:
+			status_badge.text = "LOCKED 🔒"
+			status_badge.add_theme_color_override("font_color", Color(1.0, 0.5, 0.38))
+		d_top.add_child(status_badge)
+		details.add_child(d_top)
+
+		# Role
+		var role_lbl := _label(str(item_def["role"]), 10, Color(0.68, 0.82, 0.9))
+		details.add_child(role_lbl)
+
+		# Unlock Lore / Requirement
+		var lore_lbl := Label.new()
+		lore_lbl.add_theme_font_size_override("font_size", 10)
+		lore_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		if is_unlocked:
+			lore_lbl.text = "✔ STATUS: Authorized for field operations."
+			lore_lbl.add_theme_color_override("font_color", Color(0.48, 0.93, 0.64))
+		else:
+			lore_lbl.text = "🔒 CLEARANCE: " + str(item_def["unlock_lore"])
+			lore_lbl.add_theme_color_override("font_color", Color(1.0, 0.78, 0.4))
+		details.add_child(lore_lbl)
+
+		_tasks_arsenal_container.add_child(card)
+
+	if is_instance_valid(_tasks_arsenal_summary_label):
+		_tasks_arsenal_summary_label.text = "%d / %d UNLOCKED" % [unlocked_arsenal_count, ARSENAL_CATALOG.size()]
+	if is_instance_valid(_tasks_arsenal_bar):
+		_tasks_arsenal_bar.max_value = ARSENAL_CATALOG.size()
+		_tasks_arsenal_bar.value = unlocked_arsenal_count
 
 
 func _select_hotbar(index: int, allow_toggle_unequip: bool = false) -> void:
@@ -3608,18 +4778,6 @@ func _ensure_world_dropped_canvas() -> void:
 			parent_world.add_child.call_deferred(_world_dropped_canvas)
 		if not _world_dropped_canvas.draw.is_connected(_on_world_dropped_canvas_draw):
 			_world_dropped_canvas.draw.connect(_on_world_dropped_canvas_draw)
-	if _dropped_world_items.is_empty():
-		var spawn_center: Vector2 = _player.global_position
-		_dropped_world_items.append({
-			"item_id": &"captains_revolver",
-			"pos": spawn_center + Vector2(-42.0, 8.0),
-			"amount": 6,
-		})
-		_dropped_world_items.append({
-			"item_id": &"industrial_plasma_cutter",
-			"pos": spawn_center + Vector2(42.0, 8.0),
-			"amount": -1,
-		})
 
 
 func _spawn_world_dropped_item(item_id: StringName, world_pos: Vector2, item_amount: int = -1) -> void:
@@ -3822,7 +4980,7 @@ func _queue_resize() -> void:
 
 func _resize_ui() -> void:
 	_resize_queued = false
-	if not is_instance_valid(_root):
+	if not is_instance_valid(_root) or get_viewport() == null or not is_instance_valid(_operator_panel):
 		return
 	var viewport_size := get_viewport().get_visible_rect().size
 	var inventory_width := minf(1232, viewport_size.x - 32)

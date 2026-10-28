@@ -1618,7 +1618,7 @@ func face_toward(target_position: Vector2) -> void:
 		_facing_animation = &"walk_right" if direction.x > 0.0 else &"walk_left"
 	else:
 		_facing_animation = &"walk_down" if direction.y > 0.0 else &"walk_up"
-	if not _sitting_pose_active:
+	if not _sitting_pose_active and is_instance_valid(sprite):
 		sprite.animation = _facing_animation
 		sprite.stop()
 		sprite.frame = 0

@@ -80,7 +80,9 @@ func request_cue(cue_id: String, delivery: String) -> Dictionary:
 	var previous: Dictionary = cues.get(cue_id, {})
 	if previous.get("status", "") in ["completed", "skipped"]: return {}
 	sequence += 1
-	var token := "%s:%d" % [cue_id, sequence]
+	# A loaded older checkpoint can repeat its counter. A fresh nonce keeps
+	# callbacks from that previous attempt distinct across reloads and restarts.
+	var token := "%s:%d:%s" % [cue_id, sequence,Crypto.new().generate_random_bytes(12).hex_encode()]
 	cues[cue_id] = {"version": 1, "status": "pending", "token": token, "delivery": delivery}
 	return {"cue_id": cue_id, "request_token": token, "contract_version": 1, "chapter": CHAPTER, "phase": "outbound"}
 

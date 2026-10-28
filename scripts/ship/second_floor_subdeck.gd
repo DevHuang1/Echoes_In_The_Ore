@@ -230,6 +230,9 @@ const SUBDECK_TASKS: Array = [
 		"id": &"subdeck_inventory_manifest",
 		"title": "Trace Ward's signal in the cargo vault (Flare)",
 		"marker_label": "STORAGE",
+		"room_name": "S02 Bulk Storage Vault",
+		"action_hint": "Trace Ward's radio lure inside the bulk storage vault",
+		"milestone_reward": &"emergency_flare",
 		"position": Vector2(300.0, 250.0),
 		"prompt": "BULK STORAGE VAULT   /   [E] TRACE WARD'S VOICE",
 		"completion": "False radio lure confirmed. Unlocked: Emergency Flare.",
@@ -240,6 +243,9 @@ const SUBDECK_TASKS: Array = [
 		"id": &"subdeck_workshop_power",
 		"title": "Calibrate S04 Workshop aux power (Multitool)",
 		"marker_label": "WORKSHOP",
+		"room_name": "S04 Engineering Workshop",
+		"action_hint": "Calibrate auxiliary power converter at capacitor banks",
+		"milestone_reward": &"engineering_multitool",
 		"position": Vector2(535.0, 675.0),
 		"prompt": "WORKSHOP POWER CONVERTER   /   [E] CALIBRATE AUX POWER BUS",
 		"completion": "Workshop capacitor banks synchronized! Unlocked: Engineering Multitool.",
@@ -250,6 +256,9 @@ const SUBDECK_TASKS: Array = [
 		"id": &"subdeck_coolant_manifold",
 		"title": "Align S05 Coolant Bay valves (Sealant)",
 		"marker_label": "COOLANT BAY",
+		"room_name": "S05 Coolant Bay",
+		"action_hint": "Align circulation manifold valves to equalize pressure",
+		"milestone_reward": &"pressure_sealant",
 		"position": Vector2(925.0, 680.0),
 		"prompt": "COOLANT CIRCULATION MANIFOLD   /   [E] ALIGN COOLANT VALVES",
 		"completion": "Sub-deck coolant manifold aligned! Unlocked: Pressure Sealant.",
@@ -260,6 +269,9 @@ const SUBDECK_TASKS: Array = [
 		"id": &"subdeck_pipe_pressure",
 		"title": "Rescue Leila Haddad in the engine hall (Arc Tool)",
 		"marker_label": "ENGINE HALL",
+		"room_name": "Turbine Engine Hall",
+		"action_hint": "Free Leila Haddad and construct high-voltage arc capacitor",
+		"milestone_reward": &"electrical_discharge_tool",
 		"position": Vector2(1500.0, 265.0),
 		"prompt": "TURBINE SERVICE CONSOLE   /   [E] RESCUE LEILA & BUILD ARC TOOL",
 		"completion": "Cooling valves equalized! Constructed: Electrical Discharge Tool.",
@@ -270,6 +282,9 @@ const SUBDECK_TASKS: Array = [
 		"id": &"subdeck_shadow_nest_check",
 		"title": "Inspect the hidden Echo nest (Plasma Cutter)",
 		"marker_label": "DARK NEST",
+		"room_name": "Breached Alcove S06",
+		"action_hint": "Inspect the mineral rib nest in the breached alcove",
+		"milestone_reward": &"industrial_plasma_cutter",
 		"position": Vector2(1600.0, 680.0),
 		"prompt": "BREACHED CONTAINMENT ALCOVE   /   [E] INSPECT ECHO NEST",
 		"completion": "Mineral rib nest logged. Recovered: Industrial Plasma Cutter.",
@@ -358,9 +373,15 @@ func _ready() -> void:
 	var mask_tex: Texture2D = _build_walkable_mask_texture()
 	player.set_walkable_floor_mask(mask_tex, Vector2.ZERO, 8.0)
 	player.set_camera_bounds(Rect2(Vector2.ZERO, Vector2(MAP_SIZE)))
-	player.global_position = PLAYER_SPAWN_POS
-	player.camera.make_current()
-	player.camera.reset_smoothing()
+	if Engine.has_meta(&"dev_warp_target"):
+		var dev_target: Vector2 = Engine.get_meta(&"dev_warp_target")
+		Engine.remove_meta(&"dev_warp_target")
+		player.global_position = dev_target
+	else:
+		player.global_position = PLAYER_SPAWN_POS
+	if is_instance_valid(player.camera):
+		player.camera.make_current()
+		player.camera.reset_smoothing()
 
 	var hud_tasks: Array[Dictionary] = []
 	for task in SUBDECK_TASKS:
@@ -369,7 +390,10 @@ func _ready() -> void:
 			"id": task["id"],
 			"title": task["title"],
 			"marker_label": task["marker_label"],
+			"room_name": task.get("room_name", task["marker_label"]),
+			"action_hint": task.get("action_hint", task["prompt"]),
 			"reward_item": task.get("reward_item", &""),
+			"milestone_reward": task.get("milestone_reward", task.get("reward_item", &"")),
 			"is_equipment_task": StringName(task.get("reward_item", &"")) != &"",
 			"position": tpos,
 			"marker_position": tpos + Vector2(0.0, -28.0),
@@ -830,17 +854,22 @@ func _build_room_lighting_nodes() -> void:
 			"lit_factor": 0.0,
 		})
 
-	_lights_canvas = Node2D.new()
-	_lights_canvas.name = "MountedLightsCanvas"
-	_lights_canvas.z_as_relative = false
-	_lights_canvas.z_index = 2
-	_lights_canvas.draw.connect(_on_lights_canvas_draw)
-	subdeck_lighting.add_child(_lights_canvas)
+	if not is_instance_valid(_lights_canvas):
+		_lights_canvas = Node2D.new()
+		_lights_canvas.name = "MountedLightsCanvas"
+		_lights_canvas.z_as_relative = false
+		_lights_canvas.z_index = 2
+		_lights_canvas.draw.connect(_on_lights_canvas_draw.bind(_lights_canvas))
+		subdeck_lighting.add_child(_lights_canvas)
 
 
-func _on_lights_canvas_draw() -> void:
-	# Floor/wall light strip overlays removed per user request; illumination is handled by PointLight2D.
-	pass
+func _on_lights_canvas_draw(canvas: Node2D = null) -> void:
+	if canvas == null:
+		canvas = _lights_canvas
+	if not is_instance_valid(player) or not is_instance_valid(canvas) or not canvas.is_inside_tree():
+		return
+	# Overhead task markers already indicate each objective on top;
+	# unnecessary floor highlight boxes/brackets have been removed.
 
 
 func _draw_small_station_highlight(_canvas: Node2D, _center: Vector2, _half_extents: Vector2, _base_col: Color, _is_near: bool, _pulse: float) -> void:

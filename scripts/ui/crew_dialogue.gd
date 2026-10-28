@@ -5,7 +5,7 @@ const SKIN := preload("res://scripts/ui/pixel_ui.gd")
 const AUDIO_SYNTH := preload("res://scripts/audio/dialogue_audio_synth.gd")
 
 const THURA_ATLAS_TEX: Texture2D = preload("res://art/characters/runtime/thura_walk_4dir.png")
-const AMARA_ATLAS_TEX: Texture2D = preload("res://art/characters/runtime/amara_walk_4dir.png")
+const AMARA_ATLAS_TEX: Texture2D = preload("res://art/characters/runtime/amara_okoye_lab_walk_4dir.png")
 
 signal dialogue_finished(accepted_tasks: bool)
 signal conversation_finished(conversation_id: String, result_id: String)
@@ -57,6 +57,7 @@ var _player_status_badge: Label
 var _npc_portrait_panel: PanelContainer
 var _npc_portrait_rect: TextureRect
 var _npc_name_label: Label
+var _npc_role_label: Label
 var _npc_status_badge: Label
 var _npc_hologram_overlay: Control
 
@@ -70,6 +71,10 @@ var _snd_click: AudioStreamWAV
 var _snd_advance: AudioStreamWAV
 var _snd_speech_amara: AudioStreamWAV
 var _snd_speech_thura: AudioStreamWAV
+var _snd_speech_chen: AudioStreamWAV
+var _snd_speech_mateo: AudioStreamWAV
+var _snd_speech_ward: AudioStreamWAV
+var _snd_speech_leila: AudioStreamWAV
 var _snd_speech_terminal: AudioStreamWAV
 var _last_char_sound_pos := -1
 
@@ -123,6 +128,10 @@ func _init_audio() -> void:
 	_snd_advance = AUDIO_SYNTH.create_page_advance()
 	_snd_speech_amara = AUDIO_SYNTH.create_speech_amara()
 	_snd_speech_thura = AUDIO_SYNTH.create_speech_thura()
+	_snd_speech_chen = AUDIO_SYNTH.create_speech_chen()
+	_snd_speech_mateo = AUDIO_SYNTH.create_speech_mateo()
+	_snd_speech_ward = AUDIO_SYNTH.create_speech_ward()
+	_snd_speech_leila = AUDIO_SYNTH.create_speech_leila()
 	_snd_speech_terminal = AUDIO_SYNTH.create_speech_terminal()
 
 
@@ -451,7 +460,7 @@ func _build_ui() -> void:
 	_fx_overlay = Control.new()
 	_fx_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_fx_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_fx_overlay.draw.connect(_on_fx_overlay_draw)
+	_fx_overlay.draw.connect(_on_fx_overlay_draw.bind(_fx_overlay))
 	_root.add_child(_fx_overlay)
 
 	# 2. Cinematic Letterbox Bars
@@ -523,15 +532,16 @@ func _build_letterbox_bars() -> void:
 func _build_dialogue_and_portraits() -> void:
 	_portraits_container = HBoxContainer.new()
 	_portraits_container.name = "CutsceneLayout"
-	_portraits_container.anchor_left = 0.5
-	_portraits_container.anchor_right = 0.5
+	_portraits_container.anchor_left = 0.03
+	_portraits_container.anchor_right = 0.97
 	_portraits_container.anchor_top = 1.0
 	_portraits_container.anchor_bottom = 1.0
-	_portraits_container.offset_left = -540.0
-	_portraits_container.offset_top = -265.0
-	_portraits_container.offset_right = 540.0
-	_portraits_container.offset_bottom = -50.0
-	_portraits_container.add_theme_constant_override("separation", 14)
+	_portraits_container.offset_left = 0.0
+	_portraits_container.offset_top = -315.0
+	_portraits_container.offset_right = 0.0
+	_portraits_container.offset_bottom = -48.0
+	_portraits_container.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	_portraits_container.add_theme_constant_override("separation", 12)
 	_portraits_container.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_root.add_child(_portraits_container)
 
@@ -544,26 +554,30 @@ func _build_dialogue_and_portraits() -> void:
 	_bubble.name = "AmaraSpeechBubble"
 	_bubble.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_bubble.size_flags_vertical = Control.SIZE_FILL
+	_bubble.clip_contents = true
 	_bubble.add_theme_stylebox_override("panel", _bubble_style())
 	_portraits_container.add_child(_bubble)
 
 	var content := VBoxContainer.new()
-	content.add_theme_constant_override("separation", 8)
+	content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	content.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	content.add_theme_constant_override("separation", 6)
 	_bubble.add_child(content)
 
 	# Header with Speaker Name and Animated Audio Waveform
 	var header_hbox := HBoxContainer.new()
+	header_hbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	content.add_child(header_hbox)
 
 	_speaker_label = Label.new()
 	_speaker_label.text = "DR. AMARA OKOYE   /   ASTROBIOLOGIST / HYDROPONICS"
-	_speaker_label.add_theme_font_size_override("font_size", 10)
+	_speaker_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_speaker_label.clip_text = true
+	_speaker_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	_speaker_label.add_theme_font_override("font", SKIN.get_pixel_font())
+	_speaker_label.add_theme_font_size_override("font_size", 11)
 	_speaker_label.add_theme_color_override("font_color", GOLD)
 	header_hbox.add_child(_speaker_label)
-
-	var header_spacer := Control.new()
-	header_spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	header_hbox.add_child(header_spacer)
 
 	_waveform_label = Label.new()
 	_waveform_label.text = "  ▂▃▂   "
@@ -573,22 +587,30 @@ func _build_dialogue_and_portraits() -> void:
 
 	# Dialogue Text Body
 	_dialogue_label = Label.new()
-	_dialogue_label.custom_minimum_size = Vector2(0.0, 72.0)
+	_dialogue_label.custom_minimum_size = Vector2(0.0, 68.0)
+	_dialogue_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_dialogue_label.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_dialogue_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_dialogue_label.add_theme_font_size_override("font_size", 12)
+	_dialogue_label.add_theme_font_override("font", SKIN.get_pixel_font())
+	_dialogue_label.add_theme_font_size_override("font_size", 13)
 	_dialogue_label.add_theme_constant_override("line_spacing", 5)
 	_dialogue_label.add_theme_color_override("font_color", PALE)
 	content.add_child(_dialogue_label)
 
-	# Interactive Dialogue Choices Row
+	# Interactive Dialogue Choices Container (Grid layout so replies never overflow horizontally)
 	_choice_row = HBoxContainer.new()
-	_choice_row.add_theme_constant_override("separation", 10)
+	_choice_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_choice_row.add_theme_constant_override("separation", 8)
 	content.add_child(_choice_row)
 
 	# Prompt Footer
 	_prompt_label = Label.new()
 	_prompt_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	_prompt_label.add_theme_font_size_override("font_size", 9)
+	_prompt_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_prompt_label.clip_text = true
+	_prompt_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	_prompt_label.add_theme_font_override("font", SKIN.get_pixel_font())
+	_prompt_label.add_theme_font_size_override("font_size", 10)
 	_prompt_label.add_theme_color_override("font_color", MUTED)
 	content.add_child(_prompt_label)
 
@@ -599,7 +621,8 @@ func _build_dialogue_and_portraits() -> void:
 
 func _create_portrait_box(char_name: String, role: String, is_player: bool) -> PanelContainer:
 	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(130.0, 190.0)
+	panel.custom_minimum_size = Vector2(124.0, 184.0)
+	panel.size_flags_vertical = Control.SIZE_SHRINK_END
 	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel.add_theme_stylebox_override("panel", _portrait_panel_style(false))
 
@@ -618,7 +641,7 @@ func _create_portrait_box(char_name: String, role: String, is_player: bool) -> P
 
 	# Close-up Bust Texture
 	var frame_panel := PanelContainer.new()
-	frame_panel.custom_minimum_size = Vector2(110.0, 116.0)
+	frame_panel.custom_minimum_size = Vector2(104.0, 108.0)
 	frame_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	frame_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	frame_panel.add_theme_stylebox_override("panel", _portrait_frame_inner_style())
@@ -658,6 +681,7 @@ func _create_portrait_box(char_name: String, role: String, is_player: bool) -> P
 	else:
 		_npc_portrait_rect = tex_rect
 		_npc_name_label = name_lbl
+		_npc_role_label = role_lbl
 		_npc_status_badge = status
 
 		var amara_atlas := AtlasTexture.new()
@@ -676,29 +700,41 @@ func _build_choice_and_offer_buttons() -> void:
 	_offer_buttons.clear()
 
 	if not _choices.is_empty():
+		var grid := GridContainer.new()
+		grid.columns = 2 if _choices.size() >= 2 else 1
+		grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		grid.add_theme_constant_override("h_separation", 8)
+		grid.add_theme_constant_override("v_separation", 6)
+		_choice_row.add_child(grid)
+
 		for i in range(_choices.size()):
 			var choice: Dictionary = _choices[i]
 			var button := Button.new()
 			var shortcut_num := str(i + 1)
 			button.text = "[%s] %s" % [shortcut_num, str(choice.label)]
-			button.custom_minimum_size.y = 38
+			button.custom_minimum_size = Vector2(0.0, 36.0)
 			button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			button.add_theme_font_size_override("font_size", 10)
+			button.alignment = HORIZONTAL_ALIGNMENT_LEFT
+			button.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			button.clip_text = false
+			button.add_theme_font_override("font", SKIN.get_pixel_font())
+			button.add_theme_font_size_override("font_size", 11)
 			button.add_theme_stylebox_override("normal", _choice_btn_style(false))
 			button.add_theme_stylebox_override("hover", _choice_btn_style(true))
 			button.add_theme_stylebox_override("pressed", _choice_btn_style(true, true))
 			button.add_theme_stylebox_override("focus", _choice_btn_style(true))
 			button.mouse_entered.connect(_on_choice_btn_hover.bind(button))
 			button.pressed.connect(_choose.bind(str(choice.id)))
-			_choice_row.add_child(button)
+			grid.add_child(button)
 			_choice_buttons.append(button)
 	elif _offer_enabled:
 		# Interactive styled buttons for task offer
 		var accept_btn := Button.new()
 		accept_btn.text = "▶  [E] TAKE TASKS"
-		accept_btn.custom_minimum_size.y = 38
+		accept_btn.custom_minimum_size = Vector2(0.0, 36.0)
 		accept_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		accept_btn.add_theme_font_size_override("font_size", 10)
+		accept_btn.add_theme_font_override("font", SKIN.get_pixel_font())
+		accept_btn.add_theme_font_size_override("font_size", 11)
 		accept_btn.add_theme_stylebox_override("normal", _choice_btn_style(false, false, true))
 		accept_btn.add_theme_stylebox_override("hover", _choice_btn_style(true, false, true))
 		accept_btn.add_theme_stylebox_override("pressed", _choice_btn_style(true, true, true))
@@ -709,9 +745,10 @@ func _build_choice_and_offer_buttons() -> void:
 
 		var decline_btn := Button.new()
 		decline_btn.text = "✕  [Q] MAYBE LATER"
-		decline_btn.custom_minimum_size.y = 38
+		decline_btn.custom_minimum_size = Vector2(0.0, 36.0)
 		decline_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		decline_btn.add_theme_font_size_override("font_size", 10)
+		decline_btn.add_theme_font_override("font", SKIN.get_pixel_font())
+		decline_btn.add_theme_font_size_override("font_size", 11)
 		decline_btn.add_theme_stylebox_override("normal", _choice_btn_style(false))
 		decline_btn.add_theme_stylebox_override("hover", _choice_btn_style(true))
 		decline_btn.add_theme_stylebox_override("pressed", _choice_btn_style(true, true))
@@ -719,41 +756,59 @@ func _build_choice_and_offer_buttons() -> void:
 		decline_btn.pressed.connect(_finish.bind(false))
 		_choice_row.add_child(decline_btn)
 		_offer_buttons.append(decline_btn)
+	_resize_bubble()
 
 
-func _on_choice_btn_hover(btn: Button) -> void:
+func _on_choice_btn_hover(_btn: Button) -> void:
 	_play_sfx(_snd_hover, -6.0)
 
 
 func _determine_speaker_kind(speaker_text: String) -> void:
 	var upper := speaker_text.to_upper()
-	if upper.contains("AMARA"):
+	if upper.contains("AMARA") or upper.contains("OKOYE"):
 		_current_speaker_kind = "amara"
 		_npc_name_label.text = "DR. AMARA OKOYE"
 		_npc_name_label.add_theme_color_override("font_color", CYAN)
+		if is_instance_valid(_npc_role_label):
+			_npc_role_label.text = "ASTROBIOLOGIST / HYDROPONICS"
 		var amara_atlas := AtlasTexture.new()
 		amara_atlas.atlas = AMARA_ATLAS_TEX
 		amara_atlas.region = Rect2(72.0, 36.0, 175.0, 175.0)
 		_npc_portrait_rect.texture = amara_atlas
-	elif upper.contains("MAYA") or upper.contains("COMMANDER"):
-		_current_speaker_kind = "terminal"
+	elif upper.contains("MAYA") or upper.contains("CHEN") or upper.contains("COMMANDER"):
+		_current_speaker_kind = "chen"
 		_npc_name_label.text = "MAYA CHEN / CDR"
 		_npc_name_label.add_theme_color_override("font_color", GOLD)
+		if is_instance_valid(_npc_role_label):
+			_npc_role_label.text = "EXPEDITION COMMANDER"
 		_npc_portrait_rect.texture = _create_hologram_tex(GOLD)
-	elif upper.contains("LEILA") or upper.contains("ENG"):
-		_current_speaker_kind = "terminal"
+	elif upper.contains("ELIAS") or upper.contains("WARD"):
+		_current_speaker_kind = "ward"
+		_npc_name_label.text = "ELIAS WARD / PILOT"
+		_npc_name_label.add_theme_color_override("font_color", Color(0.68, 0.88, 1.0))
+		if is_instance_valid(_npc_role_label):
+			_npc_role_label.text = "PILOT & MEDICAL SUPPORT"
+		_npc_portrait_rect.texture = _create_hologram_tex(Color(0.68, 0.88, 1.0))
+	elif upper.contains("LEILA") or upper.contains("HADDAD") or upper.contains("CHIEF ENGINEER"):
+		_current_speaker_kind = "leila"
 		_npc_name_label.text = "LEILA HADDAD / ENG"
-		_npc_name_label.add_theme_color_override("font_color", CYAN)
-		_npc_portrait_rect.texture = _create_hologram_tex(CYAN)
-	elif upper.contains("MATEO") or upper.contains("RUIZ"):
-		_current_speaker_kind = "terminal"
+		_npc_name_label.add_theme_color_override("font_color", EMERALD)
+		if is_instance_valid(_npc_role_label):
+			_npc_role_label.text = "CHIEF ENGINEER"
+		_npc_portrait_rect.texture = _create_hologram_tex(EMERALD)
+	elif upper.contains("MATEO") or upper.contains("RUIZ") or upper.contains("MINING"):
+		_current_speaker_kind = "mateo"
 		_npc_name_label.text = "MATEO RUIZ / MINING"
 		_npc_name_label.add_theme_color_override("font_color", ORANGE)
+		if is_instance_valid(_npc_role_label):
+			_npc_role_label.text = "MINING SPECIALIST"
 		_npc_portrait_rect.texture = _create_hologram_tex(ORANGE)
 	else:
 		_current_speaker_kind = "terminal"
 		_npc_name_label.text = "ASTERIA COMMS"
 		_npc_name_label.add_theme_color_override("font_color", MUTED)
+		if is_instance_valid(_npc_role_label):
+			_npc_role_label.text = "COMMUNICATIONS RELAY"
 		_npc_portrait_rect.texture = _create_hologram_tex(MUTED)
 
 
@@ -797,7 +852,7 @@ func _update_speaker_visuals() -> void:
 		_npc_portrait_panel.add_theme_stylebox_override("panel", _portrait_panel_style(true, CYAN))
 
 
-func _update_portrait_animations(delta: float) -> void:
+func _update_portrait_animations(_delta: float) -> void:
 	if not is_instance_valid(_npc_portrait_rect):
 		return
 	if _is_typing:
@@ -809,6 +864,7 @@ func _update_portrait_animations(delta: float) -> void:
 
 
 func _animate_cutscene_open() -> void:
+	_resize_bubble()
 	# Subtle entrance tween for dialogue bubble and letterboxes
 	if is_instance_valid(_top_bar) and is_instance_valid(_bottom_bar):
 		var vp := get_viewport()
@@ -841,7 +897,19 @@ func _play_voice_blip() -> void:
 		"thura":
 			stream = _snd_speech_thura
 			_voice_player.pitch_scale = _rng.randf_range(0.98, 1.04)
-		"terminal":
+		"chen":
+			stream = _snd_speech_chen
+			_voice_player.pitch_scale = _rng.randf_range(0.96, 1.04)
+		"mateo":
+			stream = _snd_speech_mateo
+			_voice_player.pitch_scale = _rng.randf_range(0.94, 1.06)
+		"ward":
+			stream = _snd_speech_ward
+			_voice_player.pitch_scale = _rng.randf_range(0.95, 1.05)
+		"leila":
+			stream = _snd_speech_leila
+			_voice_player.pitch_scale = _rng.randf_range(0.96, 1.04)
+		_:
 			stream = _snd_speech_terminal
 			_voice_player.pitch_scale = _rng.randf_range(0.94, 1.06)
 	_voice_player.stream = stream
@@ -852,10 +920,24 @@ func _resize_bubble() -> void:
 	if not is_instance_valid(_portraits_container):
 		return
 	var vp := get_viewport()
-	var vp_w: float = vp.get_visible_rect().size.x if is_instance_valid(vp) else 1280.0
-	var container_width := clampf(vp_w - 60.0, 720.0, 1080.0)
-	_portraits_container.offset_left = -container_width * 0.5
-	_portraits_container.offset_right = container_width * 0.5
+	var vp_rect := vp.get_visible_rect() if is_instance_valid(vp) else Rect2(0.0, 0.0, 1280.0, 720.0)
+	var vp_w: float = maxf(vp_rect.size.x, 640.0)
+	var vp_h: float = maxf(vp_rect.size.y, 480.0)
+	var margin_x := clampf((vp_w - minf(vp_w - 36.0, 1140.0)) * 0.5, 18.0, 180.0)
+	_portraits_container.anchor_left = 0.0
+	_portraits_container.anchor_right = 1.0
+	_portraits_container.anchor_top = 1.0
+	_portraits_container.anchor_bottom = 1.0
+	_portraits_container.offset_left = margin_x
+	_portraits_container.offset_right = -margin_x
+	var has_multi_row_choices := _choices.size() > 2
+	var box_height := clampf(295.0 if has_multi_row_choices else 245.0, 210.0, vp_h - 96.0)
+	_portraits_container.offset_top = -(48.0 + box_height)
+	_portraits_container.offset_bottom = -48.0
+	if is_instance_valid(_player_portrait_panel) and is_instance_valid(_npc_portrait_panel):
+		var show_portraits := vp_w >= 760.0
+		_player_portrait_panel.visible = show_portraits
+		_npc_portrait_panel.visible = show_portraits
 
 
 func _exit_tree() -> void:
@@ -945,13 +1027,17 @@ func _choice_btn_style(hover: bool, pressed: bool = false, is_accent: bool = fal
 	return style
 
 
-func _on_fx_overlay_draw() -> void:
+func _on_fx_overlay_draw(overlay: Control = null) -> void:
+	if overlay == null:
+		overlay = _fx_overlay
+	if not is_instance_valid(overlay) or not overlay.is_inside_tree():
+		return
 	var vp_size := get_viewport().get_visible_rect().size
 
 	# 1. Subtle cinematic dark vignette at corners
 	var vig_col := Color(0.0, 0.0, 0.0, 0.28)
-	_fx_overlay.draw_rect(Rect2(0, 0, vp_size.x, 24), vig_col)
-	_fx_overlay.draw_rect(Rect2(0, vp_size.y - 24, vp_size.x, 24), vig_col)
+	overlay.draw_rect(Rect2(0, 0, vp_size.x, 24), vig_col)
+	overlay.draw_rect(Rect2(0, vp_size.y - 24, vp_size.x, 24), vig_col)
 
 	# 2. Drifting bioluminescent spore motes
 	for sp in _spores:
@@ -959,4 +1045,4 @@ func _on_fx_overlay_draw() -> void:
 		var alpha_pulse: float = float(sp["alpha"]) * (0.6 + 0.4 * sin(_anim_timer * float(sp["pulse_speed"]) + float(sp["phase"])))
 		var col: Color = sp["color"]
 		col.a = clampf(alpha_pulse, 0.05, 0.85)
-		_fx_overlay.draw_circle(pos, float(sp["size"]), col)
+		overlay.draw_circle(pos, float(sp["size"]), col)

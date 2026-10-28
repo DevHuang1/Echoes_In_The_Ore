@@ -84,7 +84,7 @@ const RIG_REPORT_TASK_ID := &"report_failed_rig"
 const ROOM_TASKS: Array[Dictionary] = [
 	{
 		"id": &"auxiliary_power",
-		"title": "Reconnect aux power bus (Task 3/4 -> Multitool)",
+		"title": "Reconnect aux power bus",
 		"marker_label": "AUX POWER",
 		"room_name": "Power Core",
 		"action_hint": "Reconnect aux power bus capacitor banks",
@@ -98,7 +98,7 @@ const ROOM_TASKS: Array[Dictionary] = [
 	},
 	{
 		"id": &"air_filter",
-		"title": "Replace air scrubber (Unlocks Multitool)",
+		"title": "Replace air scrubber",
 		"marker_label": "LIFE SUPPORT",
 		"room_name": "Life Support",
 		"action_hint": "Replace scrubber cartridge on life-support unit",
@@ -112,7 +112,7 @@ const ROOM_TASKS: Array[Dictionary] = [
 	},
 	{
 		"id": &"nutrient_flow",
-		"title": "Route nutrient flow (Task 5/6 -> Scanner & Sealant)",
+		"title": "Route nutrient flow",
 		"marker_label": "HYDROPONICS",
 		"room_name": "Greenhouse",
 		"action_hint": "Align nutrient delivery manifold valves",
@@ -162,7 +162,7 @@ const AMARA_CREW_TASKS: Array[Dictionary] = [
 const STORY_STATIONS: Array[Dictionary] = [
 	{
 		"id": &"cabin_may_recording",
-		"title": "Play May's Yangon message (Task 1/2 -> Suit Light)",
+		"title": "Play May's Yangon message",
 		"marker_label": "CREW BUNK",
 		"room_name": "Living Quarters",
 		"action_hint": "Examine Thura's personal terminal desk",
@@ -176,7 +176,7 @@ const STORY_STATIONS: Array[Dictionary] = [
 	},
 	{
 		"id": &"bridge_flight_piloting",
-		"title": "Pilot ship & evade asteroids (Unlocks Suit Light [F])",
+		"title": "Pilot ship & evade asteroids",
 		"marker_label": "PILOT HELM",
 		"room_name": "Navigation Bridge",
 		"action_hint": "Take manual helm console and evade asteroid swarm",
@@ -190,7 +190,7 @@ const STORY_STATIONS: Array[Dictionary] = [
 	},
 	{
 		"id": &"drone_vibration_scan",
-		"title": "Scan Erebos drone feed (Unlocks Scanner & Sealant)",
+		"title": "Scan Erebos drone feed",
 		"marker_label": "DRONE BAY",
 		"room_name": "Cargo Bay",
 		"action_hint": "Isolate deep acoustic vibration feed from drone rig",
@@ -204,7 +204,7 @@ const STORY_STATIONS: Array[Dictionary] = [
 	},
 	{
 		"id": &"landing_prep_beacons",
-		"title": "Prep Site K-12 gear (Unlocks Survey Beacon)",
+		"title": "Prep Site K-12 landing gear",
 		"marker_label": "SHUTTLE BAY",
 		"room_name": "Shuttle Bay",
 		"action_hint": "Calibrate locator transponders in landing crate",
@@ -218,7 +218,7 @@ const STORY_STATIONS: Array[Dictionary] = [
 	},
 	{
 		"id": &"erebos_landing_descent",
-		"title": "Initiate Erebos landing descent (Site K-12)",
+		"title": "Initiate Erebos landing descent",
 		"marker_label": "LANDING HELM",
 		"room_name": "Navigation Bridge",
 		"action_hint": "Align orbit and fire descent thrusters for Site K-12",
@@ -232,7 +232,7 @@ const STORY_STATIONS: Array[Dictionary] = [
 	},
 	{
 		"id": &"cargo_breach_inspection",
-		"title": "Inspect breached drill core (Act IV Hunt)",
+		"title": "Inspect breached drill core",
 		"marker_label": "SAMPLE CORE",
 		"room_name": "Cargo Bay",
 		"action_hint": "Inspect breached core containment pod scale",
@@ -246,7 +246,7 @@ const STORY_STATIONS: Array[Dictionary] = [
 	},
 	{
 		"id": &"subdeck_lift_descent",
-		"title": "Descend to Second Floor (Sub-Deck 02 Tasks)",
+		"title": "Descend to Second Floor (Sub-Deck 02)",
 		"marker_label": "SUB-DECK 02",
 		"room_name": "Center Recess",
 		"action_hint": "Activate freight lift to access Sub-Deck 02",
@@ -260,7 +260,7 @@ const STORY_STATIONS: Array[Dictionary] = [
 	},
 	{
 		"id": &"commanders_secret_bridge",
-		"title": "Quarantine Standoff & Chen's Revolver",
+		"title": "Quarantine Standoff on Bridge",
 		"marker_label": "CHEN / BRIDGE",
 		"room_name": "Navigation Bridge",
 		"action_hint": "Confront Commander Chen at the mission planning table",
@@ -310,6 +310,7 @@ const SEQUENTIAL_MAIN_DECK_ORDER: Array[StringName] = [
 @onready var exterior_airlock: Node2D = $ExteriorAirlockGate
 @onready var player: ShipPlayer = $Player
 @onready var amara: AmaraOkoye = $AmaraOkoye
+@onready var space_backdrop: Node2D = get_node_or_null("SpaceBackdrop")
 
 var _completed_room_tasks: Dictionary = {}
 var _completed_story_stations: Dictionary = {}
@@ -333,8 +334,13 @@ var _completed_crew_tasks: Dictionary = {}
 var _active_amara_interaction: bool = false
 var _active_mateo_interaction: bool = false
 var _active_chen_interaction: bool = false
+var _active_ward_interaction: bool = false
+var _active_leila_interaction: bool = false
 var _mateo_npc: Node2D = null
 var _chen_npc: Node2D = null
+var _ward_npc: Node2D = null
+var _leila_npc: Node2D = null
+var _medbay_ambush_triggered: bool = false
 var _active_crew_task_id: StringName = &""
 var _active_airlock_exit: bool = false
 var _active_subdeck_descent: bool = false
@@ -1006,13 +1012,28 @@ func _ready() -> void:
 		Engine.remove_meta(&"returning_from_second_floor")
 		player.global_position = floor_layer.to_global(SUBDECK_RETURN_FLOOR_POS)
 		_subdeck_return_grace_timer = 0.65
+	elif Engine.has_meta(&"dev_warp_target"):
+		var dev_target: Vector2 = Engine.get_meta(&"dev_warp_target")
+		Engine.remove_meta(&"dev_warp_target")
+		player.global_position = dev_target
+		if Engine.has_meta(&"dev_trigger_ambush"):
+			Engine.remove_meta(&"dev_trigger_ambush")
+			call_deferred(&"_play_medbay_ambush_sequence")
+		elif Engine.has_meta(&"dev_trigger_lab_breach"):
+			Engine.remove_meta(&"dev_trigger_lab_breach")
+			call_deferred(&"_spawn_resonance_ore_villain", true)
+			call_deferred(&"_play_lab_breach_wave")
+			call_deferred(&"_apply_lab_destruction_stage", 2, true)
 	else:
 		player.global_position = player_spawn
 
-	player.camera.enabled = true
-	player.camera.make_current()
-	player.camera.reset_smoothing()
+	if is_instance_valid(player.camera):
+		player.camera.enabled = true
+		player.camera.make_current()
+		player.camera.reset_smoothing()
 	player.set_physics_process(false)
+	if not player.equipment_used.is_connected(_on_player_equipment_used):
+		player.equipment_used.connect(_on_player_equipment_used)
 	var all_defs_by_id: Dictionary = {}
 	for task in ROOM_TASKS:
 		all_defs_by_id[task["id"]] = task
@@ -1052,6 +1073,7 @@ func _ready() -> void:
 		_walk_hud.set_task_completed(LAB_DOOR_REPAIR_TASK_ID)
 	_walk_hud.modal_state_changed.connect(_on_hud_modal_state_changed)
 	add_child(_walk_hud)
+	_walk_hud.set_show_all_active_tasks(true)
 
 	for done_id in _completed_room_tasks:
 		_walk_hud.set_task_completed(StringName(done_id), true)
@@ -1062,12 +1084,13 @@ func _ready() -> void:
 		for done_crew in _completed_crew_tasks:
 			_walk_hud.set_task_completed(StringName(done_crew), true)
 
-	_interactive_highlights_canvas = Node2D.new()
-	_interactive_highlights_canvas.name = "InteractiveHighlightsCanvas"
-	_interactive_highlights_canvas.z_as_relative = false
-	_interactive_highlights_canvas.z_index = 1
-	_interactive_highlights_canvas.draw.connect(_on_interactive_highlights_draw)
-	add_child(_interactive_highlights_canvas)
+	if not is_instance_valid(_interactive_highlights_canvas):
+		_interactive_highlights_canvas = Node2D.new()
+		_interactive_highlights_canvas.name = "InteractiveHighlightsCanvas"
+		_interactive_highlights_canvas.z_as_relative = false
+		_interactive_highlights_canvas.z_index = 1
+		_interactive_highlights_canvas.draw.connect(_on_interactive_highlights_draw.bind(_interactive_highlights_canvas))
+		add_child(_interactive_highlights_canvas)
 
 	_crew_dialogue = CREW_DIALOGUE_SCENE.instantiate() as CrewDialogue
 	_crew_dialogue.dialogue_finished.connect(_on_crew_dialogue_finished)
@@ -1214,6 +1237,8 @@ func _process(delta: float) -> void:
 		return
 	_update_xenomorph_incubation(delta)
 	_update_echo_lab_entry()
+	_update_medbay_echo_ambush()
+	_update_stalker_player_collision(delta)
 	_highlight_pulse_time = fposmod(_highlight_pulse_time + delta * 3.2, TAU)
 	if is_instance_valid(_interactive_highlights_canvas):
 		_interactive_highlights_canvas.queue_redraw()
@@ -1308,6 +1333,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		_begin_mateo_dialogue()
 	elif _active_amara_interaction:
 		_begin_amara_dialogue()
+	elif _active_ward_interaction:
+		_begin_ward_dialogue()
+	elif _active_leila_interaction:
+		_begin_leila_dialogue()
 	elif _active_crew_task_id != &"":
 		_complete_crew_task(_active_crew_task_id)
 	elif _active_lab_device_id != &"":
@@ -1346,10 +1375,26 @@ func _descend_to_second_floor() -> void:
 	get_tree().change_scene_to_file(SECOND_FLOOR_SCENE_PATH)
 
 
+func _sync_space_backdrop_sector(encounter_id: StringName) -> void:
+	if not is_instance_valid(space_backdrop) or not space_backdrop.has_method(&"set_cosmic_sector"):
+		return
+	match encounter_id:
+		&"bridge_flight_piloting", &"asteroid_swarm", &"asteroid_emergency_override":
+			space_backdrop.call(&"set_cosmic_sector", &"asteroid_belt", 2.0)
+		&"star_veering":
+			space_backdrop.call(&"set_cosmic_sector", &"stellar_corona", 2.0)
+		&"black_hole_slingshot":
+			space_backdrop.call(&"set_cosmic_sector", &"black_hole", 2.0)
+		_:
+			space_backdrop.call(&"set_cosmic_sector", &"normal_space", 2.5)
+
+
 func trigger_emergency_asteroid_cutscene() -> void:
 	if _piloting_console_open or _task_console_open or _cutscene_open:
 		return
-	_open_ship_piloting_console(&"asteroid_emergency_override", true)
+	var hazard_types: Array[StringName] = [&"bridge_flight_piloting", &"star_veering", &"black_hole_slingshot"]
+	var selected: StringName = hazard_types[randi() % hazard_types.size()]
+	_open_ship_piloting_console(selected, true)
 
 
 func _open_ship_piloting_console(encounter_id: StringName, is_emergency: bool) -> void:
@@ -1361,6 +1406,7 @@ func _open_ship_piloting_console(encounter_id: StringName, is_emergency: bool) -
 	_piloting_console_open = true
 	_walk_hud.set_walking_visible(false)
 	_update_player_walk_state()
+	_sync_space_backdrop_sector(encounter_id)
 	pilot_console.call(&"setup", encounter_id, is_emergency)
 	pilot_console.connect(&"piloting_completed", _on_ship_piloting_completed)
 	pilot_console.connect(&"piloting_closed", _on_ship_piloting_closed)
@@ -1370,6 +1416,7 @@ func _open_ship_piloting_console(encounter_id: StringName, is_emergency: bool) -
 func _on_ship_piloting_completed(encounter_id: StringName, hull_remaining: float) -> void:
 	_piloting_console_open = false
 	_autopilot_asteroid_timer = 95.0
+	_sync_space_backdrop_sector(&"normal_space")
 	if encounter_id == &"erebos_orbital_landing":
 		_completed_story_stations[&"erebos_landing_descent"] = true
 		_walk_hud.set_task_completed(&"erebos_landing_descent")
@@ -1404,8 +1451,18 @@ func _on_ship_piloting_completed(encounter_id: StringName, hull_remaining: float
 			return
 		_room_task_feedback = "ASTEROID BELT CLEARED (HULL %d%%) — AUTOPILOT RESTORED\n%s" % [roundi(hull_remaining), milestone_msg]
 		_room_task_feedback_timer = 5.0
+	elif encounter_id == &"star_veering":
+		_completed_story_stations[&"star_veering"] = true
+		_save_persistent_story_state()
+		_room_task_feedback = "HELIOS SOLAR CORONA CLEARED (HULL %d%%) — THERMAL SHIELDS STABILIZED" % roundi(hull_remaining)
+		_room_task_feedback_timer = 5.0
+	elif encounter_id == &"black_hole_slingshot":
+		_completed_story_stations[&"black_hole_slingshot"] = true
+		_save_persistent_story_state()
+		_room_task_feedback = "GARGANTUA SINGULARITY ESCAPED (HULL %d%%) — SLINGSHOT SUCCESSFUL" % roundi(hull_remaining)
+		_room_task_feedback_timer = 5.0
 	else:
-		_room_task_feedback = "EMERGENCY ASTEROID SWARM EVADED (HULL %d%%)  //  AUTOPILOT RESUMED" % roundi(hull_remaining)
+		_room_task_feedback = "COSMIC HAZARD SECTOR CLEARED (HULL %d%%)  //  AUTOPILOT RESUMED" % roundi(hull_remaining)
 		_room_task_feedback_timer = 4.5
 
 	_walk_hud.set_walking_visible(not _arrival_briefing_open)
@@ -1414,6 +1471,7 @@ func _on_ship_piloting_completed(encounter_id: StringName, hull_remaining: float
 
 func _on_ship_piloting_closed() -> void:
 	_piloting_console_open = false
+	_sync_space_backdrop_sector(&"normal_space")
 	_walk_hud.set_walking_visible(not _arrival_briefing_open)
 	_update_player_walk_state()
 
@@ -1513,6 +1571,8 @@ func _refresh_room_task_prompt() -> void:
 	_active_amara_interaction = false
 	_active_chen_interaction = false
 	_active_mateo_interaction = false
+	_active_ward_interaction = false
+	_active_leila_interaction = false
 	_active_airlock_exit = false
 	_active_subdeck_descent = false
 	if _crew_dialogue_open or _cutscene_open or _piloting_console_open or not _arrival_briefing_open and (_hud_modal_open or _task_console_open):
@@ -1547,15 +1607,23 @@ func _refresh_room_task_prompt() -> void:
 				return
 	if is_instance_valid(amara) and amara.visible and not _is_lab_destroyed() and player.global_position.distance_to(amara.global_position) <= AMARA_INTERACTION_RADIUS:
 		_active_amara_interaction = true
-		_walk_hud.set_interaction_prompt("DR. AMARA OKOYE   /   [E] TALK", true)
+		_walk_hud.set_interaction_prompt("DR. AMARA OKOYE   /   [E] TALK (ASTROBIOLOGIST / HYDROPONICS)", true)
 		return
 	if is_instance_valid(_chen_npc) and _chen_npc.visible and not _is_lab_destroyed() and player.global_position.distance_to(_chen_npc.global_position) <= 68.0:
 		_active_chen_interaction = true
 		_walk_hud.set_interaction_prompt("COMMANDER MAYA CHEN   /   [E] TALK (EXPEDITION COMMANDER)", true)
 		return
-	if is_instance_valid(_mateo_npc) and _mateo_npc.visible and not _is_lab_destroyed() and player.global_position.distance_to(_mateo_npc.global_position) <= 68.0:
+	if is_instance_valid(_mateo_npc) and _mateo_npc.visible and player.global_position.distance_to(_mateo_npc.global_position) <= 68.0:
 		_active_mateo_interaction = true
 		_walk_hud.set_interaction_prompt("MATEO RUIZ   /   [E] TALK (MINING SPECIALIST)", true)
+		return
+	if is_instance_valid(_ward_npc) and _ward_npc.visible and not _is_lab_destroyed() and not Engine.has_meta(&"ward_ambush_completed") and player.global_position.distance_to(_ward_npc.global_position) <= 68.0:
+		_active_ward_interaction = true
+		_walk_hud.set_interaction_prompt("ELIAS WARD   /   [E] TALK (EXPEDITION PILOT / MED BAY)", true)
+		return
+	if is_instance_valid(_leila_npc) and _leila_npc.visible and (not _is_lab_destroyed() or _leila_rescued) and player.global_position.distance_to(_leila_npc.global_position) <= 68.0:
+		_active_leila_interaction = true
+		_walk_hud.set_interaction_prompt("LEILA HADDAD   /   [E] TALK (CHIEF ENGINEER)", true)
 		return
 	var closest_lab: Dictionary = {}
 	var closest_lab_dist: float = 64.0
@@ -1706,29 +1774,45 @@ func _begin_amara_dialogue() -> void:
 	_update_player_walk_state()
 	_walk_hud.set_interaction_prompt("", false)
 	var lines: Array[String] = []
-	var offer_tasks := not _crew_tasks_unlocked and not _is_ore_sample_stored()
+	var choices: Array[Dictionary] = []
 	if _is_ore_sample_stored() and not _is_ore_villain_spawned():
-		lines.append("The Erebos ore is secured. I'm running the chamber checks and monitoring its response from the research console.")
-		if Engine.has_meta(&"resonance_ore_stimulated") and bool(Engine.get_meta(&"resonance_ore_stimulated")):
-			lines.append("It is responding to the electrical pulse. Something inside the sample is moving.")
+		lines.append("The Erebos ore is secured. I'm running spectrophotometry and monitoring its electromagnetic resonance.")
+		lines.append("It's fascinating... and unsettling. When the ship power grid pulses, the crystalline fluid vibrates in exact harmonic resonance.")
+		choices.append({"id": "amara_fluid_behavior", "label": "Inquire about colloidal fluidic behavior under magnification"})
+		choices.append({"id": "amara_power_sync", "label": "Discuss the sample's synchronization with the ship power grid"})
+		choices.append({"id": "amara_isolation_concern", "label": "Express concern about her working isolated in the sealed lab"})
 	elif reporting_rig_failure:
 		Engine.set_meta(&"erebos_rig_failure_reported", true)
 		_walk_hud.set_task_completed(RIG_REPORT_TASK_ID)
-		lines.append("You were right to come back. The rig's drive is damaged; don't try to force it again. I can see a resonance seam in the western crater. Bring me a small sample so I can study what the failed drill disturbed.")
-	elif offer_tasks:
-		if first_meeting:
-			lines.append("I'm Dr. Amara Okoye, astrobiologist. I keep the grow beds alive and monitor bio-systems.")
-			lines.append("The nutrient pump needs an inspection, and the seedling rack's humidity sensor needs recalibrating.")
-		else:
-			lines.append("I've got two hydroponics jobs that could use another set of hands: the nutrient pump and the seedling rack sensor.")
-		lines.append("Want to take them? I'll mark a reachable service point beside each station on your ship map.")
-	elif first_meeting:
-		lines.append("I'm Dr. Amara Okoye, astrobiologist. Test the resonance rig on Erebos. If it fails, come back and report to me before you continue.")
+		lines.append("You made the right call withdrawing from the drill rig, Thura. The telemetry spike you transmitted showed severe harmonic overload.")
+		lines.append("The rig's diamond drive shattered, but I've located an exposed resonance seam in the western depression. We need a physical specimen.")
+		choices.append({"id": "amara_seam_advice", "label": "Ask for guidance on extracting the resonance seam sample"})
+		choices.append({"id": "amara_containment_prep", "label": "Review sterile transport canister protocols"})
+		choices.append({"id": "amara_sensor_readings", "label": "Ask what her sensors registered during the drill failure"})
+	elif not _is_ship_landed():
+		lines.append("Dr. Min. Day 184 of transit. I'm completing bio-monitoring checks on our greenhouse beds and nutrient recirculation tanks.")
+		lines.append("Deep space travel places immense stress on living tissue. Keeping our microgreens and hydroponics thriving is what keeps all five of us alive out here.")
+		choices.append({"id": "amara_tasks", "label": "Review hydroponics maintenance protocols and offer assistance"})
+		choices.append({"id": "amara_flora", "label": "Ask about the bio-luminescent flora and experimental hybrid crops"})
+		choices.append({"id": "amara_resonance", "label": "Discuss acoustic frequencies and cellular vibration theories"})
+		choices.append({"id": "amara_backstory", "label": "Ask why she joined Asteria-1 after her work on Ganymede"})
 	else:
-		lines.append("I'm analyzing the rig failure from here. Bring me a sample from the exposed seam when you return.")
+		lines.append("Touchdown on Site K-12 confirmed. The external atmospheric sensors are detecting dormant organic compounds suspended in the surface dust.")
+		lines.append("Be careful out on the ore flats, Thura. Erebos may look barren, but the biosensor needles haven't stopped twitching.")
+		choices.append({"id": "amara_spores", "label": "Inquire about surface spores and biological contamination risks"})
+		choices.append({"id": "amara_tank", "label": "Confirm bio-containment tank readiness for mineral samples"})
+		choices.append({"id": "amara_sound", "label": "Ask about the 4-pulse acoustic vibration recorded from orbit"})
+
 	if is_instance_valid(amara) and is_instance_valid(player):
 		player.face_toward(amara.global_position)
-	_crew_dialogue.start_dialogue(lines, offer_tasks, {"npc": amara, "speaker": "DR. AMARA OKOYE / ASTROBIOLOGIST / HYDROPONICS"})
+		if amara.has_method("face_toward"):
+			amara.face_toward(player.global_position)
+	_crew_dialogue.start_dialogue(lines, false, {
+		"id": "amara_okoye",
+		"speaker": "DR. AMARA OKOYE / ASTROBIOLOGIST / HYDROPONICS",
+		"npc": amara,
+		"choices": choices
+	})
 
 
 func _begin_mateo_dialogue() -> void:
@@ -1742,21 +1826,30 @@ func _begin_mateo_dialogue() -> void:
 		player.face_toward(_mateo_npc.global_position)
 		if _mateo_npc.has_method("face_toward"):
 			_mateo_npc.face_toward(player.global_position)
+		if _mateo_npc.has_method("set_in_dialogue"):
+			_mateo_npc.call("set_in_dialogue", true)
 
 	var lines: Array[String] = []
 	var choices: Array[Dictionary] = []
-	if not _is_ship_landed():
+	if _is_lab_destroyed():
+		lines.append("Thura! Keep your weapon drawn! The shuttle bay pressure sensors just registered a sudden mass drop on Sub-Deck 02.")
+		lines.append("The creature... it mimics the voices of the people it took. Don't listen to anything calling from the dark corridors!")
+		choices.append({"id": "mateo_crisis_shuttle", "label": "Check shuttle readiness and emergency launch status"})
+		choices.append({"id": "mateo_crisis_holdout", "label": "Coordinate defensive perimeter in Shuttle Bay"})
+	elif not _is_ship_landed():
 		lines.append("Thura. Checking the shuttle tie-downs and heavy drill anchors before we hit the atmosphere.")
 		lines.append("Aegis Mining gave us good gear, but the telemetry from Site K-12 has been giving me a bad feeling.")
 		lines.append("That 4-pulse, 7-second vibration my autonomous drone picked up from the ore basin... natural seismic echoes don't hold a metronome beat like that.")
 		choices.append({"id": "mateo_sponsor", "label": "Ask about Aegis Mining's commercial agenda"})
 		choices.append({"id": "mateo_pulses", "label": "Ask about the 4-pulse acoustic vibration"})
 		choices.append({"id": "mateo_rig", "label": "Ask for advice on operating the extraction rig"})
+		choices.append({"id": "mateo_background", "label": "Ask why he left corporate mining colonies for Asteria-1"})
 	else:
 		lines.append("We're down on Site K-12. That was a rough retro-burn through the crags, but Asteria-1 held together.")
 		lines.append("Exterior airlock is open. Mind the 0.84G gravity — your suit thrusters will feel lighter, but inertia is still your enemy.")
 		choices.append({"id": "mateo_surface", "label": "Ask about surface hazards at Site K-12"})
 		choices.append({"id": "mateo_gear", "label": "Confirm extraction rig telemetry"})
+		choices.append({"id": "mateo_mineral_caution", "label": "Inquire about the crystalline luster in the ore basin"})
 
 	_crew_dialogue.start_dialogue(lines, false, {
 		"id": "mateo_ruiz",
@@ -1804,6 +1897,87 @@ func _begin_chen_dialogue() -> void:
 	})
 
 
+func _begin_ward_dialogue() -> void:
+	if _crew_dialogue_open:
+		return
+	_crew_dialogue_open = true
+	_walk_hud.set_walking_visible(false)
+	_update_player_walk_state()
+	_walk_hud.set_interaction_prompt("", false)
+	if is_instance_valid(player) and is_instance_valid(_ward_npc):
+		player.face_toward(_ward_npc.global_position)
+		if _ward_npc.has_method("face_toward"):
+			_ward_npc.call("face_toward", player.global_position)
+		if _ward_npc.has_method("set_in_dialogue"):
+			_ward_npc.call("set_in_dialogue", true)
+
+	var lines: Array[String] = []
+	var choices: Array[Dictionary] = []
+	if not _is_ship_landed():
+		lines.append("Dr. Min. Day 184 of transit. Checking emergency oxygen reserves and running diagnostic tests on our medical monitoring beds.")
+		lines.append("Commander Chen has me listed as relief pilot for the Site K-12 landing run, but I like keeping one foot in the flight deck and one in med bay.")
+		choices.append({"id": "ward_descent", "label": "Inquire about Erebos descent trajectory and atmospheric turbulence"})
+		choices.append({"id": "ward_vitals", "label": "Check crew biometric telemetry and long-haul health logs"})
+		choices.append({"id": "ward_commander", "label": "Ask how he first started flying with Commander Maya Chen"})
+		choices.append({"id": "ward_med_kit", "label": "Review field medical injector supplies and trauma gear"})
+	else:
+		lines.append("Touchdown on Site K-12 confirmed. Hull stress telemetry was well within tolerances, though the exterior mics are picking up strange interference.")
+		lines.append("Keep your suit seals tight out there on the basalt flats. If you take a puncture or laceration, my medical injectors are primed and ready.")
+		choices.append({"id": "ward_interference", "label": "Ask about the bizarre audio interference over flight comms"})
+		choices.append({"id": "ward_emergency_ascent", "label": "Review emergency ascent abort procedures at the helm"})
+		choices.append({"id": "ward_trauma_prep", "label": "Confirm quarantine isolation protocols for medical bay"})
+
+	_crew_dialogue.start_dialogue(lines, false, {
+		"id": "elias_ward",
+		"speaker": "ELIAS WARD / PILOT & MEDICAL / MEDICAL BAY",
+		"npc": _ward_npc,
+		"choices": choices
+	})
+
+
+func _begin_leila_dialogue() -> void:
+	if _crew_dialogue_open:
+		return
+	_crew_dialogue_open = true
+	_walk_hud.set_walking_visible(false)
+	_update_player_walk_state()
+	_walk_hud.set_interaction_prompt("", false)
+	if is_instance_valid(player) and is_instance_valid(_leila_npc):
+		player.face_toward(_leila_npc.global_position)
+		if _leila_npc.has_method("face_toward"):
+			_leila_npc.call("face_toward", player.global_position)
+		if _leila_npc.has_method("set_in_dialogue"):
+			_leila_npc.call("set_in_dialogue", true)
+
+	var lines: Array[String] = []
+	var choices: Array[Dictionary] = []
+	if _leila_rescued:
+		lines.append("Thura... you came back for me down in the maintenance spine. That thing... it learned Ward's voice, mimics every radio frequency...")
+		lines.append("I built the high-voltage arc capacitor. If that mineral horror comes near the Bridge, arc discharges will disrupt its crystalline cohesion!")
+		choices.append({"id": "leila_subdeck_horror", "label": "Ask how she survived the reactor partition encounter"})
+		choices.append({"id": "leila_arc_weapon", "label": "Coordinate high-voltage weapon usage and containment"})
+	elif not _is_ship_landed():
+		lines.append("Thura! Good timing. I'm tuning the secondary converter bus and checking the turbine cooling lines.")
+		lines.append("The power core is holding nominal, but the hull vibration telemetry during orbital approach has been slightly off-frequency.")
+		choices.append({"id": "leila_power_grid", "label": "Inquire about the fusion power core and auxiliary converter status"})
+		choices.append({"id": "leila_coolant", "label": "Ask about the secondary coolant manifold and Sub-Deck 02 machinery"})
+		choices.append({"id": "leila_tools", "label": "Ask about her custom-crafted engineering multitool and plasma cutter"})
+		choices.append({"id": "leila_vibration", "label": "Discuss the 42 Hz hull resonance recorded on the engine logs"})
+	else:
+		lines.append("Touchdown strain on the aft struts was inside safety margins, but the planetary magnetic flux is causing micro-surges in our workshop breakers.")
+		lines.append("Make sure you take an Engineering Multitool and spare power cells if you're venturing out to the extraction rig.")
+		choices.append({"id": "leila_breaker_surges", "label": "Inquire about the magnetic flux surges in the workshop breakers"})
+		choices.append({"id": "leila_thruster_cooling", "label": "Check landing thruster thermal dissipation status"})
+		choices.append({"id": "leila_subdeck_refinery", "label": "Inquire about Sub-Deck 02 automated refinery feeds"})
+
+	_crew_dialogue.start_dialogue(lines, false, {
+		"id": "leila_haddad",
+		"speaker": "LEILA HADDAD / CHIEF ENGINEER / WORKSHOP",
+		"npc": _leila_npc,
+		"choices": choices
+	})
+
+
 func _on_crew_dialogue_finished(accepted_tasks: bool) -> void:
 	_crew_dialogue_open = false
 	if is_instance_valid(amara) and amara.has_method("set_in_dialogue"):
@@ -1812,6 +1986,10 @@ func _on_crew_dialogue_finished(accepted_tasks: bool) -> void:
 		_mateo_npc.call("set_in_dialogue", false)
 	if is_instance_valid(_chen_npc) and _chen_npc.has_method("set_in_dialogue"):
 		_chen_npc.call("set_in_dialogue", false)
+	if is_instance_valid(_ward_npc) and _ward_npc.has_method("set_in_dialogue"):
+		_ward_npc.call("set_in_dialogue", false)
+	if is_instance_valid(_leila_npc) and _leila_npc.has_method("set_in_dialogue"):
+		_leila_npc.call("set_in_dialogue", false)
 	_on_amara_dialogue_finished(accepted_tasks)
 
 
@@ -1823,14 +2001,111 @@ func _on_crew_conversation_finished(conv_id: String, result_id: String) -> void:
 		_mateo_npc.call("set_in_dialogue", false)
 	if is_instance_valid(_chen_npc) and _chen_npc.has_method("set_in_dialogue"):
 		_chen_npc.call("set_in_dialogue", false)
+	if is_instance_valid(_ward_npc) and _ward_npc.has_method("set_in_dialogue"):
+		_ward_npc.call("set_in_dialogue", false)
+	if is_instance_valid(_leila_npc) and _leila_npc.has_method("set_in_dialogue"):
+		_leila_npc.call("set_in_dialogue", false)
 
 	if conv_id == "mateo_ruiz":
 		_handle_mateo_dialogue_result(result_id)
 	elif conv_id == "commander_chen":
 		_handle_chen_dialogue_result(result_id)
+	elif conv_id == "amara_okoye":
+		_handle_amara_dialogue_result(result_id)
+	elif conv_id == "elias_ward":
+		_handle_ward_dialogue_result(result_id)
+	elif conv_id == "leila_haddad":
+		_handle_leila_dialogue_result(result_id)
 	else:
 		_walk_hud.set_walking_visible(not _arrival_briefing_open)
 		_update_player_walk_state()
+
+
+func _handle_amara_dialogue_result(result_id: String) -> void:
+	var response_lines: Array[String] = []
+	match result_id:
+		"amara_tasks":
+			if not _crew_tasks_unlocked:
+				_crew_tasks_unlocked = true
+				_active_crew_task_id = &""
+				_room_task_feedback = "HYDROPONICS TASKS UNLOCKED  /  ACCESSIBLE SERVICE POINTS MARKED ON SHIP MAP [M]"
+				_room_task_feedback_timer = 5.0
+				_save_persistent_story_state()
+			response_lines = [
+				"I really appreciate the extra pair of hands, Thura. The hydraulic nutrient pump in Room 03 needs a line flush, and the seedling humidity sensor needs recalibrating.",
+				"I've marked the service access points on your ship map [M]. Check them whenever you have a moment before we initiate landing descent."
+			]
+		"amara_flora":
+			response_lines = [
+				"These are Gen-4 cyanobacteria and drought-resistant ferns engineered for low-gravity environments. Notice how their stomata open in response to sound waves?",
+				"Your mother's acoustic mapping papers inspired this system. Sound provides mechanical stimulation to plant cells when natural gravitational convection is absent."
+			]
+		"amara_resonance":
+			response_lines = [
+				"Everything in the universe vibrates at its natural resonant frequency. But what Ruiz's drone detected from Erebos isn't geological background noise.",
+				"It's structured... almost like language or neurological firing. If crystalline structures can store acoustic memory, we could be looking at an entirely new state of matter."
+			]
+		"amara_backstory":
+			response_lines = [
+				"On Ganymede, corporate wanted me cataloging microbial slime under ice sheets for pharmaceutical patents. It felt like factory work in a freezer.",
+				"When Commander Chen offered me the lead astrobiology post on Asteria-1, she promised real discovery on an untouched world. Whatever is waiting for us down on Erebos... I want to understand it."
+			]
+		"amara_spores":
+			response_lines = [
+				"The surface particulate contains micro-crystalline filaments that resemble dormant fungal hyphae.",
+				"Keep your helmet seal pressurized at 1.05 atmospheres so nothing migrates through suit micro-pores."
+			]
+		"amara_tank":
+			response_lines = [
+				"The containment cylinder in Room 07 is pressurized with inert argon gas and double-shielded with lead-borate glass.",
+				"If you retrieve a specimen from the exposed seam, bring it straight here for spectroscopic analysis."
+			]
+		"amara_sound":
+			response_lines = [
+				"Four rhythmic pulses every seven seconds. In human physiology, that's almost identical to a resting heartbeat under hypothermic shock.",
+				"Whatever created that frequency isn't dead geology — it's waiting."
+			]
+		"amara_seam_advice":
+			response_lines = [
+				"The exposed seam sits in an acoustic focal hollow. Don't use heavy kinetic impact — chip a small fragment along the cleavage plane and seal it immediately into your sample cylinder."
+			]
+		"amara_containment_prep":
+			response_lines = [
+				"Keep the transport canister thermally stabilized. Rapid temperature shifts could trigger a phase transition in the crystalline matrix."
+			]
+		"amara_sensor_readings":
+			response_lines = [
+				"The moment the drill bit touched the lower stratum, the harmonic feedback loop shattered the diamond teeth.",
+				"It wasn't physical resistance — the bedrock reflected the vibration back into the drill at three times the input amplitude."
+			]
+		"amara_fluid_behavior":
+			response_lines = [
+				"Look into the chamber optic, Thura. It isn't solid crystal. It's a colloidal suspension of black silicate platelets that rearrange themselves in response to sound waves.",
+				"When I spoke earlier, the platelets aligned into patterns resembling human vocal tract waveforms. It isn't just reacting to sound — it's listening."
+			]
+		"amara_power_sync":
+			response_lines = [
+				"Every time the bridge comms array pings, the specimen draws micro-amps from the containment electrodes.",
+				"It isn't just absorbing power — it's feeding on electrical information."
+			]
+		"amara_isolation_concern":
+			response_lines = [
+				"Thank you, Thura. I'll admit... sitting in here with this thing humming against the glass gives me chills.",
+				"But Directive 44-B is clear: the lab stays sealed until analysis is complete. Keep Chen and Ruiz safe."
+			]
+		_:
+			_walk_hud.set_walking_visible(not _arrival_briefing_open)
+			_update_player_walk_state()
+			return
+
+	_crew_dialogue_open = true
+	_walk_hud.set_walking_visible(false)
+	_update_player_walk_state()
+	_crew_dialogue.start_dialogue(response_lines, false, {
+		"id": "amara_okoye_reply",
+		"speaker": "DR. AMARA OKOYE / ASTROBIOLOGIST / HYDROPONICS",
+		"npc": amara
+	})
 
 
 func _handle_mateo_dialogue_result(result_id: String) -> void:
@@ -1863,6 +2138,26 @@ func _handle_mateo_dialogue_result(result_id: String) -> void:
 				"Telemetry says the extraction rig is on standby. All sensor telemetry will relay straight back to my console here in the Shuttle Bay.",
 				"If you hear any weird acoustic frequencies over your suit comms, ping me immediately."
 			]
+		"mateo_background":
+			response_lines = [
+				"I spent eight years breathing recycled filter sludge in the subterranean shafts of Callisto. Aegis pays miners by the ton, but corporate executives back on Earth own every breath of air you inhale.",
+				"When I heard Asteria-1 was an independent expedition seeking acoustic resonance crystals, I volunteered immediately. Out here, we're scientists and pioneers — not expendable labor."
+			]
+		"mateo_mineral_caution":
+			response_lines = [
+				"The optical reflectance index is off the charts. Normal iron-pyrite or quartz scatters light randomly. These crystals focus ambient starlight into parallel beams.",
+				"And remember what I said about the acoustic pulses: if the ore starts humming through your suit boots, do not touch it with bare hands."
+			]
+		"mateo_crisis_shuttle":
+			response_lines = [
+				"Shuttle guidance is locked down by Commander Chen's master quarantine code.",
+				"We can't launch until the Bridge confirms containment. We have to resolve this onboard."
+			]
+		"mateo_crisis_holdout":
+			response_lines = [
+				"I've got the cargo crane locked across the corridor hatch and my plasma cutter charged.",
+				"Whatever comes through that door is getting welded into slag."
+			]
 		_:
 			_walk_hud.set_walking_visible(not _arrival_briefing_open)
 			_update_player_walk_state()
@@ -1875,6 +2170,122 @@ func _handle_mateo_dialogue_result(result_id: String) -> void:
 		"id": "mateo_ruiz_reply",
 		"speaker": "MATEO RUIZ / MINING SPECIALIST / SHUTTLE BAY",
 		"npc": _mateo_npc
+	})
+
+
+func _handle_ward_dialogue_result(result_id: String) -> void:
+	var response_lines: Array[String] = []
+	match result_id:
+		"ward_descent":
+			response_lines = [
+				"Erebos has a steep gravity gradient for a planetoid of its mass — 0.84G, but with dense iron-particulate haze in the lower atmosphere.",
+				"We'll need a steady hand on the retro-thrusters during terminal descent. If the automated guidance wobbles, I know you can handle the manual stick at the bridge helm."
+			]
+		"ward_vitals":
+			response_lines = [
+				"Vitals across all five of us are holding stable, but neural fatigue is creeping in. Day 184 is a long stretch inside titanium bulkheads.",
+				"Ruiz's stress monitors spiked when his drone picked up that 4-pulse vibration. Even Amara's sleep cycles have been erratic. Make sure you get some rest too, Doc."
+			]
+		"ward_commander":
+			response_lines = [
+				"Ten years ago, Commander Chen and I flew deep-range ice freighters through the Kuiper Belt. We hit a rogue micro-meteorite cluster that blew out two engines.",
+				"Most captains would have jettisoned cargo and called for retrieval. Chen manually recalculated the gravitational slingshot around Neptune and brought us all home without a scratch. If Chen is at the helm, you're in the safest hands in the sector."
+			]
+		"ward_med_kit":
+			response_lines = [
+				"Standard issue nanotech coagulant injectors. If your EVA suit gets breached by sharp basalt or slag, one press to the suit port seals the wound and stabilizes blood pressure in seconds.",
+				"I've got units loaded here in the tray. Take care of yourself out there — I'd rather spend this mission cataloging mineral dust than patching broken ribs."
+			]
+		"ward_interference":
+			response_lines = [
+				"It's uncanny, Thura. When I open the external radio relay to calibrate the navigation beacon, there's a voice pattern underneath the cosmic static.",
+				"Not words... more like someone humming or tapping against a microphone diaphragm. Exactly seven seconds apart. Keep your helmet comms locked to Asteria-1's private loop."
+			]
+		"ward_emergency_ascent":
+			response_lines = [
+				"If things go sideways on the surface, the bridge flight helm has a master abort sequence. Three key turns and the orbital ascent thrusters fire immediately.",
+				"Chen won't leave anyone behind, but if the ship's integrity is ever compromised, that emergency ascent protocol is our golden ticket home."
+			]
+		"ward_trauma_prep":
+			response_lines = [
+				"Directive 44-B is strict: any crew member exhibiting biological contamination or altered mental state goes into quarantine isolation bed 01.",
+				"I pray we never have to seal that glass door. On deep space assignments, nothing tears a crew apart faster than fear."
+			]
+		_:
+			_walk_hud.set_walking_visible(not _arrival_briefing_open)
+			_update_player_walk_state()
+			return
+
+	_crew_dialogue_open = true
+	_walk_hud.set_walking_visible(false)
+	_update_player_walk_state()
+	_crew_dialogue.start_dialogue(response_lines, false, {
+		"id": "elias_ward_reply",
+		"speaker": "ELIAS WARD / PILOT & MEDICAL / MEDICAL BAY",
+		"npc": _ward_npc
+	})
+
+
+func _handle_leila_dialogue_result(result_id: String) -> void:
+	var response_lines: Array[String] = []
+	match result_id:
+		"leila_power_grid":
+			response_lines = [
+				"Asteria-1 runs on a magnetic-confinement deuterium fusion core. She's old, but sturdy. The auxiliary converter you helped calibrate keeps the lower decks energized even during retro-burn.",
+				"Without that secondary bus, a single power dip during atmospheric entry would drop our landing thrusters cold."
+			]
+		"leila_coolant":
+			response_lines = [
+				"The primary cooling loops run liquid sodium-potassium through the turbine jackets. Down on Sub-Deck 02, there's a backup manifold that handles thermal overflow.",
+				"If the cooling valves ever jam, heat builds up behind the reactor partition fast enough to melt structural titanium in four minutes."
+			]
+		"leila_tools":
+			response_lines = [
+				"Standard Aegis issue tools are clunky corporate garbage. I recalibrated this Engineering Multitool myself — high-frequency acoustic resonator tip, variable torque, internal battery.",
+				"It'll splice high-voltage wiring, reseal pressure conduits, or crack open a rusted access hatch in three seconds flat."
+			]
+		"leila_vibration":
+			response_lines = [
+				"I've listened to Asteria-1's engine hum for six months. I know every bearing and valve like my own heartbeat. This 42 Hertz harmonic... it isn't mechanical wear.",
+				"It started the moment we entered orbital range of Erebos. The hull plates are singing in harmony with the planet below."
+			]
+		"leila_breaker_surges":
+			response_lines = [
+				"The bedrock of Erebos is heavily laden with conductive ferromagnetic ore. Whenever our shield generators cycle, we get ground return loops.",
+				"Keep your equipment insulated. If you see static arcing along the catwalks, step back."
+			]
+		"leila_thruster_cooling":
+			response_lines = [
+				"The retro-burn bell nozzles reached 1,800 Kelvin during atmospheric braking, but the passive radiators are shedding heat fast.",
+				"We'll be ready for emergency ascent whenever Commander Chen gives the word."
+			]
+		"leila_subdeck_refinery":
+			response_lines = [
+				"Sub-Deck 02 houses the automated crushing and sorting hoppers. If Ruiz brings back raw ore, that's where it's supposed to be processed.",
+				"Though after what Amara said about bio-quarantine, I'd rather keep any unknown sample strictly on the upper laboratory deck."
+			]
+		"leila_subdeck_horror":
+			response_lines = [
+				"I was checking the turbine bypass when the lights died. Then Ward's voice whispered right behind my ear... but Ward was on the medical deck.",
+				"I locked myself behind the reactor partition. It slammed against the glass over and over, pulsing in rhythm. Thank God you came down with the tool."
+			]
+		"leila_arc_weapon":
+			response_lines = [
+				"The organism is conductive silicate platelets suspended in fluid. Kinetic bullets just splash right through it, but high-voltage electric current disrupts its electromagnetic matrix.",
+				"Hold the trigger to build capacitor charge, then discharge directly into its core. It will buy you time to run or seal the hatch."
+			]
+		_:
+			_walk_hud.set_walking_visible(not _arrival_briefing_open)
+			_update_player_walk_state()
+			return
+
+	_crew_dialogue_open = true
+	_walk_hud.set_walking_visible(false)
+	_update_player_walk_state()
+	_crew_dialogue.start_dialogue(response_lines, false, {
+		"id": "leila_haddad_reply",
+		"speaker": "LEILA HADDAD / CHIEF ENGINEER / WORKSHOP",
+		"npc": _leila_npc
 	})
 
 
@@ -1930,7 +2341,6 @@ func _setup_crew_characters() -> void:
 	# Mateo Ruiz - Mining Specialist in Cargo / Shuttle Bay
 	var mateo: CharacterBody2D = CREW_MEMBER_NPC_SCRIPT.new() as CharacterBody2D
 	mateo.name = "MateoRuiz"
-	mateo.global_position = Vector2(1310.0, 640.0)
 	mateo.collision_layer = 4
 	mateo.collision_mask = 1
 	var mateo_col := CollisionShape2D.new()
@@ -1958,12 +2368,20 @@ func _setup_crew_characters() -> void:
 	mateo_badge.size = Vector2(140.0, 16.0)
 	mateo.add_child(mateo_badge)
 	add_child(mateo)
+	mateo.global_position = Vector2(1240.0, 580.0)
+	var mateo_patrol: Array[Vector2] = [
+		Vector2(1240.0, 580.0),
+		Vector2(1300.0, 580.0),
+		Vector2(1220.0, 620.0),
+		Vector2(1240.0, 620.0),
+	]
+	if mateo.has_method("setup_patrol"):
+		mateo.call("setup_patrol", mateo_patrol, 40.0)
 	_mateo_npc = mateo
 
 	# Commander Maya Chen - Bridge Mission Planning Table
 	var chen: CharacterBody2D = CREW_MEMBER_NPC_SCRIPT.new() as CharacterBody2D
 	chen.name = "CommanderChen"
-	chen.global_position = Vector2(258.0, 348.0)
 	chen.collision_layer = 4
 	chen.collision_mask = 1
 	var chen_col := CollisionShape2D.new()
@@ -1991,7 +2409,230 @@ func _setup_crew_characters() -> void:
 	chen_badge.size = Vector2(150.0, 16.0)
 	chen.add_child(chen_badge)
 	add_child(chen)
+	chen.global_position = Vector2(280.0, 340.0)
+	var chen_patrol: Array[Vector2] = [
+		Vector2(280.0, 340.0),
+		Vector2(320.0, 320.0),
+		Vector2(320.0, 360.0),
+		Vector2(240.0, 360.0),
+	]
+	if chen.has_method("setup_patrol"):
+		chen.call("setup_patrol", chen_patrol, 38.0)
 	_chen_npc = chen
+
+	# Elias Ward - Pilot / Medical Bay
+	if not Engine.has_meta(&"elias_ward_deceased"):
+		var ward: CharacterBody2D = CREW_MEMBER_NPC_SCRIPT.new() as CharacterBody2D
+		ward.name = "EliasWard"
+		ward.collision_layer = 4
+		ward.collision_mask = 1
+		var ward_col := CollisionShape2D.new()
+		var ward_shape := CircleShape2D.new()
+		ward_shape.radius = 8.0
+		ward_col.shape = ward_shape
+		ward.add_child(ward_col)
+
+		var ward_sprite := Sprite2D.new()
+		ward_sprite.name = "Sprite2D"
+		ward_sprite.texture = preload("res://art/characters/runtime/amara_walk_4dir.png")
+		ward_sprite.region_enabled = true
+		ward_sprite.region_rect = Rect2(0.0, 0.0, 240.0, 240.0)
+		ward_sprite.scale = Vector2(0.11, 0.11)
+		ward_sprite.modulate = Color(0.85, 0.92, 1.0)
+		ward_sprite.position = Vector2(0.0, -4.0)
+		ward.add_child(ward_sprite)
+
+		var ward_badge := Label.new()
+		ward_badge.text = "[ ELIAS WARD / PILOT & MED ]"
+		ward_badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		ward_badge.add_theme_font_size_override("font_size", 8)
+		ward_badge.add_theme_color_override("font_color", Color(0.68, 0.88, 1.0, 0.9))
+		ward_badge.position = Vector2(-75.0, -32.0)
+		ward_badge.size = Vector2(150.0, 16.0)
+		ward.add_child(ward_badge)
+		add_child(ward)
+		ward.global_position = Vector2(840.0, 170.0)
+		var ward_patrol: Array[Vector2] = [
+			Vector2(840.0, 170.0),
+			Vector2(920.0, 170.0),
+			Vector2(900.0, 190.0),
+			Vector2(760.0, 170.0),
+		]
+		if ward.has_method("setup_patrol"):
+			ward.call("setup_patrol", ward_patrol, 40.0)
+		_ward_npc = ward
+
+	# Chief Engineer Leila Haddad - Maintenance Workshop / Power Core
+	if not Engine.has_meta(&"leila_haddad_deceased"):
+		var leila: CharacterBody2D = CREW_MEMBER_NPC_SCRIPT.new() as CharacterBody2D
+		leila.name = "LeilaHaddad"
+		leila.collision_layer = 4
+		leila.collision_mask = 1
+		var leila_col := CollisionShape2D.new()
+		var leila_shape := CircleShape2D.new()
+		leila_shape.radius = 8.0
+		leila_col.shape = leila_shape
+		leila.add_child(leila_col)
+
+		var leila_sprite := Sprite2D.new()
+		leila_sprite.name = "Sprite2D"
+		leila_sprite.texture = preload("res://art/characters/runtime/amara_walk_4dir.png")
+		leila_sprite.region_enabled = true
+		leila_sprite.region_rect = Rect2(0.0, 0.0, 240.0, 240.0)
+		leila_sprite.scale = Vector2(0.11, 0.11)
+		leila_sprite.modulate = Color(0.72, 1.0, 0.82)
+		leila_sprite.position = Vector2(0.0, -4.0)
+		leila.add_child(leila_sprite)
+
+		var leila_badge := Label.new()
+		leila_badge.text = "[ LEILA HADDAD / CHIEF ENGINEER ]"
+		leila_badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		leila_badge.add_theme_font_size_override("font_size", 8)
+		leila_badge.add_theme_color_override("font_color", Color(0.42, 0.92, 0.65, 0.9))
+		leila_badge.position = Vector2(-80.0, -32.0)
+		leila_badge.size = Vector2(160.0, 16.0)
+		leila.add_child(leila_badge)
+		add_child(leila)
+		if _leila_rescued:
+			leila.global_position = Vector2(280.0, 360.0)
+			var rescued_patrol: Array[Vector2] = [
+				Vector2(280.0, 360.0),
+				Vector2(320.0, 360.0),
+				Vector2(300.0, 340.0),
+			]
+			if leila.has_method("setup_patrol"):
+				leila.call("setup_patrol", rescued_patrol, 38.0)
+		else:
+			leila.global_position = Vector2(680.0, 710.0)
+			var leila_patrol: Array[Vector2] = [
+				Vector2(680.0, 710.0),
+				Vector2(820.0, 710.0),
+				Vector2(840.0, 750.0),
+				Vector2(660.0, 750.0),
+			]
+			if leila.has_method("setup_patrol"):
+				leila.call("setup_patrol", leila_patrol, 42.0)
+		_leila_npc = leila
+
+
+func _update_medbay_echo_ambush() -> void:
+	if _medbay_ambush_triggered:
+		return
+	if not (Engine.has_meta(&"resonance_ore_fused_with_amara") and bool(Engine.get_meta(&"resonance_ore_fused_with_amara"))):
+		return
+	if Engine.has_meta(&"ward_ambush_completed") and bool(Engine.get_meta(&"ward_ambush_completed")):
+		return
+	# Med Bay trigger zone near Elias Ward
+	var ward_pos := _ward_npc.global_position if is_instance_valid(_ward_npc) else Vector2(840.0, 170.0)
+	if player.global_position.distance_to(ward_pos) <= 95.0:
+		_medbay_ambush_triggered = true
+		_play_medbay_ambush_sequence()
+
+
+func _play_medbay_ambush_sequence() -> void:
+	player.set_physics_process(false)
+	var room_lighting := get_node_or_null("ShipRoomLighting")
+	if room_lighting != null and room_lighting.has_method("set_room_flicker"):
+		room_lighting.call("set_room_flicker", &"r04_upper_service", true)
+
+	var villain := get_node_or_null("ResonanceOreVillain") as ResonanceOreVillain
+	if villain == null:
+		villain = RESONANCE_ORE_VILLAIN_SCENE.instantiate() as ResonanceOreVillain
+		villain.name = "ResonanceOreVillain"
+		add_child(villain)
+
+	_room_task_feedback = "INTERCOM STATIC // DR. OKOYE (DISTORTED):\n\"Elias... behind you...\""
+	_room_task_feedback_timer = 4.0
+	await get_tree().create_timer(1.8).timeout
+
+	# Emerge in Stage 1 near Ward
+	villain.global_position = Vector2(885.0, 135.0)
+	villain.visible = true
+	villain.modulate.a = 1.0
+	villain.scale = Vector2.ONE
+	villain.set_physics_process(false)
+
+	if is_instance_valid(_ward_npc):
+		_ward_npc.call("face_toward", villain.global_position)
+		_room_task_feedback = "ELIAS WARD:\n\"Okoye?! What happened to your suit... get back!\""
+		_room_task_feedback_timer = 3.5
+
+	await get_tree().create_timer(2.2).timeout
+
+	# Stage 1 Amara lunges at Ward
+	var strike := create_tween()
+	strike.tween_property(villain, "global_position", Vector2(856.0, 138.0), 0.35).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	await strike.finished
+
+	# Ward is consumed / disappears
+	if is_instance_valid(_ward_npc):
+		var ward_fade := create_tween()
+		ward_fade.tween_property(_ward_npc, "modulate:a", 0.0, 0.4)
+		await ward_fade.finished
+		_ward_npc.visible = false
+	Engine.set_meta(&"elias_ward_deceased", true)
+
+	# Metamorphosis surge: Transform to Stage 2 with claws & monster maw!
+	_room_task_feedback = "BIOLOGICAL ASSIMILATION COMPLETE  /  RESONANCE SURGE CRITICAL"
+	_room_task_feedback_timer = 4.5
+	var shake := create_tween()
+	shake.tween_property(villain, "scale", Vector2.ONE * 1.35, 0.22).set_trans(Tween.TRANS_ELASTIC)
+	shake.tween_property(villain, "scale", Vector2.ONE, 0.22)
+	villain.mutate_to_stage2()
+	await shake.finished
+
+	await get_tree().create_timer(1.5).timeout
+	_room_task_feedback = "ALERT: DR. OKOYE HAS MUTATED INTO APEX ECHO HOST (STAGE 2)!\nELIAS WARD HAS FALLEN. USE LOCKERS OR WEAPONS TO SURVIVE."
+	_room_task_feedback_timer = 7.0
+
+	# Retreat into ceiling duct to begin active stalking
+	await villain.disappear_into_ducts()
+	Engine.set_meta(&"ward_ambush_completed", true)
+	_update_player_walk_state()
+
+	# After short delay, emerge on active patrol elsewhere
+	await get_tree().create_timer(10.0).timeout
+	if is_instance_valid(villain) and not _transitioning_to_planet:
+		villain.emerge_from_ducts(Vector2(620.0, 220.0))
+
+
+func _on_player_equipment_used(item_id: StringName) -> void:
+	var villain := get_node_or_null("ResonanceOreVillain") as ResonanceOreVillain
+	if not is_instance_valid(villain) or not villain.visible:
+		return
+	if item_id in [&"emergency_flare", &"industrial_plasma_cutter", &"electrical_discharge_tool", &"captains_revolver"]:
+		var dist: float = player.global_position.distance_to(villain.global_position)
+		if dist <= 240.0:
+			villain.repel_with_tool(item_id, player.global_position)
+			_room_task_feedback = "ECHO HOST DETERRED BY %s! RETREATING INTO SERVICE DUCTS!" % String(item_id).replace("_", " ").to_upper()
+			_room_task_feedback_timer = 5.0
+			if is_instance_valid(_mateo_npc) and villain.global_position.distance_to(_mateo_npc.global_position) <= 200.0:
+				Engine.set_meta(&"mateo_ruiz_saved", true)
+				_room_task_feedback += "\n[ MATEO RUIZ SECURED! ]"
+
+
+func _update_stalker_player_collision(_delta: float) -> void:
+	var villain := get_node_or_null("ResonanceOreVillain") as ResonanceOreVillain
+	if not is_instance_valid(villain) or not villain.visible:
+		return
+	if player.get("is_concealed") == true or player.is_in_group("concealed_players"):
+		return
+	var dist: float = player.global_position.distance_to(villain.global_position)
+	if dist <= 26.0:
+		# Auto-defensive trigger if holding flare or electrical tool
+		var equipped: StringName = player.get_equipped_item_id() if player.has_method("get_equipped_item_id") else &""
+		if equipped in [&"emergency_flare", &"electrical_discharge_tool"]:
+			villain.repel_with_tool(equipped, player.global_position)
+			_room_task_feedback = "CLOSE-RANGE DEFENSE TRIGGERED! %s REPELLED THE ECHO HOST!" % String(equipped).replace("_", " ").to_upper()
+			_room_task_feedback_timer = 5.0
+		else:
+			# Knockback player and warn to seek locker concealment
+			var knockback_dir: Vector2 = (player.global_position - villain.global_position).normalized()
+			if knockback_dir.is_zero_approx():
+				knockback_dir = Vector2.UP
+			player.global_position += knockback_dir * 18.0
+			_room_task_feedback = "WARNING: AMARA ATTACKED! HIDE IN A WEST LOCKER OR USE WEAPONS TO REPEL HER!"
+			_room_task_feedback_timer = 4.0
 
 
 func _on_amara_dialogue_finished(accepted_tasks: bool) -> void:
@@ -2295,11 +2936,14 @@ func _build_cutscene_data(station_id: StringName) -> Dictionary:
 			}
 		&"act_v_finale_home":
 			var logs_count: int = _walk_hud.get_unlocked_equipment_count() + _walk_hud.get_collected_logs_count()
+			var mateo_saved := Engine.has_meta(&"mateo_ruiz_saved") and bool(Engine.get_meta(&"mateo_ruiz_saved"))
+			var chen_saved := _chen_rescued or (Engine.has_meta(&"commander_chen_saved") and bool(Engine.get_meta(&"commander_chen_saved")))
+			var survivors: Array[String] = []
+			if chen_saved: survivors.append("Commander Maya Chen")
+			if mateo_saved: survivors.append("Mateo Ruiz")
+			if _leila_rescued: survivors.append("Chief Engineer Leila Haddad")
 			var crew_saved_note: String = "Crew survived with you: %s" % (
-				"Commander Chen & Leila Haddad" if (_chen_rescued and _leila_rescued)
-				else "Commander Maya Chen" if _chen_rescued
-				else "Chief Engineer Leila Haddad" if _leila_rescued
-				else "None (Thura alone)"
+				", ".join(survivors) if not survivors.is_empty() else "None (Thura alone)"
 			)
 			return {
 				"act": "ACT V — HOME // FINAL DECISION",
@@ -2461,9 +3105,13 @@ func _update_player_walk_state() -> void:
 		player.sprite.frame = 0
 
 
-func _on_interactive_highlights_draw() -> void:
-	# Floor lighting strips and station highlight overlays removed per user request.
-	pass
+func _on_interactive_highlights_draw(canvas: Node2D = null) -> void:
+	if canvas == null:
+		canvas = _interactive_highlights_canvas
+	if not is_instance_valid(player) or not is_instance_valid(canvas) or not canvas.is_inside_tree():
+		return
+	# Overhead task markers (TaskLocationMarker) already indicate each objective on top;
+	# unnecessary floor highlight boxes/brackets have been removed.
 
 
 func _draw_small_station_highlight(_canvas: Node2D, _center: Vector2, _half_extents: Vector2, _base_col: Color, _is_near: bool, _pulse: float) -> void:

@@ -44,8 +44,12 @@ const ROOM_DEFINITIONS: Array[Dictionary] = [
 			Rect2(648.0, 240.0, 40.0, 22.0),
 			Rect2(1030.0, 240.0, 38.0, 22.0),
 		],
-		"prop_container_path": NodePath(""),
-		"existing_light_paths": [],
+		"prop_container_path": NodePath("../MedBayRoomProps"),
+		"existing_light_paths": [
+			NodePath("../MedBayRoomProps/ExamLighting/PodAreaLight"),
+			NodePath("../MedBayRoomProps/ExamLighting/ExamBenchLight"),
+			NodePath("../MedBayRoomProps/ExamLighting/SterileStationLight"),
+		],
 		"wall_lights": [
 			{"pos": Vector2(725.0, 103.0), "side": &"top", "length": 26.0, "energy": 0.13, "scale": 0.50, "color": Color(1.0, 0.86, 0.66, 1.0)},
 			{"pos": Vector2(860.0, 95.0), "side": &"top", "length": 28.0, "energy": 0.14, "scale": 0.52, "color": Color(1.0, 0.86, 0.66, 1.0)},

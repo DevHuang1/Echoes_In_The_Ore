@@ -38,33 +38,42 @@ const ORE_SITES: Array[Dictionary] = [
 		"id": &"west_cyan_ore",
 		"title": "Strike hollow crystals (Site 1/2 -> Flare & Cutter)",
 		"marker_label": "SITE K-12 W",
+		"room_name": "Erebos Surface (West)",
+		"action_hint": "Test acoustic vibration on western cyan crystal formations",
 		"position": Vector2(310.0, 435.0),
 		"marker_position": Vector2(220.0, 336.0),
 		"prompt": "HOLLOW MINERAL FORMATION   /   [E] STRIKE & TEST RESONANCE",
 		"completion": "4-pulse crystal resonance logged (1/2 surface checks complete — inspect the Main Drill Breach next).",
 		"reward_item": &"",
+		"milestone_reward": &"emergency_flare",
 		"log_id": &"log_okoye_crystals",
 	},
 	{
 		"id": &"north_viridian_ore",
 		"title": "Inspect drill breach (Unlocks Flare & Plasma Cutter)",
 		"marker_label": "THE BREACH",
+		"room_name": "Main Drill Breach",
+		"action_hint": "Inspect subsurface drill cavity and recover Ruiz's plasma cutter",
 		"position": Vector2(800.0, 320.0),
 		"marker_position": Vector2(800.0, 280.0),
 		"prompt": "SUBSURFACE DRILL CAVITY   /   [E] INSPECT BREACH & DRILL RIG",
 		"completion": "Drill breach logged (2/2 surface checks): Recovered Emergency Flare & Industrial Plasma Cutter!",
 		"reward_item": &"industrial_plasma_cutter",
+		"milestone_reward": &"industrial_plasma_cutter",
 		"log_id": &"log_ruiz_breach",
 	},
 	{
 		"id": &"east_amber_ore",
 		"title": "Search collapsed trench for Ruiz & Okoye",
 		"marker_label": "RUIZ / OKOYE",
+		"room_name": "Collapsed Trench",
+		"action_hint": "Search excavation trench for crew survival signals",
 		"position": Vector2(1180.0, 440.0),
 		"marker_position": Vector2(1180.0, 400.0),
 		"prompt": "SHATTERED HELMET & COLLAPSED TRENCH   /   [E] SEARCH FOR CREW",
 		"completion": "Ruiz and Okoye lost in excavation collapse. Evacuate to Asteria-1 airlock!",
 		"reward_item": &"",
+		"milestone_reward": &"",
 		"log_id": &"log_suit_fragment",
 	},
 ]
@@ -94,6 +103,8 @@ var _reflection_text: String = ""
 var _feedback_text: String = "ACT II: EREBOS (SITE K-12)  //  INVESTIGATE FORMATIONS & DRILL SITE"
 var _feedback_timer: float = 4.5
 var _transitioning: bool = false
+var _interactive_highlights_canvas: Node2D = null
+var _highlight_pulse_time: float = 0.0
 
 
 func _make_terrain_blockers() -> Array[PackedVector2Array]:
@@ -156,6 +167,9 @@ func _rig_test_task_entry() -> Dictionary:
 		"id": EXTRACTION_RIG_TASK_ID,
 		"title": "Test the extraction rig",
 		"marker_label": "TEST RIG",
+		"room_name": "Erebos Deep Rig",
+		"action_hint": "Trigger test drill sequence at the extraction rig",
+		"milestone_reward": &"industrial_plasma_cutter",
 		"position": EXTRACTION_RIG_POSITION,
 		"marker_position": EXTRACTION_RIG_POSITION + Vector2(0.0, -36.0),
 	}
@@ -167,6 +181,9 @@ func _ore_discovery_task_entry() -> Dictionary:
 		"id": site["id"],
 		"title": site["title"],
 		"marker_label": site["marker_label"],
+		"room_name": "Site K-12 West",
+		"action_hint": "Strike cyan mineral crystals and log resonance",
+		"milestone_reward": &"emergency_flare",
 		"position": site["position"],
 		"marker_position": site.get("marker_position", site["position"] + Vector2(0.0, -36.0)),
 	}
@@ -201,6 +218,9 @@ func _ridge_rest_task_entry() -> Dictionary:
 		"id": RIDGE_REST_TASK_ID,
 		"title": "Sit by the extraction rig and wait for instructions",
 		"marker_label": "EXTRACTION RIG",
+		"room_name": "Erebos Surface Ridge",
+		"action_hint": "Wait by extraction rig for planetary radio instructions",
+		"milestone_reward": &"",
 		"position": REST_POINT,
 		"marker_position": REST_POINT + Vector2(0.0, -42.0),
 	}
@@ -211,6 +231,9 @@ func _rig_report_task_entry() -> Dictionary:
 		"id": RIG_REPORT_TASK_ID,
 		"title": "Return to Asteria-1 and report the rig failure",
 		"marker_label": "REPORT TO AMARA",
+		"room_name": "Asteria-1 Airlock",
+		"action_hint": "Return to Asteria-1 airlock and deliver telemetry to Dr. Okoye",
+		"milestone_reward": &"",
 		"position": AIRLOCK_ENTRY_POS,
 		"marker_position": AIRLOCK_ENTRY_POS + Vector2(0.0, -46.0),
 	}
@@ -221,6 +244,9 @@ func _ore_return_task_entry() -> Dictionary:
 		"id": ORE_RETURN_TASK_ID,
 		"title": "Return the ore sample to Dr. Okoye",
 		"marker_label": "RETURN WITH ORE",
+		"room_name": "Asteria-1 Airlock",
+		"action_hint": "Deliver sampled resonance ore pod to airlock decontamination",
+		"milestone_reward": &"emergency_flare",
 		"position": AIRLOCK_ENTRY_POS,
 		"marker_position": AIRLOCK_ENTRY_POS + Vector2(0.0, -46.0),
 	}
@@ -232,6 +258,9 @@ func _ore_echo_task_entry() -> Dictionary:
 		"id": ORE_ECHO_TASK_ID,
 		"title": "Follow the echo to the ore seam",
 		"marker_label": "ECHO SOURCE",
+		"room_name": "Resonance Seam",
+		"action_hint": "Follow sub-surface acoustic vibrations toward the source",
+		"milestone_reward": &"industrial_plasma_cutter",
 		"position": site["position"],
 		"marker_position": site.get("marker_position", site["position"] + Vector2(0.0, -36.0)),
 	}
@@ -242,6 +271,9 @@ func _echo_return_task_entry() -> Dictionary:
 		"id": ECHO_RETURN_TASK_ID,
 		"title": "Follow the echo back to Asteria-1",
 		"marker_label": "RETURN TO SHIP",
+		"room_name": "Asteria-1 Airlock",
+		"action_hint": "Retreat to Asteria-1 airlock before resonance field collapses",
+		"milestone_reward": &"",
 		"position": AIRLOCK_ENTRY_POS,
 		"marker_position": AIRLOCK_ENTRY_POS + Vector2(0.0, -46.0),
 	}
@@ -277,7 +309,12 @@ func _ready() -> void:
 	player.set_walkable_blocker_polygons(_make_terrain_blockers())
 	player.camera.zoom = Vector2(0.72, 0.72)
 	player.set_camera_bounds(Rect2(Vector2.ZERO, Vector2(1600.0, 1000.0)))
-	player.global_position = Vector2(800.0, 684.0)
+	if Engine.has_meta(&"dev_warp_target"):
+		var dev_target: Vector2 = Engine.get_meta(&"dev_warp_target")
+		Engine.remove_meta(&"dev_warp_target")
+		player.global_position = dev_target
+	else:
+		player.global_position = Vector2(800.0, 684.0)
 	player.camera.make_current()
 	player.camera.reset_smoothing()
 
@@ -306,8 +343,11 @@ func _ready() -> void:
 			"id": site["id"],
 			"title": site["title"],
 			"marker_label": site["marker_label"],
+			"room_name": site.get("room_name", "Erebos Surface"),
+			"action_hint": site.get("action_hint", ""),
 			"reward_item": site.get("reward_item", &""),
-			"is_equipment_task": StringName(site.get("reward_item", &"")) != &"",
+			"milestone_reward": site.get("milestone_reward", site.get("reward_item", &"")),
+			"is_equipment_task": StringName(site.get("reward_item", &"")) != &"" or StringName(site.get("milestone_reward", &"")) != &"",
 			"position": site["position"],
 			"marker_position": site.get("marker_position", site["position"] + Vector2(0.0, -28.0)),
 		})
@@ -328,7 +368,16 @@ func _ready() -> void:
 	_walk_hud.modal_state_changed.connect(_on_hud_modal_state_changed)
 	add_child(_walk_hud)
 	_walk_hud.set_story_act_label("ACT II — EREBOS (SITE K-12)")
+	_walk_hud.set_show_all_active_tasks(true)
 	_walk_hud.set_walking_visible(true)
+
+	if not is_instance_valid(_interactive_highlights_canvas):
+		_interactive_highlights_canvas = Node2D.new()
+		_interactive_highlights_canvas.name = "InteractiveHighlightsCanvas"
+		_interactive_highlights_canvas.z_as_relative = false
+		_interactive_highlights_canvas.z_index = 1
+		_interactive_highlights_canvas.draw.connect(_on_interactive_highlights_draw.bind(_interactive_highlights_canvas))
+		add_child(_interactive_highlights_canvas)
 
 	_story_cutscene = STORY_CUTSCENE_SCRIPT.new() as CanvasLayer
 	_story_cutscene.connect(&"cutscene_finished", _on_cutscene_finished)
@@ -357,7 +406,24 @@ func _process(delta: float) -> void:
 			_board_ship()
 			return
 
+	_highlight_pulse_time = fposmod(_highlight_pulse_time + delta * 3.2, TAU)
+	if is_instance_valid(_interactive_highlights_canvas):
+		_interactive_highlights_canvas.queue_redraw()
+
 	_refresh_prompt()
+
+
+func _on_interactive_highlights_draw(canvas: Node2D = null) -> void:
+	if canvas == null:
+		canvas = _interactive_highlights_canvas
+	if not is_instance_valid(player) or not is_instance_valid(canvas) or not canvas.is_inside_tree():
+		return
+	# Overhead task markers already indicate each objective on top;
+	# unnecessary floor highlight boxes/brackets have been removed.
+
+
+func _draw_small_station_highlight(_canvas: Node2D, _center: Vector2, _half_extents: Vector2, _base_col: Color, _is_near: bool, _pulse: float) -> void:
+	pass
 
 
 func _unhandled_input(event: InputEvent) -> void:

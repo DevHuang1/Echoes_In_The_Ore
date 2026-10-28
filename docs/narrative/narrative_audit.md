@@ -1,5 +1,8 @@
 # Narrative and progression audit
 
+Historical audit/proposal at the baseline below. The implemented first-watch chapter
+and current hiding/cue validation are recorded in [implementation status](first_watch_implementation.md).
+
 Audit date: 2026-10-27. Repository: `C:/GodotProjects/Echoes_In_The_Ore`.
 Baseline: branch `kaung`, commit `eaf38ccd994146fc48b91c5cfff55cf4a4c15467`.
 The initial worktree was clean. This run changes audit documentation only;

@@ -2,9 +2,12 @@ extends Control
 
 const SKIN := preload("res://scripts/ui/pixel_ui.gd")
 const STORY := preload("res://scripts/ship/first_watch_story.gd")
+const STORY_SAVE := preload("res://scripts/ship/ship_story_save.gd")
 signal cue_finished(request_token: String, cue_id: String, outcome: String, landing_id: String)
 var _cue_context := {}
 var _bootstrap_story
+var _campaign_payload := {}
+var _campaign_path := ""
 
 const GAMEPLAY_SCENE := "res://scenes/ship/bare_ship_walkthrough.tscn"
 const TYPEWRITER_CHARACTERS_PER_SECOND := 38.0
@@ -105,7 +108,12 @@ var _finished := false
 func _ready() -> void:
 	_bootstrap_story = STORY.new()
 	if Engine.has_meta("ship_story_bootstrap"): _bootstrap_story.restore(Engine.get_meta("ship_story_bootstrap"))
+	# A cold resume is a new attempt. Earlier pending tokens cannot finish it.
 	_cue_context = _bootstrap_story.request_cue("cue.thura.earth_years", "existing_montage")
+	if Engine.has_meta("ship_story_intro_payload"):
+		_campaign_payload=Engine.get_meta("ship_story_intro_payload");Engine.remove_meta("ship_story_intro_payload")
+		_campaign_path=str(Engine.get_meta("ship_story_intro_path",""));Engine.remove_meta("ship_story_intro_path")
+		_persist_intro()
 	SKIN.apply(self)
 	_build_ui()
 	_show_frame(0)
@@ -170,26 +178,28 @@ func _build_ui() -> void:
 	top_label.text = "ASTERIA-1 // CREW ARCHIVE DOSSIER: THURA MIN"
 	top_label.anchor_left = 0.045
 	top_label.anchor_top = 0.035
-	top_label.anchor_right = 0.68
-	top_label.anchor_bottom = 0.085
-	top_label.add_theme_font_size_override("font_size", 10)
+	top_label.anchor_right = 0.72
+	top_label.anchor_bottom = 0.095
+	top_label.add_theme_font_override("font", SKIN.get_pixel_font())
+	top_label.add_theme_font_size_override("font_size", 12)
 	top_label.add_theme_color_override("font_color", Color(0.92, 0.86, 0.7, 0.92))
 	top_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(top_label)
 
 	_skip_button = Button.new()
 	_skip_button.text = "[ SKIP DOSSIER  → ]"
-	_skip_button.anchor_left = 0.81
-	_skip_button.anchor_top = 0.03
+	_skip_button.anchor_left = 0.78
+	_skip_button.anchor_top = 0.025
 	_skip_button.anchor_right = 0.96
 	_skip_button.anchor_bottom = 0.105
-	_skip_button.add_theme_font_size_override("font_size", 10)
+	_skip_button.add_theme_font_override("font", SKIN.get_pixel_font())
+	_skip_button.add_theme_font_size_override("font_size", 12)
 	_skip_button.pressed.connect(_enter_game)
 	add_child(_skip_button)
 
 	var subtitle_panel := Panel.new()
 	subtitle_panel.anchor_left = 0.0
-	subtitle_panel.anchor_top = 0.775
+	subtitle_panel.anchor_top = 0.76
 	subtitle_panel.anchor_right = 1.0
 	subtitle_panel.anchor_bottom = 1.0
 	subtitle_panel.add_theme_stylebox_override("panel", SKIN.panel())
@@ -198,9 +208,9 @@ func _build_ui() -> void:
 
 	var progress_track := ColorRect.new()
 	progress_track.anchor_left = 0.0
-	progress_track.anchor_top = 0.775
+	progress_track.anchor_top = 0.76
 	progress_track.anchor_right = 1.0
-	progress_track.anchor_bottom = 0.775
+	progress_track.anchor_bottom = 0.76
 	progress_track.offset_bottom = 3.0
 	progress_track.color = Color(0.23, 0.26, 0.28, 0.72)
 	progress_track.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -208,9 +218,9 @@ func _build_ui() -> void:
 
 	_progress_fill = ColorRect.new()
 	_progress_fill.anchor_left = 0.0
-	_progress_fill.anchor_top = 0.775
+	_progress_fill.anchor_top = 0.76
 	_progress_fill.anchor_right = 0.0
-	_progress_fill.anchor_bottom = 0.775
+	_progress_fill.anchor_bottom = 0.76
 	_progress_fill.offset_bottom = 3.0
 	_progress_fill.color = Color(0.24, 0.95, 0.54, 0.98)
 	_progress_fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -218,32 +228,35 @@ func _build_ui() -> void:
 
 	_chapter_label = Label.new()
 	_chapter_label.anchor_left = 0.05
-	_chapter_label.anchor_top = 0.795
+	_chapter_label.anchor_top = 0.785
 	_chapter_label.anchor_right = 0.78
-	_chapter_label.anchor_bottom = 0.845
-	_chapter_label.add_theme_font_size_override("font_size", 10)
+	_chapter_label.anchor_bottom = 0.84
+	_chapter_label.add_theme_font_override("font", SKIN.get_pixel_font())
+	_chapter_label.add_theme_font_size_override("font_size", 13)
 	_chapter_label.add_theme_color_override("font_color", Color(0.86, 0.67, 0.38))
 	add_child(_chapter_label)
 
 	_counter_label = Label.new()
 	_counter_label.anchor_left = 0.8
-	_counter_label.anchor_top = 0.795
+	_counter_label.anchor_top = 0.785
 	_counter_label.anchor_right = 0.95
-	_counter_label.anchor_bottom = 0.845
+	_counter_label.anchor_bottom = 0.84
 	_counter_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	_counter_label.add_theme_font_size_override("font_size", 10)
+	_counter_label.add_theme_font_override("font", SKIN.get_pixel_font())
+	_counter_label.add_theme_font_size_override("font_size", 12)
 	_counter_label.add_theme_color_override("font_color", Color(0.72, 0.76, 0.79))
 	add_child(_counter_label)
 
 	_subtitle_label = Label.new()
 	_subtitle_label.anchor_left = 0.05
-	_subtitle_label.anchor_top = 0.84
-	_subtitle_label.anchor_right = 0.75
-	_subtitle_label.anchor_bottom = 0.975
+	_subtitle_label.anchor_top = 0.835
+	_subtitle_label.anchor_right = 0.74
+	_subtitle_label.anchor_bottom = 0.98
 	_subtitle_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_subtitle_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_subtitle_label.add_theme_font_size_override("font_size", 13)
-	_subtitle_label.add_theme_constant_override("line_spacing", 5)
+	_subtitle_label.add_theme_font_override("font", SKIN.get_pixel_font())
+	_subtitle_label.add_theme_font_size_override("font_size", 16)
+	_subtitle_label.add_theme_constant_override("line_spacing", 7)
 	_subtitle_label.add_theme_color_override("font_color", Color(0.96, 0.96, 0.92))
 	_subtitle_label.add_theme_constant_override("outline_size", 0)
 	_subtitle_label.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 0.0, 0.8))
@@ -251,11 +264,12 @@ func _build_ui() -> void:
 
 	_next_button = Button.new()
 	_next_button.text = "[ PROCEED  › ]"
-	_next_button.anchor_left = 0.77
-	_next_button.anchor_top = 0.875
-	_next_button.anchor_right = 0.96
-	_next_button.anchor_bottom = 0.955
-	_next_button.add_theme_font_size_override("font_size", 11)
+	_next_button.anchor_left = 0.755
+	_next_button.anchor_top = 0.865
+	_next_button.anchor_right = 0.965
+	_next_button.anchor_bottom = 0.96
+	_next_button.add_theme_font_override("font", SKIN.get_pixel_font())
+	_next_button.add_theme_font_size_override("font_size", 12)
 	_next_button.pressed.connect(_advance)
 	add_child(_next_button)
 
@@ -356,12 +370,21 @@ func _enter_game() -> void:
 	if result != OK:
 		_bootstrap_story.finish_cue("cue.thura.earth_years", str(_cue_context.get("request_token","")), "failed")
 		_cue_context = _bootstrap_story.request_cue("cue.thura.earth_years", "existing_montage")
+		_persist_intro()
 		push_error("Could not open the ship walkthrough: %s" % GAMEPLAY_SCENE)
 		_transitioning = false
 		await _fade_to_alpha(0.0, TRANSITION_SECONDS)
 	else:
 		_bootstrap_story.finish_cue("cue.thura.earth_years", str(_cue_context.get("request_token","")), outcome)
+		_persist_intro()
 		Engine.set_meta("ship_story_bootstrap", _bootstrap_story.snapshot())
+		if not _campaign_path.is_empty(): Engine.set_meta("ship_story_continue_path",_campaign_path)
+
+func _persist_intro() -> void:
+	if _campaign_payload.is_empty() or not STORY_SAVE.allowed(_campaign_path): return
+	_campaign_payload.story=_bootstrap_story.snapshot()
+	if STORY_SAVE.valid_payload(_campaign_payload) and STORY_SAVE.atomic_write(_campaign_path,_campaign_payload)==OK: STORY_SAVE.remember(_campaign_path)
+	else: push_warning("Intro checkpoint could not be replaced; the previous saved watch is preserved.")
 
 func play_cue(context: Dictionary) -> void:
 	_cue_context = context.duplicate(true)

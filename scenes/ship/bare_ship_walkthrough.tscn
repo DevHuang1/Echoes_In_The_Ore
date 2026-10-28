@@ -30,6 +30,7 @@
 [ext_resource type="Texture2D" uid="uid://f6sughrxao68" path="res://art/concepts/hydroponics_animation_frames/anchored/nutrient_pump_bubbles_frames/nutrient_pump_bubbles_frame_01.png" id="21_3fgd4"]
 [ext_resource type="PackedScene" path="res://scenes/ship/props/cargo_bay/maintenance_trolley.tscn" id="22_2ity2"]
 [ext_resource type="PackedScene" path="res://scenes/ship/props/cargo_bay/cargo_locker.tscn" id="23_rwqr3"]
+[ext_resource type="PackedScene" path="res://scenes/ship/props/med_bay_room_props.tscn" id="25_med_bay"]
 
 [sub_resource type="AtlasTexture" id="bench"]
 atlas = ExtResource("19_r2wwa")
@@ -602,6 +603,8 @@ position = Vector2(694, 383)
 
 [node name="ShuttleBayCargo" parent="." instance=ExtResource("16_shuttle_cargo")]
 position = Vector2(1340, 656)
+
+[node name="MedBayRoomProps" parent="." unique_id=987123456 instance=ExtResource("25_med_bay")]
 
 [node name="ShipDoors" parent="." unique_id=1388646547 instance=ExtResource("7_doors")]
 y_sort_enabled = true

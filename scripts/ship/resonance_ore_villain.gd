@@ -3,15 +3,31 @@ extends CharacterBody2D
 
 signal rampage_station_hit(station_index: int)
 signal rampage_finished
+signal villain_repelled(tool_id: StringName)
+signal transformed_stage2
+signal transformed_final_form
+
+enum FormStage { LIQUID, STAGE1_INFECTED, STAGE2_MUTATED, STAGE3_FINAL_FORM }
 
 const LIQUID_ATLAS_PATH := "res://art/characters/runtime/echo_liquid_walk_4dir.png"
 const FUSED_ATLAS_PATH := "res://art/characters/runtime/echo_amara_fused_walk_4dir.png"
+const MUTATED_ATLAS_PATH := "res://art/characters/runtime/echo_amara_mutated_walk_4dir.png"
+const FINAL_FORM_ATLAS_PATH := "res://art/characters/runtime/echo_amara_final_form_walk_4dir.png"
 const WARM_LIGHT_SCENE := preload("res://scenes/ship/props/warm_ship_light.tscn")
 const FLOOR_ALPHA_THRESHOLD := 0.15
 const NAV_CELL_SIZE := 24.0
 const BODY_RADIUS := 7.0
 const DISPLAY_SCALE := 0.125
 const LIQUID_DISPLAY_SCALE := 0.115
+
+const DISTORTED_WHISPERS: Array[String] = [
+	"\"Thura... I can hear the hydroponics humming... but my fingers won't move...\"",
+	"\"The ore... it has such a clear resonance... don't fight it...\"",
+	"\"Where did the crew go, Thura? I have something to show them...\"",
+	"\"It's so cold inside the ducts... Thura, please open the hatch...\"",
+	"\"Ward was looking for me in Med Bay... why was he running...?\"",
+	"\"Biological containment... compromised... run, Thura... RUN—\""
+]
 
 const LAB_AREA := Rect2(Vector2(760.0, 465.0), Vector2(390.0, 155.0))
 const SHIP_ROAM_AREAS := [
@@ -22,8 +38,8 @@ const SHIP_ROAM_AREAS := [
 ]
 const ANIMATION_ROWS := {
 	&"walk_down": 0,
-	&"walk_left": 1,
-	&"walk_right": 2,
+	&"walk_right": 1,
+	&"walk_left": 2,
 	&"walk_up": 3,
 }
 
@@ -32,6 +48,7 @@ const ANIMATION_ROWS := {
 
 @onready var sprite: AnimatedSprite2D = $AnimatedSprite2D
 
+var form_stage: FormStage = FormStage.LIQUID
 var _random := RandomNumberGenerator.new()
 var _floor_mask: Image
 var _floor_origin := Vector2.ZERO
@@ -49,6 +66,10 @@ var _repath_timer := 0.0
 var _pulse_time := 0.0
 var _aura_light: PointLight2D
 var _is_fused_form := false
+var _is_repelled := false
+var _repel_cooldown := 0.0
+var _whisper_timer := 10.0
+var _flicker_check_timer := 0.5
 
 var _rampage_targets: Array[Vector2] = []
 var _rampage_index := 0
@@ -56,17 +77,43 @@ var _in_rampage := false
 
 func _ready() -> void:
 	_random.randomize()
-	_is_fused_form = Engine.has_meta(&"resonance_ore_fused_with_amara") and bool(Engine.get_meta(&"resonance_ore_fused_with_amara"))
+	if Engine.has_meta(&"resonance_ore_final_form") and bool(Engine.get_meta(&"resonance_ore_final_form")):
+		form_stage = FormStage.STAGE3_FINAL_FORM
+		_is_fused_form = true
+	elif Engine.has_meta(&"resonance_ore_mutated_stage2") and bool(Engine.get_meta(&"resonance_ore_mutated_stage2")):
+		form_stage = FormStage.STAGE2_MUTATED
+		_is_fused_form = true
+	elif Engine.has_meta(&"resonance_ore_fused_with_amara") and bool(Engine.get_meta(&"resonance_ore_fused_with_amara")):
+		form_stage = FormStage.STAGE1_INFECTED
+		_is_fused_form = true
+	else:
+		form_stage = FormStage.LIQUID
+		_is_fused_form = false
+
 	add_to_group("ship_crew")
 	add_to_group("ship_villain")
-	_configure_sprite_animations(FUSED_ATLAS_PATH if _is_fused_form else LIQUID_ATLAS_PATH)
-	if not _is_fused_form:
+
+	var atlas_to_use := LIQUID_ATLAS_PATH
+	if form_stage == FormStage.STAGE3_FINAL_FORM:
+		atlas_to_use = FINAL_FORM_ATLAS_PATH
+		move_speed = 105.0
+	elif form_stage == FormStage.STAGE2_MUTATED:
+		atlas_to_use = MUTATED_ATLAS_PATH
+		move_speed = 96.0
+	elif form_stage == FormStage.STAGE1_INFECTED:
+		atlas_to_use = FUSED_ATLAS_PATH
+		move_speed = 88.0
+	else:
 		move_speed = 48.0
+
+	_configure_sprite_animations(atlas_to_use)
+	if not _is_fused_form:
 		var collision_shape := get_node_or_null("CollisionShape2D") as CollisionShape2D
 		if collision_shape != null and collision_shape.shape is CircleShape2D:
 			collision_shape.shape = collision_shape.shape.duplicate()
 			var liquid_shape := collision_shape.shape as CircleShape2D
 			liquid_shape.radius = 4.0
+
 	_build_aura_light()
 	await get_tree().physics_frame
 	_build_navigation()
@@ -96,6 +143,7 @@ func fuse_with_amara() -> void:
 	if not is_inside_tree():
 		return
 	_is_fused_form = true
+	form_stage = FormStage.STAGE1_INFECTED
 	Engine.set_meta(&"resonance_ore_fused_with_amara", true)
 	Engine.set_meta(&"resonance_ore_sample_evolved", true)
 	move_speed = 88.0
@@ -106,6 +154,42 @@ func fuse_with_amara() -> void:
 	_configure_sprite_animations(FUSED_ATLAS_PATH)
 	if is_instance_valid(_aura_light):
 		_aura_light.color = Color(0.96, 0.34, 0.16, 1.0)
+
+
+func mutate_to_stage2() -> void:
+	form_stage = FormStage.STAGE2_MUTATED
+	_is_fused_form = true
+	Engine.set_meta(&"resonance_ore_mutated_stage2", true)
+	move_speed = 96.0
+	var collision_shape := get_node_or_null("CollisionShape2D") as CollisionShape2D
+	if collision_shape != null and collision_shape.shape is CircleShape2D:
+		var mutated_shape := collision_shape.shape as CircleShape2D
+		mutated_shape.radius = BODY_RADIUS + 1.5
+	_configure_sprite_animations(MUTATED_ATLAS_PATH)
+	if is_instance_valid(_aura_light):
+		_aura_light.color = Color(0.72, 0.15, 0.98, 1.0)
+		_aura_light.energy = 0.58
+		_aura_light.texture_scale = 0.36
+	transformed_stage2.emit()
+
+
+func mutate_to_final_form() -> void:
+	form_stage = FormStage.STAGE3_FINAL_FORM
+	_is_fused_form = true
+	Engine.set_meta(&"resonance_ore_final_form", true)
+	move_speed = 105.0
+	var collision_shape := get_node_or_null("CollisionShape2D") as CollisionShape2D
+	if collision_shape != null and collision_shape.shape is CircleShape2D:
+		var final_shape := collision_shape.shape as CircleShape2D
+		final_shape.radius = BODY_RADIUS + 3.0
+	_configure_sprite_animations(FINAL_FORM_ATLAS_PATH)
+	if is_instance_valid(sprite):
+		sprite.scale = Vector2.ONE * (DISPLAY_SCALE * 1.18)
+	if is_instance_valid(_aura_light):
+		_aura_light.color = Color(0.85, 0.22, 1.0, 1.0)
+		_aura_light.energy = 0.82
+		_aura_light.texture_scale = 0.48
+	transformed_final_form.emit()
 
 
 func disappear_into_ducts() -> void:
@@ -124,23 +208,70 @@ func disappear_into_ducts() -> void:
 		Engine.set_meta(&"echo_disappeared_into_ducts", true)
 
 
+func emerge_from_ducts(at_position: Vector2) -> void:
+	global_position = at_position
+	visible = true
+	modulate = Color.WHITE
+	modulate.a = 0.0
+	scale = Vector2.ONE * 0.22
+	set_physics_process(true)
+	_is_repelled = false
+	_in_rampage = false
+	_has_destination = false
+	Engine.set_meta(&"echo_disappeared_into_ducts", false)
+	var surge := create_tween().set_parallel(true)
+	surge.tween_property(self, "modulate:a", 1.0, 0.65).set_trans(Tween.TRANS_SINE)
+	surge.tween_property(self, "scale", Vector2.ONE, 0.65).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	if is_instance_valid(_aura_light):
+		var target_energy := 0.45 if form_stage == FormStage.STAGE2_MUTATED else 0.35
+		surge.tween_property(_aura_light, "energy", target_energy, 0.65)
+	await surge.finished
+	_choose_next_destination()
+
+
+func repel_with_tool(tool_id: StringName, _source_pos: Vector2 = Vector2.ZERO) -> void:
+	if _is_repelled or not visible:
+		return
+	_is_repelled = true
+	_repel_cooldown = 26.0
+	villain_repelled.emit(tool_id)
+
+	# Violet screech reaction and particle burst
+	if is_instance_valid(sprite):
+		var flash := create_tween()
+		flash.tween_property(sprite, "modulate", Color(2.8, 0.4, 3.2, 1.0), 0.14)
+		flash.tween_property(sprite, "modulate", Color.WHITE, 0.22)
+	if is_instance_valid(_aura_light):
+		_aura_light.energy = 1.6
+		_aura_light.color = Color(0.9, 0.3, 1.0, 1.0)
+
+	await get_tree().create_timer(0.38).timeout
+	await disappear_into_ducts()
+
+
 func _physics_process(delta: float) -> void:
 	_pulse_time += delta
 	if is_instance_valid(_aura_light):
-		var base_e := 0.42 if _in_rampage else 0.28
+		var base_e := 0.42 if _in_rampage else (0.35 if form_stage == FormStage.STAGE2_MUTATED else 0.28)
 		_aura_light.energy = base_e + 0.12 * sin(_pulse_time * (8.5 if _in_rampage else 4.2))
+
+	if _is_repelled:
+		_repel_cooldown = maxf(_repel_cooldown - delta, 0.0)
+		if _repel_cooldown <= 0.0:
+			_is_repelled = false
 
 	if _in_rampage:
 		_process_rampage(delta)
 		return
 
-	if not _navigation_ready:
+	if not _navigation_ready or not visible:
 		return
 
 	if _repath_timer > 0.0:
 		_repath_timer = maxf(_repath_timer - delta, 0.0)
 
 	_check_player_stalking()
+	_update_proximity_clues(delta)
 
 	if _idle_remaining > 0.0:
 		_idle_remaining = maxf(_idle_remaining - delta, 0.0)
@@ -225,6 +356,8 @@ func _build_aura_light() -> void:
 
 
 func _check_player_stalking() -> void:
+	if _in_rampage or _is_repelled or not visible:
+		return
 	var players := get_tree().get_nodes_in_group("ship_player")
 	if players.is_empty():
 		return
@@ -232,18 +365,54 @@ func _check_player_stalking() -> void:
 	if not is_instance_valid(player):
 		return
 
+	# If player is concealed inside a locker or hiding spot, lose sight!
+	if player.get("is_concealed") == true or player.is_in_group("concealed_players"):
+		return
+
 	var dist := global_position.distance_to(player.global_position)
 	if dist <= stalk_player_distance:
 		var dir := player.global_position - global_position
 		if not dir.is_zero_approx():
 			_update_facing(dir)
-		if dist > 42.0 and _repath_timer <= 0.0:
-			_repath_timer = 1.2
+		if dist > 38.0 and _repath_timer <= 0.0:
+			_repath_timer = 1.0
 			var target_cell := _world_to_cell(player.global_position)
 			if _grid_region.has_point(target_cell):
 				if _grid.is_point_solid(target_cell):
 					target_cell = _find_nearest_clear_cell(target_cell)
 				_set_destination(target_cell)
+
+
+func _update_proximity_clues(delta: float) -> void:
+	if not visible or _is_repelled:
+		return
+
+	_flicker_check_timer -= delta
+	if _flicker_check_timer <= 0.0:
+		_flicker_check_timer = 0.6
+		var room_lighting := get_tree().get_first_node_in_group("ship_room_lighting")
+		if room_lighting == null and get_parent() != null:
+			room_lighting = get_parent().get_node_or_null("ShipRoomLighting")
+		if room_lighting != null and room_lighting.has_method("set_room_flicker"):
+			# Determine nearby rooms based on position
+			for room_id in [&"r07_mid_left", &"r08_central_bay", &"r09_shuttle_bay", &"r06_starboard_aft"]:
+				if global_position.x < 650.0 and room_id == &"r07_mid_left":
+					room_lighting.call("set_room_flicker", room_id, true)
+				elif global_position.x >= 650.0 and global_position.x <= 1150.0 and room_id == &"r08_central_bay":
+					room_lighting.call("set_room_flicker", room_id, true)
+				elif global_position.x > 1150.0 and room_id == &"r09_shuttle_bay":
+					room_lighting.call("set_room_flicker", room_id, true)
+
+	if _is_fused_form:
+		_whisper_timer -= delta
+		if _whisper_timer <= 0.0:
+			_whisper_timer = _random.randf_range(16.0, 28.0)
+			var whisper: String = DISTORTED_WHISPERS[_random.randi_range(0, DISTORTED_WHISPERS.size() - 1)]
+			var walk_hud := get_tree().get_first_node_in_group("walk_hud")
+			if walk_hud == null and get_parent() != null:
+				walk_hud = get_parent().get_node_or_null("WalkHud")
+			if walk_hud != null and walk_hud.has_method("show_room_feedback"):
+				walk_hud.call("show_room_feedback", "INTERCOM STATIC // DR. OKOYE:\n" + whisper, 5.0)
 
 
 func _choose_next_destination() -> void:
@@ -333,6 +502,10 @@ func _cell_to_world(cell: Vector2i) -> Vector2:
 
 
 func _configure_sprite_animations(atlas_path: String) -> void:
+	if sprite == null:
+		sprite = get_node_or_null("AnimatedSprite2D") as AnimatedSprite2D
+	if sprite == null:
+		return
 	var raw_img := Image.load_from_file(ProjectSettings.globalize_path(atlas_path))
 	if raw_img == null or raw_img.is_empty():
 		return
@@ -345,17 +518,20 @@ func _configure_sprite_animations(atlas_path: String) -> void:
 		frames.set_animation_speed(animation_name, 5.5)
 		frames.set_animation_loop(animation_name, true)
 		var row: int = ANIMATION_ROWS[animation_name]
-		if _is_fused_form and animation_name == &"walk_right":
-			row = ANIMATION_ROWS[&"walk_left"]
 		for column in range(4):
 			var atlas_frame := AtlasTexture.new()
 			atlas_frame.atlas = atlas_tex
 			atlas_frame.region = Rect2(Vector2(column * cell_size.x, row * cell_size.y), cell_size)
 			frames.add_frame(animation_name, atlas_frame)
 	sprite.sprite_frames = frames
-	sprite.scale = Vector2.ONE * (DISPLAY_SCALE if _is_fused_form else LIQUID_DISPLAY_SCALE)
+	var target_scale := LIQUID_DISPLAY_SCALE
+	if form_stage == FormStage.STAGE3_FINAL_FORM:
+		target_scale = DISPLAY_SCALE * 1.18
+	elif _is_fused_form:
+		target_scale = DISPLAY_SCALE
+	sprite.scale = Vector2.ONE * target_scale
 	sprite.position = Vector2(0.0, -6.0 if _is_fused_form else -1.0)
-	sprite.flip_h = _is_fused_form and _facing_animation == &"walk_right"
+	sprite.flip_h = false
 	sprite.animation = _facing_animation
 	sprite.play(_facing_animation)
 
@@ -365,7 +541,7 @@ func _update_facing(direction: Vector2) -> void:
 		_facing_animation = &"walk_right" if direction.x > 0.0 else &"walk_left"
 	else:
 		_facing_animation = &"walk_down" if direction.y > 0.0 else &"walk_up"
-	sprite.flip_h = _is_fused_form and _facing_animation == &"walk_right"
+	sprite.flip_h = false
 	if sprite.animation != _facing_animation or not sprite.is_playing():
 		sprite.play(_facing_animation)
 

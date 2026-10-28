@@ -1,5 +1,8 @@
 # Hiding audit and required implementation changes
 
+Historical audit/proposal at the baseline below. The implemented first-watch chapter
+and current hiding/cue validation are recorded in [implementation status](first_watch_implementation.md).
+
 Baseline/date and evidence labels are defined in
 [narrative_audit.md](narrative_audit.md). This document records current behavior
 and a **proposal**; no prop, collider, player, scene or hiding code was changed.

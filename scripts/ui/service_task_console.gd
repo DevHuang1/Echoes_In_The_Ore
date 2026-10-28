@@ -1815,7 +1815,9 @@ func _centered(control: Control) -> Control:
 func _label(text: String, font_size: int, color: Color) -> Label:
 	var label := Label.new()
 	label.text = text
-	var scaled_size: int = 15 if font_size >= 20 else (12 if font_size >= 16 else (10 if font_size >= 12 else maxi(8, font_size)))
+	var is_heading := font_size >= 12
+	label.add_theme_font_override("font", SKIN.get_clean_font() if is_heading else SKIN.get_pixel_font())
+	var scaled_size: int = 18 if font_size >= 20 else (14 if font_size >= 16 else (12 if font_size >= 12 else maxi(8, font_size)))
 	label.add_theme_font_size_override("font_size", scaled_size)
 	label.add_theme_constant_override("line_spacing", 4)
 	label.add_theme_color_override("font_color", color)
@@ -1827,7 +1829,8 @@ func _button(text: String, minimum_size: Vector2, _accent: Color) -> Button:
 	button.text = text
 	button.custom_minimum_size = minimum_size
 	button.focus_mode = Control.FOCUS_ALL
-	button.add_theme_font_size_override("font_size", 10)
+	button.add_theme_font_override("font", SKIN.get_clean_font())
+	button.add_theme_font_size_override("font_size", 11)
 	for st_name in ["normal", "hover", "pressed", "disabled", "focus"]:
 		if SKIN.THEME.has_stylebox(st_name, "Button"):
 			button.add_theme_stylebox_override(st_name, SKIN.THEME.get_stylebox(st_name, "Button"))

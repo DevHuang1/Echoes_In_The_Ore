@@ -154,14 +154,14 @@ func test_hiding() -> void:
 		level.player.global_position=entry.marker.global_position
 		var carried := JSON.stringify(level._walk_hud.inventory_snapshot())
 		check(level.ship_enter_hiding(id),"Enter supported hiding place: "+id)
-		await frames(3)
+		await wait_hiding("concealed")
 		check(level.player.is_concealed and level.player.is_in_group("concealed_players"),"Concealment API/group exposed: "+id)
 		check(not level.player.sprite.visible and level.player.get_node("CollisionShape2D").disabled,"Hidden sprite and cabinet-overlap collision handled: "+id)
 		var hidden_position: Vector2=level.player.global_position
 		level.player._physics_process(0.1)
 		check(level.player.global_position==hidden_position,"Hidden player cannot walk out through solid cabinet")
 		var hidden_save: Dictionary=level.ship_snapshot()
-		await press_interact();await frames()
+		await press_interact();await wait_hiding("outside")
 		check(not level.player.is_concealed and level.player.sprite.visible and not level.player.get_node("CollisionShape2D").disabled,"E restores visibility and collision: "+id)
 		check(level.player.is_physics_processing() and level._ship_body_clear(level.player.global_position),"Hiding exit restores control on clear floor: "+id)
 		check(level.ship_restore(hidden_save),"Concealed snapshot can load safely")
@@ -174,22 +174,28 @@ func test_hiding() -> void:
 	var entry: Dictionary=level._ship_points["cargo.locker"]
 	level.player.global_position=entry.marker.global_position
 	check(level.ship_enter_hiding("cargo.locker"),"Enter concealment for blocked-exit retry")
-	await frames()
+	await wait_hiding("concealed")
 	var obstacle := StaticBody2D.new();obstacle.collision_layer=1
 	var blocker := CollisionShape2D.new();var circle := CircleShape2D.new();circle.radius=140
 	blocker.shape=circle;obstacle.add_child(blocker);level.add_child(obstacle)
 	obstacle.global_position=level._ship_hide_exit;await frames(3)
 	check(not level.ship_exit_hiding() and level.player.is_concealed,"Fully blocked exit keeps concealment and permits retry")
 	var blocked_exit_save: Dictionary=level.ship_snapshot()
-	check(level.ship_restore(blocked_exit_save),"Concealed save can recover despite a newly blocked exit")
+	check(not level.ship_restore(blocked_exit_save),"Concealed save refuses a fully blocked connected exit before mutation")
 	await frames()
-	check(not level.player.is_concealed and level._ship_body_clear(level.player.global_position),"Blocked saved exit falls back to safe unoccupied floor")
+	check(level.player.is_concealed and not level.player.is_physics_processing(),"Rejected blocked load remains safely concealed for retry")
 	obstacle.queue_free();await frames(3)
-	level.player.global_position=entry.marker.global_position
-	check(level.ship_enter_hiding("cargo.locker") and level.ship_exit_hiding(),"Removing temporary exit obstruction permits safe retry")
-	await frames()
+	check(level.ship_exit_hiding(),"Removing temporary exit obstruction permits connected safe retry")
+	await wait_hiding("outside")
 	check(not level.player.is_concealed and level.player.is_physics_processing(),"Retry restores player control")
 	level.player.set_physics_process(false)
+
+func wait_hiding(phase: String) -> void:
+	var waited := 0.0
+	while level._ship_hide_phase!=phase and waited<8.0:
+		await get_tree().create_timer(0.02).timeout;waited+=0.02
+	await frames(3)
+	check(level._ship_hide_phase==phase,"Asynchronous hiding transition reaches "+phase)
 
 func test_inventory_and_save() -> void:
 	var hud: WalkHud=level._walk_hud
@@ -217,7 +223,7 @@ func test_amara() -> void:
 	level._begin_amara_dialogue();await frames()
 	check(level._crew_dialogue_open and not level.player.is_physics_processing(),"Existing Amara dialogue still opens and stops movement")
 	check(level._crew_dialogue._lines.any(func(line: String): return line.contains("reservoir") or line.contains("pump")),"Dialogue includes relevant system observation")
-	level._crew_dialogue._finish(true);await frames()
+	level._crew_dialogue._finish_legacy(true);await frames()
 	check(level._crew_tasks_unlocked and not level._crew_dialogue_open,"Existing Amara task acceptance still works")
 	for task in level.AMARA_CREW_TASKS:
 		var host: Node2D=level.get_node(task.station_path)

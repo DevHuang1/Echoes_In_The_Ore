@@ -39,11 +39,11 @@ func _build_screen() -> void:
 	add_child(scene_tint)
 
 	var title_panel := PanelContainer.new()
-	title_panel.anchor_left = 0.55
+	title_panel.anchor_left = 0.52
 	title_panel.anchor_top = 0.0
 	title_panel.anchor_right = 1.0
 	title_panel.anchor_bottom = 1.0
-	title_panel.add_theme_stylebox_override("panel", SKIN.panel(40.0))
+	title_panel.add_theme_stylebox_override("panel", SKIN.panel(36.0))
 	title_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(title_panel)
 
@@ -56,12 +56,14 @@ func _build_screen() -> void:
 	header_meta.add_theme_constant_override("separation", 12)
 	var sys_badge := Label.new()
 	sys_badge.text = "[ SYS // FLIGHT DECK ]"
-	sys_badge.add_theme_font_size_override("font_size", 9)
+	sys_badge.add_theme_font_override("font", SKIN.get_pixel_font())
+	sys_badge.add_theme_font_size_override("font_size", 11)
 	sys_badge.add_theme_color_override("font_color", Color(1.0, 0.78, 0.38))
 	header_meta.add_child(sys_badge)
 	var link_status := Label.new()
 	link_status.text = "● TERMINAL LINKED"
-	link_status.add_theme_font_size_override("font_size", 9)
+	link_status.add_theme_font_override("font", SKIN.get_pixel_font())
+	link_status.add_theme_font_size_override("font_size", 11)
 	link_status.add_theme_color_override("font_color", Color(0.48, 0.93, 0.64))
 	header_meta.add_child(link_status)
 	content.add_child(header_meta)
@@ -69,8 +71,9 @@ func _build_screen() -> void:
 	var eyebrow := Label.new()
 	eyebrow.text = "ASTERIA-1 // DEEP-SPACE SURVEY EXPEDITION"
 	eyebrow.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	eyebrow.add_theme_font_size_override("font_size", 10)
-	eyebrow.add_theme_constant_override("line_spacing", 4)
+	eyebrow.add_theme_font_override("font", SKIN.get_pixel_font())
+	eyebrow.add_theme_font_size_override("font_size", 13)
+	eyebrow.add_theme_constant_override("line_spacing", 5)
 	eyebrow.add_theme_color_override("font_color", Color(0.88, 0.70, 0.39))
 	eyebrow.add_theme_constant_override("outline_size", 0)
 	eyebrow.add_theme_color_override("font_outline_color", Color(0.01, 0.018, 0.03, 0.8))
@@ -78,18 +81,20 @@ func _build_screen() -> void:
 
 	var title := Label.new()
 	title.text = "ECHOES\nIN THE ORE"
-	title.add_theme_font_size_override("font_size", 32)
+	title.add_theme_font_override("font", SKIN.get_pixel_font())
+	title.add_theme_font_size_override("font_size", 40)
 	title.add_theme_color_override("font_color", Color(0.97, 0.95, 0.89))
 	title.add_theme_constant_override("outline_size", 0)
 	title.add_theme_color_override("font_outline_color", Color(0.015, 0.025, 0.04, 0.95))
-	title.add_theme_constant_override("line_spacing", 6)
+	title.add_theme_constant_override("line_spacing", 8)
 	content.add_child(title)
 
 	var tagline := Label.new()
 	tagline.text = "Some discoveries are worth leaving behind."
 	tagline.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	tagline.add_theme_font_size_override("font_size", 11)
-	tagline.add_theme_constant_override("line_spacing", 4)
+	tagline.add_theme_font_override("font", SKIN.get_pixel_font())
+	tagline.add_theme_font_size_override("font_size", 15)
+	tagline.add_theme_constant_override("line_spacing", 5)
 	tagline.add_theme_color_override("font_color", Color(0.85, 0.88, 0.9))
 	content.add_child(tagline)
 
@@ -99,7 +104,9 @@ func _build_screen() -> void:
 
 	var telemetry_info := Label.new()
 	telemetry_info.text = "CREW SPECIALIST: THURA MIN  //  STATUS: APPROACHING EREBOS"
-	telemetry_info.add_theme_font_size_override("font_size", 9)
+	telemetry_info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	telemetry_info.add_theme_font_override("font", SKIN.get_pixel_font())
+	telemetry_info.add_theme_font_size_override("font_size", 11)
 	telemetry_info.add_theme_constant_override("line_spacing", 4)
 	telemetry_info.add_theme_color_override("font_color", Color(0.62, 0.73, 0.76))
 	content.add_child(telemetry_info)
@@ -110,10 +117,11 @@ func _build_screen() -> void:
 
 	_start_button = Button.new()
 	_start_button.text = "[ INITIALIZE EXPEDITION  → ]"
-	_start_button.custom_minimum_size = Vector2(280, 52)
+	_start_button.custom_minimum_size = Vector2(340, 56)
 	_start_button.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	_start_button.focus_mode = Control.FOCUS_ALL
-	_start_button.add_theme_font_size_override("font_size", 12)
+	_start_button.add_theme_font_override("font", SKIN.get_pixel_font())
+	_start_button.add_theme_font_size_override("font_size", 15)
 	_start_button.pressed.connect(_on_start_pressed)
 	content.add_child(_start_button)
 	_continue_path = STORY_SAVE.continue_path()
@@ -122,9 +130,10 @@ func _build_screen() -> void:
 		_start_button.tooltip_text = "Start separately. Your existing campaign file will be preserved."
 		_continue_button = Button.new()
 		_continue_button.text = "[ CONTINUE WATCH  → ]"
-		_continue_button.custom_minimum_size = Vector2(280, 48)
+		_continue_button.custom_minimum_size = Vector2(340, 52)
+		_continue_button.add_theme_font_override("font", SKIN.get_pixel_font())
+		_continue_button.add_theme_font_size_override("font_size", 14)
 		_continue_button.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-		_continue_button.add_theme_font_size_override("font_size", 11)
 		_continue_button.pressed.connect(_on_continue_pressed)
 		content.add_child(_continue_button)
 
@@ -132,9 +141,10 @@ func _build_screen() -> void:
 	footer.text = "ASTERIA-1 TACTICAL INTERFACE // SCI-FI SURVIVAL HORROR"
 	footer.anchor_left = 0.04
 	footer.anchor_top = 0.94
-	footer.anchor_right = 0.48
+	footer.anchor_right = 0.50
 	footer.anchor_bottom = 0.985
-	footer.add_theme_font_size_override("font_size", 9)
+	footer.add_theme_font_override("font", SKIN.get_pixel_font())
+	footer.add_theme_font_size_override("font_size", 10)
 	footer.add_theme_color_override("font_color", Color(0.85, 0.88, 0.9, 0.65))
 	add_child(footer)
 
@@ -180,7 +190,18 @@ func _on_start_pressed() -> void:
 	]:
 		if Engine.has_meta(meta_k):
 			Engine.remove_meta(meta_k)
-	Engine.set_meta("ship_story_bootstrap", STORY.new().snapshot())
+	if not Engine.has_meta("ship_maintenance_entry"):
+		var story=STORY.new();story.request_cue("cue.thura.earth_years","existing_montage")
+		var payload: Dictionary=STORY_SAVE.initial_campaign(story.snapshot())
+		var path: String=STORY_SAVE.new_campaign_path()
+		if not STORY_SAVE.valid_payload(payload) or STORY_SAVE.atomic_write(path,payload)!=OK:
+			_start_button.disabled=false;_start_button.text="SAVE UNAVAILABLE / RETRY NEW WATCH";return
+		STORY_SAVE.remember(path)
+		Engine.set_meta("ship_story_bootstrap",story.snapshot())
+		Engine.set_meta("ship_story_intro_payload",payload)
+		Engine.set_meta("ship_story_intro_path",path)
+	else:
+		Engine.set_meta("ship_story_bootstrap", STORY.new().snapshot())
 	await _fade_to_black()
 	var result := get_tree().change_scene_to_file(INTRO_SCENE)
 	if result != OK:
@@ -193,9 +214,16 @@ func _on_continue_pressed() -> void:
 	if STORY_SAVE.read(_continue_path).is_empty():
 		_continue_button.disabled = true; _continue_button.text = "SAVE UNAVAILABLE / START A NEW WATCH"; return
 	_start_button.disabled = true; _continue_button.disabled = true
-	Engine.set_meta("ship_story_continue_path", _continue_path)
+	var payload: Dictionary=STORY_SAVE.read(_continue_path)
+	var intro_status: String=str(payload.get("story",{}).get("cues",{}).get("cue.thura.earth_years",{}).get("status",""))
+	var resume_intro: bool = intro_status in ["pending","cancelled","failed"] and not payload.get("story",{}).get("cues",{}).has("cue.asteria.arrival")
+	if resume_intro:
+		Engine.set_meta("ship_story_bootstrap",payload.story)
+		Engine.set_meta("ship_story_intro_payload",payload)
+		Engine.set_meta("ship_story_intro_path",_continue_path)
+	else: Engine.set_meta("ship_story_continue_path", _continue_path)
 	await _fade_to_black()
-	var result := get_tree().change_scene_to_file("res://scenes/ship/bare_ship_walkthrough.tscn")
+	var result := get_tree().change_scene_to_file(INTRO_SCENE if resume_intro else "res://scenes/ship/bare_ship_walkthrough.tscn")
 	if result != OK:
 		Engine.remove_meta("ship_story_continue_path")
 		_start_button.disabled = false; _continue_button.disabled = false

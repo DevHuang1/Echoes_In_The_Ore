@@ -63,6 +63,26 @@ static func create_speech_thura() -> AudioStreamWAV:
 	return generate_tone(430.0, 0.038, 0.004, 0.025, "octave", 0.36)
 
 
+static func create_speech_chen() -> AudioStreamWAV:
+	# Authoritative commander voice blip: firm, resolute low two-tone ~260 Hz
+	return generate_tone(260.0, 0.040, 0.005, 0.026, "two_tone", 0.40)
+
+
+static func create_speech_mateo() -> AudioStreamWAV:
+	# Deep rugged miner voice blip: low resonant octave ~210 Hz
+	return generate_tone(210.0, 0.044, 0.006, 0.030, "octave", 0.42)
+
+
+static func create_speech_ward() -> AudioStreamWAV:
+	# Crisp, relaxed pilot voice blip: clear sine ~360 Hz
+	return generate_tone(360.0, 0.036, 0.004, 0.024, "sine", 0.35)
+
+
+static func create_speech_leila() -> AudioStreamWAV:
+	# Inquisitive chief engineer voice blip: bright, precise chirp ~390 Hz
+	return generate_tone(390.0, 0.038, 0.004, 0.025, "chirp", 0.36)
+
+
 static func create_speech_terminal() -> AudioStreamWAV:
 	# Synthesized digital frequency chirp ~580 Hz
 	return generate_tone(580.0, 0.035, 0.003, 0.022, "fm", 0.32)
