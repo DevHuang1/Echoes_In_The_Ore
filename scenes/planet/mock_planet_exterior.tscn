@@ -1,7 +1,7 @@
 [gd_scene load_steps=8 format=3]
 
 [ext_resource type="Script" path="res://scripts/planet/mock_planet_exterior.gd" id="1_planet_script"]
-[ext_resource type="Texture2D" path="res://art/planet/erebos_extraction_surface.png" id="2_surface_tex"]
+[ext_resource type="Texture2D" path="res://art/planet/erebos_extraction_surface_v2.png" id="2_surface_tex"]
 [ext_resource type="PackedScene" path="res://scenes/player/player.tscn" id="3_player"]
 [ext_resource type="PackedScene" path="res://scenes/ship/doors/exterior_airlock_gate.tscn" id="4_airlock_gate"]
 [ext_resource type="Script" path="res://scripts/planet/landed_ship_hull_visual.gd" id="5_hull_visual"]
@@ -22,19 +22,19 @@ centered = false
 z_index = -1
 
 [node name="WestOreGlow" parent="PlanetAtmosphere" instance=ExtResource("6_warm_light")]
-position = Vector2(420, 420)
+position = Vector2(220, 370)
 color = Color(0.48, 0.61, 0.69, 1)
 energy = 0.34
 texture_scale = 0.55
 
 [node name="NorthCoreGlow" parent="PlanetAtmosphere" instance=ExtResource("6_warm_light")]
-position = Vector2(800, 320)
+position = Vector2(800, 230)
 color = Color(0.48, 0.61, 0.69, 1)
 energy = 0.34
 texture_scale = 0.6
 
 [node name="EastOreGlow" parent="PlanetAtmosphere" instance=ExtResource("6_warm_light")]
-position = Vector2(1180, 440)
+position = Vector2(1270, 390)
 color = Color(0.48, 0.61, 0.69, 1)
 energy = 0.34
 texture_scale = 0.55
@@ -50,7 +50,7 @@ energy = 0.85
 texture_scale = 0.45
 
 [node name="WestCraterVapor" parent="PlanetAtmosphere" instance=ExtResource("7_gas_mist")]
-position = Vector2(420, 420)
+position = Vector2(220, 370)
 gas_color = Color(0.48, 0.58, 0.62, 1)
 blob_count = 16
 spread = Vector2(42, 24)
@@ -61,7 +61,7 @@ blob_size = Vector2(38, 28)
 opacity = 0.22
 
 [node name="NorthCraterVapor" parent="PlanetAtmosphere" instance=ExtResource("7_gas_mist")]
-position = Vector2(800, 320)
+position = Vector2(800, 230)
 gas_color = Color(0.48, 0.58, 0.62, 1)
 blob_count = 18
 spread = Vector2(48, 26)

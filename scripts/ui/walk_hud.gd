@@ -501,7 +501,7 @@ func _build_mission_panel() -> void:
 	panel.anchor_bottom = 0.0
 	panel.offset_left = 18.0
 	panel.offset_top = 18.0
-	panel.offset_right = 360.0
+	panel.offset_right = 430.0
 	panel.offset_bottom = 198.0 + maxi(_task_entries.size() - 3, 0) * 32.0
 	var mission_style := _panel_style(SURFACE, Color(1.0, 0.78, 0.38, 0.94), 13.0)
 	panel.add_theme_stylebox_override("panel", mission_style)

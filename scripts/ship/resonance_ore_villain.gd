@@ -10,8 +10,8 @@ const WARM_LIGHT_SCENE := preload("res://scenes/ship/props/warm_ship_light.tscn"
 const FLOOR_ALPHA_THRESHOLD := 0.15
 const NAV_CELL_SIZE := 24.0
 const BODY_RADIUS := 7.0
-const DISPLAY_SCALE := 0.165
-const LIQUID_DISPLAY_SCALE := 0.125
+const DISPLAY_SCALE := 0.125
+const LIQUID_DISPLAY_SCALE := 0.115
 
 const LAB_AREA := Rect2(Vector2(760.0, 465.0), Vector2(390.0, 155.0))
 const SHIP_ROAM_AREAS := [

@@ -9,7 +9,8 @@ const SEATED_POSE_PATH := "res://art/characters/runtime/amara_okoye_seated_conso
 const FLOOR_ALPHA_THRESHOLD := 0.15
 const NAV_CELL_SIZE := 24.0
 const BODY_RADIUS := 7.0
-const DISPLAY_SCALE := 0.12
+const DISPLAY_SCALE := 0.11
+const SEATED_DISPLAY_SCALE := 0.030
 
 # Keep local patrols inside Hydroponics and out of the east access corridor.
 const HYDROPONICS_AREA := Rect2(Vector2(60.0, 650.0), Vector2(420.0, 190.0))
@@ -308,8 +309,8 @@ func _show_seated_pose() -> void:
 			_seated_pose_sprite.name = "AmaraSeatedAtResearchConsole"
 			_seated_pose_sprite.texture = ImageTexture.create_from_image(pose_image)
 			_seated_pose_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
-			_seated_pose_sprite.scale = Vector2.ONE * 0.045
-			_seated_pose_sprite.position = Vector2(0.0, -1.0)
+			_seated_pose_sprite.scale = Vector2.ONE * SEATED_DISPLAY_SCALE
+			_seated_pose_sprite.position = Vector2(0.0, -3.0)
 			_seated_pose_sprite.z_index = 3
 			add_child(_seated_pose_sprite)
 	if is_instance_valid(_seated_pose_sprite):

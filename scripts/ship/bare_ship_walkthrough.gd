@@ -4,7 +4,7 @@ extends Node2D
 const FLOOR_TEXTURE := preload("res://art/overview/asteria_overview_floor.png")
 const RESONANCE_ORE_TANK_STORED_TEXTURE := preload("res://art/concepts/lab_props/ore_containment_stored_refined.png")
 const RESONANCE_ORE_TANK_CRACKING_TEXTURE := preload("res://art/planet/modern_ore_containment_cracking.png")
-const RESONANCE_ORE_TANK_DESTROYED_TEXTURE := preload("res://art/planet/modern_ore_containment_destroyed.png")
+const RESONANCE_ORE_TANK_DESTROYED_TEXTURE := preload("res://art/concepts/lab_props/destroyed/ore_containment_redesigned.png")
 const RESONANCE_ORE_LEAK_TEXTURE := preload("res://art/concepts/lab_props/destroyed/ore_leak_tank_to_floor.png")
 const RESONANCE_ORE_VILLAIN_SCENE := preload("res://scenes/ship/crew/resonance_ore_villain.tscn")
 const ECHO_LIQUID_ATLAS := preload("res://art/characters/runtime/echo_liquid_walk_4dir.png")
@@ -16,6 +16,9 @@ const MOCK_PLANET_SCENE_PATH := "res://scenes/planet/mock_planet_exterior.tscn"
 const AIRLOCK_INTERACTION_RADIUS := 74.0
 const AIRLOCK_RETURN_FLOOR_POS := Vector2(478.5, 294.0)
 const XENOMORPH_INCUBATION_SECONDS := 60.0
+const LAB_DOOR_REPAIR_TASK_ID := &"repair_lab_pressure_door"
+const LAB_ENTRY_TASK_ID := &"investigate_echo_lab"
+const RIG_REPORT_TASK_ID := &"report_failed_rig"
 
 const ROOM_TASKS := [
 	{
@@ -149,6 +152,12 @@ var _amara_ore_handoff_active := false
 var _active_crew_task_id: StringName = &""
 var _active_airlock_exit := false
 var _transitioning_to_planet := false
+var _echo_lab_return_active := false
+var _lab_door_repair_required := false
+var _active_lab_door_repair := false
+var _active_locked_lab_door := false
+var _lab_door_repairing := false
+var _lab_entry_reveal_started := false
 var _xenomorph_timer_active := false
 var _xenomorph_countdown := XENOMORPH_INCUBATION_SECONDS
 var _xenomorph_visual_stage := -1
@@ -185,9 +194,9 @@ func _set_ore_leak_visible(is_visible: bool) -> void:
 		_ore_leak_sprite.name = "ResonanceOreLeak"
 		_ore_leak_sprite.texture = RESONANCE_ORE_LEAK_TEXTURE
 		_ore_leak_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-		# The narrow stream starts beneath the tank; the wider pool runs across the deck.
-		_ore_leak_sprite.position = Vector2(255.0, 105.0)
-		_ore_leak_sprite.scale = Vector2(0.041, 0.041)
+		# The narrow stream starts beneath the tank; the wider pool spreads into the open floor.
+		_ore_leak_sprite.position = Vector2(276.0, 122.0)
+		_ore_leak_sprite.scale = Vector2(0.052, 0.052)
 		_ore_leak_sprite.z_index = 0
 		_ore_leak_sprite.visible = false
 		lab_room.add_child(_ore_leak_sprite)
@@ -212,6 +221,85 @@ func _is_ore_villain_spawned() -> bool:
 
 func _is_lab_destroyed() -> bool:
 	return Engine.has_meta(&"lab_destroyed_by_xenomorph") and bool(Engine.get_meta(&"lab_destroyed_by_xenomorph"))
+
+
+func _has_heard_ore_echo() -> bool:
+	return Engine.has_meta(&"resonance_echo_heard") and bool(Engine.get_meta(&"resonance_echo_heard"))
+
+
+func _is_rig_test_failed() -> bool:
+	return Engine.has_meta(&"erebos_rig_test_failed") and bool(Engine.get_meta(&"erebos_rig_test_failed"))
+
+
+func _is_rig_failure_reported() -> bool:
+	return Engine.has_meta(&"erebos_rig_failure_reported") and bool(Engine.get_meta(&"erebos_rig_failure_reported"))
+
+
+func _has_repaired_lab_door() -> bool:
+	return Engine.has_meta(&"resonance_lab_door_repaired") and bool(Engine.get_meta(&"resonance_lab_door_repaired"))
+
+
+func _lab_pressure_door() -> ShipPressureDoor:
+	return get_node_or_null("ShipDoors/CentralBayNorthEntry") as ShipPressureDoor
+
+
+func _lab_pressure_doors() -> Array[ShipPressureDoor]:
+	var doors: Array[ShipPressureDoor] = []
+	for door_path in [
+		"ShipDoors/CentralBayNorthEntry",
+		"ShipDoors/LowerDeckCenterEntry",
+		"ShipDoors/LowerDeckCenterEntry2",
+		"ShipDoors/LowerDeckCenterEntry3",
+	]:
+		var door := get_node_or_null(door_path) as ShipPressureDoor
+		if door != null:
+			doors.append(door)
+	return doors
+
+
+func _set_lab_doors_locked(locked: bool) -> void:
+	for door in _lab_pressure_doors():
+		door.set_locked(locked)
+
+
+func _lab_door_repair_task_entry() -> Dictionary:
+	var workbench := get_node_or_null("MaintenanceWorkshop/RepairWorkbench") as Node2D
+	var marker_position := Vector2(732.0, 606.0)
+	var interaction_position := Vector2(732.0, 651.0)
+	if workbench != null:
+		interaction_position = workbench.global_position + Vector2(0.0, 40.0)
+		marker_position = workbench.global_position + Vector2(0.0, -42.0)
+	return {
+		"id": LAB_DOOR_REPAIR_TASK_ID,
+		"title": "Restore all sealed laboratory doors",
+		"marker_label": "LAB ACCESS REPAIR",
+		"position": interaction_position,
+		"marker_position": marker_position,
+	}
+
+
+func _lab_entry_task_entry() -> Dictionary:
+	var door := _lab_pressure_door()
+	var door_position := door.global_position if door != null else Vector2(686.0, 435.0)
+	return {
+		"id": LAB_ENTRY_TASK_ID,
+		"title": "Enter the lab and investigate the echo",
+		"marker_label": "LAB ACCESS",
+		"position": door_position + Vector2(0.0, 48.0),
+		"marker_position": door_position + Vector2(0.0, -34.0),
+	}
+
+
+func _rig_report_task_entry() -> Dictionary:
+	var marker_position := amara.global_position + Vector2(0.0, -48.0)
+	var interaction_position := amara.global_position + Vector2(0.0, 38.0)
+	return {
+		"id": RIG_REPORT_TASK_ID,
+		"title": "Report the failed extraction rig to Dr. Okoye",
+		"marker_label": "REPORT TO AMARA",
+		"position": interaction_position,
+		"marker_position": marker_position,
+	}
 
 
 func _ensure_tank_countdown_label() -> Label:
@@ -267,7 +355,7 @@ func _set_tank_liquid_visible(visible: bool) -> void:
 
 
 func _start_xenomorph_incubation_timer() -> void:
-	if _is_ore_villain_spawned() or _xenomorph_timer_active:
+	if _is_ore_villain_spawned() or _xenomorph_timer_active or not (Engine.has_meta(&"resonance_ore_rest_complete") and bool(Engine.get_meta(&"resonance_ore_rest_complete"))):
 		return
 	_xenomorph_timer_active = true
 	if Engine.has_meta(&"resonance_ore_incubation_remaining"):
@@ -331,7 +419,7 @@ func _update_xenomorph_incubation(delta: float) -> void:
 				_room_task_feedback_timer = 4.5
 			3:
 				tank_sprite.texture = RESONANCE_ORE_TANK_DESTROYED_TEXTURE
-				_load_sprite_png(tank_sprite, "res://art/planet/modern_ore_containment_destroyed.png")
+				_load_sprite_png(tank_sprite, "res://art/concepts/lab_props/destroyed/ore_containment_redesigned.png")
 				_set_tank_liquid_visible(false)
 				_room_task_feedback = "CONTAINMENT BREACH: BLACK LIQUID HAS ENTERED THE SERVICE DUCTS."
 				_room_task_feedback_timer = 5.0
@@ -363,19 +451,50 @@ func _wreck_lab_prop(node_path: NodePath, rot: float, offset: Vector2, tint: Col
 		node.modulate = tint
 
 
+func _add_dirty_lab_floor() -> void:
+	var lab_room := get_node_or_null("LabRoom") as Node2D
+	if lab_room == null or lab_room.has_node("DirtyFloor"):
+		return
+	var stains := Node2D.new()
+	stains.name = "DirtyFloor"
+	stains.z_index = -1
+	lab_room.add_child(stains)
+	var patches := [
+		{"position": Vector2(174.0, 196.0), "size": Vector2(35.0, 8.0), "color": Color(0.045, 0.055, 0.052, 0.72)},
+		{"position": Vector2(244.0, 211.0), "size": Vector2(48.0, 11.0), "color": Color(0.09, 0.052, 0.035, 0.74)},
+		{"position": Vector2(318.0, 190.0), "size": Vector2(38.0, 9.0), "color": Color(0.035, 0.06, 0.055, 0.78)},
+		{"position": Vector2(388.0, 211.0), "size": Vector2(31.0, 8.0), "color": Color(0.11, 0.055, 0.036, 0.7)},
+		{"position": Vector2(444.0, 181.0), "size": Vector2(26.0, 7.0), "color": Color(0.04, 0.05, 0.047, 0.68)},
+	]
+	for index in range(patches.size()):
+		var patch: Dictionary = patches[index]
+		var stain := Polygon2D.new()
+		stain.name = "GrimePatch%d" % index
+		stain.position = patch["position"]
+		stain.color = patch["color"]
+		var size: Vector2 = patch["size"]
+		var points := PackedVector2Array()
+		for point_index in range(14):
+			var angle := TAU * float(point_index) / 14.0
+			var unevenness := 0.78 + 0.22 * sin(float(point_index) * 2.7 + float(index))
+			points.append(Vector2(cos(angle) * size.x, sin(angle) * size.y) * unevenness)
+		stain.polygon = points
+		stains.add_child(stain)
+
+
 func _apply_lab_destruction_stage(stage: int, animate: bool) -> void:
 	match stage:
 		1:
-			# Stage 1: OreContainment shattered & cable severed
-			_load_sprite_png(get_node_or_null("LabRoom/OreContainment/SampleContainment") as Sprite2D, "res://art/concepts/lab_props/destroyed/ore_containment.png")
+			# Stage 1: OreContainment shattered.
+			_load_sprite_png(get_node_or_null("LabRoom/OreContainment/SampleContainment") as Sprite2D, "res://art/concepts/lab_props/destroyed/ore_containment_redesigned.png")
 			_set_ore_leak_visible(true)
 			_wreck_lab_prop(NodePath("LabRoom/OreContainment"), -0.05, Vector2(0.0, 3.0), Color.WHITE, animate)
-			var sleeve := get_node_or_null("LabRoom/CableRuns/ContainmentToAnalysisSleeve") as Line2D
-			var sig := get_node_or_null("LabRoom/CableRuns/ContainmentToAnalysisSignal") as Line2D
-			if sleeve != null:
-				sleeve.visible = false
-			if sig != null:
-				sig.visible = false
+			var analysis_sleeve := get_node_or_null("LabRoom/CableRuns/AnalysisToConsoleSleeve") as Line2D
+			var analysis_power := get_node_or_null("LabRoom/CableRuns/AnalysisToConsolePower") as Line2D
+			if analysis_sleeve != null:
+				analysis_sleeve.visible = false
+			if analysis_power != null:
+				analysis_power.visible = false
 		2:
 			# Stage 2: Archive screens break and two drawers are torn open.
 			_load_sprite_png(get_node_or_null("LabRoom/ArchiveStationLeft/DataArchive") as Sprite2D, "res://art/concepts/lab_props/destroyed/data_archive.png")
@@ -415,6 +534,7 @@ func _apply_lab_destruction_stage(stage: int, animate: bool) -> void:
 				wg.color = Color(1.0, 0.25, 0.14, 1.0)
 		6:
 			# Stage 6: Left Storage Cabinet, Waste Bins & Wash Sink destroyed
+			_add_dirty_lab_floor()
 			_load_single_sprite_png(get_node_or_null("LabRoom/LeftStorageCabinet/Sprite") as Sprite2D, "res://art/concepts/lab_props/destroyed/sample_cabinet.png")
 			_load_single_sprite_png(get_node_or_null("LabRoom/LabWasteBins/Sprite") as Sprite2D, "res://art/concepts/lab_props/destroyed/lab_waste_bins.png", Vector2(0.4, 0.4))
 			_load_single_sprite_png(get_node_or_null("LabRoom/WashSink/Sprite") as Sprite2D, "res://art/concepts/lab_props/destroyed/wash_sink.png", Vector2(0.5, 0.5))
@@ -422,14 +542,11 @@ func _apply_lab_destruction_stage(stage: int, animate: bool) -> void:
 			_wreck_lab_prop(NodePath("LabRoom/LabWasteBins"), 0.12, Vector2(-4.0, 3.0), Color.WHITE, animate)
 			_wreck_lab_prop(NodePath("LabRoom/WashSink"), -0.08, Vector2(-2.0, 2.0), Color.WHITE, animate)
 			Engine.set_meta(&"lab_destroyed_by_xenomorph", true)
-			var lbl := _ensure_tank_countdown_label()
-			if is_instance_valid(lbl):
-				lbl.visible = true
-				lbl.text = "LAB DESTROYED // ECHO LOOSE"
-				lbl.add_theme_color_override("font_color", Color(1.0, 0.28, 0.22))
-			if animate:
-				_room_task_feedback = "CRITICAL ALERT: THE ECHO HAS DESTROYED THE ENTIRE LAB!"
-				_room_task_feedback_timer = 6.5
+			if is_instance_valid(_tank_countdown_label):
+				_tank_countdown_label.visible = false
+				_tank_countdown_label.text = ""
+			_room_task_feedback = ""
+			_room_task_feedback_timer = 0.0
 
 
 func _destroy_all_lab_immediately() -> void:
@@ -492,7 +609,8 @@ func _spawn_resonance_ore_villain(play_breakout_fx: bool) -> void:
 		return
 	var tank_sprite := containment.get_node_or_null("SampleContainment") as Sprite2D
 	if tank_sprite != null:
-		_load_sprite_png(tank_sprite, "res://art/planet/modern_ore_containment_destroyed.png")
+		tank_sprite.texture = RESONANCE_ORE_TANK_DESTROYED_TEXTURE
+		_load_sprite_png(tank_sprite, "res://art/concepts/lab_props/destroyed/ore_containment_redesigned.png")
 	_set_tank_liquid_visible(false)
 	var containment_glow := get_node_or_null("LabRoom/StationLighting/ContainmentGlow") as PointLight2D
 	if containment_glow != null:
@@ -600,7 +718,7 @@ func _display_contained_ore_sample() -> void:
 	var is_evolved := _is_ore_sample_evolved()
 	if is_evolved:
 		tank_sprite.texture = RESONANCE_ORE_TANK_DESTROYED_TEXTURE
-		_load_sprite_png(tank_sprite, "res://art/planet/modern_ore_containment_destroyed.png")
+		_load_sprite_png(tank_sprite, "res://art/concepts/lab_props/destroyed/ore_containment_redesigned.png")
 	else:
 		tank_sprite.texture = RESONANCE_ORE_TANK_STORED_TEXTURE
 		_load_sprite_png(tank_sprite, "res://art/concepts/lab_props/ore_containment_stored_refined.png")
@@ -613,6 +731,7 @@ func _display_contained_ore_sample() -> void:
 
 func _deposit_ore_into_containment() -> void:
 	Engine.set_meta(&"resonance_ore_sample_stored", true)
+	Engine.set_meta(&"resonance_ore_maintained", true)
 	Engine.set_meta(&"resonance_ore_incubation_remaining", XENOMORPH_INCUBATION_SECONDS)
 	Engine.set_meta(&"resonance_ore_chamber_pressure", 0.82)
 	Engine.set_meta(&"resonance_ore_atmosphere_test_passed", false)
@@ -668,6 +787,8 @@ func _ready() -> void:
 	var returning_from_planet := Engine.has_meta(&"returning_from_planet") and bool(Engine.get_meta(&"returning_from_planet"))
 	if not returning_from_planet:
 		for meta_key in [
+			&"erebos_rig_test_failed",
+			&"erebos_rig_failure_reported",
 			&"resonance_ore_sample_collected",
 			&"resonance_ore_sample_stored",
 			&"resonance_ore_sample_evolved",
@@ -680,12 +801,38 @@ func _ready() -> void:
 			&"resonance_ore_atmosphere_test_passed",
 			&"resonance_ore_chamber_pressure",
 			&"resonance_ore_incubation_remaining",
+			&"amara_mission_briefed",
+			&"resonance_ore_maintained",
+			&"resonance_ore_rest_complete",
+			&"resonance_ore_overlook_discovered",
+			&"resonance_ore_seam_discovered",
+			&"resonance_echo_heard",
+			&"resonance_lab_door_repaired",
+			&"resonance_lab_entered_after_echo",
 		]:
 			if Engine.has_meta(meta_key):
 				Engine.remove_meta(meta_key)
+	_echo_lab_return_active = returning_from_planet and _has_heard_ore_echo() and not (Engine.has_meta(&"resonance_lab_entered_after_echo") and bool(Engine.get_meta(&"resonance_lab_entered_after_echo")))
+	_lab_door_repair_required = _echo_lab_return_active and not _has_repaired_lab_door()
+	_set_lab_doors_locked(_lab_door_repair_required)
+	if _echo_lab_return_active:
+		var lab_room := get_node_or_null("LabRoom") as CanvasItem
+		if lab_room != null:
+			lab_room.visible = true
+			lab_room.modulate = Color.WHITE
+		amara.visible = false
+		amara.set_physics_process(false)
+		Engine.set_meta(&"lab_doctor_missing", true)
+		Engine.set_meta(&"echo_disappeared_into_ducts", true)
+		Engine.set_meta(&"resonance_ore_villain_spawned", true)
+		Engine.set_meta(&"resonance_ore_fused_with_amara", true)
 	if not amara.sample_study_started.is_connected(_on_containment_stimulated):
 		amara.sample_study_started.connect(_on_containment_stimulated)
-	_display_contained_ore_sample()
+	if not _echo_lab_return_active:
+		_display_contained_ore_sample()
+	if _echo_lab_return_active:
+		_destroy_all_lab_immediately()
+		_set_lab_station_lights_visible(true)
 
 	# Movement samples global positions; include any saved ship-root translation.
 	player.set_walkable_floor_mask(FLOOR_TEXTURE, floor_layer.global_position, 8.0)
@@ -715,8 +862,16 @@ func _ready() -> void:
 			"position": interaction_pos,
 			"marker_position": _task_marker_position(station, task.get("interaction_offset", Vector2.ZERO)),
 		})
+	if _lab_door_repair_required:
+		hud_task_entries.append(_lab_door_repair_task_entry())
+	elif _echo_lab_return_active:
+		hud_task_entries.append(_lab_entry_task_entry())
+	if returning_from_planet and _is_rig_test_failed() and not _is_rig_failure_reported():
+		hud_task_entries.append(_rig_report_task_entry())
 	_walk_hud = WALK_HUD_SCENE.instantiate() as WalkHud
 	_walk_hud.setup(player, hud_task_entries, floor_layer.global_position, FLOOR_TEXTURE.get_size())
+	if _echo_lab_return_active and not _lab_door_repair_required:
+		_walk_hud.set_task_completed(LAB_DOOR_REPAIR_TASK_ID)
 	_walk_hud.modal_state_changed.connect(_on_hud_modal_state_changed)
 	add_child(_walk_hud)
 	_crew_dialogue = CREW_DIALOGUE_SCENE.instantiate() as CrewDialogue
@@ -728,6 +883,12 @@ func _ready() -> void:
 		_walk_hud.set_walking_visible(true)
 		_room_task_feedback = "AIRLOCK CYCLE COMPLETE  //  ABOARD ASTERIA-1"
 		_room_task_feedback_timer = 3.5
+		if _echo_lab_return_active:
+			_room_task_feedback = ""
+			_room_task_feedback_timer = 0.0
+		elif _is_rig_test_failed() and not _is_rig_failure_reported():
+			_room_task_feedback = "RIG TEST FAILED  //  REPORT TO DR. OKOYE"
+			_room_task_feedback_timer = 6.0
 		_update_player_walk_state()
 	else:
 		_walk_hud.set_walking_visible(false)
@@ -743,13 +904,15 @@ func _process(delta: float) -> void:
 		_ore_leak_phase = fposmod(_ore_leak_phase + delta * 0.8, TAU)
 		var glow := 0.93 + (sin(_ore_leak_phase) + 1.0) * 0.045
 		_ore_leak_sprite.modulate = Color(glow, glow * 0.98, glow * 0.92, 1.0)
-		_ore_leak_sprite.scale.y = 0.041 + sin(_ore_leak_phase * 0.5) * 0.0005
+		_ore_leak_sprite.scale.y = 0.052 + sin(_ore_leak_phase * 0.5) * 0.0005
 	if _room_task_feedback_timer > 0.0:
 		_room_task_feedback_timer = maxf(_room_task_feedback_timer - delta, 0.0)
 		if is_zero_approx(_room_task_feedback_timer):
 			_room_task_feedback = ""
 
-	_update_xenomorph_incubation(delta)
+	if not _echo_lab_return_active:
+		_update_xenomorph_incubation(delta)
+	_update_echo_lab_entry()
 
 	# Allow walking straight through the huge open airlock door to exit to the planet
 	if not _arrival_briefing_open and not _hud_modal_open and not _task_console_open and not _crew_dialogue_open:
@@ -762,8 +925,39 @@ func _process(delta: float) -> void:
 	_refresh_room_task_prompt()
 
 
+func _update_echo_lab_entry() -> void:
+	if not _echo_lab_return_active or _lab_door_repair_required or _lab_entry_reveal_started or _lab_door_repairing:
+		return
+	for door in _lab_pressure_doors():
+		var player_in_door_space := door.to_local(player.global_position)
+		var lab_room := get_node_or_null("LabRoom") as Node2D
+		if lab_room == null:
+			return
+		var threshold := door.wall_depth * 0.5 + 24.0
+		var is_bottom_entry := door.global_position.y > lab_room.to_global(Vector2(0.0, 150.0)).y
+		var crossed_into_lab := player_in_door_space.y > threshold
+		if is_bottom_entry:
+			crossed_into_lab = player_in_door_space.y < -threshold
+		if not crossed_into_lab or absf(player_in_door_space.x) > door.opening_width * 0.5 + 22.0:
+			continue
+		_lab_entry_reveal_started = true
+		Engine.set_meta(&"resonance_lab_entered_after_echo", true)
+		_walk_hud.set_task_completed(LAB_ENTRY_TASK_ID)
+		_echo_lab_return_active = false
+		return
+
+
 func _unhandled_input(event: InputEvent) -> void:
-	if _transitioning_to_planet or _arrival_briefing_open or _hud_modal_open or _task_console_open or _crew_dialogue_open or _amara_ore_handoff_active or not event.is_action_pressed(&"interact"):
+	if _transitioning_to_planet or _arrival_briefing_open or _hud_modal_open or _task_console_open or _crew_dialogue_open or _amara_ore_handoff_active or _lab_door_repairing or not event.is_action_pressed(&"interact"):
+		return
+	if _active_lab_door_repair:
+		get_viewport().set_input_as_handled()
+		_repair_lab_pressure_door()
+		return
+	if _active_locked_lab_door:
+		get_viewport().set_input_as_handled()
+		_room_task_feedback = "LAB BULKHEAD LOCKED BY A RESONANCE SURGE  //  USE THE MAINTENANCE WORKBENCH"
+		_room_task_feedback_timer = 4.5
 		return
 	if _active_airlock_exit:
 		get_viewport().set_input_as_handled()
@@ -784,6 +978,18 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _exit_ship_to_planet() -> void:
 	if _transitioning_to_planet:
+		return
+	if _echo_lab_return_active:
+		_room_task_feedback = "FOLLOW THE ORE ECHO  //  REPAIR THE LAB DOOR FROM THE MAINTENANCE WORKSHOP"
+		_room_task_feedback_timer = 4.5
+		return
+	if _is_rig_test_failed() and not _is_rig_failure_reported():
+		_room_task_feedback = "REPORT THE FAILED EXTRACTION RIG TO DR. OKOYE FIRST"
+		_room_task_feedback_timer = 4.0
+		return
+	if not (Engine.has_meta(&"amara_mission_briefed") and bool(Engine.get_meta(&"amara_mission_briefed"))):
+		_room_task_feedback = "SPEAK WITH DR. OKOYE BEFORE DEPARTURE"
+		_room_task_feedback_timer = 4.0
 		return
 	_transitioning_to_planet = true
 	get_tree().change_scene_to_file(MOCK_PLANET_SCENE_PATH)
@@ -862,6 +1068,42 @@ func _on_room_task_completed(task_id: StringName) -> void:
 	_pending_room_task_feedback = _room_task_feedback
 
 
+func _repair_lab_pressure_door() -> void:
+	if not _lab_door_repair_required or _lab_door_repairing:
+		return
+	var door := _lab_pressure_door()
+	if door == null:
+		_room_task_feedback = "LAB DOOR CONTROLLER NOT FOUND  //  CHECK THE SHIP MAP"
+		_room_task_feedback_timer = 4.0
+		return
+	_lab_door_repairing = true
+	player.set_physics_process(false)
+	player.face_toward(door.global_position)
+	var workbench := get_node_or_null("MaintenanceWorkshop/RepairWorkbench") as CanvasItem
+	if workbench != null:
+		var sparks := create_tween()
+		sparks.set_loops(4)
+		sparks.tween_property(workbench, "modulate", Color(1.0, 0.69, 0.32), 0.18)
+		sparks.tween_property(workbench, "modulate", Color.WHITE, 0.18)
+	for phase in ["ISOLATING THE DAMAGED LAB INTERLOCK...", "BYPASSING THE JAMMED PRESSURE SEAL...", "RESTORING THE DOOR ACTUATOR..."]:
+		_walk_hud.set_interaction_prompt(str(phase), true)
+		await get_tree().create_timer(0.72).timeout
+		if not is_inside_tree():
+			return
+	if workbench != null:
+		workbench.modulate = Color.WHITE
+	_set_lab_doors_locked(false)
+	Engine.set_meta(&"resonance_lab_door_repaired", true)
+	_lab_door_repair_required = false
+	_lab_door_repairing = false
+	_walk_hud.set_task_completed(LAB_DOOR_REPAIR_TASK_ID)
+	_walk_hud.add_task_entry(_lab_entry_task_entry())
+	_room_task_feedback = "LAB ACCESS RESTORED  //  FOLLOW THE ORE ECHO INSIDE"
+	_room_task_feedback_timer = 5.0
+	_update_player_walk_state()
+	_walk_hud.set_interaction_prompt("LAB ACCESS RESTORED   /   RETURN INSIDE AND FOLLOW THE ECHO", true)
+
+
 func _on_room_task_console_closed() -> void:
 	_task_console_open = false
 	_update_contained_ore_sample()
@@ -879,6 +1121,22 @@ func _refresh_room_task_prompt() -> void:
 	_active_crew_task_id = &""
 	_active_amara_interaction = false
 	_active_airlock_exit = false
+	_active_lab_door_repair = false
+	_active_locked_lab_door = false
+	if _lab_door_repairing:
+		_walk_hud.set_interaction_prompt("REPAIRING LAB PRESSURE DOOR...", true)
+		return
+	if _echo_lab_return_active:
+		var lab_door := _lab_pressure_door()
+		if _lab_door_repair_required and lab_door != null and player.global_position.distance_to(lab_door.global_position) <= 88.0:
+			_active_locked_lab_door = true
+			_walk_hud.set_interaction_prompt("LAB ACCESS DOORS   /   SEALED  //  REPAIR AT MAINTENANCE WORKBENCH", true)
+			return
+		var workbench := get_node_or_null("MaintenanceWorkshop/RepairWorkbench") as Node2D
+		if _lab_door_repair_required and workbench != null and player.global_position.distance_to(workbench.global_position + Vector2(0.0, 40.0)) <= 66.0:
+			_active_lab_door_repair = true
+			_walk_hud.set_interaction_prompt("MAINTENANCE WORKBENCH   /   [E] REPAIR LAB DOOR", true)
+			return
 	if _amara_ore_handoff_active:
 		_walk_hud.set_interaction_prompt("DR. OKOYE IS TAKING THE SAMPLE TO CONTAINMENT...", true)
 		return
@@ -889,12 +1147,18 @@ func _refresh_room_task_prompt() -> void:
 		var airlock_access_pos := exterior_airlock.global_position + Vector2(0.0, 28.0)
 		if player.global_position.distance_to(airlock_access_pos) <= AIRLOCK_INTERACTION_RADIUS:
 			_active_airlock_exit = true
-			_walk_hud.set_interaction_prompt("EXTERIOR AIRLOCK   /   [E] EXIT TO PLANET SURFACE", true)
+			var airlock_prompt := "EXTERIOR AIRLOCK   /   [E] EXIT TO PLANET SURFACE"
+			if _echo_lab_return_active:
+				_active_airlock_exit = false
+				airlock_prompt = "THE ECHO LEADS TO THE SEALED LAB  /  REPAIR THE DOOR FIRST"
+			_walk_hud.set_interaction_prompt(airlock_prompt, true)
 			return
 	if is_instance_valid(amara) and amara.visible and player.global_position.distance_to(amara.global_position) <= AMARA_INTERACTION_RADIUS:
 		_active_amara_interaction = true
 		if _is_ore_sample_collected() and not _is_ore_sample_stored():
 			_walk_hud.set_interaction_prompt("DR. OKOYE   /   [E] HAND OVER EREBOS ORE", true)
+		elif _is_rig_test_failed() and not _is_rig_failure_reported():
+			_walk_hud.set_interaction_prompt("DR. OKOYE   /   [E] REPORT THE FAILED RIG", true)
 		elif _is_ore_sample_stored() and not _is_ore_villain_spawned():
 			_walk_hud.set_interaction_prompt("DR. OKOYE   /   [E] CHECK SAMPLE WATCH", true)
 		else:
@@ -1004,13 +1268,16 @@ func _begin_amara_dialogue() -> void:
 			return
 		_amara_ore_handoff_active = false
 		_walk_hud.set_walking_visible(true)
-		_room_task_feedback = "ORE STORED BY DR. OKOYE  /  SHE IS MONITORING FROM THE RESEARCH CONSOLE"
+		_room_task_feedback = "ORE STORED BY DR. OKOYE  /  RETURN TO THE EXTRACTION RIG AND WAIT FOR INSTRUCTIONS"
 		_room_task_feedback_timer = 5.0
 		_update_player_walk_state()
 		return
-	var first_meeting := not _amara_intro_seen
+	var first_meeting := not (Engine.has_meta(&"amara_mission_briefed") and bool(Engine.get_meta(&"amara_mission_briefed")))
+	var reporting_rig_failure := _is_rig_test_failed() and not _is_rig_failure_reported()
 	_crew_dialogue_open = true
 	_amara_intro_seen = true
+	if first_meeting:
+		Engine.set_meta(&"amara_mission_briefed", true)
 	_walk_hud.set_walking_visible(false)
 	if is_instance_valid(amara) and amara.has_method("set_in_dialogue"):
 		amara.set_in_dialogue(true)
@@ -1022,14 +1289,20 @@ func _begin_amara_dialogue() -> void:
 		lines.append("The Erebos ore is secured. I'm running the chamber checks and monitoring its response from the research console.")
 		if Engine.has_meta(&"resonance_ore_stimulated") and bool(Engine.get_meta(&"resonance_ore_stimulated")):
 			lines.append("It is responding to the electrical pulse. Something inside the sample is moving.")
+	elif reporting_rig_failure:
+		Engine.set_meta(&"erebos_rig_failure_reported", true)
+		_walk_hud.set_task_completed(RIG_REPORT_TASK_ID)
+		lines.append("You were right to come back. The rig's drive is damaged; don't try to force it again. I can see a resonance seam in the western crater. Bring me a small sample so I can study what the failed drill disturbed.")
 	elif first_meeting:
-		lines.append("I'm Dr. Amara Okoye, astrobiologist. Please mine a resonance ore sample on Erebos and bring it back to me. I'll load the tank and monitor it from the research console.")
+		lines.append("I'm Dr. Amara Okoye, astrobiologist. Test the resonance rig on Erebos. If it fails, come back and report to me before you continue.")
 	else:
-		lines.append("I'm staying at the research console and keeping watch over the sample readings.")
+		lines.append("I'm analyzing the rig failure from here. Bring me a sample from the exposed seam when you return.")
 	_crew_dialogue.start_dialogue(lines, offer_tasks)
 
 
 func _is_lab_device_interactable(device_id: StringName) -> bool:
+	if _echo_lab_return_active and not _lab_entry_reveal_started:
+		return false
 	if device_id == &"lab_earth_comms":
 		return true
 	if device_id == &"lab_containment":
@@ -1123,4 +1396,4 @@ func _on_hud_modal_state_changed(is_open: bool) -> void:
 
 
 func _update_player_walk_state() -> void:
-	player.set_physics_process(not (_arrival_briefing_open or _hud_modal_open or _task_console_open or _crew_dialogue_open or _amara_ore_handoff_active))
+	player.set_physics_process(not (_arrival_briefing_open or _hud_modal_open or _task_console_open or _crew_dialogue_open or _amara_ore_handoff_active or _lab_door_repairing))

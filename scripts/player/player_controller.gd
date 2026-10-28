@@ -2,7 +2,9 @@ class_name ShipPlayer
 extends CharacterBody2D
 
 const THURA_ATLAS := preload("res://art/characters/runtime/thura_walk_4dir.png")
+const THURA_SIT_DOWN := preload("res://art/characters/runtime/thura_sit_down.png")
 const CELL_SIZE := Vector2(313.5, 313.5)
+const SITTING_FRAME_REGION := Rect2i(375, 456, 504, 513)
 const ANIMATION_ROWS := {
 	&"walk_down": 0,
 	&"walk_left": 1,
@@ -17,8 +19,12 @@ const ANIMATION_ROWS := {
 @onready var sprite: AnimatedSprite2D = $AnimatedSprite2D
 
 var _facing_animation: StringName = &"walk_down"
+var _standing_sprite_scale := Vector2.ONE
+var _standing_sprite_position := Vector2.ZERO
+var _sitting_pose_active := false
 var _camera_bounds := Rect2(Vector2.ZERO, Vector2(1774.0, 887.0))
 var _walkable_floor_mask: Image
+var _walkable_blocker_polygons: Array[PackedVector2Array] = []
 var _walkable_floor_origin := Vector2.ZERO
 var _walkable_body_margin := 8.0
 
@@ -27,6 +33,8 @@ func _ready() -> void:
 	add_to_group("ship_player")
 	_configure_sprite_animations()
 	sprite.scale = sprite_scale
+	_standing_sprite_scale = sprite.scale
+	_standing_sprite_position = sprite.position
 	sprite.play(_facing_animation)
 	sprite.stop()
 	get_viewport().size_changed.connect(_update_camera_limits)
@@ -63,9 +71,28 @@ func face_toward(target_position: Vector2) -> void:
 		_facing_animation = &"walk_right" if direction.x > 0.0 else &"walk_left"
 	else:
 		_facing_animation = &"walk_down" if direction.y > 0.0 else &"walk_up"
-	sprite.animation = _facing_animation
+	if not _sitting_pose_active:
+		sprite.animation = _facing_animation
+		sprite.stop()
+		sprite.frame = 0
+
+
+func sit_down() -> void:
+	_sitting_pose_active = true
 	sprite.stop()
+	sprite.animation = &"sit_down"
 	sprite.frame = 0
+	sprite.scale = _standing_sprite_scale * 0.52
+	sprite.position = _standing_sprite_position
+
+
+func stand_up() -> void:
+	_sitting_pose_active = false
+	sprite.stop()
+	sprite.animation = _facing_animation
+	sprite.frame = 0
+	sprite.scale = _standing_sprite_scale
+	sprite.position = _standing_sprite_position
 
 
 func set_walkable_floor_mask(floor_texture: Texture2D, floor_origin: Vector2 = Vector2.ZERO, body_margin: float = 8.0) -> void:
@@ -78,6 +105,10 @@ func set_walkable_floor_mask(floor_texture: Texture2D, floor_origin: Vector2 = V
 			return
 	_walkable_floor_origin = floor_origin
 	_walkable_body_margin = maxf(body_margin, 0.0)
+
+
+func set_walkable_blocker_polygons(polygons: Array[PackedVector2Array]) -> void:
+	_walkable_blocker_polygons = polygons.duplicate()
 
 
 func _has_walkable_floor_mask() -> bool:
@@ -119,6 +150,9 @@ func _is_body_over_floor(center: Vector2) -> bool:
 			return false
 		if _walkable_floor_mask.get_pixel(pixel_x, pixel_y).a < 0.15:
 			return false
+		for blocker in _walkable_blocker_polygons:
+			if Geometry2D.is_point_in_polygon(sample, blocker):
+				return false
 	return true
 
 
@@ -135,6 +169,14 @@ func _configure_sprite_animations() -> void:
 			atlas_frame.atlas = THURA_ATLAS
 			atlas_frame.region = Rect2(Vector2(column * CELL_SIZE.x, row * CELL_SIZE.y), CELL_SIZE)
 			frames.add_frame(animation_name, atlas_frame)
+	frames.add_animation(&"sit_down")
+	frames.set_animation_speed(&"sit_down", 1.0)
+	frames.set_animation_loop(&"sit_down", true)
+	var sitting_image := THURA_SIT_DOWN.get_image()
+	var sitting_frame: Texture2D = THURA_SIT_DOWN
+	if sitting_image.get_size().x >= SITTING_FRAME_REGION.end.x and sitting_image.get_size().y >= SITTING_FRAME_REGION.end.y:
+		sitting_frame = ImageTexture.create_from_image(sitting_image.get_region(SITTING_FRAME_REGION))
+	frames.add_frame(&"sit_down", sitting_frame)
 	sprite.sprite_frames = frames
 	sprite.animation = _facing_animation
 
@@ -144,7 +186,7 @@ func _update_facing(direction: Vector2) -> void:
 		_facing_animation = &"walk_right" if direction.x > 0.0 else &"walk_left"
 	else:
 		_facing_animation = &"walk_down" if direction.y > 0.0 else &"walk_up"
-	if sprite.animation != _facing_animation:
+	if not _sitting_pose_active and sprite.animation != _facing_animation:
 		sprite.play(_facing_animation)
 
 
