@@ -50,4 +50,4 @@ script = ExtResource("6_ambient_fx")
 is_subdeck = true
 
 [node name="Player" parent="." instance=ExtResource("2_player")]
-position = Vector2(882, 306)
+position = Vector2(490, 224)

@@ -219,6 +219,7 @@ var _bubble_tween: Tween
 var _player_nearby := false
 var _greeting_cooldown := 12.0
 var _bark_cooldown := 10.0
+var _interaction_locks := {}
 var _sample_watch_active := false
 var _sample_watch_timer := 0.0
 var _is_missing := false
@@ -233,10 +234,22 @@ func _ready() -> void:
 	add_to_group("ship_crew")
 	_configure_sprite_animations()
 	_build_overhead_bubble()
-	var console_station := get_parent().get_node_or_null("LabRoom/ConsoleStation") as Node2D
-	if console_station != null:
-		global_position = console_station.global_position + Vector2(0.0, 18.0)
+	var amara_badge := Label.new()
+	amara_badge.name = "AmaraBadge"
+	amara_badge.text = "[ DR. AMARA OKOYE / ASTROBIOLOGY ]"
+	amara_badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	amara_badge.add_theme_font_size_override("font_size", 8)
+	amara_badge.add_theme_color_override("font_color", Color(0.38, 0.88, 0.98, 0.9))
+	amara_badge.position = Vector2(-80.0, -32.0)
+	amara_badge.size = Vector2(160.0, 16.0)
+	add_child(amara_badge)
+
 	var returning_to_ship := Engine.has_meta(&"returning_from_planet") and bool(Engine.get_meta(&"returning_from_planet"))
+	var ore_stored := Engine.has_meta(&"resonance_ore_sample_stored") and bool(Engine.get_meta(&"resonance_ore_sample_stored"))
+	var ore_collected := Engine.has_meta(&"resonance_ore_sample_collected") and bool(Engine.get_meta(&"resonance_ore_sample_collected"))
+	var rig_failed := Engine.has_meta(&"erebos_rig_test_failed") and bool(Engine.get_meta(&"erebos_rig_test_failed"))
+	var in_lab_story_phase := ore_stored or ore_collected or rig_failed or returning_to_ship
+
 	if returning_to_ship and Engine.has_meta(&"lab_doctor_missing") and bool(Engine.get_meta(&"lab_doctor_missing")):
 		visible = false
 		set_physics_process(false)
@@ -245,10 +258,33 @@ func _ready() -> void:
 		collision_mask = 0
 		remove_from_group("ship_crew")
 		return
+
+	if in_lab_story_phase:
+		var console_station := get_parent().get_node_or_null("LabRoom/ConsoleStation") as Node2D
+		if console_station != null:
+			global_position = console_station.global_position + Vector2(0.0, 32.0)
+	else:
+		global_position = Vector2(300.0, 740.0)
+
 	await get_tree().physics_frame
 	_build_navigation()
-	set_physics_process(false)
-	_show_seated_pose()
+
+	if in_lab_story_phase:
+		set_physics_process(false)
+		_show_seated_pose()
+		return
+
+	if not _navigation_ready:
+		set_physics_process(false)
+		return
+	var spawn_cell := _world_to_cell(global_position)
+	if _grid_region.has_point(spawn_cell) and _hydroponics_grid.is_point_solid(spawn_cell):
+		spawn_cell = _find_nearest_clear_cell(spawn_cell, true)
+		if _grid_region.has_point(spawn_cell) and not _hydroponics_grid.is_point_solid(spawn_cell):
+			global_position = _cell_to_world(spawn_cell)
+
+	_room_stops_remaining = _random.randi_range(room_roam_stops.x, room_roam_stops.y)
+	_choose_next_destination()
 
 
 func begin_sample_watch() -> void:
@@ -810,6 +846,8 @@ func _configure_sprite_animations() -> void:
 
 
 func _update_facing(direction: Vector2) -> void:
+	if not is_instance_valid(sprite):
+		return
 	if absf(direction.x) > absf(direction.y):
 		_facing_animation = &"walk_right" if direction.x > 0.0 else &"walk_left"
 	else:
@@ -819,7 +857,7 @@ func _update_facing(direction: Vector2) -> void:
 
 
 func _stop_walking() -> void:
-	if sprite.is_playing():
+	if is_instance_valid(sprite) and sprite.is_playing():
 		sprite.stop()
 		sprite.frame = 0
 
@@ -863,32 +901,33 @@ func _build_navigation() -> void:
 		Vector2(0.0, BODY_RADIUS),
 		Vector2(0.0, -BODY_RADIUS),
 	]
-	var obstacle_shape := CircleShape2D.new()
-	obstacle_shape.radius = BODY_RADIUS + 3.0
-	var obstacle_query := PhysicsShapeQueryParameters2D.new()
-	obstacle_query.shape = obstacle_shape
-	obstacle_query.collision_mask = collision_mask
-	obstacle_query.collide_with_bodies = true
-	obstacle_query.collide_with_areas = false
-	var space_state := get_world_2d().direct_space_state
 	_ship_zone_cells.clear()
 	for _zone in SHIP_ROAM_AREAS:
 		_ship_zone_cells.append([])
 	var navigation_exclusions: Array[RID] = []
+
+	var space_state := get_world_2d().direct_space_state
+	var nav_shape := CircleShape2D.new()
+	nav_shape.radius = BODY_RADIUS
 
 	for y in range(rows):
 		for x in range(columns):
 			var cell := Vector2i(x, y)
 			var center := _cell_to_world(cell)
 			var clear := true
-			if get_parent().has_method("_ship_body_clear") and not get_parent()._ship_body_clear(center, navigation_exclusions, true): clear = false
+			if get_parent().has_method("_ship_body_clear") and not get_parent()._ship_body_clear(center, navigation_exclusions, true):
+				clear = false
+			if clear and space_state != null:
+				var q := PhysicsShapeQueryParameters2D.new()
+				q.shape = nav_shape
+				q.transform = Transform2D(0.0, center)
+				q.collision_mask = 1
+				if not space_state.intersect_shape(q, 1).is_empty():
+					clear = false
 			for sample_offset in clearance_samples:
 				if not _position_is_walkable(center + sample_offset):
 					clear = false
 					break
-			if clear:
-				obstacle_query.transform = Transform2D(0.0, center)
-				clear = space_state.intersect_shape(obstacle_query, 1).is_empty()
 			if not clear:
 				_grid.set_point_solid(cell, true)
 				_hydroponics_grid.set_point_solid(cell, true)
@@ -907,19 +946,28 @@ func _build_navigation() -> void:
 		push_warning("Amara could not find a clear hydroponics patrol route.")
 
 
+func face_toward(target_pos: Vector2) -> void:
+	if _is_seated_at_console:
+		return
+	var direction := target_pos - global_position
+	if not direction.is_zero_approx():
+		_update_facing(direction)
+
+
 func set_in_dialogue(in_dialogue: bool) -> void:
 	set_interaction_lock(&"dialogue", in_dialogue)
 	if in_dialogue:
 		_hide_overhead_bark()
 		velocity = Vector2.ZERO
 		_stop_walking()
-		var players := get_tree().get_nodes_in_group("ship_player")
-		if not players.is_empty():
-			var player := players[0] as Node2D
-			if is_instance_valid(player):
-				var direction := player.global_position - global_position
-				if not direction.is_zero_approx():
-					_update_facing(direction)
+		if is_inside_tree():
+			var players := get_tree().get_nodes_in_group("ship_player")
+			if not players.is_empty():
+				var player := players[0] as Node2D
+				if is_instance_valid(player):
+					var direction := player.global_position - global_position
+					if not direction.is_zero_approx():
+						_update_facing(direction)
 
 func set_interaction_lock(reason: StringName, locked: bool) -> void:
 	if locked:

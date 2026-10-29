@@ -25,26 +25,31 @@ var work_order_context := "maintenance"
 var authorized_work_orders := PackedStringArray()
 var optional_checks := {}
 var story_progress := {}
+## Auxiliary power plans shown on the redesigned power panel (percent of output).
+const POWER_PLANS := {"standard":[50,40,10], "science":[45,45,10], "repair":[65,15,20]}
+const POWER_MIN := {"essential":60, "reserve":15}
+## Seconds of steady readings before Verify unlocks (three samples on the panels).
+const VERIFY_SECONDS := {"power":3.3, "hydro":3.6}
 
 func configure(existing_inventory: Object, context := "outbound") -> void:
 	inventory = existing_inventory
 	reset(context)
 
 func reset(context: String) -> void:
-	work_order_context = "maintenance"; authorized_work_orders = PackedStringArray(); optional_checks = {}
+	work_order_context = "maintenance"; authorized_work_orders = PackedStringArray(); optional_checks = {}; story_progress = {}
 	phase = "return" if context == "return" else "outbound"
 	flags = {}; completed = {}; evidence = {}; journal = []; legacy_progress = {}
 	verification = {}; transactions = {}; elapsed = 0.0
 	stocks = {
 		"quarters.drawer.1":{"filter_cartridge":2,"scrubber_media":2},
 		"quarters.drawer.2":{"nutrient_buffer":2,"coolant_charge":2},
-		"quarters.wardrobe":{"engineering_multitool":1,"pressure_sealant":1},
+		"quarters.wardrobe":{},
 		"cargo.locker":{"filter_cartridge":2,"coolant_charge":3,"scrubber_media":2,"nutrient_buffer":2},
 		"cargo.cylinders":{"coolant_charge":2,"oxygen_reserve":2,"inert_purge":2},
 		"engine.locker.1":{}, "engine.locker.2":{}, "shuttle.bundle":{},
 	}
 	systems = {
-		"power":{"essential":70,"science":35 if phase=="return" else 20,"reserve":10,"capacity":100,"isolated":false,"calibrated":phase=="return","restored":false},
+		"power":{"essential":70 if phase=="return" else 50,"science":35 if phase=="return" else 40,"reserve":10,"capacity":100,"isolated":false,"calibrated":phase=="return","restored":false},
 		"life":{"oxygen":20.9,"co2":0.17 if phase=="return" else 0.08,"airflow":67.0 if phase=="return" else 18.0,"reserve":20.0 if phase=="return" else 60.0,"isolated":false,"serviced":false,"restored":false,"scrubber":0.35 if phase=="return" else 1.0},
 		"hydro":{"ec":3.6 if phase=="return" else 2.0,"flow":48.0 if phase=="return" else 25.0,"isolated":false,"aligned":phase=="return","dosed":false,"restored":false},
 		"engine":{"health":[1.0,1.0] if phase=="return" else [0.35,1.0],"valves":[1.0,0.35] if phase=="return" else [1.0,1.0],"isolated":[false,false],"load":1.0,"temperature":90.0,"serviced":false},
@@ -62,6 +67,7 @@ func configure_first_watch() -> void:
 	work_order_context = "first_watch"
 	systems.life.airflow = 67.0; systems.life.co2 = 0.07; systems.life.restored = true
 	systems.engine.health = [1.0, 1.0]; systems.engine.temperature = 60.0
+	systems.navigation.instrument = systems.navigation.planned
 	systems.hydro.flow = 0.0
 	journal.clear()
 	_log("context", "DAY 184 / Asteria-1. Preparing for the Erebos survey. Receive the watch at the bridge planning table.")
@@ -136,6 +142,8 @@ func readings(room: String) -> String:
 			return "Temperature %.1f C (verify <= 65) | output %.0f%%\nLoop 1: pump %.0f%% / valve %.0f%% / flow %.0f%%\nLoop 2: pump %.0f%% / valve %.0f%% / flow %.0f%%\nUpstream/downstream pressure: %s\nSafe verification needs restored circulation and a stable 6-second observation." % [e.temperature,e.load*100,e.health[0]*100,e.valves[0]*100,engine_flow(0)*100,e.health[1]*100,e.valves[1]*100,engine_flow(1)*100,"3.2 / 0.8 bar: restriction across valve 2" if phase=="return" and e.valves[1]<0.9 else "1.1 / 1.0 bar: low pump delivery" if e.health[0]<0.9 else "2.2 / 2.0 bar: normal"]
 		"power":
 			var p: Dictionary=systems.power
+			if phase=="outbound":
+				return "Plan: essential %d%% / science %d%% / reserve %d%% of auxiliary output\nWhile the service circuit is isolated: essential >= %d%%, reserve >= %d%%.\nBank B synchronized: %s | service isolation: %s | circuit live: %s\nEssential bus: %d V | science/service bus: %d V (feeds the irrigation supply valve, navigation correction and transmission)." % [p.essential,p.science,p.reserve,POWER_MIN.essential,POWER_MIN.reserve,str(p.calibrated),str(p.isolated),str(p.restored and not p.isolated),24 if bus_powered("essential") else 0,24 if bus_powered("science") else 0]
 			return "Essential %d + science %d + reserve %d = %d / %d units\nEssential minimum: 70. Science may be deferred, never essential life support.\nAuxiliary calibration: %s | service isolation: %s\nEssential bus: %d V | science/service bus: %d V (feeds irrigation, navigation correction and transmission)." % [p.essential,p.science,p.reserve,p.essential+p.science+p.reserve,p.capacity,str(p.calibrated),str(p.isolated),24 if bus_powered("essential") else 0,24 if bus_powered("science") else 0]
 		"life":
 			var l: Dictionary=systems.life
@@ -161,13 +169,18 @@ func engine_flow(index: int) -> float:
 
 func bus_powered(bus: String) -> bool:
 	var p: Dictionary=systems.power
+	if phase=="outbound":
+		# Isolating the service circuit never drops essential power (design: "Essential
+		# power is still on"); the plan minimums gate the bank B work instead.
+		if bus=="essential": return true
+		return bus_powered("essential") and p.calibrated and p.restored and not p.isolated and p.science>=10
 	if bus=="essential": return p.essential>=70
 	return bus_powered("essential") and p.calibrated and p.restored and not p.isolated and p.science>=10 and p.essential+p.science+p.reserve<=p.capacity
 
 func tick(delta: float) -> void:
 	elapsed += maxf(delta,0.0)
 	if work_order_context == "first_watch" and not systems.hydro.restored:
-		systems.hydro.flow = 25.0 if bus_powered("science") else 0.0
+		systems.hydro.flow = 30.0
 	if systems.hydro.restored:
 		systems.hydro.flow=0.0 if systems.hydro.isolated or not bus_powered("science") else 96.0 if systems.hydro.aligned and systems.hydro.ec>=1.8 and systems.hydro.ec<=2.4 else 32.0
 	var e: Dictionary=systems.engine
@@ -178,7 +191,7 @@ func tick(delta: float) -> void:
 		var stable := false
 		match task:
 			"engine": stable=e.serviced and minimum>=0.9 and e.temperature<=65.0
-			"power": stable=systems.power.restored and systems.power.calibrated and not systems.power.isolated and systems.power.essential>=70 and systems.power.essential+systems.power.science+systems.power.reserve<=systems.power.capacity
+			"power": stable=systems.power.restored and systems.power.calibrated and not systems.power.isolated and (phase=="outbound" or (systems.power.essential>=70 and systems.power.essential+systems.power.science+systems.power.reserve<=systems.power.capacity))
 			"life": stable=systems.life.restored and not systems.life.isolated and systems.life.oxygen>=20.0 and systems.life.oxygen<=22.0 and systems.life.airflow>=62 and systems.life.airflow<=72 and systems.life.co2<=0.1
 			"hydro": stable=systems.hydro.restored and not systems.hydro.isolated and systems.hydro.flow>=90 and systems.hydro.ec>=1.8 and systems.hydro.ec<=2.4
 		verification[task] = float(verification.get(task,0.0))+delta if stable else 0.0
@@ -228,7 +241,9 @@ func actions(prop_id: String) -> Array:
 	if kind=="crew":
 		result.append(_gated("roster","Compare duty roster and expected activity","crew"))
 		result.append(_gated("crew_log","Review authorised watch/check-in records","crew",flags.get("crew.roster",false),"Read the duty roster first."))
-		result.append(_gated("crew_compare","Record the supported check-in conclusion","crew",flags.get("crew.log",false),"Compare the roster with the available records first.",[["records_match","The routine records match the expected watch"],["unconfirmed","The old roster does not confirm present crew whereabouts"]]))
+		var conclusions := [["records_match","The routine records match the expected watch"],["unconfirmed","The old roster does not confirm present crew whereabouts"]]
+		if phase=="outbound": conclusions = [["all_checked_in","Everyone on the roster has checked in."],["one_missing","One expected check-in is missing."],["not_aboard","Someone on the roster isn't aboard."]]
+		result.append(_gated("crew_compare","Record the supported check-in conclusion","crew",flags.get("crew.log",false),"Compare the roster with the available records first.",conclusions))
 	if kind in ["cargo","cargo_hide"]:
 		result.append(_gated("manifest","Read container ID, manifest and seal record","cargo"))
 		result.append(_gated("seal","Inspect the exterior seal without opening the load","cargo",flags.get("cargo.manifest",false),"Read the manifest first."))
@@ -254,7 +269,11 @@ func actions(prop_id: String) -> Array:
 		result.append(_gated("diagnose","Record a diagnosis supported by those readings",task,flags.get(task+".observed",false),"Capture readings first.",options[task]))
 		if room=="power":
 			result.append(_gated("isolate","Isolate the auxiliary/science service circuit (essential stays live)",task,flags.get("power.diagnosed",false),"Diagnose the cell or allocation problem first."))
-			result.append(_gated("allocation","Configure the circuit allocation",task,systems.power.isolated,"Isolate the nonessential service circuit first.",[["balanced","70 essential + 20 science + 10 reserve"],["reserve","70 essential + 10 science + 20 reserve"],["overload","70 essential + 35 science + 10 reserve"]]))
+			if phase=="outbound":
+				result.append(_gated("allocation","Choose the auxiliary power plan",task,systems.power.isolated,"Isolate the service circuit first.",[["standard","Standard: 50 essential / 40 science / 10 reserve"],["science","Science first: 45 / 45 / 10"],["repair","Repair hold: 65 / 15 / 20"]]))
+				result.append(_gated("sync","Synchronize bank B with banks A and C",task,systems.power.isolated and flags.get("power.allocated",false) and _has("engineering_multitool"),"Isolate the service circuit, choose a safe power plan and carry the engineering multitool."))
+			else:
+				result.append(_gated("allocation","Configure the circuit allocation",task,systems.power.isolated,"Isolate the nonessential service circuit first.",[["balanced","70 essential + 20 science + 10 reserve"],["reserve","70 essential + 10 science + 20 reserve"],["overload","70 essential + 35 science + 10 reserve"]]))
 			if prop_id=="power.cell": result.append(_gated("legacy:auxiliary_power","Synchronize the existing auxiliary-power banks",task,systems.power.isolated and _has("engineering_multitool"),"Isolate the service circuit and carry the engineering multitool."))
 			result.append(_action("restore","Restore circuit / cancel isolation safely"))
 		if room=="life":
@@ -266,6 +285,7 @@ func actions(prop_id: String) -> Array:
 		if room=="hydro":
 			result.append(_gated("isolate","Stop nutrient delivery and isolate the dosing/manifold access",task,flags.get("hydro.diagnosed",false),"Compare pump, reservoir and flow readings first."))
 			if prop_id=="hydro.console" and phase=="outbound": result.append(_gated("legacy:nutrient_flow","Operate the existing labelled manifold valves",task,systems.hydro.isolated and _has("engineering_multitool"),"Isolate nutrient delivery and carry the multitool."))
+			if phase=="outbound": result.append(_gated("align","Set the three manifold valves to their marks",task,systems.hydro.isolated and _has("engineering_multitool"),"Close the supply valve and carry the engineering multitool."))
 			if phase=="return":
 				var dose: Dictionary=_gated("dose","Calculate and add BUFFER-A dilution",task,systems.hydro.isolated and _has("nutrient_buffer"),"Isolate dosing and retrieve BUFFER-A from the shared quarters drawer or cargo locker.")
 				dose["number"]={"min":0.25,"max":2.0,"step":0.25,"value":1.0,"suffix":" dose"};result.append(dose)
@@ -279,7 +299,9 @@ func actions(prop_id: String) -> Array:
 				result.append(_gated("engine_service","Open valve 2 fully" if phase=="return" else "Service pump 1 using COOL-02",task,systems.engine.isolated[loop_index] and _has("engineering_multitool") and (phase=="return" or _has("coolant_charge")),"Isolate the correct component. Carry the multitool and, for pump service, COOL-02 coolant."))
 				result.append(_action("restore","Restore this loop / cancel isolation safely"))
 			result.append(_action("resume_output","Restore nominal output after cooling verification",completed.has("engine"),"Verify cooling before requesting nominal thrust."))
-		if not completed.has(task): result.append(_gated("verify","Observe and verify the recovered system",task,float(verification.get(task,0.0))>=6.0,"Restore the system and observe healthy readings for six seconds. Current stable time: %.1f s." % float(verification.get(task,0.0))))
+		if not completed.has(task):
+			var needed := verify_seconds(task)
+			result.append(_gated("verify","Observe and verify the recovered system",task,float(verification.get(task,0.0))>=needed,"Restore the system and wait for three steady readings. Current stable time: %.1f of %.1f s." % [float(verification.get(task,0.0)), needed]))
 	if kind=="turbine": result.append(_action("turbine","Inspect this turbine's assigned cooling loop and output"))
 	if kind=="navigation":
 		result.append(_gated("route","Compare planned route and independent instrument reading","navigation"))
@@ -291,6 +313,9 @@ func actions(prop_id: String) -> Array:
 		result.append(_gated("channel","Check signal and select the transmission protocol","communications",systems.communications.report_ready and not systems.communications.sent,"Prepare the verified report first; a packet already in transit retains its protocol.",[["standard","Earth relay / standard packet (requires >= 60% signal)"],["robust","Earth relay / repeated critical packet (requires >= 35%)"],["local","Local crew channel / no Earth acknowledgement"]]))
 		result.append(_gated("transmit","Transmit and monitor acknowledgement","communications",systems.communications.report_ready and not systems.communications.sent,"Prepare the report and choose a viable link. A failed attempt preserves the report."))
 	return result
+
+func verify_seconds(task: String) -> float:
+	return float(VERIFY_SECONDS.get(task, 6.0)) if phase=="outbound" else 6.0
 
 func act(prop_id: String, action_id: String, value: Variant = null) -> Dictionary:
 	if inventory==null: return _reply(false,"This station's ship inventory is no longer active. Reopen it in the current ship scene.")
@@ -330,9 +355,9 @@ func act(prop_id: String, action_id: String, value: Variant = null) -> Dictionar
 			"roster": flags["crew.roster"]=true;message="Roster A1-DUTY read. Expected activity is a logged duty watch, not proof of present location. Compare the authorised check-in record."
 			"crew_log":
 				flags["crew.log"]=true
-				message="Routine watch entries match the expected duty roster. Record that comparison." if phase=="outbound" else "The available watch entry predates the incident. Current check-in confirmation is absent; record present whereabouts as unconfirmed."
+				message="Six crew on the watch roster, five check-ins received. Mateo Ruiz has not checked in this watch. Record that comparison." if phase=="outbound" else "The available watch entry predates the incident. Current check-in confirmation is absent; record present whereabouts as unconfirmed."
 			"crew_compare":
-				if value!=("unconfirmed" if phase=="return" else "records_match"): return _reply(false,"That conclusion is not supported by the records. Review the roster and watch-entry dates.")
+				if value!=("unconfirmed" if phase=="return" else "one_missing"): return _reply(false,"That conclusion is not supported by the records. Review the roster and watch-entry dates." if phase=="return" else ("Not supported: Mateo Ruiz has no check-in." if value=="all_checked_in" else "Not supported: these records show check-ins, not who is aboard."))
 				systems.crew.confirmed=true;_done("crew");message="Crew check-in comparison recorded with its evidence limits."
 			"manifest": flags["cargo.manifest"]=true;message="CARGO-A12: expected 84.0 kg +/- 0.5. Use only the identified load. Compare the exterior seal and actual mass."
 			"seal":
@@ -375,6 +400,17 @@ func act(prop_id: String, action_id: String, value: Variant = null) -> Dictionar
 				if room=="engine": systems.engine.isolated[1 if phase=="return" else 0]=true
 				else: systems[room].isolated=true
 				message="Service access isolated. Essential reserve systems stay online. Closing this panel leaves isolation recorded; Restore is always available here."
+			"allocation" when POWER_PLANS.has(str(value)):
+				var plan: Array=POWER_PLANS[str(value)]
+				if plan[0] < POWER_MIN.essential or plan[2] < POWER_MIN.reserve: return _reply(false,"That plan would drop %s power below its minimum while the service circuit is isolated." % ("essential" if plan[0] < POWER_MIN.essential else "reserve"))
+				systems.power.essential=plan[0];systems.power.science=plan[1];systems.power.reserve=plan[2]
+				flags["power.allocated"]=true;message="%s plan applied. Essential and reserve power stay above their minimums while bank B is serviced." % {"standard":"Standard","science":"Science-first","repair":"Repair hold"}[str(value)]
+			"sync":
+				systems.power.calibrated=true;flags["legacy.auxiliary_power"]=true
+				message="Bank B synchronized with banks A and C. The service circuit is still isolated; restore it next."
+			"align":
+				systems.hydro.aligned=true;flags["legacy.nutrient_flow"]=true
+				message="Manifold valves set to their marks. The supply is still closed; reopen it next."
 			"allocation":
 				if value=="overload": return _reply(false,"Requested total 115 exceeds capacity 100. Essential services remain untouched; select a safe allocation or restore/cancel.")
 				systems.power.essential=70;systems.power.science=10 if value=="reserve" else 20;systems.power.reserve=20 if value=="reserve" else 10
@@ -421,7 +457,7 @@ func act(prop_id: String, action_id: String, value: Variant = null) -> Dictionar
 			"prepare_report":
 				var c: Dictionary=systems.communications
 				c.report_id="A1-DUTY-"+phase.to_upper()
-				c.report_text="WATCH / "+phase.to_upper()+"\nCrew records: "+("present whereabouts unconfirmed" if phase=="return" else "routine watch entries match")+"\n"
+				c.report_text="WATCH / "+phase.to_upper()+"\nCrew records: "+("present whereabouts unconfirmed" if phase=="return" else "one expected check-in missing (Mateo Ruiz)")+"\n"
 				for area in ["cargo","power","life","hydro","engine"]: c.report_text+="\n"+str(area).to_upper()+"\n"+readings(area)+"\n"
 				c.report_text+="\nVerified heading %.1f deg (correction %.1f).\nRecorded phase evidence:\n" % [systems.navigation.instrument+systems.navigation.correction,systems.navigation.correction]
 				for key in evidence:
@@ -476,7 +512,10 @@ func snapshot() -> Dictionary:
 	return {"version":2,"phase":phase,"context":work_order_context,"work_orders":Array(authorized_work_orders),"flags":flags.duplicate(true),"completed":completed.duplicate(true),"evidence":evidence.duplicate(true),"journal":journal.duplicate(true),"stocks":stocks.duplicate(true),"legacy_progress":legacy_progress.duplicate(true),"systems":systems.duplicate(true),"verification":verification.duplicate(true),"transactions":transactions.duplicate(true),"elapsed":elapsed}
 
 func restore(data: Dictionary) -> bool:
-	if data.get("version") not in [1,2] or data.get("phase","") not in ["outbound","return"]: return false
+	if not (data.get("version") is int or data.get("version") is float): return false
+	# JSON numbers are floats. Array membership is type-sensitive, while the
+	# numeric comparisons accept exactly the two supported serialized versions.
+	if (data.get("version")!=1 and data.get("version")!=2) or data.get("phase","") not in ["outbound","return"]: return false
 	var context: String = str(data.get("context", "maintenance")) if data.version == 2 else "maintenance"
 	var orders: Variant = data.get("work_orders", []) if data.version == 2 else []
 	if context not in ["maintenance", "first_watch"] or not orders is Array: return false
@@ -533,7 +572,7 @@ func _valid_service_progress(task: String, data: Variant) -> bool:
 	for value in data.power:
 		if not _number_in_range(value,0,100): return false
 	for value in data.nutrient_rotations:
-		if not _number_in_range(value,0,3,true): return false
+		if not _number_in_range(value,0,7,true): return false
 	return true
 
 func _same_shape(template: Variant, value: Variant) -> bool:

@@ -1,0 +1,161 @@
+[gd_scene load_steps=10 format=3]
+
+[ext_resource type="Texture2D" path="res://art/concepts/med_bay_props/med_bay_retro_bed.png" id="1_bed"]
+[ext_resource type="Texture2D" path="res://art/concepts/med_bay_props/med_bay_telemetry_console.png" id="2_console"]
+[ext_resource type="Texture2D" path="res://art/concepts/med_bay_props/med_bay_defibrillator_cart.png" id="3_cart"]
+[ext_resource type="Texture2D" path="res://art/concepts/med_bay_props/med_bay_pharma_locker.png" id="4_locker"]
+[ext_resource type="PackedScene" path="res://scenes/ship/props/warm_ship_light.tscn" id="5_light"]
+
+[sub_resource type="RectangleShape2D" id="BedFootprint"]
+size = Vector2(44, 22)
+
+[sub_resource type="RectangleShape2D" id="ConsoleFootprint"]
+size = Vector2(42, 22)
+
+[sub_resource type="RectangleShape2D" id="CartFootprint"]
+size = Vector2(28, 18)
+
+[sub_resource type="RectangleShape2D" id="LockerFootprint"]
+size = Vector2(30, 20)
+
+[node name="MedBayRoomProps" type="Node2D"]
+y_sort_enabled = true
+
+[node name="ExamLighting" type="Node2D" parent="."]
+
+[node name="PodAreaLight" parent="ExamLighting" instance=ExtResource("5_light")]
+position = Vector2(745, 115)
+color = Color(1, 0.88, 0.72, 1)
+energy = 0.52
+texture_scale = 0.35
+
+[node name="ExamBenchLight" parent="ExamLighting" instance=ExtResource("5_light")]
+position = Vector2(875, 115)
+color = Color(0.92, 0.96, 0.88, 1)
+energy = 0.62
+texture_scale = 0.36
+
+[node name="SterileStationLight" parent="ExamLighting" instance=ExtResource("5_light")]
+position = Vector2(960, 115)
+color = Color(1, 0.88, 0.72, 1)
+energy = 0.52
+texture_scale = 0.35
+
+[node name="RetroBed01" type="Node2D" parent="."]
+y_sort_enabled = true
+position = Vector2(715, 124)
+
+[node name="Sprite2D" type="Sprite2D" parent="RetroBed01"]
+texture_filter = 1
+position = Vector2(0, -6)
+scale = Vector2(0.098, 0.098)
+texture = ExtResource("1_bed")
+
+[node name="Collision" type="StaticBody2D" parent="RetroBed01"]
+collision_mask = 0
+
+[node name="Footprint" type="CollisionShape2D" parent="RetroBed01/Collision"]
+position = Vector2(0, 6)
+shape = SubResource("BedFootprint")
+
+[node name="RetroBed02" type="Node2D" parent="."]
+y_sort_enabled = true
+position = Vector2(780, 124)
+
+[node name="Sprite2D" type="Sprite2D" parent="RetroBed02"]
+texture_filter = 1
+position = Vector2(0, -6)
+scale = Vector2(0.098, 0.098)
+texture = ExtResource("1_bed")
+
+[node name="Collision" type="StaticBody2D" parent="RetroBed02"]
+collision_mask = 0
+
+[node name="Footprint" type="CollisionShape2D" parent="RetroBed02/Collision"]
+position = Vector2(0, 6)
+shape = SubResource("BedFootprint")
+
+[node name="DefibrillatorCart01" type="Node2D" parent="."]
+y_sort_enabled = true
+position = Vector2(825, 136)
+
+[node name="Sprite2D" type="Sprite2D" parent="DefibrillatorCart01"]
+texture_filter = 1
+position = Vector2(0, -6)
+scale = Vector2(0.088, 0.088)
+texture = ExtResource("3_cart")
+
+[node name="Collision" type="StaticBody2D" parent="DefibrillatorCart01"]
+collision_mask = 0
+
+[node name="Footprint" type="CollisionShape2D" parent="DefibrillatorCart01/Collision"]
+position = Vector2(0, 4)
+shape = SubResource("CartFootprint")
+
+[node name="TelemetryConsole" type="Node2D" parent="."]
+y_sort_enabled = true
+position = Vector2(875, 122)
+
+[node name="Sprite2D" type="Sprite2D" parent="TelemetryConsole"]
+texture_filter = 1
+position = Vector2(0, -6)
+scale = Vector2(0.098, 0.098)
+texture = ExtResource("2_console")
+
+[node name="Collision" type="StaticBody2D" parent="TelemetryConsole"]
+collision_mask = 0
+
+[node name="Footprint" type="CollisionShape2D" parent="TelemetryConsole/Collision"]
+position = Vector2(0, 6)
+shape = SubResource("ConsoleFootprint")
+
+[node name="PharmaLocker01" type="Node2D" parent="."]
+y_sort_enabled = true
+position = Vector2(940, 122)
+
+[node name="Sprite2D" type="Sprite2D" parent="PharmaLocker01"]
+texture_filter = 1
+position = Vector2(0, -6)
+scale = Vector2(0.094, 0.094)
+texture = ExtResource("4_locker")
+
+[node name="Collision" type="StaticBody2D" parent="PharmaLocker01"]
+collision_mask = 0
+
+[node name="Footprint" type="CollisionShape2D" parent="PharmaLocker01/Collision"]
+position = Vector2(0, 6)
+shape = SubResource("LockerFootprint")
+
+[node name="PharmaLocker02" type="Node2D" parent="."]
+y_sort_enabled = true
+position = Vector2(978, 122)
+
+[node name="Sprite2D" type="Sprite2D" parent="PharmaLocker02"]
+texture_filter = 1
+position = Vector2(0, -6)
+scale = Vector2(0.094, 0.094)
+texture = ExtResource("4_locker")
+
+[node name="Collision" type="StaticBody2D" parent="PharmaLocker02"]
+collision_mask = 0
+
+[node name="Footprint" type="CollisionShape2D" parent="PharmaLocker02/Collision"]
+position = Vector2(0, 6)
+shape = SubResource("LockerFootprint")
+
+[node name="DefibrillatorCart02" type="Node2D" parent="."]
+y_sort_enabled = true
+position = Vector2(1018, 136)
+
+[node name="Sprite2D" type="Sprite2D" parent="DefibrillatorCart02"]
+texture_filter = 1
+position = Vector2(0, -6)
+scale = Vector2(0.088, 0.088)
+texture = ExtResource("3_cart")
+
+[node name="Collision" type="StaticBody2D" parent="DefibrillatorCart02"]
+collision_mask = 0
+
+[node name="Footprint" type="CollisionShape2D" parent="DefibrillatorCart02/Collision"]
+position = Vector2(0, 4)
+shape = SubResource("CartFootprint")

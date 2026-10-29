@@ -47,6 +47,13 @@ func all_action_access() -> void:
 			await station(prop[1])
 			var panel=level._ship_panel
 			if not is_instance_valid(panel): continue
+			if not redesigned(panel):
+				pass
+			else:
+				# Power, irrigation and crew records use the redesigned screens; their
+				# controls are drawn per step rather than as a generic action list.
+				check(panel.screen!=null and panel.screen.is_visible_in_tree(),"Redesigned screen shown "+context+" / "+prop[1])
+				continue
 			for action in level._ship_state.actions(prop[1]):
 				panel.reveal_action(action.id);await frames(1)
 				check(panel._pages.has(panel._stage),"Stage listed for "+prop[1]+" / "+action.id)
@@ -76,7 +83,7 @@ func keyboard_refresh() -> void:
 	check(not is_instance_valid(level._ship_panel) and level.player.is_physics_processing(),"Escape closes and restores movement")
 	await station("bridge.helm")
 	check(level._ship_panel._controls.correction.choice.value==0.0,"Reopened controls initialize from saved model")
-	await station("power.breaker")
+	await station("life.filter")
 	panel=level._ship_panel;panel.reveal_action("diagnose");await frames()
 	var dropdown: OptionButton=panel._controls.diagnose.choice
 	dropdown.grab_focus();await key(KEY_SPACE)
@@ -92,8 +99,8 @@ func loaded_view() -> void:
 	level._ship_state.reset("return");await frames()
 	check(level.ship_load_game().begins_with("Ship-side progress restored."),"UI probe reloads actual mission save")
 	await station("power.breaker")
-	check(level._ship_state.phase=="outbound" and level._ship_panel._condition.caption.text=="VERIFIED","Reloaded interface restores watch and verified condition")
-	check(level._ship_panel._metrics[1].reading.text=="10 UNITS","Reloaded allocation readout uses actual saved science units")
+	check(level._ship_state.phase=="outbound" and redesigned(level._ship_panel) and level._ship_panel.screen.verified(),"Reloaded interface restores watch and verified condition")
+	check(level._ship_state.systems.power.science==15 and level._ship_panel.screen.plan==2,"Reloaded power plan shows the actual saved repair-hold allocation")
 
 func service_capture(console: Node,label: String) -> void:
 	for dims in [Vector2i(1280,720),Vector2i(1024,576)]:
@@ -174,6 +181,12 @@ func operate(id: String,value: Variant=null) -> void:
 	elif choice is SpinBox: choice.value=float(value)
 	await click(entry.button);await frames()
 
+func redesigned(panel) -> bool:
+	return is_instance_valid(panel) and not str(panel.get("kind") if panel.get("kind")!=null else "").is_empty()
+
+func act(id: String, value: Variant=null) -> void:
+	level._ship_panel.act(id,value);await frames()
+
 func station(id: String) -> void:
 	if is_instance_valid(level._ship_panel): level._ship_panel.close_panel();await frames()
 	level.player.global_position=level._ship_points[id].marker.global_position
@@ -187,32 +200,25 @@ func run() -> void:
 	for child in level.get_children():
 		if child is CanvasLayer and child!=level._walk_hud: child.hide()
 	await station("power.breaker")
+	check(redesigned(level._ship_panel) and level._ship_panel.kind=="power","Power breaker opens the redesigned auxiliary power panel")
 	await capture("power_breaker_first_1280x720")
-	level._ship_panel._select_stage("SERVICE");await capture("power_breaker_service_1280x720")
 	get_window().size=Vector2i(1024,576);get_window().content_scale_size=Vector2i(1024,576)
-	await capture("power_breaker_service_1024x576")
-	# Focused fixture unlocks cargo prerequisites only. The real circuit actions,
-	# original bank controls and live observation still execute through the owner.
+	await capture("power_breaker_first_1024x576")
+	# Focused fixture unlocks cargo prerequisites only. The real circuit actions
+	# and live observation still execute through the owner.
 	level._ship_state.flags.assigned=true
 	level._ship_state.completed={"crew":true,"cargo":true}
 	level._ship_state.changed.emit();await frames()
-	await operate("observe");await operate("diagnose","cell")
-	await operate("isolate");await operate("allocation","reserve")
-	check(level._ship_state.systems.power.isolated and level._ship_state.systems.power.reserve==20,"Breaker mouse controls change authoritative circuit")
+	await act("observe");await act("diagnose","cell")
+	await act("isolate");await act("allocation","repair")
+	check(level._ship_state.systems.power.isolated and level._ship_state.systems.power.reserve==20,"Breaker controls change authoritative circuit")
 	await capture("power_breaker_isolated_1024x576")
-	await station("power.cell");await operate("legacy:auxiliary_power")
-	await frames();var console=level._ship_service_console
-	check(is_instance_valid(console),"Original bank game opens")
-	if is_instance_valid(console):
-		await capture("power_bank_active_1024x576")
-		for i in range(3): console._power_sliders[i].value=[67,43,77][i]
-		await click(console._power_sync_button)
-		check(console._task_complete,"Original bank game completion")
-		await capture("power_bank_complete_1024x576")
-		console._close_console();await get_tree().create_timer(0.3).timeout
-	await station("power.breaker");await operate("restore")
-	while float(level._ship_state.verification.get("power",0))<6.0: await get_tree().process_frame
-	await get_tree().create_timer(0.25).timeout;await operate("verify")
+	await act("sync")
+	check(level._ship_state.systems.power.calibrated,"Bank B synchronizes through the redesigned panel")
+	await capture("power_bank_complete_1024x576")
+	await act("restore")
+	while float(level._ship_state.verification.get("power",0))<level._ship_state.verify_seconds("power"): await get_tree().process_frame
+	await get_tree().create_timer(0.25).timeout;await act("verify")
 	check(level._ship_state.completed.has("power"),"Complete power duty through new controls")
 	await capture("power_breaker_verified_1024x576")
 	get_window().size=Vector2i(1280,720);get_window().content_scale_size=Vector2i(1280,720)

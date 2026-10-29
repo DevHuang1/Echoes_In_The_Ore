@@ -3,6 +3,7 @@ extends Node2D
 
 const SHIP_MAIN_DECK_SCENE_PATH: String = "res://scenes/ship/bare_ship_walkthrough.tscn"
 const WALK_HUD_SCENE: PackedScene = preload("res://scenes/ui/walk_hud.tscn")
+const SERVICE_TASK_CONSOLE_SCENE: PackedScene = preload("res://scenes/ui/service_task_console.tscn")
 const STORY_CUTSCENE_SCRIPT: Script = preload("res://scripts/ui/story_cutscene_overlay.gd")
 const WARM_LIGHT_SCENE: PackedScene = preload("res://scenes/ship/props/warm_ship_light.tscn")
 const GAS_MIST_SCENE: PackedScene = preload("res://scenes/ship/props/ambient_gas_mist.tscn")
@@ -26,8 +27,8 @@ const COOLANT_PUMP_SCENE: PackedScene = preload("res://scenes/ship/props/engine_
 const FUEL_MANIFOLD_SCENE: PackedScene = preload("res://scenes/ship/props/engine_room/fuel_valve_manifold.tscn")
 
 const MAP_SIZE: Vector2i = Vector2i(1774, 887)
-const LIFT_RETURN_POS: Vector2 = Vector2(882.0, 256.0)
-const PLAYER_SPAWN_POS: Vector2 = Vector2(882.0, 306.0)
+const LIFT_RETURN_POS: Vector2 = Vector2(490.0, 172.0)
+const PLAYER_SPAWN_POS: Vector2 = Vector2(490.0, 224.0)
 const LIFT_INTERACT_RADIUS: float = 62.0
 const SUBDECK_TASK_RADIUS: float = 64.0
 
@@ -159,10 +160,9 @@ const INTERNAL_WALL_PARTITIONS: Array = []
 
 # Storage, engine-service, workshop, coolant, and nest props placed on verified walkable floor lanes.
 const SUBDECK_PROP_PLACEMENTS: Array = [
-	# S02 Bulk Storage Vault (verified interior floor x=130..610, y=125..365)
+	# S02 Bulk Storage Vault (verified interior floor x=130..610, y=125..365; upper-right bay cleared for MainDeckReturnLift)
 	{"kind": &"cylinder_rack", "pos": Vector2(245.0, 138.0), "dir": 1},
-	{"kind": &"cylinder_rack", "pos": Vector2(435.0, 138.0), "dir": 1},
-	{"kind": &"cylinder_rack", "pos": Vector2(545.0, 138.0), "dir": 1},
+	{"kind": &"cylinder_rack", "pos": Vector2(565.0, 138.0), "dir": 1},
 	{"kind": &"box_bundle", "pos": Vector2(235.0, 345.0)},
 	{"kind": &"box_bundle", "pos": Vector2(435.0, 345.0)},
 	{"kind": &"box_bundle", "pos": Vector2(560.0, 345.0)},
@@ -221,8 +221,8 @@ const FLOW_DASH_SPACING: float = 22.0
 const FLOW_DASH_LENGTH: float = 6.0
 const FLOW_SPEED: float = 42.0
 
+# Flowing floor pipe lines disabled on Sub-Deck 02 to match its clean industrial aesthetic
 var _subdeck_warm_pipe_runs: Array = []
-
 var _subdeck_cool_pipe_runs: Array = []
 
 const SUBDECK_TASKS: Array = [
@@ -230,28 +230,66 @@ const SUBDECK_TASKS: Array = [
 		"id": &"subdeck_inventory_manifest",
 		"title": "Trace Ward's signal in the cargo vault (Flare)",
 		"marker_label": "STORAGE",
+		"room_name": "S02 Bulk Storage Vault",
+		"action_hint": "Trace Ward's radio lure inside the bulk storage vault",
+		"milestone_reward": &"emergency_flare",
 		"position": Vector2(300.0, 250.0),
 		"prompt": "BULK STORAGE VAULT   /   [E] TRACE WARD'S VOICE",
 		"completion": "False radio lure confirmed. Unlocked: Emergency Flare.",
 		"reward_item": &"emergency_flare",
+		"console_task_id": &"",
+	},
+	{
+		"id": &"subdeck_workshop_power",
+		"title": "Calibrate S04 Workshop aux power (Multitool)",
+		"marker_label": "WORKSHOP",
+		"room_name": "S04 Engineering Workshop",
+		"action_hint": "Calibrate auxiliary power converter at capacitor banks",
+		"milestone_reward": &"engineering_multitool",
+		"position": Vector2(535.0, 675.0),
+		"prompt": "WORKSHOP POWER CONVERTER   /   [E] CALIBRATE AUX POWER BUS",
+		"completion": "Workshop capacitor banks synchronized! Unlocked: Engineering Multitool.",
+		"reward_item": &"engineering_multitool",
+		"console_task_id": &"auxiliary_power",
+	},
+	{
+		"id": &"subdeck_coolant_manifold",
+		"title": "Align S05 Coolant Bay valves (Sealant)",
+		"marker_label": "COOLANT BAY",
+		"room_name": "S05 Coolant Bay",
+		"action_hint": "Align circulation manifold valves to equalize pressure",
+		"milestone_reward": &"pressure_sealant",
+		"position": Vector2(925.0, 680.0),
+		"prompt": "COOLANT CIRCULATION MANIFOLD   /   [E] ALIGN COOLANT VALVES",
+		"completion": "Sub-deck coolant manifold aligned! Unlocked: Pressure Sealant.",
+		"reward_item": &"pressure_sealant",
+		"console_task_id": &"nutrient_flow",
 	},
 	{
 		"id": &"subdeck_pipe_pressure",
 		"title": "Rescue Leila Haddad in the engine hall (Arc Tool)",
 		"marker_label": "ENGINE HALL",
+		"room_name": "Turbine Engine Hall",
+		"action_hint": "Free Leila Haddad and construct high-voltage arc capacitor",
+		"milestone_reward": &"electrical_discharge_tool",
 		"position": Vector2(1500.0, 265.0),
 		"prompt": "TURBINE SERVICE CONSOLE   /   [E] RESCUE LEILA & BUILD ARC TOOL",
 		"completion": "Cooling valves equalized! Constructed: Electrical Discharge Tool.",
 		"reward_item": &"electrical_discharge_tool",
+		"console_task_id": &"air_filter",
 	},
 	{
 		"id": &"subdeck_shadow_nest_check",
 		"title": "Inspect the hidden Echo nest (Plasma Cutter)",
 		"marker_label": "DARK NEST",
+		"room_name": "Breached Alcove S06",
+		"action_hint": "Inspect the mineral rib nest in the breached alcove",
+		"milestone_reward": &"industrial_plasma_cutter",
 		"position": Vector2(1600.0, 680.0),
 		"prompt": "BREACHED CONTAINMENT ALCOVE   /   [E] INSPECT ECHO NEST",
 		"completion": "Mineral rib nest logged. Recovered: Industrial Plasma Cutter.",
 		"reward_item": &"industrial_plasma_cutter",
+		"console_task_id": &"",
 	},
 ]
 
@@ -268,7 +306,9 @@ var _lights_canvas: Node2D = null
 var _walk_hud: WalkHud = null
 var _story_cutscene: CanvasLayer = null
 var _hud_modal_open: bool = false
+var _task_console_open: bool = false
 var _cutscene_open: bool = false
+var _pending_cutscene_task_id: StringName = &""
 var _transitioning: bool = false
 var _near_lift: bool = false
 var _active_task_id: StringName = &""
@@ -333,9 +373,15 @@ func _ready() -> void:
 	var mask_tex: Texture2D = _build_walkable_mask_texture()
 	player.set_walkable_floor_mask(mask_tex, Vector2.ZERO, 8.0)
 	player.set_camera_bounds(Rect2(Vector2.ZERO, Vector2(MAP_SIZE)))
-	player.global_position = PLAYER_SPAWN_POS
-	player.camera.make_current()
-	player.camera.reset_smoothing()
+	if Engine.has_meta(&"dev_warp_target"):
+		var dev_target: Vector2 = Engine.get_meta(&"dev_warp_target")
+		Engine.remove_meta(&"dev_warp_target")
+		player.global_position = dev_target
+	else:
+		player.global_position = PLAYER_SPAWN_POS
+	if is_instance_valid(player.camera):
+		player.camera.make_current()
+		player.camera.reset_smoothing()
 
 	var hud_tasks: Array[Dictionary] = []
 	for task in SUBDECK_TASKS:
@@ -344,7 +390,10 @@ func _ready() -> void:
 			"id": task["id"],
 			"title": task["title"],
 			"marker_label": task["marker_label"],
+			"room_name": task.get("room_name", task["marker_label"]),
+			"action_hint": task.get("action_hint", task["prompt"]),
 			"reward_item": task.get("reward_item", &""),
+			"milestone_reward": task.get("milestone_reward", task.get("reward_item", &"")),
 			"is_equipment_task": StringName(task.get("reward_item", &"")) != &"",
 			"position": tpos,
 			"marker_position": tpos + Vector2(0.0, -28.0),
@@ -353,6 +402,10 @@ func _ready() -> void:
 	_walk_hud.setup(player, hud_tasks, Vector2.ZERO, Vector2(MAP_SIZE))
 	_walk_hud.modal_state_changed.connect(_on_hud_modal_state_changed)
 	add_child(_walk_hud)
+	var subdeck_floor_tex: Texture2D = _load_png_texture("res://art/overview/subdeck_02_floor_pre_arrival.png")
+	var subdeck_wall_tex: Texture2D = _load_png_texture("res://art/overview/subdeck_02_walls_pre_arrival.png")
+	_walk_hud.set_map_textures(subdeck_floor_tex, subdeck_wall_tex)
+	_walk_hud.set_show_all_active_tasks(true)
 	_walk_hud.set_story_act_label("ACT IV — THE HUNT (SUB-DECK 02)")
 	for done_id in _completed_tasks:
 		_walk_hud.set_task_completed(StringName(done_id), true)
@@ -801,28 +854,31 @@ func _build_room_lighting_nodes() -> void:
 			"lit_factor": 0.0,
 		})
 
-	_lights_canvas = Node2D.new()
-	_lights_canvas.name = "MountedLightsCanvas"
-	_lights_canvas.z_as_relative = false
-	_lights_canvas.z_index = 2
-	_lights_canvas.draw.connect(_on_lights_canvas_draw)
-	subdeck_lighting.add_child(_lights_canvas)
+	if not is_instance_valid(_lights_canvas):
+		_lights_canvas = Node2D.new()
+		_lights_canvas.name = "MountedLightsCanvas"
+		_lights_canvas.z_as_relative = false
+		_lights_canvas.z_index = 2
+		_lights_canvas.draw.connect(_on_lights_canvas_draw.bind(_lights_canvas))
+		subdeck_lighting.add_child(_lights_canvas)
 
 
-func _on_lights_canvas_draw() -> void:
-	# Floor/wall light strip overlays removed per user request; illumination is handled by PointLight2D.
+func _on_lights_canvas_draw(canvas: Node2D = null) -> void:
+	if canvas == null:
+		canvas = _lights_canvas
+	if not is_instance_valid(player) or not is_instance_valid(canvas) or not canvas.is_inside_tree():
+		return
+	# Overhead task markers already indicate each objective on top;
+	# unnecessary floor highlight boxes/brackets have been removed.
+
+
+func _draw_small_station_highlight(_canvas: Node2D, _center: Vector2, _half_extents: Vector2, _base_col: Color, _is_near: bool, _pulse: float) -> void:
 	pass
 
 
 func _on_subdeck_pipes_draw() -> void:
-	if not is_instance_valid(subdeck_pipe_network):
-		return
-	for i in range(_subdeck_warm_pipe_runs.size()):
-		var w_pts: PackedVector2Array = _subdeck_warm_pipe_runs[i]
-		_draw_pipe_on_layer(subdeck_pipe_network, w_pts, WARM_FLUID, WARM_GLINT, _flow_distance + float(i) * 4.5, false)
-	for i in range(_subdeck_cool_pipe_runs.size()):
-		var c_pts: PackedVector2Array = _subdeck_cool_pipe_runs[i]
-		_draw_pipe_on_layer(subdeck_pipe_network, c_pts, COOL_FLUID, COOL_GLINT, _flow_distance + float(i) * 5.0, true)
+	# Flowing water/coolant pipe overlay disabled per aesthetic preference.
+	pass
 
 
 func _draw_pipe_on_layer(canvas: Node2D, points: PackedVector2Array, fluid: Color, glint: Color, flow_phase: float, reverse_flow: bool) -> void:
@@ -955,8 +1011,8 @@ func _process(delta: float) -> void:
 	if is_instance_valid(_lights_canvas):
 		_lights_canvas.queue_redraw()
 
-	if _entry_grace_timer <= 0.0 and not _hud_modal_open and not _cutscene_open:
-		if absf(player.global_position.x - LIFT_RETURN_POS.x) <= 34.0 and player.global_position.y <= LIFT_RETURN_POS.y + 12.0 and Input.is_action_pressed(&"move_up"):
+	if _entry_grace_timer <= 0.0 and not _hud_modal_open and not _task_console_open and not _cutscene_open:
+		if absf(player.global_position.x - LIFT_RETURN_POS.x) <= 34.0 and absf(player.global_position.y - LIFT_RETURN_POS.y) <= 22.0 and Input.is_action_pressed(&"move_up"):
 			_return_to_main_deck()
 			return
 
@@ -964,20 +1020,22 @@ func _process(delta: float) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if _transitioning or _hud_modal_open or _cutscene_open or not event.is_action_pressed(&"interact"):
+	if _transitioning or _hud_modal_open or _task_console_open or _cutscene_open or not event.is_action_pressed(&"interact"):
 		return
 	if _near_lift:
 		get_viewport().set_input_as_handled()
 		_return_to_main_deck()
 	elif _active_task_id != &"":
 		get_viewport().set_input_as_handled()
-		_complete_subdeck_task(_active_task_id)
+		_trigger_subdeck_task(_active_task_id)
 
 
 func _refresh_prompt() -> void:
 	_near_lift = false
 	_active_task_id = &""
-	if _hud_modal_open or _cutscene_open or not is_instance_valid(_walk_hud):
+	if _hud_modal_open or _task_console_open or _cutscene_open or not is_instance_valid(_walk_hud):
+		if is_instance_valid(_walk_hud):
+			_walk_hud.set_interaction_prompt("", false)
 		return
 
 	if player.global_position.distance_to(LIFT_RETURN_POS) <= LIFT_INTERACT_RADIUS:
@@ -985,16 +1043,22 @@ func _refresh_prompt() -> void:
 		_walk_hud.set_interaction_prompt("MAIN DECK CARGO LIFT   /   [E] ASCEND TO FIRST FLOOR", true)
 		return
 
+	var closest_task: Dictionary = {}
+	var closest_dist: float = SUBDECK_TASK_RADIUS
 	for task in SUBDECK_TASKS:
 		var tid: StringName = task["id"]
 		if _completed_tasks.has(tid):
 			continue
 		var tpos: Vector2 = task["position"]
-		if player.global_position.distance_to(tpos) <= SUBDECK_TASK_RADIUS:
-			_active_task_id = tid
-			var prompt_str: String = task["prompt"]
-			_walk_hud.set_interaction_prompt(prompt_str, true)
-			return
+		var dist: float = player.global_position.distance_to(tpos)
+		if dist <= closest_dist:
+			closest_dist = dist
+			closest_task = task
+	if not closest_task.is_empty():
+		_active_task_id = closest_task["id"]
+		var prompt_str: String = closest_task["prompt"]
+		_walk_hud.set_interaction_prompt(prompt_str, true)
+		return
 
 	if _feedback_timer > 0.0 and not _feedback_text.is_empty():
 		_walk_hud.set_interaction_prompt(_feedback_text, true)
@@ -1002,37 +1066,84 @@ func _refresh_prompt() -> void:
 		_walk_hud.set_interaction_prompt("", false)
 
 
-func _complete_subdeck_task(task_id: StringName) -> void:
+func _trigger_subdeck_task(task_id: StringName) -> void:
+	if _completed_tasks.has(task_id) or _task_console_open or _cutscene_open:
+		return
+	var console_id: StringName = &""
+	for task in SUBDECK_TASKS:
+		if task["id"] == task_id:
+			console_id = StringName(task.get("console_task_id", &""))
+			break
+	if console_id != &"":
+		_open_subdeck_task_console(task_id, console_id)
+	else:
+		_complete_subdeck_task(task_id, true)
+
+
+func _open_subdeck_task_console(subdeck_task_id: StringName, console_task_id: StringName) -> void:
+	if _task_console_open:
+		return
+	_task_console_open = true
+	_pending_cutscene_task_id = &""
+	_walk_hud.set_walking_visible(false)
+	_update_player_walk_state()
+	var console: ServiceTaskConsole = SERVICE_TASK_CONSOLE_SCENE.instantiate() as ServiceTaskConsole
+	console.setup(console_task_id, _completed_tasks.size(), SUBDECK_TASKS.size())
+	console.task_completed.connect(func(_cid: StringName): _on_subdeck_console_completed(subdeck_task_id))
+	console.console_closed.connect(_on_subdeck_console_closed)
+	add_child(console)
+
+
+func _on_subdeck_console_completed(subdeck_task_id: StringName) -> void:
+	_complete_subdeck_task(subdeck_task_id, false)
+	_pending_cutscene_task_id = subdeck_task_id
+
+
+func _on_subdeck_console_closed() -> void:
+	_task_console_open = false
+	if _pending_cutscene_task_id != &"":
+		var next_cutscene_id: StringName = _pending_cutscene_task_id
+		_pending_cutscene_task_id = &""
+		var cdata: Dictionary = _build_subdeck_cutscene(next_cutscene_id)
+		if not cdata.is_empty() and is_instance_valid(_story_cutscene):
+			_cutscene_open = true
+			_walk_hud.set_walking_visible(false)
+			_update_player_walk_state()
+			_story_cutscene.call(&"play_cutscene", next_cutscene_id, cdata)
+			return
+	_walk_hud.set_walking_visible(true)
+	_update_player_walk_state()
+
+
+func _complete_subdeck_task(task_id: StringName, play_cutscene_now: bool = true) -> void:
 	if _completed_tasks.has(task_id):
 		return
 	var completion: String = "Sub-deck check complete."
+	var reward_item: StringName = &""
 	for task in SUBDECK_TASKS:
 		var tid: StringName = task["id"]
 		if tid == task_id:
 			completion = String(task["completion"])
+			reward_item = StringName(task.get("reward_item", &""))
 			break
 	_completed_tasks[task_id] = true
 	_walk_hud.set_task_completed(task_id)
 
-	# Require at least 2 Sub-Deck tasks (including pipe pressure) for the Electrical Discharge Tool,
-	# and all 3 Sub-Deck tasks for the Emergency Flare reserve!
-	if _completed_tasks.size() >= 2 and _completed_tasks.has(&"subdeck_pipe_pressure"):
-		if not _walk_hud.has_equipment_item(&"electrical_discharge_tool"):
-			_walk_hud.unlock_equipment_item(&"electrical_discharge_tool", true, "Sub-Deck Milestone (2/3 Tasks): Leila Haddad wired Electrical Discharge Tool!")
-	if _completed_tasks.size() >= SUBDECK_TASKS.size():
-		if not _walk_hud.has_equipment_item(&"emergency_flare"):
-			_walk_hud.unlock_equipment_item(&"emergency_flare", false, "All 3 Sub-Deck Tasks Complete: Recovered Emergency Flare reserve!")
+	if reward_item != &"" and not _walk_hud.has_equipment_item(reward_item):
+		var auto_equip: bool = reward_item != &"emergency_flare" and reward_item != &"pressure_sealant"
+		_walk_hud.unlock_equipment_item(reward_item, auto_equip, completion)
 
 	_save_subdeck_state()
 	_feedback_text = "%s\nSUB-DECK CHECKS  %d / %d COMPLETE" % [completion, _completed_tasks.size(), SUBDECK_TASKS.size()]
 	_feedback_timer = 4.5
 
-	var cdata: Dictionary = _build_subdeck_cutscene(task_id)
-	if not cdata.is_empty() and is_instance_valid(_story_cutscene):
-		_cutscene_open = true
-		_walk_hud.set_walking_visible(false)
-		_update_player_walk_state()
-		_story_cutscene.call(&"play_cutscene", task_id, cdata)
+	if play_cutscene_now:
+		var cdata: Dictionary = _build_subdeck_cutscene(task_id)
+		if not cdata.is_empty() and is_instance_valid(_story_cutscene):
+			_cutscene_open = true
+			_walk_hud.set_walking_visible(false)
+			_update_player_walk_state()
+			_story_cutscene.call(&"play_cutscene", task_id, cdata)
 
 
 func _build_subdeck_cutscene(task_id: StringName) -> Dictionary:
@@ -1041,8 +1152,13 @@ func _build_subdeck_cutscene(task_id: StringName) -> Dictionary:
 			return {
 				"act": "ACT IV — CHAPTER 2: SILENT RUNNING",
 				"clock": "ASTERIA-1 // SUB-DECK 02 // STORED PRODUCTS DEPOT",
-				"title": "IMITATIONS IN THE DARK (SUB-DECK 1/3)",
+				"title": "IMITATIONS IN THE DARK (SUB-DECK STORAGE)",
 				"echo_pulse": true,
+				"reward": {
+					"name": "Emergency Flare",
+					"desc": "Sub-Deck Storage Vault: High-intensity thermal flare kit unlocked!",
+					"texture": load("res://art/tools/icons/emergency_flare.png"),
+				},
 				"slides": [
 					{
 						"speaker": "THE ECHO (ELIAS WARD'S VOICE) // SUB-DECK INTERCOM",
@@ -1050,13 +1166,43 @@ func _build_subdeck_cutscene(task_id: StringName) -> Dictionary:
 					},
 				],
 			}
+		&"subdeck_workshop_power":
+			return {
+				"act": "ACT IV — SUB-DECK 02 // S04 TOOL & PARTS WORKSHOP",
+				"clock": "ASTERIA-1 // SUB-DECK 02 // AUXILIARY CONVERTER BAY",
+				"title": "WORKSHOP CAPACITOR BANKS SYNCHRONIZED",
+				"echo_pulse": false,
+				"slides": [
+					{
+						"speaker": "LEILA HADDAD (INTERCOM) // SUB-DECK ENGINEERING",
+						"text": "LEILA HADDAD: 'Nice work on the S04 Workshop converter, Thura! The lower deck bus is holding steady now, and we've got enough capacitor charge to energize the high-voltage arc coils once the coolant manifold and turbine lines are stabilized.'",
+					},
+				],
+			}
+		&"subdeck_coolant_manifold":
+			return {
+				"act": "ACT IV — SUB-DECK 02 // S05 COOLANT PUMP BAY",
+				"clock": "ASTERIA-1 // SUB-DECK 02 // COOLANT CIRCULATION DEPOT",
+				"title": "SUB-HULL COOLANT MANIFOLD ALIGNED",
+				"echo_pulse": false,
+				"slides": [
+					{
+						"speaker": "DR. THURA MIN // S05 COOLANT BAY TELEMETRY",
+						"text": "With all three circulation valves aligned in S05, chilled coolant floods back into the starboard turbine loop, purging the superheated steam pockets that the Echo was using for cover.",
+					},
+				],
+			}
 		&"subdeck_pipe_pressure":
-			var has_two: bool = _completed_tasks.size() >= 2
 			var c_dict: Dictionary = {
 				"act": "ACT IV — CHAPTER 3: THE ENGINEER",
 				"clock": "ASTERIA-1 // SUB-DECK 02 // TURBINE ENGINE HALL",
 				"title": "LEILA HADDAD & THE ELECTRICAL ARC WEAPON",
 				"echo_pulse": true,
+				"reward": {
+					"name": "Electrical Discharge Tool",
+					"desc": "Sub-Deck Engine Hall Complete: High-voltage arc weapon unlocked!",
+					"texture": load("res://art/tools/icons/electrical_discharge_tool.png"),
+				},
 				"slides": [
 					{
 						"speaker": "LEILA HADDAD // CHIEF ENGINEER",
@@ -1072,12 +1218,6 @@ func _build_subdeck_cutscene(task_id: StringName) -> Dictionary:
 					},
 				],
 			}
-			if has_two:
-				c_dict["reward"] = {
-					"name": "Electrical Discharge Tool",
-					"desc": "Sub-Deck Milestone Complete: High-voltage arc weapon unlocked!",
-					"texture": load("res://art/tools/icons/electrical_discharge_tool.png"),
-				}
 			return c_dict
 		&"subdeck_shadow_nest_check":
 			return {
@@ -1085,6 +1225,11 @@ func _build_subdeck_cutscene(task_id: StringName) -> Dictionary:
 				"clock": "ASTERIA-1 // SUB-DECK 02 // SHADOW CONTAINMENT NEST",
 				"title": "DORMANT FOR THOUSANDS OF YEARS",
 				"echo_pulse": true,
+				"reward": {
+					"name": "Industrial Plasma Cutter",
+					"desc": "Sub-Deck Shadow Nest: Heavy plasma cutter recovered!",
+					"texture": load("res://art/tools/icons/industrial_plasma_cutter.png"),
+				},
 				"slides": [
 					{
 						"speaker": "DR. THURA MIN // CONTAINMENT ANALYSIS",
@@ -1102,7 +1247,8 @@ func _on_subdeck_cutscene_finished(cutscene_id: StringName, choice_id: StringNam
 	if cutscene_id == &"subdeck_pipe_pressure":
 		var st: Dictionary = {}
 		if Engine.has_meta(STORY_STATE_META_KEY):
-			st = (Engine.get_meta(STORY_STATE_META_KEY) as Dictionary).duplicate(true)
+			var raw_st: Dictionary = Engine.get_meta(STORY_STATE_META_KEY)
+			st = raw_st.duplicate(true)
 		st["leila_rescued"] = (choice_id != &"prioritize_engine")
 		Engine.set_meta(STORY_STATE_META_KEY, st)
 		if choice_id == &"rescue_leila":
@@ -1115,7 +1261,8 @@ func _on_subdeck_cutscene_finished(cutscene_id: StringName, choice_id: StringNam
 func _save_subdeck_state() -> void:
 	var st: Dictionary = {}
 	if Engine.has_meta(STORY_STATE_META_KEY):
-		st = (Engine.get_meta(STORY_STATE_META_KEY) as Dictionary).duplicate(true)
+		var raw_st: Dictionary = Engine.get_meta(STORY_STATE_META_KEY)
+		st = raw_st.duplicate(true)
 	st["completed_subdeck_tasks"] = _completed_tasks.duplicate()
 	Engine.set_meta(STORY_STATE_META_KEY, st)
 
@@ -1135,7 +1282,7 @@ func _on_hud_modal_state_changed(is_open: bool) -> void:
 
 
 func _update_player_walk_state() -> void:
-	player.set_physics_process(not (_hud_modal_open or _cutscene_open))
+	player.set_physics_process(not (_hud_modal_open or _task_console_open or _cutscene_open))
 
 
 func _update_all_rooms(delta: float, snap_immediately: bool) -> void:

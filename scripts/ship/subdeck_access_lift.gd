@@ -61,13 +61,9 @@ func _draw() -> void:
 	# Center split seam
 	draw_line(Vector2(0.0, -half_h + 3.0), Vector2(0.0, half_h - 3.0), Color(0.02, 0.03, 0.04, 0.95), 2.0, false)
 
-	# Subtle glowing guide rails on left and right sides
+	# Direction chevron in center (floor guide light strips removed)
 	var glow: float = 0.60 + 0.40 * (0.5 + 0.5 * sin(_pulse))
 	var accent: Color = Color(0.26, 0.76, 0.92, 0.62 * glow) if is_up_lift else Color(0.92, 0.58, 0.20, 0.62 * glow)
-	draw_line(Vector2(-half_w + 5.0, -half_h + 5.0), Vector2(-half_w + 5.0, half_h - 5.0), accent, 1.8, false)
-	draw_line(Vector2(half_w - 5.0, -half_h + 5.0), Vector2(half_w - 5.0, half_h - 5.0), accent, 1.8, false)
-
-	# Direction chevron in center
 	var dir_sign: float = -1.0 if is_up_lift else 1.0
 	var chev_a: Vector2 = Vector2(-6.0, -2.0 * dir_sign)
 	var chev_b: Vector2 = Vector2(0.0, 3.5 * dir_sign)

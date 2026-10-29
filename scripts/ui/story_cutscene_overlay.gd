@@ -147,33 +147,33 @@ func _build_ui() -> void:
 	_root.add_child(center)
 
 	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(940.0, 0.0)
+	panel.custom_minimum_size = Vector2(920.0, 0.0)
 	panel.add_theme_stylebox_override("panel", SKIN.panel(22.0))
 	center.add_child(panel)
 
 	var vbox := VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 10)
+	vbox.add_theme_constant_override("separation", 12)
 	panel.add_child(vbox)
 
 	# Top meta bar
 	var top_row := HBoxContainer.new()
 	top_row.add_theme_constant_override("separation", 10)
-	_act_badge = _make_label("[ ACT I — THE LONG APPROACH ]", 12, GOLD)
+	_act_badge = _make_label("[ ACT I — THE LONG APPROACH ]", 9, GOLD)
 	top_row.add_child(_act_badge)
-	_clock_label = _make_label("ASTERIA-1 // DAY 184", 12, MUTED)
+	_clock_label = _make_label("ASTERIA-1 // DAY 184", 9, MUTED)
 	top_row.add_child(_clock_label)
 	top_row.add_spacer(false)
-	_pulse_indicator = _make_label("● ECHO SIGNAL: 4 PULSES / 7S PAUSE", 12, ECHO_RED)
+	_pulse_indicator = _make_label("● ECHO SIGNAL: 4 PULSES / 7S PAUSE", 9, ECHO_RED)
 	top_row.add_child(_pulse_indicator)
 	_skip_button = Button.new()
 	_skip_button.text = "[ SKIP ]"
 	_skip_button.custom_minimum_size = Vector2(96.0, 32.0)
-	_skip_button.add_theme_font_size_override("font_size", 12)
+	_skip_button.add_theme_font_size_override("font_size", 9)
 	_skip_button.pressed.connect(_on_skip_pressed)
 	top_row.add_child(_skip_button)
 	vbox.add_child(top_row)
 
-	_title_label = _make_label("STORY CUTSCENE", 22, PALE)
+	_title_label = _make_label("STORY CUTSCENE", 15, PALE)
 	vbox.add_child(_title_label)
 
 	var sep := HSeparator.new()
@@ -182,13 +182,13 @@ func _build_ui() -> void:
 
 	# Optional storyboard image frame
 	_artwork_frame = PanelContainer.new()
-	_artwork_frame.custom_minimum_size = Vector2(0.0, 190.0)
+	_artwork_frame.custom_minimum_size = Vector2(0.0, 180.0)
 	_artwork_frame.add_theme_stylebox_override("panel", SKIN.panel(8.0, true))
 	_artwork_frame.visible = false
 	vbox.add_child(_artwork_frame)
 
 	_artwork_rect = TextureRect.new()
-	_artwork_rect.custom_minimum_size = Vector2(0.0, 174.0)
+	_artwork_rect.custom_minimum_size = Vector2(0.0, 164.0)
 	_artwork_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_artwork_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	_artwork_rect.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
@@ -201,20 +201,21 @@ func _build_ui() -> void:
 	vbox.add_child(diag_panel)
 
 	var diag_vbox := VBoxContainer.new()
-	diag_vbox.add_theme_constant_override("separation", 6)
+	diag_vbox.add_theme_constant_override("separation", 8)
 	diag_panel.add_child(diag_vbox)
 
 	var speaker_row := HBoxContainer.new()
-	_speaker_badge = _make_label("DR. THURA MIN // PLANETARY GEOLOGIST", 13, CYAN)
+	_speaker_badge = _make_label("DR. THURA MIN // PLANETARY GEOLOGIST", 10, CYAN)
 	speaker_row.add_child(_speaker_badge)
 	speaker_row.add_spacer(false)
-	_step_counter_label = _make_label("01 / 01", 12, MUTED)
+	_step_counter_label = _make_label("01 / 01", 9, MUTED)
 	speaker_row.add_child(_step_counter_label)
 	diag_vbox.add_child(speaker_row)
 
-	_dialogue_label = _make_label("", 16, PALE)
+	_dialogue_label = _make_label("", 11, PALE)
 	_dialogue_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_dialogue_label.custom_minimum_size = Vector2(840.0, 78.0)
+	_dialogue_label.add_theme_constant_override("line_spacing", 5)
+	_dialogue_label.custom_minimum_size = Vector2(820.0, 78.0)
 	diag_vbox.add_child(_dialogue_label)
 
 	# Equipment reward showcase panel
@@ -228,7 +229,7 @@ func _build_ui() -> void:
 	_reward_panel.add_child(reward_hbox)
 
 	_reward_icon = TextureRect.new()
-	_reward_icon.custom_minimum_size = Vector2(48.0, 48.0)
+	_reward_icon.custom_minimum_size = Vector2(44.0, 44.0)
 	_reward_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_reward_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	_reward_icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
@@ -236,9 +237,9 @@ func _build_ui() -> void:
 
 	var reward_text_vbox := VBoxContainer.new()
 	reward_text_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	reward_text_vbox.add_theme_constant_override("separation", 3)
-	_reward_title = _make_label("EQUIPMENT UNLOCKED", 14, GREEN)
-	_reward_desc = _make_label("", 12, PALE)
+	reward_text_vbox.add_theme_constant_override("separation", 4)
+	_reward_title = _make_label("EQUIPMENT UNLOCKED", 10, GREEN)
+	_reward_desc = _make_label("", 9, PALE)
 	_reward_desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	reward_text_vbox.add_child(_reward_title)
 	reward_text_vbox.add_child(_reward_desc)
@@ -251,13 +252,13 @@ func _build_ui() -> void:
 
 	# Footer action row
 	var footer_row := HBoxContainer.new()
-	var hint_lbl := _make_label("[E / SPACE / ENTER] CONTINUE", 12, MUTED)
+	var hint_lbl := _make_label("[E / SPACE / TAP] CONTINUE", 9, MUTED)
 	footer_row.add_child(hint_lbl)
 	footer_row.add_spacer(false)
 	_advance_button = Button.new()
 	_advance_button.text = "[ CONTINUE  › ]"
-	_advance_button.custom_minimum_size = Vector2(210.0, 44.0)
-	_advance_button.add_theme_font_size_override("font_size", 14)
+	_advance_button.custom_minimum_size = Vector2(210.0, 42.0)
+	_advance_button.add_theme_font_size_override("font_size", 11)
 	_advance_button.pressed.connect(_on_advance_pressed)
 	footer_row.add_child(_advance_button)
 	vbox.add_child(footer_row)
@@ -305,9 +306,9 @@ func _finish_typing_current_slide() -> void:
 			var choice_dict: Dictionary = ch
 			var btn := Button.new()
 			btn.text = "[ %s ]" % str(choice_dict.get("label", "SELECT")).to_upper()
-			btn.custom_minimum_size = Vector2(0.0, 40.0)
+			btn.custom_minimum_size = Vector2(0.0, 38.0)
 			btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			btn.add_theme_font_size_override("font_size", 13)
+			btn.add_theme_font_size_override("font_size", 10)
 			var cid: StringName = StringName(choice_dict.get("id", &""))
 			btn.pressed.connect(func(): _on_choice_selected(cid))
 			_choices_box.add_child(btn)
@@ -372,6 +373,7 @@ func _speaker_color(speaker: String) -> Color:
 func _make_label(text: String, font_size: int, color: Color) -> Label:
 	var lbl := Label.new()
 	lbl.text = text
-	lbl.add_theme_font_size_override("font_size", maxi(12, font_size))
+	lbl.add_theme_font_size_override("font_size", maxi(8, font_size))
+	lbl.add_theme_constant_override("line_spacing", 4)
 	lbl.add_theme_color_override("font_color", color)
 	return lbl

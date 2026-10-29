@@ -5,6 +5,7 @@ extends Node2D
 const SHIP_CATALOG := preload("res://scripts/ship/ship_mission_catalog.gd")
 const SHIP_STATE := preload("res://scripts/ship/ship_mission_state.gd")
 const SHIP_PANEL := preload("res://scripts/ui/ship_procedure_panel.gd")
+const EITO_LAYER := preload("res://scripts/ui/eito/eito_layer.gd")
 const SHIP_STORY := preload("res://scripts/ship/first_watch_story.gd")
 const STORY_SAVE := preload("res://scripts/ship/ship_story_save.gd")
 @export var ship_story_enabled := true
@@ -25,6 +26,7 @@ var _ship_service_task := ""
 var _ship_hide_id := ""
 var _ship_hide_exit := Vector2.ZERO
 var _ship_hide_phase := "outside"
+var _ship_hide_feedback := ""
 var _ship_hide_route := PackedVector2Array()
 var _ship_hide_traversed := PackedVector2Array()
 var _ship_hide_route_index := 0
@@ -40,7 +42,9 @@ var _ship_story
 var _ship_pending_continue_path := ""
 var _ship_cue_active := {}
 var _ship_cue_asset: Node
+var _ship_cue_ui: CanvasLayer
 var _ship_story_hud_key := ""
+var _ship_pending_cue_reoffer := ""
 var _ship_access_connected := {}
 const SHIP_NAV_ORIGIN := Vector2(16,20)
 const SHIP_NAV_STEP := 4.0
@@ -94,10 +98,7 @@ func ship_is_initialized() -> bool:
 	return _ship_ready and _ship_state!=null
 
 func ship_control_locked() -> bool:
-	# Story cues are presentation state; their briefing/dialogue overlays own any
-	# required pause. A pending cue must never strand the player after an overlay
-	# fails to dismiss or its completion callback is missed.
-	return _ship_hide_phase != "outside" or not _ship_pending_continue_path.is_empty()
+	return _ship_hide_phase != "outside" or not _ship_pending_continue_path.is_empty() or not _ship_pending_cue_reoffer.is_empty()
 
 func ship_process(delta: float) -> void:
 	if not ship_is_initialized(): return
@@ -109,6 +110,7 @@ func ship_process(delta: float) -> void:
 		_ship_auto_timer=0.0
 		_ship_publish_systems()
 		if ship_story_active(): _story_sync()
+		if not _ship_pending_cue_reoffer.is_empty(): _story_reoffer_pending_cue.call_deferred()
 
 func _ship_body_clear(point: Vector2, exclusions: Array[RID]=[], ignore_doors_for_access_planning := false) -> bool:
 	if not _ship_player._is_body_over_floor(point,ignore_doors_for_access_planning): return false
@@ -224,7 +226,8 @@ func ship_refresh_prompt() -> void:
 	set("_active_amara_interaction",false);set("_active_airlock_exit",false)
 	if get("_arrival_briefing_open") or get("_hud_modal_open") or get("_task_console_open") or get("_crew_dialogue_open"): return
 	if ship_control_locked():
-		_ship_hud.set_interaction_prompt("ENTERING COVER / [Q] CANCEL" if _ship_hide_phase=="entering" else "LEAVING COVER / PLEASE WAIT" if _ship_hide_phase=="exiting" else "CONCEALED / [E] EXIT SAFELY" if _ship_hide_phase=="concealed" else "COMMUNICATION IN PROGRESS",true);return
+		var locked_prompt := "ENTERING COVER / [Q] CANCEL" if _ship_hide_phase=="entering" else "LEAVING COVER / PLEASE WAIT" if _ship_hide_phase=="exiting" else (_ship_hide_feedback if not _ship_hide_feedback.is_empty() else "CONCEALED / [E] EXIT SAFELY") if _ship_hide_phase=="concealed" else "COMMUNICATION IN PROGRESS"
+		_ship_hud.set_interaction_prompt(locked_prompt,true);return
 	var candidates: Array=[]
 	for id in _ship_points:
 		var entry: Dictionary=_ship_points[id]
@@ -232,7 +235,9 @@ func ship_refresh_prompt() -> void:
 		if ship_can_reach(entry.marker.global_position,entry.definition.room):
 			candidates.append({"id":id,"distance":_ship_player.global_position.distance_to(entry.marker.global_position),"prompt":str(entry.host.name).to_snake_case().capitalize()+"   /   [E] ACCESS","kind":"prop"})
 	var npc := get_node_or_null("AmaraOkoye") as Node2D
-	if npc!=null and ship_can_reach(npc.global_position,"",36.0): candidates.append({"id":"amara","distance":-100.0,"prompt":"AMARA OKOYE   /   [E] TALK","kind":"amara"})
+	if npc!=null and ship_can_reach(npc.global_position,"",36.0):
+		var talk_priority := -100.0 if ship_story_active() else _ship_player.global_position.distance_to(npc.global_position)
+		candidates.append({"id":"amara","distance":talk_priority,"prompt":"AMARA OKOYE   /   [E] TALK","kind":"amara"})
 	if bool(get("_crew_tasks_unlocked")) and not ship_story_active():
 		for task in get("AMARA_CREW_TASKS"):
 			if get("_completed_crew_tasks").has(task.id): continue
@@ -271,7 +276,15 @@ func ship_open_procedure(id: String) -> bool:
 	if ship_story_active() and id.begins_with("power.") and _ship_state.completed.has("power") and not _ship_story.has("power.reported"):
 		_story_power_ack(); return true
 	_ship_player.face_toward(point.host.global_position)
-	_ship_panel=SHIP_PANEL.new();_ship_panel.setup(_ship_state,id,str(_ship_points[id].host.name).to_snake_case().capitalize())
+	# Redesigned stations (power, irrigation, crew records) use the new screens;
+	# everything the design doesn't cover keeps the generic procedure panel.
+	var eito_kind: String = EITO_LAYER.kind_for(_ship_state, id)
+	if eito_kind.is_empty():
+		_ship_panel=SHIP_PANEL.new();_ship_panel.setup(_ship_state,id,str(_ship_points[id].host.name).to_snake_case().capitalize())
+	else:
+		_ship_panel=EITO_LAYER.new();_ship_panel.setup(_ship_state,id,str(_ship_points[id].host.name).to_snake_case().capitalize(),eito_kind)
+		_ship_panel.story_mode=ship_story_active()
+		if ship_story_active(): _ship_panel.story_objective=str(_ship_story.objective().get("title",""))
 	_ship_panel.action_requested.connect(_ship_action.bind(id))
 	_ship_panel.closed.connect(_ship_panel_closed)
 	_ship_panel.save_requested.connect(func(): _ship_panel.feedback(ship_save_game()))
@@ -281,6 +294,7 @@ func ship_open_procedure(id: String) -> bool:
 	return true
 
 func _ship_action(action_id: String, value: Variant, prop_id: String) -> void:
+	if not is_instance_valid(_ship_panel) or _ship_panel.prop_id!=prop_id or ship_control_locked(): return
 	var entry: Dictionary=_ship_points.get(prop_id,{})
 	if entry.is_empty() or not is_instance_valid(entry.marker) or not ship_can_reach(entry.marker.global_position,entry.definition.room):
 		_ship_panel.feedback("Move back to this station's clear access point before operating it.",false);return
@@ -306,6 +320,7 @@ func _ship_action(action_id: String, value: Variant, prop_id: String) -> void:
 
 func _ship_panel_closed() -> void:
 	_ship_panel=null;set("_task_console_open",false)
+	_eito_flash_pending()
 	_ship_hud.set_walking_visible(not bool(get("_arrival_briefing_open")))
 	call("_update_player_walk_state")
 
@@ -390,6 +405,7 @@ func _ship_hide_segment_clear(from: Vector2, to: Vector2, host: Node2D = null) -
 
 func _ship_hide_route_clear(route: PackedVector2Array, host: Node2D = null) -> bool:
 	if route.is_empty(): return false
+	if not _ship_hide_segment_clear(route[0],route[0],host): return false
 	for i in range(1,route.size()):
 		if not _ship_hide_segment_clear(route[i-1],route[i],host): return false
 	return true
@@ -448,6 +464,7 @@ func ship_enter_hiding(id: String) -> bool:
 	host.set_meta("hide_occupant",_ship_player.get_instance_id())
 	_ship_hide_prior_appearance=host.appearance; _ship_hide_speed=host.hide_transition_speed
 	_ship_hide_exit=_ship_player.global_position; _ship_hide_id=id; _ship_hide_phase="entering"
+	_ship_hide_feedback=""
 	_ship_hide_route=route; _ship_hide_route_index=1
 	_ship_hide_traversed=PackedVector2Array([_ship_player.global_position])
 	if entry.definition.kind=="storage_hide": host.appearance=1
@@ -457,7 +474,14 @@ func ship_enter_hiding(id: String) -> bool:
 func _ship_hide_exit_route(id: String, inside: Vector2, preferred: Vector2) -> PackedVector2Array:
 	if not _ship_points.has(id): return PackedVector2Array()
 	var entry: Dictionary = _ship_points[id]; var host: Node2D=entry.host
-	if entry.definition.kind=="cargo_hide": return _ship_find_walk_route(inside,preferred,entry.definition.room)
+	if entry.definition.kind=="cargo_hide":
+		var stack_candidates := PackedVector2Array([preferred])
+		for distance in [12.0,24.0,36.0]:
+			for side in [Vector2.LEFT,Vector2.RIGHT,Vector2.DOWN]: stack_candidates.append(preferred+side*distance)
+		for candidate in stack_candidates:
+			var around_stack := _ship_find_walk_route(inside,candidate,entry.definition.room)
+			if not around_stack.is_empty(): return around_stack
+		return PackedVector2Array()
 	if host.direction!=3: return PackedVector2Array()
 	var half: Vector2=host.get_current_footprint_size()*0.5
 	var portal: Vector2=host.to_global(host.footprint_offset+Vector2(-half.x-9.0,0))
@@ -484,7 +508,9 @@ func ship_exit_hiding() -> bool:
 	if _ship_hide_phase!="concealed": return false
 	var route := _ship_hide_exit_route(_ship_hide_id,_ship_player.global_position,_ship_hide_exit)
 	if route.is_empty():
+		_ship_hide_feedback="EXIT BLOCKED / REMAIN IN COVER / [E] RETRY WHEN CLEAR"
 		_ship_status="Exit obstructed. Stay concealed and press E to retry when the WEST approach clears."; _ship_status_time=6; return false
+	_ship_hide_feedback=""
 	_ship_hide_route=route; _ship_hide_route_index=1; _ship_hide_phase="exiting"
 	var entry: Dictionary=_ship_points[_ship_hide_id]
 	if entry.definition.kind=="storage_hide": entry.host.appearance=1
@@ -508,8 +534,10 @@ func _ship_interrupt_hide_transition() -> void:
 	else:
 		_ship_hide_phase="concealed"; _ship_player.set_concealment(true,_ship_hide_id)
 		_ship_player.get_node("CollisionShape2D").set_deferred("disabled",true)
-		if _ship_points[_ship_hide_id].definition.kind=="storage_hide": _ship_points[_ship_hide_id].host.appearance=0
+		var entry: Dictionary=_ship_points.get(_ship_hide_id,{})
+		if not entry.is_empty() and is_instance_valid(entry.host) and entry.definition.kind=="storage_hide": entry.host.appearance=0
 	_ship_status="Cover transition interrupted by an obstruction. Controls remain safe; clear the approach and retry."; _ship_status_time=7
+	_ship_hide_feedback="COVER ROUTE BLOCKED / [E] RETRY WHEN CLEAR" if _ship_hide_phase=="concealed" else ""
 	call("_update_player_walk_state")
 
 func _ship_process_hiding(delta: float) -> void:
@@ -544,6 +572,10 @@ func _ship_release_hide_reservation() -> void:
 			if _ship_points[_ship_hide_id].definition.kind=="storage_hide": host.appearance=_ship_hide_prior_appearance
 
 func _ship_valid_load_position(payload: Dictionary) -> Vector2:
+	if payload.get("spawn_pending",false):
+		# The prologue has no live actor. Resolve its first landing against the
+		# current scene's saved spawn, never a fabricated pre-ship coordinate.
+		return _ship_player.global_position if _ship_hide_point_clear(_ship_player.global_position) else Vector2.INF
 	var desired := Vector2(float(payload.position[0]),float(payload.position[1]))
 	var concealed: String=payload.get("concealed","")
 	if concealed.is_empty(): return desired if _ship_hide_point_clear(desired) else Vector2.INF
@@ -571,6 +603,7 @@ func ship_restore(payload: Dictionary, restore_position := true) -> bool:
 	if payload.version == 2 and payload.has("story"):
 		restored_story = SHIP_STORY.new()
 		if not restored_story.restore(payload.story): return false
+		if _ship_story!=null: restored_story.sequence=maxi(restored_story.sequence,_ship_story.sequence)
 		if restored_story.has("watch.accepted") and not payload.mission.flags.get("assigned",false): return false
 		for pair in [["roster.reviewed","crew"],["power.reported","power"],["amara.repair_reported","hydro"]]:
 			if restored_story.has(pair[0]) and not payload.mission.completed.has(pair[1]): return false
@@ -583,13 +616,19 @@ func ship_restore(payload: Dictionary, restore_position := true) -> bool:
 	_story_release_locks(); _ship_release_hide_reservation()
 	_ship_hud.inventory_restore(payload.inventory); _ship_state.restore(payload.mission)
 	_ship_story = restored_story
+	_ship_pending_cue_reoffer = ""
 	if restored_story == null:
 		_ship_state.work_order_context = "maintenance"; _ship_state.authorized_work_orders = PackedStringArray()
 	else:
 		_ship_state.work_order_context = "first_watch"
 		_ship_state.authorized_work_orders = restored_story.work_orders()
 		for cue_id in restored_story.cues:
-			if restored_story.cues[cue_id].status == "pending": restored_story.cues[cue_id].status = "cancelled"
+			if restored_story.cues[cue_id].status == "pending":
+				restored_story.cues[cue_id].status = "cancelled"
+				_ship_pending_cue_reoffer = cue_id
+		if not restored_story.cues.has("cue.asteria.arrival"):
+			var intro_status: String=str(restored_story.cues.get("cue.thura.earth_years",{}).get("status",""))
+			_ship_pending_cue_reoffer="cue.asteria.arrival" if intro_status in ["completed","skipped"] else "cue.thura.earth_years" if intro_status in ["pending","cancelled","failed"] else _ship_pending_cue_reoffer
 	var legacy := {}; var crew := {}
 	for key in payload.legacy_completed: legacy[StringName(key)] = bool(payload.legacy_completed[key])
 	for key in payload.crew_completed: crew[StringName(key)] = bool(payload.crew_completed[key])
@@ -599,10 +638,25 @@ func ship_restore(payload: Dictionary, restore_position := true) -> bool:
 	_ship_player.set_concealment(false,"")
 	_ship_player.get_node("CollisionShape2D").set_deferred("disabled",false)
 	_ship_hide_id = ""; _ship_hide_phase = "outside"
+	_ship_hide_feedback=""
 	_ship_story_hud_key = ""; _ship_syncing = false
 	_ship_sync_hud(); _ship_publish_systems(); call("_update_player_walk_state")
 	if is_instance_valid(_ship_panel): _ship_panel._schedule_rebuild()
+	if not _ship_pending_cue_reoffer.is_empty(): _story_reoffer_pending_cue.call_deferred()
 	return true
+
+func _story_reoffer_pending_cue() -> void:
+	if not ship_story_active() or not is_inside_tree(): return
+	if bool(get("_hud_modal_open")) or bool(get("_task_console_open")) or bool(get("_crew_dialogue_open")) or not _ship_cue_active.is_empty() or _ship_hide_phase!="outside": return
+	var cue_id := _ship_pending_cue_reoffer; _ship_pending_cue_reoffer = ""
+	if cue_id == "cue.asteria.arrival":
+		_story_begin_cue(cue_id,"arrival_briefing")
+		call("_show_story_arrival_briefing")
+	elif cue_id == "cue.thura.earth_years":
+		ship_request_story_cue(cue_id,"res://scenes/ui/earth_years_montage.tscn")
+	else:
+		_ship_status="Communication interrupted safely. The earned watch records are intact; return to the bridge planning table to continue."; _ship_status_time=12.0
+	call("_update_player_walk_state")
 
 func _ship_save_path_allowed(path: String) -> bool:
 	return STORY_SAVE.allowed(path)
@@ -682,10 +736,32 @@ func _story_sync() -> void:
 	elif _ship_points.has(objective.station) and is_instance_valid(_ship_points[objective.station].marker):
 		point = _ship_points[objective.station].marker.global_position
 	objective.position = point; objective.marker_position = point+Vector2(0,-20)
+	_eito_track_objective(str(objective.title))
 	var key := str([objective.title, objective.description, Vector2i(point/8), _ship_story.completed_count(), get("_completed_crew_tasks"), get("_crew_tasks_unlocked")])
 	if key == _ship_story_hud_key: return
 	_ship_story_hud_key = key
 	_ship_hud.set_story_objective(objective, _ship_story.completed_count(), bool(get("_crew_tasks_unlocked")), get("_completed_crew_tasks").size())
+
+## NEW OBJECTIVE ribbon from the redesign. Panels that announce the next
+## objective themselves (crew records, power) don't get a second ribbon; other
+## changes wait until no panel or conversation is covering the screen.
+var _eito_objective := ""
+var _eito_ribbon := ""
+func _eito_track_objective(title: String) -> void:
+	if title == _eito_objective:
+		_eito_flash_pending(); return
+	var first := _eito_objective.is_empty()
+	_eito_objective = title
+	if first: return
+	if is_instance_valid(_ship_panel) and str(_ship_panel.get("kind")) in ["records", "power"]: _eito_ribbon = ""
+	else: _eito_ribbon = title
+	_eito_flash_pending()
+
+func _eito_flash_pending() -> void:
+	if _eito_ribbon.is_empty() or bool(get("_task_console_open")) or bool(get("_crew_dialogue_open")): return
+	var dialogue = get("_crew_dialogue")
+	if is_instance_valid(dialogue) and dialogue.has_method("flash_objective"): dialogue.flash_objective(_eito_ribbon)
+	_eito_ribbon = ""
 
 func _story_repairs_healthy() -> bool:
 	return _ship_state.completed.has("power") and _ship_state.completed.has("hydro") and _ship_state.bus_powered("science") and not _ship_state.systems.hydro.isolated and _ship_state.systems.hydro.flow>=90 and _ship_state.systems.hydro.ec>=1.8 and _ship_state.systems.hydro.ec<=2.4
@@ -696,10 +772,13 @@ func _story_speak(id: String, speaker: String, lines: Array[String], choices: Ar
 	if bool(get("_task_console_open")): return false
 	set("_crew_dialogue_open", true)
 	var npc := get_node_or_null("AmaraOkoye")
-	if id.begins_with("amara.") and npc != null: npc.set_in_dialogue(true)
+	if id.begins_with("amara.") and npc != null:
+		npc.set_in_dialogue(true)
+		if is_instance_valid(_ship_player):
+			_ship_player.face_toward(npc.global_position)
 	_ship_player.sprite.stop()
-	_ship_hud.set_interaction_prompt("", false); call("_update_player_walk_state")
-	get("_crew_dialogue").start_dialogue(lines, false, {"id": id, "speaker": speaker, "choices": choices})
+	_ship_hud.set_interaction_prompt("", false); _ship_hud.set_walking_visible(false); call("_update_player_walk_state")
+	get("_crew_dialogue").start_dialogue(lines, false, {"id": id, "speaker": speaker, "choices": choices, "objective": str(_ship_story.objective().get("title","")), "npc": npc if id.begins_with("amara.") else null})
 	return true
 
 func _story_assignment() -> void:
@@ -747,10 +826,12 @@ func _story_handoff() -> void:
 	_story_checkpoint()
 	var context := _story_begin_cue("cue.asteria.watch_handoff", "production_terminal_text")
 	if context.is_empty(): return
-	_story_speak("command.handoff", "MAYA CHEN / CDR / TERMINAL TEXT", ["I've reviewed the watch summary: service power restored, irrigation verified, and Amara's report received. Thank you, Thura.", "Your watch is handed over. Await the Erebos survey briefing; this acknowledgement does not clear surface deployment."], [{"id":"ack","label":"Watch handed over"},{"id":"later","label":"Review it again first"}])
+	if not _story_speak("command.handoff", "MAYA CHEN / CDR / TERMINAL TEXT", ["I've reviewed the watch summary: service power restored, irrigation verified, and Amara's report received. Thank you, Thura.", "Your watch is handed over. Await the Erebos survey briefing; this acknowledgement does not clear surface deployment."], [{"id":"ack","label":"Watch handed over"},{"id":"later","label":"Review it again first"}]):
+		ship_finish_story_cue("cue.asteria.watch_handoff",context.request_token,"failed")
 
 func _story_conversation_finished(id: String, result: String) -> void:
 	set("_crew_dialogue_open", false)
+	_ship_hud.set_walking_visible(not bool(get("_arrival_briefing_open")) and not bool(get("_task_console_open")))
 	var npc := get_node_or_null("AmaraOkoye")
 	if npc != null: npc.set_in_dialogue(false)
 	if not ship_story_active(): call("_update_player_walk_state"); return
@@ -797,14 +878,19 @@ func _story_equipment_action(prop_id: String, action_id: String) -> void:
 		_ship_story.evidence["power.before"] = _ship_state.readings("power")
 	if action_id == "verify" and _ship_state.completed.has("power") and prop_id.begins_with("power.") and not _ship_story.has("power.reported"):
 		_ship_story.evidence["power.after"] = _ship_state.readings("power")
-		if is_instance_valid(_ship_panel): _ship_panel.close_panel()
-		_story_power_ack()
+		if is_instance_valid(_ship_panel) and _ship_panel.get("kind") == "power" and _ship_state.bus_powered("science"):
+			# The redesigned panel carries Leila's acknowledgement on its own comms card.
+			_ship_story.record("power.reported"); _ship_panel.show_comms()
+		else:
+			if is_instance_valid(_ship_panel): _ship_panel.close_panel()
+			_story_power_ack()
 	if action_id == "verify" and prop_id.begins_with("hydro.") and _ship_state.completed.has("hydro"):
 		_ship_story.evidence["hydro.after"] = _ship_state.readings("hydro")
 	_story_sync(); _story_checkpoint()
 
 func _story_begin_cue(cue_id: String, delivery: String) -> Dictionary:
 	if not ship_story_active() or not _ship_cue_active.is_empty(): return {}
+	if cue_id == "cue.asteria.watch_handoff" and (not _ship_story.has("summary.submitted") or not _story_repairs_healthy()): return {}
 	var context: Dictionary = _ship_story.request_cue(cue_id, delivery)
 	if context.is_empty(): return {}
 	_ship_cue_active = context.duplicate(true)
@@ -817,13 +903,18 @@ func _story_begin_cue(cue_id: String, delivery: String) -> Dictionary:
 	_story_checkpoint(); call("_update_player_walk_state")
 	return context
 
-func ship_finish_story_cue(cue_id: String, token: String, outcome: String, _landing_id := "ship") -> bool:
+func ship_finish_story_cue(cue_id: String, token: String, outcome: String, landing_id := "ship") -> bool:
 	if not ship_story_active() or _ship_cue_active.get("cue_id") != cue_id or _ship_cue_active.get("request_token") != token: return false
+	if landing_id != "ship" and outcome in ["completed", "skipped"]: outcome = "failed"
 	if cue_id == "cue.asteria.watch_handoff" and outcome in ["completed", "skipped"] and (not _ship_story.has("summary.submitted") or not _story_repairs_healthy()): outcome = "failed"
 	if not _ship_story.finish_cue(cue_id, token, outcome): return false
+	if outcome in ["cancelled","failed"]:
+		_ship_status="Communication interrupted. Watch progress is retained; use the station again when ready."; _ship_status_time=8.0
 	if cue_id == "cue.asteria.watch_handoff" and outcome in ["completed", "skipped"]: _ship_story.record("watch.acknowledged")
 	_story_release_locks()
 	_story_sync(); _story_checkpoint(); call("_update_player_walk_state")
+	if cue_id=="cue.thura.earth_years" and outcome in ["completed","skipped"] and not _ship_story.cues.has("cue.asteria.arrival"):
+		_story_begin_cue("cue.asteria.arrival","arrival_briefing");call("_show_story_arrival_briefing")
 	return true
 
 func _story_release_locks() -> void:
@@ -834,13 +925,18 @@ func _story_release_locks() -> void:
 		for property in _ship_cue_active.get("camera_state",{}): camera.set(property,_ship_cue_active.camera_state[property])
 		camera.make_current(); camera.reset_smoothing()
 	_ship_cue_active = {}
+	var dialogue := get_node_or_null("CrewDialogue")
+	if is_instance_valid(get("_crew_dialogue")): dialogue = get("_crew_dialogue")
+	if dialogue != null and dialogue.conversation_id == "command.handoff": dialogue.cancel_dialogue()
 	if is_instance_valid(_ship_cue_asset): _ship_cue_asset.queue_free()
 	_ship_cue_asset = null
+	if is_instance_valid(_ship_cue_ui): _ship_cue_ui.queue_free()
+	_ship_cue_ui = null
 	var npc := get_node_or_null("AmaraOkoye")
 	if npc != null: npc.set_interaction_lock(&"story_cue", false)
 
 func ship_request_story_cue(cue_id: String, asset_path: String) -> bool:
-	if _ship_hide_phase != "outside" or bool(get("_crew_dialogue_open")): return false
+	if _ship_hide_phase != "outside" or bool(get("_crew_dialogue_open")) or bool(get("_hud_modal_open")) or bool(get("_task_console_open")): return false
 	var context := _story_begin_cue(cue_id, "teammate_asset")
 	if context.is_empty(): return false
 	if not ResourceLoader.exists(asset_path):
@@ -851,11 +947,26 @@ func ship_request_story_cue(cue_id: String, asset_path: String) -> bool:
 	var asset: Node = resource.instantiate()
 	if not asset.has_method("play_cue") or not asset.has_signal("cue_finished"):
 		asset.free(); ship_finish_story_cue(cue_id, context.request_token, "failed"); return false
+	var actors := {"thura":_ship_player}
+	var npc := get_node_or_null("AmaraOkoye")
+	if npc != null: actors.amara=npc
+	if asset.has_method("required_actor_ids"):
+		var required: Variant=asset.call("required_actor_ids")
+		if not required is Array and not required is PackedStringArray:
+			asset.free(); ship_finish_story_cue(cue_id,context.request_token,"failed"); return false
+		for actor_id in required:
+			if not actors.has(actor_id) or not is_instance_valid(actors[actor_id]):
+				asset.free(); ship_finish_story_cue(cue_id,context.request_token,"failed"); return false
+	context.actors=actors; context.gameplay_camera=_ship_player.camera
 	_ship_cue_asset = asset
-	asset.connect("cue_finished", ship_finish_story_cue)
+	asset.connect("cue_finished", func(token: String, reported_id: String, outcome: String, landing: String): ship_finish_story_cue(reported_id,token,outcome,landing))
 	asset.tree_exited.connect(func():
 		if _ship_cue_active.get("request_token") == context.request_token: ship_finish_story_cue(cue_id, context.request_token, "failed"))
-	add_child(asset); asset.call("play_cue", context)
+	if asset is Control:
+		_ship_cue_ui=CanvasLayer.new();_ship_cue_ui.layer=30
+		add_child(_ship_cue_ui);_ship_cue_ui.add_child(asset)
+	else: add_child(asset)
+	asset.call("play_cue", context)
 	get_tree().create_timer(90.0).timeout.connect(func():
 		if _ship_cue_active.get("request_token") == context.request_token: ship_finish_story_cue(cue_id, context.request_token, "failed"))
 	return true
@@ -866,5 +977,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		ship_cancel_hiding(); get_viewport().set_input_as_handled()
 	elif event.keycode==KEY_F6:
 		_ship_status=ship_save_game();_ship_status_time=5.0;get_viewport().set_input_as_handled()
+		if _ship_hide_phase=="concealed": _ship_hide_feedback="COVER SAVED / [E] EXIT" if _ship_status.begins_with("Ship-side") else "SAVE FAILED / KEEP COVER / [E] EXIT"
 	elif event.keycode==KEY_F9:
 		_ship_status=ship_load_game();_ship_status_time=5.0;get_viewport().set_input_as_handled()
+		if _ship_hide_phase=="concealed": _ship_hide_feedback="LOAD REFUSED / STILL IN COVER / [E] RETRY EXIT"

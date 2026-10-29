@@ -11,6 +11,8 @@ var _completed: Array[StringName] = []
 
 func _initialize() -> void:
 	_run.call_deferred()
+	# A broken step must fail the run rather than hang it.
+	create_timer(200.0).timeout.connect(func(): push_error("GUI validation timed out"); quit(2))
 
 func _check(ok: bool, message: String) -> void:
 	_checks += 1
@@ -122,20 +124,23 @@ func _run() -> void:
 		_level.call("_begin_amara_dialogue")
 		var dialogue := _level.get("_crew_dialogue") as CrewDialogue
 		await _key(KEY_E)
-		_check(not dialogue._is_typing, "Dialogue reveal failed")
+		_check(dialogue.phase != "typing", "Dialogue reveal failed")
 		await _shot("dialogue", dialogue)
-		while dialogue._line_index < dialogue._lines.size() - 1:
-			await _key(KEY_E)
-			await _key(KEY_E)
+		var guard := 0
+		while dialogue.phase != "choose" and dialogue._active and guard < 20:
+			await _key(KEY_E); guard += 1
+		await _shot("dialogue_choices", dialogue)
 		await _key(KEY_Q)
 		_check(not _level.get("_crew_dialogue_open") and not _level.get("_crew_tasks_unlocked"), "Dialogue decline failed")
 		_level.call("_begin_amara_dialogue")
-		while dialogue._is_active:
-			await _key(KEY_E)
+		guard = 0
+		while dialogue._active and guard < 20:
+			await _key(KEY_E); guard += 1
 		_check(_level.get("_crew_tasks_unlocked") and player.is_physics_processing(), "Dialogue accept failed")
 		_level.call("_begin_amara_dialogue")
-		while dialogue._is_active:
-			await _key(KEY_E)
+		guard = 0
+		while dialogue._active and guard < 20:
+			await _key(KEY_E); guard += 1
 		_check(player.is_physics_processing(), "Non-offer dialogue close failed")
 
 		for id in [&"auxiliary_power", &"air_filter", &"nutrient_flow"]:

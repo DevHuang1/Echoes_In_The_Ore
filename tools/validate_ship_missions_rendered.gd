@@ -49,6 +49,10 @@ func operate(prop: String, action_id: String, value: Variant=null) -> void:
 		if not await station(prop): return
 	await frames(2)
 	var panel=level._ship_panel
+	if not str(panel.get("kind") if panel.get("kind")!=null else "").is_empty():
+		# Redesigned station screens draw their own controls; send the same action.
+		panel.act(action_id,value);await frames(3)
+		return
 	if not panel._controls.has(action_id): check(false,"Missing rendered action: "+prop+"/"+action_id);return
 	var button: Button=panel._controls[action_id].button
 	# Readouts/actions refresh at 5 Hz. Wait for that refresh after a live
@@ -70,9 +74,10 @@ func operate(prop: String, action_id: String, value: Variant=null) -> void:
 func verify(prop: String, room: String) -> void:
 	await operate(prop,"restore")
 	var waited := 0.0
-	while float(level._ship_state.verification.get(room,0.0))<6.0 and waited<24.0:
+	var needed: float=level._ship_state.verify_seconds(room)
+	while float(level._ship_state.verification.get(room,0.0))<needed and waited<24.0:
 		await get_tree().create_timer(0.25).timeout;waited+=0.25
-	check(float(level._ship_state.verification.get(room,0.0))>=6.0,"Live verification period: "+room)
+	check(float(level._ship_state.verification.get(room,0.0))>=needed,"Live verification period: "+room)
 	await operate(prop,"verify")
 
 func capture_room(prop: String, capture_name: String) -> void:
@@ -177,7 +182,7 @@ func sequence(context: String) -> void:
 	await capture(context+"_planning")
 	await operate("quarters.desk","roster")
 	await operate("quarters.desk","crew_log")
-	await operate("quarters.desk","crew_compare","unconfirmed" if context=="return" else "records_match")
+	await operate("quarters.desk","crew_compare","unconfirmed" if context=="return" else "one_missing")
 	await operate("quarters.desk","record");await capture(context+"_quarters")
 	await operate("cargo.bundle","manifest");await operate("cargo.bundle","seal")
 	await operate("cargo.scale","tare")
@@ -188,8 +193,8 @@ func sequence(context: String) -> void:
 	await operate("power.breaker","observe")
 	await operate("power.breaker","diagnose","load" if context=="return" else "cell")
 	await operate("power.breaker","isolate")
-	await operate("power.converter","allocation","reserve")
-	if context=="outbound": await play_legacy("power.cell","auxiliary_power")
+	await operate("power.converter","allocation","reserve" if context=="return" else "repair")
+	if context=="outbound": await operate("power.cell","sync")
 	await verify("power.breaker","power");await capture(context+"_power")
 	await operate("life.filter","observe")
 	await operate("life.filter","diagnose","scrubber" if context=="return" else "airflow")
@@ -204,7 +209,7 @@ func sequence(context: String) -> void:
 	await operate("hydro.console","observe")
 	await operate("hydro.console","diagnose","balance" if context=="return" else "restriction")
 	await operate("hydro.pump","isolate")
-	if context=="outbound": await play_legacy("hydro.console","nutrient_flow")
+	if context=="outbound": await operate("hydro.console","align")
 	else:
 		await operate("quarters.drawer.2","take:nutrient_buffer")
 		await operate("hydro.console","dose",1.0)

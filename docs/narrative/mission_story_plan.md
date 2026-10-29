@@ -1,5 +1,8 @@
 # Story mission implementation proposal
 
+Historical audit/proposal at the baseline below. The implemented first-watch chapter
+and current hiding/cue validation are recorded in [implementation status](first_watch_implementation.md).
+
 This is a **new recommendation**, based on the current-state
 [narrative audit](narrative_audit.md). Nothing in this document has been
 implemented by the audit. Dialogue entries below describe required beats, not
