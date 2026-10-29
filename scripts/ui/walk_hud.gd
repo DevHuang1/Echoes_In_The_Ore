@@ -18,6 +18,7 @@ const CYAN := Color(0.36, 0.9, 1.0)
 const ORANGE := Color(1.0, 0.68, 0.32)
 const GREEN := Color(0.48, 0.93, 0.64)
 const RED := Color(1.0, 0.35, 0.35)
+const VIOLET := Color(0.78, 0.56, 1.0)
 const SURFACE := Color(0.035, 0.055, 0.085)
 const SURFACE_RAISED := Color(0.042, 0.084, 0.103)
 const SURFACE_HOVER := Color(0.068, 0.125, 0.141)
@@ -2238,6 +2239,31 @@ func _set_map_pin_position(marker: Control, normalized: Vector2) -> void:
 	marker.size = marker.custom_minimum_size
 
 
+func _mission_category_style(entry: Dictionary) -> Dictionary:
+	var mission_id := str(entry.get("id", "")).to_lower()
+	var mission_text := "%s %s %s" % [
+		mission_id,
+		str(entry.get("title", "")).to_lower(),
+		str(entry.get("marker_label", "")).to_lower(),
+	]
+	if mission_id.begins_with("amara_") or "amara:" in mission_text:
+		return {"label": "CREW DUTY", "icon": "♥", "color": VIOLET}
+	if _mission_text_has_keyword(mission_text, ["echo", "shadow", "breach", "anomaly", "missing"]):
+		return {"label": "ANOMALY", "icon": "⚠", "color": RED}
+	if _mission_text_has_keyword(mission_text, ["ore", "survey", "scan", "rig", "beacon", "descent"]):
+		return {"label": "SURVEY", "icon": "⌖", "color": CYAN}
+	if _mission_text_has_keyword(mission_text, ["power", "filter", "nutrient", "repair", "coolant", "pressure", "manifold", "workshop"]):
+		return {"label": "SYSTEMS", "icon": "⚙", "color": GREEN}
+	return {"label": "STORY", "icon": "✦", "color": GOLD}
+
+
+func _mission_text_has_keyword(value: String, keywords: Array) -> bool:
+	for keyword in keywords:
+		if value.contains(str(keyword)):
+			return true
+	return false
+
+
 func _refresh_mission_panel() -> void:
 	if not is_instance_valid(_mission_progress_label):
 		return
@@ -2272,15 +2298,22 @@ func _refresh_mission_panel() -> void:
 			elif next_entry.is_empty() and not String(tid).begins_with("amara_"):
 				next_entry = entry
 
-	if is_instance_valid(_active_task_card):
+	if is_instance_valid(_active_task_title) and is_instance_valid(_active_priority_tag):
 		if found_active and not active_entry.is_empty():
 			var room_tag_text: String = str(active_entry.get("room_name", active_entry.get("marker_label", "MAIN DECK"))).to_upper()
+			var mission_style: Dictionary = _mission_category_style(active_entry)
+			var mission_accent: Color = mission_style["color"]
 			_active_room_tag.text = "[%s]" % room_tag_text
-			_active_priority_tag.text = "ACTIVE OBJECTIVE"
-			_active_priority_tag.add_theme_color_override("font_color", ORANGE)
+			_active_room_tag.add_theme_color_override("font_color", mission_accent)
+			_active_priority_tag.text = "%s %s" % [mission_style["icon"], mission_style["label"]]
+			_active_priority_tag.add_theme_color_override("font_color", mission_accent)
 			_active_task_title.text = _format_clean_title(str(active_entry.get("title", "Ship duty")))
+			_active_task_title.add_theme_color_override("font_color", mission_accent.lightened(0.35))
 			var hint: String = str(active_entry.get("action_hint", "Proceed to location and press [E] to interact"))
-			_active_action_hint.text = "▶ %s" % hint
+			_active_action_hint.text = "%s %s" % [mission_style["icon"], hint]
+			_active_action_hint.add_theme_color_override("font_color", mission_accent.lightened(0.2))
+			_mission_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.012, 0.024, 0.038, 0.94), mission_accent.darkened(0.18), 8.0))
+			_mission_progress_bar.add_theme_stylebox_override("fill", _panel_style(mission_accent, mission_accent, 0.0))
 
 			var cur_id: StringName = StringName(active_entry.get("id", &""))
 			if _last_active_task_id != &"" and _last_active_task_id != cur_id:
@@ -2323,7 +2356,11 @@ func _refresh_mission_panel() -> void:
 			_active_priority_tag.text = "WATCH COMPLETE"
 			_active_priority_tag.add_theme_color_override("font_color", GREEN)
 			_active_task_title.text = "All sector tasks executed successfully"
+			_active_task_title.add_theme_color_override("font_color", GREEN)
 			_active_action_hint.text = "All sector weapons & gear unlocked."
+			_active_action_hint.add_theme_color_override("font_color", MUTED)
+			_mission_panel.add_theme_stylebox_override("panel", _panel_style(Color(0.012, 0.024, 0.038, 0.94), GREEN.darkened(0.2), 8.0))
+			_mission_progress_bar.add_theme_stylebox_override("fill", _panel_style(GREEN, GREEN, 0.0))
 			if is_instance_valid(_active_reward_card):
 				_active_reward_badge.text = "ARSENAL STATUS:"
 				_active_reward_name.text = "ALL WEAPONS & GEAR SECURED"
@@ -2339,11 +2376,14 @@ func _refresh_mission_panel() -> void:
 		var row_icon: TaskRowIcon = row_data["icon"] as TaskRowIcon
 		var is_complete: bool = bool(_task_completed.get(task_id, false))
 		var is_side: bool = String(task_id).begins_with("amara_")
+		var row_style: Dictionary = _mission_category_style({"id": task_id})
 		var show_row: bool = is_side and (active_ids.has(task_id) or is_complete)
 		row_ctrl.visible = show_row
 		if is_instance_valid(row_icon):
 			row_icon.is_complete = is_complete
 			row_icon.queue_redraw()
+		var row_tag: Label = row_data["tag"] as Label
+		row_tag.add_theme_color_override("font_color", row_style["color"])
 		if is_complete:
 			row_data["mark"].text = "DONE"
 			row_data["mark"].add_theme_color_override("font_color", GREEN)
