@@ -1,0 +1,5 @@
+<svg data-dc-tpl="49" width="370" height="150" viewBox="0 0 370 150" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+            <path data-dc-tpl="50" d="M0 40 L370 40" stroke="#e0763a" stroke-width="2" stroke-dasharray="6 6"></path>
+            <text data-dc-tpl="51" x="6" y="34" fill="#e0763a" font-family="VT323" font-size="16">ALERT —</text>
+            <polyline data-dc-tpl="52" points="0,110 370,110" fill="none" stroke="#7fe08a" stroke-width="2"></polyline>
+          </svg>

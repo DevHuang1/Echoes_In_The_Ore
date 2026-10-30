@@ -1,0 +1,9 @@
+<svg data-dc-tpl="52" width="150" height="150" viewBox="0 0 150 150" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+              <g data-dc-tpl="53" transform="rotate(-360 75 75)">
+                <circle data-dc-tpl="54" cx="75" cy="75" r="62" fill="none" stroke="#e0763a" stroke-width="14"></circle>
+                <circle data-dc-tpl="55" cx="75" cy="75" r="62" fill="none" stroke="#05090b" stroke-width="2"></circle>
+                <path data-dc-tpl="56" d="M75 13 L75 137 M13 75 L137 75 M31 31 L119 119 M119 31 L31 119" stroke="#e0763a" stroke-width="8"></path>
+                <circle data-dc-tpl="57" cx="75" cy="13" r="8" fill="#a8501f"></circle>
+              </g>
+              <circle data-dc-tpl="58" cx="75" cy="75" r="16" fill="#3a4448" stroke="#05090b" stroke-width="3"></circle>
+            </svg>

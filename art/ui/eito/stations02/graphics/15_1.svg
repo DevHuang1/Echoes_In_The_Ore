@@ -1,0 +1,10 @@
+<svg data-dc-tpl="48" width="200" height="160" viewBox="0 0 200 160" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+        <circle data-dc-tpl="49" cx="100" cy="96" r="54" fill="#1a2023" stroke="#05090b" stroke-width="4"></circle>
+        <g data-dc-tpl="50" transform="rotate(50 100 96)">
+          <circle data-dc-tpl="51" cx="100" cy="96" r="40" fill="#3a4448" stroke="#05090b" stroke-width="3"></circle>
+          <path data-dc-tpl="52" d="M100 96 L100 50" stroke="#e9b52c" stroke-width="8" stroke-linecap="round"></path>
+        </g>
+        <text data-dc-tpl="53" x="40" y="52" text-anchor="middle" font-family="Silkscreen" font-size="11" fill="#dfe9e6">LOCAL</text>
+        <text data-dc-tpl="54" x="100" y="20" text-anchor="middle" font-family="Silkscreen" font-size="11" fill="#dfe9e6">STANDARD</text>
+        <text data-dc-tpl="55" x="160" y="52" text-anchor="middle" font-family="Silkscreen" font-size="11" fill="#dfe9e6">ROBUST</text>
+      </svg>

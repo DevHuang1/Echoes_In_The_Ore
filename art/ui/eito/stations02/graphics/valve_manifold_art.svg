@@ -1,0 +1,11 @@
+<svg data-dc-tpl="17" width="1234" height="364" viewBox="0 0 1234 364" aria-hidden="true" style="position: absolute; left: 0px; top: 0px;" xmlns="http://www.w3.org/2000/svg">
+
+        <rect data-dc-tpl="18" x="20" y="236" width="1194" height="44" fill="#9db3b4" stroke="#05090b" stroke-width="4"></rect>
+        <path data-dc-tpl="19" d="M20 258 L1214 258" stroke="#e9b52c" stroke-width="6" class="flow-slow" stroke-dasharray="16 14"></path>
+
+        <g data-dc-tpl="20" fill="#6f807c" stroke="#05090b" stroke-width="3">
+          <rect data-dc-tpl="21" x="250" y="224" width="16" height="68"></rect><rect data-dc-tpl="22" x="540" y="224" width="16" height="68"></rect><rect data-dc-tpl="23" x="830" y="224" width="16" height="68"></rect><rect data-dc-tpl="24" x="1100" y="224" width="16" height="68"></rect>
+        </g>
+        <text data-dc-tpl="25" x="30" y="316" fill="#dfe9e6" font-family="Silkscreen" font-size="12">FROM TANK</text>
+        <text data-dc-tpl="26" x="1110" y="316" fill="#dfe9e6" font-family="Silkscreen" font-size="12">TO ENGINE</text>
+      </svg>

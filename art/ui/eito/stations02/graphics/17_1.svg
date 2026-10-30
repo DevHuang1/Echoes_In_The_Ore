@@ -1,0 +1,6 @@
+<svg data-dc-tpl="37" width="50" height="200" viewBox="0 0 50 200" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+          <rect data-dc-tpl="38" x="14" y="4" width="22" height="190" fill="#cfeff0" fill-opacity=".25" stroke="#dfe9e6" stroke-width="3"></rect>
+          <path data-dc-tpl="39" d="M36 30 L44 30 M36 70 L44 70 M36 110 L44 110 M36 150 L44 150" stroke="#dfe9e6" stroke-width="2"></path>
+          <rect data-dc-tpl="40" x="16" y="62" width="18" height="16" fill="#9c3b20" fill-opacity=".25"></rect>
+          <path data-dc-tpl="41" d="M18 112 L32 112 L28 126 L22 126 Z" fill="#e9b52c" stroke="#05090b" stroke-width="2"></path>
+        </svg>

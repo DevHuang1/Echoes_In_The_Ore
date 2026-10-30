@@ -1,3 +1,4 @@
+@tool
 extends RefCounted
 ## Echoes in the Ore interface kit: palette, fonts, generated pixel sprites and
 ## the CSS-like box painter shared by every redesigned screen. Everything here is
@@ -33,6 +34,8 @@ const VOICE := Color("#201a2a")
 const VOICE_HI := Color("#3b3049")
 const VOICE_INK := Color("#f3ead6")
 const TEXT := Color("#e6e1d2")
+const BONE := Color("#d8cfb6")
+const YELLOW := Color("#e9b52c")
 
 const FONT_DIR := "res://art/ui/fonts/"
 
@@ -104,6 +107,52 @@ static func font(kind: String, weight := 400, spacing := 0.0) -> Font:
 	_fonts[key] = f
 	return f
 
+## Exact fonts embedded in the Stations 02 export. Kept separate so already
+## approved proposal-01 screens retain their own typography and measurements.
+static var _artifact_fonts := {}
+static var _artifact_lamps := {}
+static var _artifact_cue_texture: Texture2D
+static func artifact_cue(ci,r: Rect2,time: float) -> void:
+	if _artifact_cue_texture==null: _artifact_cue_texture=load("res://art/ui/eito/stations02/graphics/artifact_cue_corner.res")
+	var g := r.grow(8.0 if fmod(time,1.1)<0.55 else 4.0)
+	var points := [g.position,Vector2(g.end.x,g.position.y),g.end,Vector2(g.position.x,g.end.y)]
+	for i in range(4):
+		ci.draw_set_transform(points[i],i*PI*0.5)
+		ci.draw_texture_rect(_artifact_cue_texture,Rect2(-9,-9,30,30),false)
+	ci.draw_set_transform(Vector2.ZERO)
+
+static func artifact_lamp(ci,p: Vector2,state: String,time: float,dimmed := false) -> void:
+	var s := "warn" if state=="lock" else state if state in ["ok","warn","fault","live"] else "off"
+	var key := s+"_dim" if dimmed else s
+	if not _artifact_lamps.has(key):
+		var tex: Texture2D=load("res://art/ui/eito/stations02/graphics/artifact_lamp_"+s+".res")
+		_artifact_lamps[key]=ImageTexture.create_from_image(filt_image(tex.get_image(),0.2,0.6)) if dimmed else tex
+	var alpha := 1.0
+	if s in ["warn","live"]:
+		var period := 0.6 if s=="live" else 1.0
+		alpha=1.0 if fmod(time,period)<period*0.5 else 0.45
+	ci.draw_texture_rect(_artifact_lamps[key],Rect2(p-Vector2(6,6),Vector2(30,30)),false,Color(1,1,1,alpha))
+
+static func artifact_font(kind: String, weight := 400, spacing := 0.0) -> Font:
+	var key := "%s|%d|%.3f" % [kind,weight,spacing]
+	if _artifact_fonts.has(key): return _artifact_fonts[key]
+	var path: String = FONT_DIR + str({"body":"PixelifySans-Artifact.ttf","label":"Silkscreen-Artifact.ttf","num":"VT323-Regular.ttf"}.get(kind,"PixelifySans-Artifact.ttf"))
+	# Do not attach Stations 02 metrics/fallbacks to a shared FontFile used by
+	# approved proposal-01 screens (notably VT323).
+	var f: Font = load(path).duplicate()
+	if f.fallbacks.is_empty():
+		var fallback := SystemFont.new();fallback.font_names=PackedStringArray(["Trebuchet MS","Arial"] if kind=="body" else ["Courier New","monospace"])
+		f.fallbacks=[fallback]
+	if kind=="body" and weight>400:
+		var bold := FontVariation.new();bold.base_font=f
+		bold.variation_opentype={TextServerManager.get_primary_interface().name_to_tag("wght"):weight}
+		f=bold
+	if not is_zero_approx(spacing):
+		var spaced := FontVariation.new();spaced.base_font=f;spaced.set_meta("ls",spacing);f=spaced
+	f.set_meta("artifact_metrics",{"body":Vector2(0.92,0.28),"label":Vector2(1.03,0.25),"num":Vector2(0.8,0.2)}.get(kind,Vector2(0.92,0.28)))
+	_artifact_fonts[key]=f
+	return f
+
 static func ls_of(f: Font) -> float:
 	return float(f.get_meta("ls", 0.0)) if f.has_meta("ls") else 0.0
 
@@ -119,7 +168,7 @@ static func tw(f: Font, size: int, s: String) -> float:
 	return w
 
 ## Draws a run at a baseline, honouring fractional letter-spacing.
-static func run(ci: CanvasItem, f: Font, size: int, s: String, pos: Vector2, color: Color) -> void:
+static func run(ci, f: Font, size: int, s: String, pos: Vector2, color: Color) -> void:
 	var ls := ls_of(f)
 	if is_zero_approx(ls):
 		ci.draw_string(f, pos, s, HORIZONTAL_ALIGNMENT_LEFT, -1, size, color); return
@@ -132,10 +181,12 @@ static func run(ci: CanvasItem, f: Font, size: int, s: String, pos: Vector2, col
 ## Baseline for text set in a CSS line box of height lh whose top is `top`.
 static func baseline(f: Font, size: int, top: float, lh: float = -1.0) -> float:
 	var a := f.get_ascent(size); var d := f.get_descent(size)
+	if f.has_meta("artifact_metrics"):
+		var m: Vector2=f.get_meta("artifact_metrics");a=roundf(m.x*size);d=roundf(m.y*size)
 	if lh < 0: lh = a + d
 	return top + (lh - (a + d)) * 0.5 + a
 
-static func text(ci: CanvasItem, f: Font, size: int, s: String, x: float, top: float, color: Color, lh: float = -1.0, align := 0, width := 0.0) -> float:
+static func text(ci, f: Font, size: int, s: String, x: float, top: float, color: Color, lh: float = -1.0, align := 0, width := 0.0) -> float:
 	var w := tw(f, size, s)
 	var px := x
 	if align == 1: px = x + (width - w) * 0.5
@@ -167,7 +218,7 @@ static func wrap_balanced(f: Font, size: int, s: String, width: float) -> Packed
 		else: hi = mid
 	return wrap_text(f, size, s, hi)
 
-static func paragraph(ci: CanvasItem, f: Font, size: int, s: String, x: float, top: float, width: float, lh: float, color: Color, balanced := false, align := 0) -> int:
+static func paragraph(ci, f: Font, size: int, s: String, x: float, top: float, width: float, lh: float, color: Color, balanced := false, align := 0) -> int:
 	var lines := wrap_balanced(f, size, s, width) if balanced else wrap_text(f, size, s, width)
 	for i in range(lines.size()):
 		text(ci, f, size, lines[i], x, top + i * lh, color, lh, align, width)
@@ -203,7 +254,7 @@ static func filt_image(src: Image, sat: float, bright: float) -> Image:
 ##   notch: bool, bg: Color, grad: [[t, Color], ...] (top->bottom),
 ##   hgrad: [[t, Color], ...] (left->right), tex: Texture2D (tiled from the padding box),
 ##   border: Color, bw: int, insets: [[dx, dy, spread, Color], ...], outer: same shape.
-static func box(ci: CanvasItem, r: Rect2, o: Dictionary) -> void:
+static func box(ci, r: Rect2, o: Dictionary) -> void:
 	var notch: bool = o.get("notch", false)
 	var clips := notch_strips(r) if notch else [r]
 	var bw: int = o.get("bw", 2 if o.has("border") else 0)
@@ -216,9 +267,22 @@ static func box(ci: CanvasItem, r: Rect2, o: Dictionary) -> void:
 	if o.has("grad"): fill_grad(ci, r, clips, pad, o.grad, true)
 	if o.has("hgrad"): fill_grad(ci, r, clips, pad, o.hgrad, false)
 	if o.has("tex"):
+		# Tiled from the padding box; tiles are cut by hand so it also works on
+		# canvas items without texture repeat (theme styleboxes).
+		var t: Texture2D = o.tex
+		var ts := t.get_size()
 		for c in clips:
 			var d: Rect2 = (c as Rect2).intersection(r)
-			if d.has_area(): ci.draw_texture_rect_region(o.tex, d, Rect2(d.position - pad.position, d.size))
+			if not d.has_area(): continue
+			var ty := floorf((d.position.y - pad.position.y) / ts.y)
+			while pad.position.y + ty * ts.y < d.end.y:
+				var tx := floorf((d.position.x - pad.position.x) / ts.x)
+				while pad.position.x + tx * ts.x < d.end.x:
+					var tile := Rect2(pad.position + Vector2(tx, ty) * ts, ts).intersection(d)
+					if tile.has_area():
+						ci.draw_texture_rect_region(t, tile, Rect2(tile.position - pad.position - Vector2(tx, ty) * ts, tile.size))
+					tx += 1.0
+				ty += 1.0
 	if o.has("border") and bw > 0:
 		for piece in subtract(r, pad): fill(ci, piece, clips, o.border)
 	var ins: Array = o.get("insets", [])
@@ -232,7 +296,7 @@ static func notch_strips(r: Rect2) -> Array:
 	return [Rect2(x+6, y, w-12, 2), Rect2(x+4, y+2, w-8, 2), Rect2(x+2, y+4, w-4, 2), Rect2(x, y+6, w, h-12),
 		Rect2(x+2, y+h-6, w-4, 2), Rect2(x+4, y+h-4, w-8, 2), Rect2(x+6, y+h-2, w-12, 2)]
 
-static func fill(ci: CanvasItem, r: Rect2, clips: Array, c: Color) -> void:
+static func fill(ci, r: Rect2, clips: Array, c: Color) -> void:
 	for clip in clips:
 		var d: Rect2 = r.intersection(clip)
 		if d.has_area(): ci.draw_rect(d, c)
@@ -248,7 +312,7 @@ static func grad_at(stops: Array, t: float) -> Color:
 
 ## Gradient sized to the padding box (CSS background-origin) but painted under
 ## the border too, exactly like the browser's default background-clip.
-static func fill_grad(ci: CanvasItem, r: Rect2, clips: Array, pad: Rect2, stops: Array, vertical: bool) -> void:
+static func fill_grad(ci, r: Rect2, clips: Array, pad: Rect2, stops: Array, vertical: bool) -> void:
 	var p0 := pad.position.y if vertical else pad.position.x
 	var plen := pad.size.y if vertical else pad.size.x
 	var cuts := [r.position.y if vertical else r.position.x, r.end.y if vertical else r.end.x]
@@ -285,22 +349,31 @@ static func subtract(outer: Rect2, inner: Rect2) -> Array:
 	return out
 
 # ---------------------------------------------------------------- material presets
-static func metal_module(ci: CanvasItem, r: Rect2) -> void:
+static func metal_module(ci, r: Rect2) -> void:
 	box(ci, r, {"notch":true, "bg":HULL, "grad":[[0.0, HULL_2], [1.0, HULL]], "tex":tex("noise"), "border":EDGE, "insets":[[2,2,0,HULL_HI],[-2,-2,0,HULL_LO]]})
 
-static func bezel(ci: CanvasItem, r: Rect2) -> void:
+static func bezel(ci, r: Rect2) -> void:
 	box(ci, r, {"notch":true, "grad":[[0.0, Color("#34494f")], [1.0, Color("#22333a")]], "border":EDGE, "insets":[[2,2,0,Color("#557178")],[-2,-2,0,Color("#141e22")]]})
 
-static func paper(ci: CanvasItem, r: Rect2) -> void:
+static func paper(ci, r: Rect2) -> void:
 	box(ci, r, {"notch":true, "bg":PAPER, "tex":tex("paper"), "border":Color("#6f6750"), "insets":[[2,2,0,PAPER_HI],[-2,-2,0,PAPER_LO]]})
+
+## Stations 02 paper uses the export's simple 1px/5px vertical grain.
+static func artifact_paper(ci,r: Rect2) -> void:
+	var clips := notch_strips(r)
+	fill(ci,r,clips,PAPER)
+	var x := r.position.x+2
+	while x<r.end.x:
+		fill(ci,Rect2(x,r.position.y,1,r.size.y),clips,Color(90/255.0,70/255.0,30/255.0,0.03));x+=5
+	box(ci,r,{"notch":true,"border":Color("#6f6750"),"insets":[[2,2,0,PAPER_HI],[-2,-2,0,PAPER_LO]]})
 
 ## Glass screen body (radial phosphor gradient + inner bevel). Call glass_overlay
 ## after drawing the screen contents for the scanlines and sheen.
-static func glass(ci: CanvasItem, r: Rect2) -> void:
+static func glass(ci, r: Rect2) -> void:
 	ci.draw_texture_rect(radial_texture(), Rect2(r.position + Vector2(2, 2), r.size - Vector2(4, 4)), false)
 	box(ci, r, {"border":Color.BLACK, "insets":[[0,0,2,Color("#12271f")],[6,6,0,Color(0,0,0,0.35)]]})
 
-static func glass_overlay(ci: CanvasItem, r: Rect2) -> void:
+static func glass_overlay(ci, r: Rect2) -> void:
 	var p := r.grow(-2)
 	var y := p.position.y + 2.0
 	var dark := Color(0, 0, 0, 0.13)
@@ -521,3 +594,38 @@ static func portrait(k: String, bust: bool) -> Image:
 		"crop":
 			H.call(9,5,14,4);H.call(9,7,1,4);H.call(22,7,1,4);H.call(10,8,12,1);HH.call(11,6,9,1)
 	return im
+
+## Status lamp sprite with glow, blinking like the design (warn 1s, live 0.6s).
+static func draw_lamp(ci, p: Vector2, s: String, now: float) -> void:
+	if s == "lock":
+		ci.draw_texture_rect(tex("lockA"), Rect2(p + Vector2(2, 1), Vector2(14, 16)), false); return
+	var key := s if s in ["ok", "warn", "fault", "live"] else "off"
+	var a := 1.0
+	if key == "warn": a = 1.0 if fmod(now, 1.0) < 0.5 else 0.45
+	elif key == "live": a = 1.0 if fmod(now, 0.6) < 0.3 else 0.45
+	if key != "off":
+		ci.draw_texture_rect(tex("g_" + key), Rect2(p - Vector2(6, 6), Vector2(30, 30)), false, Color(1, 1, 1, a))
+	ci.draw_texture_rect(tex("l_" + key), Rect2(p, Vector2(18, 18)), false, Color(1, 1, 1, a))
+
+# ---------------------------------------------------------------- RID canvas
+## Lets the painter draw into a raw canvas item (StyleBox._draw), mirroring the
+## few CanvasItem calls it uses.
+class RidCanvas:
+	var rid: RID
+	func _init(r: RID) -> void: rid = r
+	func draw_rect(r: Rect2, c: Color, filled := true, width := -1.0) -> void:
+		if filled: RenderingServer.canvas_item_add_rect(rid, r, c)
+		else:
+			var w := maxf(width, 1.0)
+			for piece in [Rect2(r.position, Vector2(r.size.x, w)), Rect2(r.position.x, r.end.y - w, r.size.x, w), Rect2(r.position, Vector2(w, r.size.y)), Rect2(r.end.x - w, r.position.y, w, r.size.y)]:
+				RenderingServer.canvas_item_add_rect(rid, piece, c)
+	func draw_polygon(pts: PackedVector2Array, cols: PackedColorArray) -> void:
+		RenderingServer.canvas_item_add_polygon(rid, pts, cols)
+	func draw_texture_rect_region(t: Texture2D, r: Rect2, src: Rect2, modulate := Color.WHITE) -> void:
+		RenderingServer.canvas_item_add_texture_rect_region(rid, r, t.get_rid(), src, modulate)
+	func draw_texture_rect(t: Texture2D, r: Rect2, tile: bool, modulate := Color.WHITE) -> void:
+		RenderingServer.canvas_item_add_texture_rect(rid, r, t.get_rid(), tile, modulate)
+	func draw_string(f: Font, pos: Vector2, s: String, align := HORIZONTAL_ALIGNMENT_LEFT, width := -1.0, size := 16, color := Color.WHITE) -> void:
+		f.draw_string(rid, pos, s, align, width, size, color)
+	func draw_char(f: Font, pos: Vector2, ch: String, size := 16, color := Color.WHITE) -> void:
+		f.draw_char(rid, pos, ch.unicode_at(0), size, color)

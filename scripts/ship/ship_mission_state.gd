@@ -43,8 +43,9 @@ func reset(context: String) -> void:
 	stocks = {
 		"quarters.drawer.1":{"filter_cartridge":2,"scrubber_media":2},
 		"quarters.drawer.2":{"nutrient_buffer":2,"coolant_charge":2},
-		"quarters.wardrobe":{},
-		"cargo.locker":{"filter_cartridge":2,"coolant_charge":3,"scrubber_media":2,"nutrient_buffer":2},
+		"quarters.wardrobe":{"engineering_multitool":1,"pressure_sealant":1},
+		"cargo.locker":{},
+		"cargo.trolley":{"filter_cartridge":2,"coolant_charge":3,"scrubber_media":2,"nutrient_buffer":2},
 		"cargo.cylinders":{"coolant_charge":2,"oxygen_reserve":2,"inert_purge":2},
 		"engine.locker.1":{}, "engine.locker.2":{}, "shuttle.bundle":{},
 	}
@@ -217,6 +218,8 @@ func actions(prop_id: String) -> Array:
 	var def: Dictionary=CATALOG.definition(prop_id)
 	if def.is_empty(): return []
 	var room: String=def.room;var kind: String=def.kind
+	if kind in ["storage_hide","cargo_hide"]:
+		return [_action("hide","Enter concealment (H exits safely)")]
 	var result: Array=[_action("record","Read and record this phase's crew/system note")]
 	if kind=="planning":
 		if work_order_context == "first_watch":
@@ -226,13 +229,12 @@ func actions(prop_id: String) -> Array:
 		result.append(_action("assign","Accept ship-side duties",not flags.get("assigned",false),"Assignments already accepted; progress is retained."))
 		result.append(_action("file_report","File the verified ship-side report",completed.size()==8 and not flags.get("report_filed",false),"Verify all eight listed procedures and obtain the transmission acknowledgement first."))
 		return result
-	if kind in ["storage","storage_hide"]:
+	if kind=="storage" or prop_id=="cargo.trolley":
 		for item in stocks.get(prop_id,{}):
 			result.append(_action("take:"+item,"Retrieve "+item+" (stock "+str(stocks[prop_id][item])+")",stocks[prop_id][item]>0,"Stock empty; return a carried spare or use the cargo recovery issue."))
 		for item in ["filter_cartridge","scrubber_media","coolant_charge","nutrient_buffer","oxygen_reserve","inert_purge","engineering_multitool","pressure_sealant"]:
 			if _has(item): result.append(_action("store:"+item,"Store carried "+item))
-		if prop_id=="cargo.locker": result.append(_action("recover_supplies","Issue a logged replacement duty kit",flags.get("assigned",false),"Review bridge assignments first."))
-		if kind=="storage_hide": result.append(_action("hide","Enter concealment (E exits safely)"))
+		if prop_id=="cargo.trolley": result.append(_action("recover_supplies","Issue a logged replacement duty kit",flags.get("assigned",false),"Review bridge assignments first."))
 	if kind=="chair": result.append(_action("chair","Inspect station seat / operator access"))
 	if kind=="rest": result.append(_action("rest","Take a short rest without advancing the story",(bus_powered("essential") and systems.life.airflow>=62 and systems.life.co2<=0.1 and engine_flow(0)>=0.9 and engine_flow(1)>=0.9 and systems.engine.temperature<=65) if work_order_context=="first_watch" else not flags.get("assigned",false) or (completed.has("power") and completed.has("life") and completed.has("engine")),"Restore essential power, healthy air and cooling before resting."))
 	if work_order_context == "first_watch" and optional_checks.get("enabled", false):
@@ -244,17 +246,16 @@ func actions(prop_id: String) -> Array:
 		var conclusions := [["records_match","The routine records match the expected watch"],["unconfirmed","The old roster does not confirm present crew whereabouts"]]
 		if phase=="outbound": conclusions = [["all_checked_in","Everyone on the roster has checked in."],["one_missing","One expected check-in is missing."],["not_aboard","Someone on the roster isn't aboard."]]
 		result.append(_gated("crew_compare","Record the supported check-in conclusion","crew",flags.get("crew.log",false),"Compare the roster with the available records first.",conclusions))
-	if kind in ["cargo","cargo_hide"]:
+	if kind=="cargo":
 		result.append(_gated("manifest","Read container ID, manifest and seal record","cargo"))
 		result.append(_gated("seal","Inspect the exterior seal without opening the load","cargo",flags.get("cargo.manifest",false),"Read the manifest first."))
 		if prop_id=="cargo.scale":
 			result.append(_gated("tare","Zero empty scale and check the 20 kg reference","cargo",systems.cargo.location=="staging","Return the load to staging with the pallet mover before zeroing."))
 			result.append(_gated("weigh","Read the settled load mass","cargo",systems.cargo.location=="scale" and systems.cargo.tare,"Zero the empty scale, then bring the identified load onto it using the mover."))
 			result.append(_gated("cargo_decide","Record the inspection disposition","cargo",systems.cargo.weighed and systems.cargo.seal_checked,"Obtain mass and seal readings before deciding.",[["accept","Accept: ID matches and mass is within tolerance"],["quarantine","Quarantine unopened: record the discrepancy"]]))
-		if kind=="cargo_hide": result.append(_action("hide","Enter the marked gap (E exits safely)"))
 	if kind=="transfer":
 		result.append(_gated("move_load","Transfer identified load to scale / staging","cargo",flags.get("cargo.manifest",false),"Confirm the manifest identity before transferring.",[["scale","Secured transfer to inspection scale"],["staging","Return to marked staging"]]))
-		result.append(_action("transfer_kit","Secure a coolant kit in the upper engine locker",completed.has("cargo") and stocks["cargo.locker"].get("coolant_charge",0)>0,"Inspect cargo first; a coolant kit must remain in the cargo locker."))
+		if prop_id=="cargo.trolley": result.append(_action("transfer_kit","Issue one COOL-02 kit from the trolley for engine service",completed.has("cargo") and stocks["cargo.trolley"].get("coolant_charge",0)>0,"Inspect cargo first; a COOL-02 kit must remain in the trolley drawer."))
 	if kind=="cylinders":
 		result.append(_action("cylinder","Select and retrieve the labelled service cylinder",flags.get("assigned",false),"Review bridge assignments first.",[["coolant_charge","COOL-02 / sealed coolant service charge"],["oxygen_reserve","O2-01 / oxygen reserve"],["inert_purge","N2-03 / inert purge gas"]]))
 	if room in ["power","life","hydro","engine"]:
@@ -279,7 +280,7 @@ func actions(prop_id: String) -> Array:
 		if room=="life":
 			if prop_id=="life.oxygen": result.append(_action("oxygen_reserve","Swap a labelled O2-01 reserve bank (optional)",flags.get("life.diagnosed",false) and systems.life.reserve<50 and _has("oxygen_reserve"),"Read the gas diagnosis first. O2 reserve is only needed below 50%; retrieve O2-01 from the cargo cylinder rack. It does not repair airflow or CO2 removal."))
 			result.append(_gated("isolate","Isolate the affected service housing; reserve air remains live",task,flags.get("life.diagnosed",false),"Distinguish oxygen, CO2 removal and airflow first."))
-			if prop_id=="life.filter" and phase=="outbound": result.append(_gated("legacy:air_filter","Open the existing filter replacement controls",task,systems.life.isolated and _has("filter_cartridge"),"Isolate the housing and retrieve FILTER-A from the shared quarters drawers or cargo locker."))
+			if prop_id=="life.filter" and phase=="outbound": result.append(_gated("legacy:air_filter","Open the existing filter replacement controls",task,systems.life.isolated and _has("filter_cartridge"),"Isolate the housing and retrieve FILTER-A from the shared quarters drawers or maintenance trolley."))
 			if prop_id=="life.scrubber" and phase=="return": result.append(_gated("scrubber_service","Replace SCRUB-A medium in the isolated scrubber",task,systems.life.isolated and _has("scrubber_media") and _has("engineering_multitool"),"Isolate the scrubber; obtain SCRUB-A and the multitool. A new filter will not fix this fault."))
 			result.append(_action("restore","Restore airflow / cancel service isolation safely"))
 		if room=="hydro":
@@ -287,7 +288,7 @@ func actions(prop_id: String) -> Array:
 			if prop_id=="hydro.console" and phase=="outbound": result.append(_gated("legacy:nutrient_flow","Operate the existing labelled manifold valves",task,systems.hydro.isolated and _has("engineering_multitool"),"Isolate nutrient delivery and carry the multitool."))
 			if phase=="outbound": result.append(_gated("align","Set the three manifold valves to their marks",task,systems.hydro.isolated and _has("engineering_multitool"),"Close the supply valve and carry the engineering multitool."))
 			if phase=="return":
-				var dose: Dictionary=_gated("dose","Calculate and add BUFFER-A dilution",task,systems.hydro.isolated and _has("nutrient_buffer"),"Isolate dosing and retrieve BUFFER-A from the shared quarters drawer or cargo locker.")
+				var dose: Dictionary=_gated("dose","Calculate and add BUFFER-A dilution",task,systems.hydro.isolated and _has("nutrient_buffer"),"Isolate dosing and retrieve BUFFER-A from the shared quarters drawer or maintenance trolley.")
 				dose["number"]={"min":0.25,"max":2.0,"step":0.25,"value":1.0,"suffix":" dose"};result.append(dose)
 			result.append(_action("restore","Restore irrigation / cancel dosing isolation safely"))
 		if room=="engine":
@@ -351,7 +352,7 @@ func act(prop_id: String, action_id: String, value: Variant = null) -> Dictionar
 			"file_report": flags.report_filed=true;message="Verified ship-side report filed. The duty log retains the measurements, corrections and unresolved records from this watch."
 			"chair": message="Operator seat and access inspected. Operate the adjacent console while standing."
 			"rest": systems.crew.fatigue=0.0;message="Short rest complete; fatigue recovered. Duty assignments and unresolved records remain active."
-			"hide": return {"ok":true,"event":"hide","message":"Enter the marked concealment space. Press E to leave safely."}
+			"hide": return {"ok":true,"event":"hide","message":"Enter the marked concealment space. Press H to leave safely."}
 			"roster": flags["crew.roster"]=true;message="Roster A1-DUTY read. Expected activity is a logged duty watch, not proof of present location. Compare the authorised check-in record."
 			"crew_log":
 				flags["crew.log"]=true
@@ -380,17 +381,17 @@ func act(prop_id: String, action_id: String, value: Variant = null) -> Dictionar
 				if not inventory.inventory_put(StringName(item),1): return _reply(false,"Inventory full. The cylinder remains secured in its rack.")
 				stocks["cargo.cylinders"][item]-=1;message="Issued labelled "+item+". Its identity is retained in inventory; other contents cannot substitute for it."
 			"transfer_kit":
-				stocks["cargo.locker"].coolant_charge-=1
-				stocks["engine.locker.1"].coolant_charge=int(stocks["engine.locker.1"].get("coolant_charge",0))+1
-				message="One sealed COOL-02 kit transferred from cargo to the upper engine locker. Both stock ledgers changed; no duplicate reward was created."
+				if not inventory.inventory_put(&"coolant_charge",1): return _reply(false,"Inventory full. The sealed COOL-02 kit remains in the trolley drawer.")
+				stocks["cargo.trolley"].coolant_charge-=1
+				message="One sealed COOL-02 kit issued from the trolley drawer into the carried inventory for engine service."
 			"recover_supplies":
 				var issued := false
 				for item in ["filter_cartridge","coolant_charge","scrubber_media","nutrient_buffer"]:
 					var total: int=inventory.inventory_count(StringName(item))
 					for stock in stocks.values(): total+=int(stock.get(item,0))
 					if total<2:
-						stocks["cargo.locker"][item]=int(stocks["cargo.locker"].get(item,0))+2-total;issued=true
-				message="Logged replacement stock issued in the cargo locker." if issued else "Existing supplies remain in inventory/storage. No extra stock issued; retrieve or transfer those first."
+						stocks["cargo.trolley"][item]=int(stocks["cargo.trolley"].get(item,0))+2-total;issued=true
+				message="Logged replacement stock issued in the maintenance trolley drawer." if issued else "Existing supplies remain in inventory/storage. No extra stock issued; retrieve or transfer those first."
 			"observe": flags[room+".observed"]=true;message=readings(room)
 			"diagnose":
 				var expected: String={"power":"load" if phase=="return" else "cell","life":"scrubber" if phase=="return" else "airflow","hydro":"balance" if phase=="return" else "restriction","engine":"valve" if phase=="return" else "pump"}[room]
@@ -531,7 +532,8 @@ func restore(data: Dictionary) -> bool:
 	probe.reset(data.phase)
 	if not _same_shape(probe.systems,data.systems): return false
 	for key in probe.stocks:
-		if not data.stocks.has(key): return false
+		# Saves written before the hiding-only locker rule have no trolley bin.
+		if key != "cargo.trolley" and not data.stocks.has(key): return false
 	if data.systems.engine.health.size()!=2 or data.systems.engine.valves.size()!=2 or data.systems.engine.isolated.size()!=2: return false
 	for value in data.flags.values()+data.completed.values()+data.transactions.values():
 		if not value is bool: return false
@@ -557,6 +559,13 @@ func restore(data: Dictionary) -> bool:
 	phase=data.phase
 	work_order_context = context; authorized_work_orders = PackedStringArray(orders)
 	for key in ["flags","completed","evidence","stocks","legacy_progress","systems","verification","transactions"]: set(key,data[key].duplicate(true))
+	if not stocks.has("cargo.trolley"): stocks["cargo.trolley"] = {}
+	# Older saves may still hold supplies in lockers. Move those counts into
+	# the trolley's real drawers in memory; no real save is rewritten on load.
+	for old_location in ["cargo.locker","engine.locker.1","engine.locker.2"]:
+		for item in stocks[old_location]:
+			stocks["cargo.trolley"][item] = int(stocks["cargo.trolley"].get(item,0)) + int(stocks[old_location][item])
+		stocks[old_location].clear()
 	journal=data.journal.duplicate(true);elapsed=float(data.elapsed)
 	changed.emit()
 	return true

@@ -25,6 +25,12 @@ func press_interact() -> void:
 	await frames(2)
 	event=InputEventAction.new();event.action=&"interact";event.pressed=false;Input.parse_input_event(event)
 
+func press_hide() -> void:
+	var event := InputEventKey.new();event.keycode=KEY_H;event.physical_keycode=KEY_H;event.pressed=true
+	Input.parse_input_event(event);await frames(2)
+	event=InputEventKey.new();event.keycode=KEY_H;event.physical_keycode=KEY_H;event.pressed=false
+	Input.parse_input_event(event)
+
 func test_approach_and_input() -> void:
 	report.selection={}
 	for id in level._ship_points:
@@ -33,6 +39,12 @@ func test_approach_and_input() -> void:
 		level.player.global_position=entry.marker.global_position
 		level.ship_refresh_prompt()
 		var selected: String=level._ship_active_id
+		if entry.definition.kind in ["storage_hide","cargo_hide"]:
+			check(level._ship_near_hide_id==id,"H selects reachable hiding place: "+id)
+			check(selected!=id,"Hiding place is not an E station: "+id)
+			check(not level.ship_open_procedure(id),"Hiding place has no task or storage panel: "+id)
+			report.selection[id]=true
+			continue
 		check(selected==id,"A station is individually selectable from its marker: "+id+" (selected "+selected+")")
 		if selected!=id: continue
 		await press_interact()
@@ -149,27 +161,55 @@ func test_objective_markers() -> void:
 
 func test_hiding() -> void:
 	report.hiding={}
+	var occupied: Dictionary=level._ship_points["cargo.locker"]
+	level.player.global_position=occupied.marker.global_position
+	occupied.host.set_meta("hide_occupant",-1234)
+	check(not level.ship_enter_hiding("cargo.locker"),"Another occupant prevents entering the same hiding prop")
+	occupied.host.remove_meta("hide_occupant")
 	for id in ["cargo.locker","cargo.bundle","engine.locker.1","engine.locker.2"]:
 		var entry: Dictionary=level._ship_points[id]
 		level.player.global_position=entry.marker.global_position
+		level.ship_refresh_prompt()
 		var carried := JSON.stringify(level._walk_hud.inventory_snapshot())
-		check(level.ship_enter_hiding(id),"Enter supported hiding place: "+id)
+		var visual_states := {}
+		for item in level.player.find_children("*","CanvasItem",true,false):
+			if not item is Camera2D: visual_states[item]=item.visible
+		await press_hide()
 		await wait_hiding("concealed")
+		check(level._ship_hide_id==id,"H enters selected hiding place: "+id)
 		check(level.player.is_concealed and level.player.is_in_group("concealed_players"),"Concealment API/group exposed: "+id)
 		check(not level.player.sprite.visible and level.player.get_node("CollisionShape2D").disabled,"Hidden sprite and cabinet-overlap collision handled: "+id)
+		var all_hidden := true
+		for item in visual_states:
+			if is_instance_valid(item) and item.visible: all_hidden=false
+		check(all_hidden,"Attached equipment, shadow and lights are all hidden: "+id)
+		var held := InputEventKey.new();held.keycode=KEY_H;held.physical_keycode=KEY_H;held.pressed=true;held.echo=true
+		Input.parse_input_event(held);await frames(2)
+		check(level._ship_hide_phase=="concealed","Held H echo cannot immediately exit cover: "+id)
 		var hidden_position: Vector2=level.player.global_position
 		level.player._physics_process(0.1)
 		check(level.player.global_position==hidden_position,"Hidden player cannot walk out through solid cabinet")
 		var hidden_save: Dictionary=level.ship_snapshot()
-		await press_interact();await wait_hiding("outside")
-		check(not level.player.is_concealed and level.player.sprite.visible and not level.player.get_node("CollisionShape2D").disabled,"E restores visibility and collision: "+id)
+		await press_interact();await frames(2)
+		check(level._ship_hide_phase=="concealed","E cannot leave cover: "+id)
+		await press_hide();await wait_hiding("outside")
+		check(not level.player.is_concealed and level.player.sprite.visible and not level.player.get_node("CollisionShape2D").disabled,"H restores visibility and collision: "+id)
 		check(level.player.is_physics_processing() and level._ship_body_clear(level.player.global_position),"Hiding exit restores control on clear floor: "+id)
+		var visuals_restored := true
+		for item in visual_states:
+			if is_instance_valid(item) and item.visible!=visual_states[item]: visuals_restored=false
+		check(visuals_restored,"Exit restores each attached visual's previous state: "+id)
 		check(level.ship_restore(hidden_save),"Concealed snapshot can load safely")
 		await frames()
 		check(not level.player.is_concealed and level._ship_body_clear(level.player.global_position),"Concealed load resumes outside cabinet at safe exit")
 		check(carried==JSON.stringify(level._walk_hud.inventory_snapshot()),"Concealment never loses inventory")
 		level.player.set_physics_process(false)
 		report.hiding[id]=true
+	level.player.sprite.visible=false
+	level.player.set_concealment(true,"validation.visual_state")
+	level.player.set_concealment(false,"")
+	check(not level.player.sprite.visible,"Concealment API preserves an intentionally hidden sprite on ordinary exit")
+	level.player.sprite.visible=true
 	# An obstructed exit must keep the actor concealed and allow a later retry.
 	var entry: Dictionary=level._ship_points["cargo.locker"]
 	level.player.global_position=entry.marker.global_position

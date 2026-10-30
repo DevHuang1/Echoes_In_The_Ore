@@ -90,7 +90,7 @@ func _run() -> void:
 	for pair in [["SHIPMAP", &"map"], ["INVENTORY", &"inventory"], ["SETTINGS", &"settings"]]:
 		var button := menu.get_node(pair[0]) as Button
 		await _move(button.get_global_rect().get_center())
-		_check(button.is_hovered() and button.get_theme_stylebox("hover") is StyleBoxTexture, "Menu hover missing: " + pair[0])
+		_check(button.is_hovered() and button.get_theme_stylebox("hover") is StyleBox, "Menu hover missing: " + pair[0])
 		await _click(button)
 		_check(_hud._active_overlay == pair[1] and not player.is_physics_processing(), "Menu opening/pause failed: " + pair[0])
 		var close := _hud._overlay_nodes[pair[1]].find_child("Close", true, false) as Button

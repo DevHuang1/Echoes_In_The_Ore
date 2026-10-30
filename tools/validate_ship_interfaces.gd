@@ -44,6 +44,11 @@ func all_action_access() -> void:
 		if is_instance_valid(level._ship_panel): level._ship_panel.close_panel();await frames()
 		level.ship_start_development_scenario(context);await frames()
 		for prop in CATALOG.PROPS:
+			if prop[3] in ["storage_hide","cargo_hide"]:
+				level.player.global_position=level._ship_points[prop[1]].marker.global_position
+				check(not level.ship_open_procedure(prop[1]),"Hiding prop has no E station panel: "+prop[1])
+				check(level._ship_state.actions(prop[1]).map(func(entry: Dictionary): return entry.id)==["hide"],"Hiding prop offers no storage or task controls: "+prop[1])
+				continue
 			await station(prop[1])
 			var panel=level._ship_panel
 			if not is_instance_valid(panel): continue
@@ -67,31 +72,30 @@ func all_action_access() -> void:
 func keyboard_refresh() -> void:
 	await station("bridge.helm")
 	var panel=level._ship_panel
-	panel.reveal_action("correction");await frames()
-	var number: SpinBox=panel._controls.correction.choice
-	number.value=-3.5;number.get_line_edit().grab_focus()
+	check(redesigned(panel) and panel.kind=="helm","Helm uses the artifact's encoder instead of the obsolete SpinBox")
+	panel.screen.dial=-3.5;panel.screen.focus="m01";panel.screen.kb=true
 	level._ship_state.changed.emit();await frames()
-	check(panel._controls.correction.choice.value==-3.5,"Pending numeric input survives live refresh")
-	check(panel._root.get_viewport().gui_get_focus_owner()!=null,"Keyboard focus survives refresh")
+	check(panel.screen.dial==-3.5,"Pending numeric input survives live refresh")
+	check(panel.screen.focus=="m01" and panel.screen.kb,"Keyboard focus survives refresh")
 	check(level._ship_state.systems.navigation.correction==0.0,"Pending control never overrides model before commit")
-	var records: Button=panel._tabs.get_children()[-1]
-	records.grab_focus();await key(KEY_SPACE)
-	check(panel._stage=="RECORDS","Keyboard opens records stage")
+	await key(KEY_LEFT)
+	check(is_equal_approx(panel.screen.dial,-3.6),"Keyboard changes the encoder by its genuine 0.1-degree step")
 	await key(KEY_TAB)
-	check(panel._root.get_viewport().gui_get_focus_owner()!=null,"Tab navigation retains a visible focus owner")
+	check(not panel.screen.focus.is_empty() and panel.screen.kb,"Tab navigation retains a visible focus owner")
 	await key(KEY_ESCAPE)
 	check(not is_instance_valid(level._ship_panel) and level.player.is_physics_processing(),"Escape closes and restores movement")
 	await station("bridge.helm")
-	check(level._ship_panel._controls.correction.choice.value==0.0,"Reopened controls initialize from saved model")
+	check(level._ship_panel.screen.dial==0.0,"Reopened controls initialize from saved model")
 	await station("life.filter")
-	panel=level._ship_panel;panel.reveal_action("diagnose");await frames()
-	var dropdown: OptionButton=panel._controls.diagnose.choice
-	dropdown.grab_focus();await key(KEY_SPACE)
-	check(dropdown.get_popup().visible,"Keyboard opens labelled option menu")
-	await key(KEY_DOWN);await key(KEY_ENTER)
-	check(dropdown.selected==1 and not dropdown.get_popup().visible,"Keyboard chooses actual second operating option")
+	panel=level._ship_panel
+	# The artifact has an eight-control housing sequence, with no diagnosis
+	# dropdown. Keep the keyboard/interlock assertion on its actual controls.
+	var stage_before: int=panel.screen._stage()
+	panel.screen.focus="prime";panel.screen.kb=true
+	await key(KEY_SPACE)
+	check(panel.screen._stage()==stage_before,"Keyboard cannot skip the filter housing interlock")
 	await key(KEY_ESCAPE)
-	check(not is_instance_valid(level._ship_panel),"Escape closes after option-menu navigation")
+	check(not is_instance_valid(level._ship_panel),"Escape closes after artifact keyboard navigation")
 
 func loaded_view() -> void:
 	if is_instance_valid(level._ship_panel): level._ship_panel.close_panel();await frames()
@@ -101,6 +105,24 @@ func loaded_view() -> void:
 	await station("power.breaker")
 	check(level._ship_state.phase=="outbound" and redesigned(level._ship_panel) and level._ship_panel.screen.verified(),"Reloaded interface restores watch and verified condition")
 	check(level._ship_state.systems.power.science==15 and level._ship_panel.screen.plan==2,"Reloaded power plan shows the actual saved repair-hold allocation")
+
+func carried_storage_view() -> void:
+	await station("quarters.drawer.1")
+	var panel=level._ship_panel
+	var snapshot: Dictionary=level._walk_hud.inventory_snapshot()
+	var actual := 0
+	for item in snapshot.storage+snapshot.hotbar+snapshot.equipment.values():
+		if not str(item).is_empty(): actual+=1
+	check(panel.screen._carried().size()==actual,"Supply board lists all carried and equipped items, beyond service supplies")
+	var before := JSON.stringify(snapshot)
+	for id in panel.screen._carried():
+		if id not in panel.screen.CARRIABLE:
+			panel.screen.on_click("carry:"+id,null)
+			check(JSON.stringify(level._walk_hud.inventory_snapshot())==before and panel.screen.fb.s=="warn","Non-service equipment is shown without a fake storage transfer")
+			break
+	if actual>6:
+		panel.screen.on_wheel("carry:scroll",-1)
+		check(panel.screen.page==1,"Carried inventory remains accessible beyond the six visible artifact slots")
 
 func service_capture(console: Node,label: String) -> void:
 	for dims in [Vector2i(1280,720),Vector2i(1024,576)]:
@@ -153,14 +175,18 @@ func completed_room_review() -> void:
 		["bridge.comms.upper","communications","TRANSMIT"],["quarters.drawer.1","storage","SUPPLIES"],
 		["bridge.planning","records","RECORDS"],["bridge.comms.upper","report","REPORT"]]
 	for entry in cases:
-		await station(entry[0]);level._ship_panel._select_stage(entry[2])
+		await station(entry[0])
 		var panel=level._ship_panel
-		if entry[1]=="cargo": check(panel._controls.cargo_decide.choice.selected==1,"Reloaded custody selector shows actual quarantine decision")
+		if not redesigned(panel): panel._select_stage(entry[2])
+		elif entry[1]=="records": panel.screen.on_click("tab:2",null)
+		if entry[1]=="cargo":
+			check(redesigned(panel) and panel.kind=="cargo_scale","Cargo inspection opens its own Stations 02 board")
+			check(panel.screen.finished() and panel.screen.CARGO().quarantined,"Reloaded cargo board shows actual quarantine decision")
 		if entry[1]=="crew":
 			check(panel._controls.crew_compare.choice.selected==1,"Reloaded crew selector shows supported unconfirmed conclusion")
 			check(panel._condition.caption.text=="VERIFIED","Crew station condition uses crew duty ID, independently of quarters room ID")
-		if entry[1]=="communications": check(panel._controls.channel.choice.selected==1,"Reloaded protocol selector shows actual repeated packet mode")
-		if entry[1]=="records": level._ship_panel._select_record("EVIDENCE")
+		if entry[1]=="communications": check(panel.screen._proto()=="robust","Reloaded protocol selector shows actual repeated packet mode")
+		if entry[1]=="records" and not redesigned(panel): panel._select_record("EVIDENCE")
 		for dims in [Vector2i(1280,720),Vector2i(1024,576)]:
 			get_window().size=dims;get_window().content_scale_size=dims
 			await capture("final_"+entry[1]+"_%dx%d" % [dims.x,dims.y])
@@ -224,6 +250,7 @@ func run() -> void:
 	get_window().size=Vector2i(1280,720);get_window().content_scale_size=Vector2i(1280,720)
 	await capture("power_breaker_verified_1280x720")
 	await loaded_view()
+	await carried_storage_view()
 	await service_visuals()
 	await all_action_access()
 	await keyboard_refresh()

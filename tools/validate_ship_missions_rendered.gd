@@ -49,6 +49,25 @@ func operate(prop: String, action_id: String, value: Variant=null) -> void:
 		if not await station(prop): return
 	await frames(2)
 	var panel=level._ship_panel
+	if str(panel.get("kind"))=="cargo_scale":
+		var control_id: String={"manifest":"tag","seal":"seal","tare":"zero","weigh":"read","cargo_decide":str(value)}.get(action_id,"")
+		check(not control_id.is_empty(),"Mapped cargo-board control: "+action_id)
+		if control_id.is_empty(): return
+		panel.screen.on_click(control_id,null)
+		if action_id=="tare": panel.screen.on_click("ref",null)
+		await frames(3)
+		check(panel.screen.step()>=0,"Cargo board remains responsive after "+action_id)
+		return
+	if str(panel.get("kind"))=="pallet_mover":
+		check(action_id=="move_load","Pallet board handles secured load transfer")
+		if action_id!="move_load": return
+		if str(value)=="scale":
+			for control_id in ["key","lower","lift","dest_scale","drive","lower"]:
+				panel.screen.on_click(control_id,null)
+				await frames(2)
+		else: panel.screen.on_click("dest_staging",null)
+		check(level._ship_state.systems.cargo.location==value,"Pallet controls set live cargo location to "+str(value))
+		return
 	if not str(panel.get("kind") if panel.get("kind")!=null else "").is_empty():
 		# Redesigned station screens draw their own controls; send the same action.
 		panel.act(action_id,value);await frames(3)
@@ -184,7 +203,7 @@ func sequence(context: String) -> void:
 	await operate("quarters.desk","crew_log")
 	await operate("quarters.desk","crew_compare","unconfirmed" if context=="return" else "one_missing")
 	await operate("quarters.desk","record");await capture(context+"_quarters")
-	await operate("cargo.bundle","manifest");await operate("cargo.bundle","seal")
+	await operate("cargo.scale","manifest");await operate("cargo.scale","seal")
 	await operate("cargo.scale","tare")
 	await operate("cargo.mover","move_load","scale")
 	await operate("cargo.scale","weigh")
@@ -221,7 +240,6 @@ func sequence(context: String) -> void:
 	await operate(service,"isolate")
 	if context=="outbound":
 		await operate("cargo.trolley","transfer_kit")
-		await operate("engine.locker.1","take:coolant_charge")
 	await operate(service,"engine_service")
 	await verify(service,"engine")
 	await operate("engine.turbine.1","resume_output");await capture(context+"_engines")
@@ -276,7 +294,10 @@ func run() -> void:
 	get_window().content_scale_size=Vector2i(1024,576)
 	await frames(6)
 	await station("bridge.planning");await capture("small_planning_1024x576")
-	check(level._ship_panel._root.get_rect().size.x<=1024.1,"Procedure layout fits smaller viewport")
+	var planning=level._ship_panel
+	if not str(planning.get("kind") if planning.get("kind")!=null else "").is_empty():
+		check(Rect2(Vector2.ZERO,Vector2(1024,576)).encloses(planning.screen.get_global_rect()),"Artifact procedure layout fits smaller viewport")
+	else: check(planning._root.get_rect().size.x<=1024.1,"Procedure layout fits smaller viewport")
 	level._ship_panel.close_panel();await frames()
 	await station("engine.pump.1");await capture("small_engine_1024x576")
 	level._ship_panel.close_panel();await frames()

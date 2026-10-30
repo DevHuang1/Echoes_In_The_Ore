@@ -1,0 +1,6 @@
+<svg data-dc-tpl="144" width="96" height="60" viewBox="0 6 96 60" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+            <rect data-dc-tpl="145" x="6" y="20" width="56" height="32" rx="8" fill="#3a4448" stroke="#05090b" stroke-width="3"></rect>
+            <rect data-dc-tpl="146" x="6" y="20" width="18" height="32" fill="#3aa0e0" stroke="#05090b" stroke-width="3"></rect>
+            <path data-dc-tpl="147" d="M62 36 L90 36" stroke="#9db3b4" stroke-width="8"></path>
+            <text data-dc-tpl="148" x="40" y="16" text-anchor="middle" font-family="Silkscreen" font-size="9" fill="#55b0f0">COOL-02</text>
+          </svg>

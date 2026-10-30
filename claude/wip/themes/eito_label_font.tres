@@ -1,0 +1,10 @@
+[gd_resource type="FontVariation" format=3]
+
+[ext_resource type="FontFile" path="res://art/ui/fonts/Silkscreen-Regular.ttf" id="1_hojj4"]
+[ext_resource type="FontFile" path="res://art/ui/fonts/PixelifySans-Medium.ttf" id="2_o8cfl"]
+[ext_resource type="FontFile" path="res://art/ui/pixel/ore_pixel_font.fnt" id="3_ls8tf"]
+
+[resource]
+fallbacks = Array[Font]([ExtResource("2_o8cfl"), ExtResource("3_ls8tf")])
+base_font = ExtResource("1_hojj4")
+spacing_glyph = 1

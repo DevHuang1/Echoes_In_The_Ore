@@ -9,7 +9,7 @@ const LABELS := {
 	"legacy:auxiliary_power":"BANK CONTROLS", "legacy:air_filter":"FILTER CONTROLS", "legacy:nutrient_flow":"VALVE CONTROLS",
 	"scrubber_service":"REPLACE MEDIA", "engine_service":"SERVICE", "oxygen_reserve":"SWAP O2 BANK", "dose":"DISPENSE",
 	"manifest":"READ MANIFEST", "seal":"CHECK SEAL", "tare":"ZERO + CHECK", "weigh":"READ MASS", "cargo_decide":"LOG DECISION",
-	"move_load":"TRANSFER LOAD", "transfer_kit":"SEND COOLANT", "cylinder":"ISSUE CYLINDER", "recover_supplies":"RECOVERY ISSUE",
+	"move_load":"TRANSFER LOAD", "transfer_kit":"ISSUE COOL-02", "cylinder":"ISSUE CYLINDER", "recover_supplies":"RECOVERY ISSUE",
 	"roster":"READ ROSTER", "crew_log":"READ CHECK-INS", "crew_compare":"LOG CONCLUSION", "rest":"SHORT REST",
 	"route":"COMPARE", "correction":"SET CORRECTION", "nav_verify":"VERIFY HEADING", "prepare_report":"PREPARE REPORT",
 	"channel":"SET PROTOCOL", "transmit":"TRANSMIT", "turbine":"READ MACHINE", "chair":"CHECK ACCESS", "hide":"CONCEAL",
@@ -75,7 +75,7 @@ static func pages(definition: Dictionary) -> Array:
 	match kind:
 		"planning": return ["DUTIES","SIGN-OFF","RECORDS"]
 		"storage": return ["SUPPLIES","RETURN","RECORDS"]
-		"storage_hide": return ["SUPPLIES","RETURN","ACCESS","RECORDS"]
+		"storage_hide","cargo_hide": return ["ACCESS","RECORDS"]
 		"crew": return ["ROSTER","COMPARE","RECORDS"]
 		"communications": return ["REPORT","TRANSMIT","RECORDS"]
 		"navigation": return ["COMPARE","CORRECT","RECORDS"]
@@ -83,7 +83,6 @@ static func pages(definition: Dictionary) -> Array:
 		"transfer": return ["HANDLING","SUPPLY RUN","RECORDS"]
 		"cylinders": return ["ISSUE","RECORDS"]
 		"cargo": return ["INSPECT","WEIGH","DISPOSITION","RECORDS"]
-		"cargo_hide": return ["INSPECT","RECORDS"]
 	return ["INSPECT","SERVICE","VERIFY","RECORDS"]
 
 static func action_page(id: String, definition: Dictionary) -> String:
@@ -94,7 +93,7 @@ static func action_page(id: String, definition: Dictionary) -> String:
 	if id=="record": return "RECORDS"
 	if id.begins_with("take:") or id=="recover_supplies": return "SUPPLIES"
 	if id.begins_with("store:"): return "RETURN"
-	if id in ["hide","rest","chair"]: return "ACCESS" if kind in ["storage_hide","rest","chair"] else "INSPECT"
+	if id in ["hide","rest","chair"]: return "ACCESS" if kind in ["storage_hide","cargo_hide","rest","chair"] else "INSPECT"
 	match kind:
 		"planning": return "DUTIES" if id=="assign" else "SIGN-OFF"
 		"crew": return "COMPARE" if id=="crew_compare" else "ROSTER"
@@ -124,13 +123,15 @@ static func metric(title: String,value: String,hint: String,reading: float,maxim
 static func metrics(state: Object,d: Dictionary) -> Array:
 	var kind: String=d.get("kind","");var room: String=d.get("room","")
 	var s: Dictionary=state.systems
-	if kind in ["storage","storage_hide"]:
+	if kind in ["storage_hide","cargo_hide"]:
+		return [metric("COVER","AVAILABLE","Use H beside this prop",1,1)]
+	if kind=="storage":
 		var stock: Dictionary=state.stocks.get(d.id,{})
 		var n := 0
 		for count in stock.values(): n+=int(count)
 		var inv: Dictionary=state.inventory.inventory_snapshot()
 		var free: int=inv.storage.count(&"")+inv.hotbar.count(&"")
-		return [metric("STATION STOCK","%d ITEMS" % n,"Service supplies",n,maxi(12,n)),metric("CARRY SPACE","%d FREE" % free,"36 carry slots",free,36),metric("ACCESS","AVAILABLE","E exits safely" if kind=="storage_hide" else "One item per transfer",1,1)]
+		return [metric("STATION STOCK","%d ITEMS" % n,"Service supplies",n,maxi(12,n)),metric("CARRY SPACE","%d FREE" % free,"36 carry slots",free,36),metric("TRANSFER","READY","One item per transfer",1,1)]
 	if kind=="planning":
 		if state.work_order_context=="first_watch":
 			var progress: Dictionary=state.story_progress
@@ -151,10 +152,21 @@ static func metrics(state: Object,d: Dictionary) -> Array:
 			return [metric("ESSENTIAL","%d / 70" % p.essential,"Minimum allocation",p.essential,100),metric("SCIENCE","%d UNITS" % p.science,"Irrigation / nav",p.science,100,UI.AMBER if not state.bus_powered("science") else UI.CYAN),metric("TOTAL LOAD","%d / %d" % [total,p.capacity],"Reserve %d units" % p.reserve,total,p.capacity,UI.RED if total>p.capacity else UI.CYAN)]
 		"cargo":
 			var c: Dictionary=s.cargo
-			return [metric("MANIFEST",str(c.id),"Expected %.1f kg" % c.manifest_mass,1,1),metric("LOAD MASS","%.1f kg" % c.measured_mass if c.weighed else "NOT READ","84.0 +/- 0.5 kg",c.measured_mass if c.weighed else 0,100,UI.AMBER if c.weighed and absf(c.measured_mass-c.manifest_mass)>0.5 else UI.CYAN),metric("CUSTODY",str(c.location).to_upper(),"UNOPENED / QUARANTINE" if c.quarantined else "Secured handling record",int(c.weighed),1)]
+			return [metric("MANIFEST",str(c.id),"Expected %.1f kg" % c.manifest_mass,1,1),metric("LOAD MASS","%.1f kg" % c.measured_mass if c.weighed else "NOT READ","%.1f +/- 0.5 kg" % c.manifest_mass,c.measured_mass if c.weighed else 0,100,UI.AMBER if c.weighed and absf(c.measured_mass-c.manifest_mass)>0.5 else UI.CYAN),metric("CUSTODY",str(c.location).to_upper(),"UNOPENED / QUARANTINE" if c.quarantined else "Secured handling record",int(c.weighed),1)]
 		"engine":
 			var e: Dictionary=s.engine
-			return [metric("TEMPERATURE","%.1f C" % e.temperature,"Verify <= 65 C",e.temperature,110,UI.RED if e.temperature>65 else UI.CYAN),metric("LOOP 1 FLOW","%.0f%%" % (state.engine_flow(0)*100),"Healthy >= 90%",state.engine_flow(0)*100,100,UI.AMBER if state.engine_flow(0)<0.9 else UI.CYAN),metric("LOOP 2 FLOW","%.0f%%" % (state.engine_flow(1)*100),"Healthy >= 90%",state.engine_flow(1)*100,100,UI.AMBER if state.engine_flow(1)<0.9 else UI.CYAN)]
+			var loop_index := 0 if str(d.id).ends_with(".1") or str(d.id).ends_with(".3") else 1
+			var flow: float=state.engine_flow(loop_index)
+			var common := [metric("TEMPERATURE","%.1f C" % e.temperature,"Verify <= 65 C",e.temperature,110,UI.RED if e.temperature>65 else UI.CYAN),metric("LOOP %d FLOW" % (loop_index+1),"%.0f%%" % (flow*100),"Healthy >= 90%",flow*100,100,UI.AMBER if flow<0.9 else UI.CYAN)]
+			if kind=="turbine":
+				var in_range: bool=flow>=0.9 and e.temperature<=65
+				var verified: bool=in_range and state.completed.has("engine")
+				common.append(metric("COOLING","VERIFIED" if verified else "IN RANGE" if in_range else "OUT OF RANGE","Read-only / loop and temperature",int(in_range),1,UI.CYAN if in_range else UI.AMBER))
+			elif kind=="engine_valve":
+				common.append(metric("VALVE %d" % (loop_index+1),"%.0f%%" % (e.valves[loop_index]*100),"Measured opening",e.valves[loop_index]*100,100))
+			else:
+				common.append(metric("PUMP %d" % (loop_index+1),"%.0f%%" % (e.health[loop_index]*100),"Measured health",e.health[loop_index]*100,100))
+			return common
 		"life":
 			var l: Dictionary=s.life
 			return [metric("OXYGEN","%.1f%%" % l.oxygen,"Range 20-22%",l.oxygen,25,UI.CYAN if l.oxygen>=20 and l.oxygen<=22 else UI.RED),metric("CO2","%.3f%%" % l.co2,"Maximum 0.100%",l.co2,0.2,UI.RED if l.co2>0.1 else UI.CYAN),metric("AIRFLOW","%.0f%%" % l.airflow,"Range 62-72%",l.airflow,100,UI.AMBER if l.airflow<62 or l.airflow>72 else UI.CYAN)]

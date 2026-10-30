@@ -1,0 +1,7 @@
+<svg data-dc-tpl="44" viewBox="0 0 190 190" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="190" height="190">
+          <circle data-dc-tpl="45" cx="95" cy="95" r="88" fill="#1a2023" stroke="#05090b" stroke-width="5"></circle>
+          <path data-dc-tpl="46" d="M41.3 148.7 L51.2 138.8 M24.8 124.1 L32.2 121.0 M19.0 95.0 L33.0 95.0 M24.8 65.9 L32.2 69.0 M41.3 41.3 L51.2 51.2 M65.9 24.8 L69.0 32.2 M95.0 19.0 L95.0 33.0 M124.1 24.8 L121.0 32.2 M148.7 41.3 L138.8 51.2 M165.2 65.9 L157.8 69.0 M171.0 95.0 L157.0 95.0 M165.2 124.1 L157.8 121.0 M148.7 148.7 L138.8 138.8 " stroke="#dfe9e6" stroke-width="2"></path>
+          <path data-dc-tpl="47" d="M169 95 A74 74 0 0 1 147.3 147.3" fill="none" stroke="#9c3b20" stroke-width="8"></path>
+          <g data-dc-tpl="48" transform="rotate(85.00000000000003 95 95)"><path data-dc-tpl="49" d="M95 95 L95 30" stroke="#e9b52c" stroke-width="5" stroke-linecap="round"></path></g>
+          <circle data-dc-tpl="50" cx="95" cy="95" r="10" fill="#e9b52c"></circle>
+        </svg>

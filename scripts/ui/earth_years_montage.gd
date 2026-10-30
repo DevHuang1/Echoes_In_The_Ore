@@ -1,6 +1,9 @@
 extends Control
 
 const SKIN := preload("res://scripts/ui/pixel_ui.gd")
+const EC := preload("res://scripts/ui/eito/eito_controls.gd")
+const UI := preload("res://scripts/ui/eito/eito_ui.gd")
+const ESTYLE := preload("res://scripts/ui/eito/eito_style.gd")
 const STORY := preload("res://scripts/ship/first_watch_story.gd")
 const STORY_SAVE := preload("res://scripts/ship/ship_story_save.gd")
 signal cue_finished(request_token: String, cue_id: String, outcome: String, landing_id: String)
@@ -165,111 +168,117 @@ func _build_ui() -> void:
 	image_tint.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(image_tint)
 
+	# Archive strip: notched dark chip across the top with the dossier stamp.
 	var top_bar := Panel.new()
-	top_bar.add_theme_stylebox_override("panel", SKIN.panel())
+	top_bar.add_theme_stylebox_override("panel", ESTYLE.make("chip", 0))
 	top_bar.anchor_left = 0.0
 	top_bar.anchor_top = 0.0
 	top_bar.anchor_right = 1.0
-	top_bar.anchor_bottom = 0.13
+	top_bar.anchor_bottom = 0.0
+	top_bar.offset_left = 16.0
+	top_bar.offset_top = 12.0
+	top_bar.offset_right = -16.0
+	top_bar.offset_bottom = 60.0
 	top_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(top_bar)
 
-	var top_label := Label.new()
-	top_label.text = "ASTERIA-1 // CREW ARCHIVE DOSSIER: THURA MIN"
-	top_label.anchor_left = 0.045
-	top_label.anchor_top = 0.035
-	top_label.anchor_right = 0.72
-	top_label.anchor_bottom = 0.095
-	top_label.add_theme_font_override("font", SKIN.get_pixel_font())
-	top_label.add_theme_font_size_override("font_size", 12)
-	top_label.add_theme_color_override("font_color", Color(0.92, 0.86, 0.7, 0.92))
-	top_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var top_lamp := EC.Lamp.new("live")
+	top_lamp.position = Vector2(32, 27)
+	top_lamp.size = Vector2(18, 18)
+	add_child(top_lamp)
+	var top_label := EC.label("ASTERIA-1 / CREW ARCHIVE DOSSIER: THURA MIN", "EitoTag", 14)
+	top_label.anchor_left = 0.0
+	top_label.anchor_top = 0.0
+	top_label.anchor_right = 0.7
+	top_label.offset_left = 60.0
+	top_label.offset_top = 22.0
+	top_label.offset_bottom = 50.0
 	add_child(top_label)
 
 	_skip_button = Button.new()
-	_skip_button.text = "[ SKIP DOSSIER  → ]"
-	_skip_button.anchor_left = 0.78
-	_skip_button.anchor_top = 0.025
-	_skip_button.anchor_right = 0.96
-	_skip_button.anchor_bottom = 0.105
-	_skip_button.add_theme_font_override("font", SKIN.get_pixel_font())
-	_skip_button.add_theme_font_size_override("font_size", 12)
+	_skip_button.text = "SKIP DOSSIER"
+	_skip_button.anchor_left = 1.0
+	_skip_button.anchor_right = 1.0
+	_skip_button.offset_left = -196.0
+	_skip_button.offset_right = -24.0
+	_skip_button.offset_top = 16.0
+	_skip_button.offset_bottom = 56.0
+	_skip_button.add_theme_font_size_override("font_size", 16)
 	_skip_button.pressed.connect(_enter_game)
 	add_child(_skip_button)
 
+	# Caption plate: screwed metal, chapter stamp, frame counter, typewriter line.
 	var subtitle_panel := Panel.new()
 	subtitle_panel.anchor_left = 0.0
-	subtitle_panel.anchor_top = 0.76
+	subtitle_panel.anchor_top = 0.775
 	subtitle_panel.anchor_right = 1.0
 	subtitle_panel.anchor_bottom = 1.0
-	subtitle_panel.add_theme_stylebox_override("panel", SKIN.panel())
+	subtitle_panel.offset_left = 16.0
+	subtitle_panel.offset_right = -16.0
+	subtitle_panel.offset_bottom = -12.0
+	subtitle_panel.add_theme_stylebox_override("panel", ESTYLE.make("module", 0, true))
 	subtitle_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(subtitle_panel)
 
 	var progress_track := ColorRect.new()
 	progress_track.anchor_left = 0.0
-	progress_track.anchor_top = 0.76
+	progress_track.anchor_top = 0.775
 	progress_track.anchor_right = 1.0
-	progress_track.anchor_bottom = 0.76
-	progress_track.offset_bottom = 3.0
-	progress_track.color = Color(0.23, 0.26, 0.28, 0.72)
+	progress_track.anchor_bottom = 0.775
+	progress_track.offset_left = 30.0
+	progress_track.offset_right = -30.0
+	progress_track.offset_top = -10.0
+	progress_track.offset_bottom = -6.0
+	progress_track.color = Color("#05090b")
 	progress_track.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(progress_track)
 
 	_progress_fill = ColorRect.new()
 	_progress_fill.anchor_left = 0.0
-	_progress_fill.anchor_top = 0.76
+	_progress_fill.anchor_top = 0.775
 	_progress_fill.anchor_right = 0.0
-	_progress_fill.anchor_bottom = 0.76
-	_progress_fill.offset_bottom = 3.0
-	_progress_fill.color = Color(0.24, 0.95, 0.54, 0.98)
+	_progress_fill.anchor_bottom = 0.775
+	_progress_fill.offset_left = 30.0
+	_progress_fill.offset_top = -10.0
+	_progress_fill.offset_bottom = -6.0
+	_progress_fill.color = UI.PHOS
 	_progress_fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_progress_fill)
 
-	_chapter_label = Label.new()
+	_chapter_label = EC.label("", "EitoAmber", 14)
 	_chapter_label.anchor_left = 0.05
-	_chapter_label.anchor_top = 0.785
+	_chapter_label.anchor_top = 0.80
 	_chapter_label.anchor_right = 0.78
-	_chapter_label.anchor_bottom = 0.84
-	_chapter_label.add_theme_font_override("font", SKIN.get_pixel_font())
-	_chapter_label.add_theme_font_size_override("font_size", 13)
-	_chapter_label.add_theme_color_override("font_color", Color(0.86, 0.67, 0.38))
+	_chapter_label.anchor_bottom = 0.845
 	add_child(_chapter_label)
 
-	_counter_label = Label.new()
+	_counter_label = EC.label("", "EitoValue", 18)
 	_counter_label.anchor_left = 0.8
-	_counter_label.anchor_top = 0.785
+	_counter_label.anchor_top = 0.795
 	_counter_label.anchor_right = 0.95
-	_counter_label.anchor_bottom = 0.84
+	_counter_label.anchor_bottom = 0.845
 	_counter_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	_counter_label.add_theme_font_override("font", SKIN.get_pixel_font())
-	_counter_label.add_theme_font_size_override("font_size", 12)
-	_counter_label.add_theme_color_override("font_color", Color(0.72, 0.76, 0.79))
 	add_child(_counter_label)
 
 	_subtitle_label = Label.new()
 	_subtitle_label.anchor_left = 0.05
-	_subtitle_label.anchor_top = 0.835
-	_subtitle_label.anchor_right = 0.74
-	_subtitle_label.anchor_bottom = 0.98
+	_subtitle_label.anchor_top = 0.84
+	_subtitle_label.anchor_right = 0.75
+	_subtitle_label.anchor_bottom = 0.965
 	_subtitle_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_subtitle_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_subtitle_label.add_theme_font_override("font", SKIN.get_pixel_font())
-	_subtitle_label.add_theme_font_size_override("font_size", 16)
-	_subtitle_label.add_theme_constant_override("line_spacing", 7)
-	_subtitle_label.add_theme_color_override("font_color", Color(0.96, 0.96, 0.92))
-	_subtitle_label.add_theme_constant_override("outline_size", 0)
-	_subtitle_label.add_theme_color_override("font_outline_color", Color(0.0, 0.0, 0.0, 0.8))
+	_subtitle_label.add_theme_font_size_override("font_size", 22)
+	_subtitle_label.add_theme_color_override("font_color", Color("#f2ecd9"))
 	add_child(_subtitle_label)
 
 	_next_button = Button.new()
-	_next_button.text = "[ PROCEED  › ]"
-	_next_button.anchor_left = 0.755
-	_next_button.anchor_top = 0.865
-	_next_button.anchor_right = 0.965
-	_next_button.anchor_bottom = 0.96
-	_next_button.add_theme_font_override("font", SKIN.get_pixel_font())
-	_next_button.add_theme_font_size_override("font_size", 12)
+	_next_button.theme_type_variation = &"PushButton"
+	_next_button.text = "PROCEED"
+	_next_button.anchor_left = 0.78
+	_next_button.anchor_top = 0.87
+	_next_button.anchor_right = 0.96
+	_next_button.anchor_bottom = 0.955
+	_next_button.add_theme_font_size_override("font_size", 16)
 	_next_button.pressed.connect(_advance)
 	add_child(_next_button)
 
@@ -289,8 +298,8 @@ func _show_frame(index: int) -> void:
 	_chapter_label.text = str(frame["chapter"])
 	_counter_label.text = "%02d  /  %02d" % [index + 1, STORY_FRAMES.size()]
 	_subtitle_label.text = str(frame["subtitle"])
-	_next_button.text = "[ PROCEED  › ]"
-	_progress_fill.anchor_right = float(index) / float(STORY_FRAMES.size())
+	_next_button.text = "PROCEED"
+	_set_progress(float(index) / float(STORY_FRAMES.size()))
 	_begin_subtitle_typing()
 	if is_instance_valid(_zoom_tween) and _zoom_tween.is_running():
 		_zoom_tween.kill()
@@ -299,25 +308,31 @@ func _show_frame(index: int) -> void:
 	_zoom_tween.tween_property(_frame_image, "scale", Vector2(1.075, 1.075), zoom_duration).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 
 
+## Fill sits inside the 30px-inset track: right edge = 30 + f * (width - 60).
+func _set_progress(f: float) -> void:
+	_progress_fill.anchor_right = f
+	_progress_fill.offset_right = 30.0 - 60.0 * f
+
+
 func _begin_subtitle_typing() -> void:
 	_subtitle_character_count = maxi(1, _subtitle_label.get_total_character_count())
 	_typed_character_progress = 0.0
 	_subtitle_label.visible_characters = 0
 	_is_subtitle_typing = true
 	_remaining_seconds = 0.0
-	_next_button.text = "[ SHOW TEXT ]"
+	_next_button.text = "SHOW TEXT"
 
 
 func _finish_subtitle() -> void:
 	_subtitle_label.visible_characters = _subtitle_character_count
 	_is_subtitle_typing = false
 	_remaining_seconds = POST_SUBTITLE_HOLD_SECONDS
-	_next_button.text = "[ BOARD ASTERIA-1  → ]" if _finished else "[ PROCEED  › ]"
+	_next_button.text = "BOARD ASTERIA-1" if _finished else "PROCEED"
 
 
 func _update_progress() -> void:
 	if _finished:
-		_progress_fill.anchor_right = 1.0
+		_set_progress(1.0)
 		return
 	var frame_progress := 0.0
 	if _is_subtitle_typing:
@@ -325,7 +340,7 @@ func _update_progress() -> void:
 	else:
 		var hold_progress := 1.0 - clampf(_remaining_seconds / POST_SUBTITLE_HOLD_SECONDS, 0.0, 1.0)
 		frame_progress = 0.82 + 0.18 * hold_progress
-	_progress_fill.anchor_right = (float(_frame_index) + frame_progress) / float(STORY_FRAMES.size())
+	_set_progress((float(_frame_index) + frame_progress) / float(STORY_FRAMES.size()))
 
 
 func _advance() -> void:
@@ -351,7 +366,7 @@ func _advance() -> void:
 	_counter_label.text = "DAY 184"
 	_subtitle_label.text = "Approaching minor planet Erebos."
 	_skip_button.visible = false
-	_progress_fill.anchor_right = 1.0
+	_set_progress(1.0)
 	_begin_subtitle_typing()
 	await _fade_to_alpha(0.0, TRANSITION_SECONDS)
 	_transitioning = false

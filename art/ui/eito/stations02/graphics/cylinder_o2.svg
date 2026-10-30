@@ -1,0 +1,14 @@
+<svg data-dc-tpl="20" viewBox="0 0 150 300" aria-hidden="true">
+            <rect data-dc-tpl="21" x="62" y="4" width="26" height="16" fill="#3a4448" stroke="#05090b" stroke-width="2"></rect>
+            <circle data-dc-tpl="22" cx="104" cy="16" r="14" fill="#efe8d4" stroke="#05090b" stroke-width="3"></circle>
+            <path data-dc-tpl="23" d="M104 16 L116 10" stroke="#e5533d" stroke-width="2"></path>
+            <path data-dc-tpl="24" d="M92 22 A14 14 0 0 1 98 6" fill="none" stroke="#5fd067" stroke-width="3"></path>
+            <path data-dc-tpl="25" d="M40 54 Q40 24 75 22 Q110 24 110 54 Z" fill="#f4f1e6" stroke="#05090b" stroke-width="3"></path>
+            <rect data-dc-tpl="26" x="40" y="52" width="70" height="230" fill="#d8cfb6" stroke="#05090b" stroke-width="3"></rect>
+            <rect data-dc-tpl="27" x="44" y="56" width="10" height="222" fill="#efe8d4"></rect>
+            <rect data-dc-tpl="28" x="40" y="96" width="70" height="16" fill="#d8cfb6"></rect>
+            <rect data-dc-tpl="29" x="52" y="130" width="46" height="46" fill="#e9b52c" stroke="#05090b" stroke-width="2" transform="rotate(45 75 153)"></rect>
+            <rect data-dc-tpl="30" x="46" y="196" width="58" height="40" fill="#efe9d3" stroke="#6f6750" stroke-width="2"></rect>
+            <path data-dc-tpl="31" d="M20 120 Q75 132 130 120" fill="none" stroke="#9db3b4" stroke-width="5" stroke-dasharray="7 3"></path>
+            <rect data-dc-tpl="32" x="122" y="112" width="16" height="18" fill="#e9b52c" stroke="#05090b" stroke-width="2" opacity="1"></rect>
+          </svg>

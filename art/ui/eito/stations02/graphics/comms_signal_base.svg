@@ -1,0 +1,12 @@
+<svg data-dc-tpl="17" width="396" height="200" viewBox="0 0 396 200" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+          <path data-dc-tpl="18" d="M68.1 121 A150 150 0 0 1 327.9 121" fill="none" stroke="#1f2326" stroke-width="2"></path>
+          <path data-dc-tpl="19" d="M68.1 121.0 L80.2 128.0 M76.6 107.8 L82.3 111.9 M86.5 95.6 L91.7 100.3 M97.6 84.5 L102.3 89.7 M109.8 74.6 L113.9 80.3 M123.0 66.1 L130.0 78.2 M137.0 59.0 L139.8 65.4 M151.6 53.3 L156.0 66.7 M166.8 49.3 L168.3 56.1 M182.3 46.8 L183.1 53.8 M198.0 46.0 L198.0 60.0 M213.7 46.8 L212.9 53.8 M229.2 49.3 L226.3 63.0 M244.4 53.3 L242.2 60.0 M259.0 59.0 L256.2 65.4 M273.0 66.1 L266.0 78.2 M286.2 74.6 L282.1 80.3 M298.4 84.5 L293.7 89.7 M309.5 95.6 L304.3 100.3 M319.4 107.8 L313.7 111.9 M327.9 121.0 L315.8 128.0 " stroke="#1f2326" stroke-width="2"></path>
+          <path data-dc-tpl="20" d="M230.0 45.4 A154 154 0 0 1 331.4 119" fill="none" stroke="#9c3b20" stroke-width="7"></path>
+          <text data-dc-tpl="21" x="49" y="114" text-anchor="middle" font-family="Silkscreen" font-size="12" fill="#1f2326">0</text>
+          <text data-dc-tpl="22" x="144.8" y="36" text-anchor="middle" font-family="Silkscreen" font-size="12" fill="#1f2326">35</text>
+          <text data-dc-tpl="23" x="233.8" y="32" text-anchor="middle" font-family="Silkscreen" font-size="12" fill="#1f2326">60</text>
+          <text data-dc-tpl="24" x="347" y="114" text-anchor="middle" font-family="Silkscreen" font-size="12" fill="#1f2326">100</text>
+          <text data-dc-tpl="25" x="198" y="150" text-anchor="middle" font-family="Silkscreen" font-size="13" fill="#6a5a2a">SIGNAL %</text>
+
+
+        </svg>

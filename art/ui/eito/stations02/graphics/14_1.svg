@@ -1,0 +1,8 @@
+<svg data-dc-tpl="91" width="110" height="110" viewBox="0 0 110 110" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+        <circle data-dc-tpl="92" cx="55" cy="55" r="50" fill="#1a2023" stroke="#05090b" stroke-width="4"></circle>
+        <g data-dc-tpl="93" transform="rotate(0 55 55)">
+          <circle data-dc-tpl="94" cx="55" cy="55" r="38" fill="#3a4448" stroke="#05090b" stroke-width="3"></circle>
+          <path data-dc-tpl="95" d="M55 55 L55 22" stroke="#e9b52c" stroke-width="6" stroke-linecap="round"></path>
+        </g>
+        <path data-dc-tpl="96" d="M55 2 L55 10" stroke="#dfe9e6" stroke-width="3"></path>
+      </svg>

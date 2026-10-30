@@ -24,6 +24,7 @@ var _pop := {}
 var _tweens := {}
 var _focus_rect := Rect2()
 var _drag_id := ""
+var artifact_proc_state := {}
 
 func _ready() -> void:
 	size = Vector2(W, H)
@@ -62,11 +63,12 @@ func hit(id: String, r: Rect2, opts := {}) -> void:
 	var cursor: int = opts.get("cursor", Control.CURSOR_POINTING_HAND)
 	if opts.get("locked", false): cursor = Control.CURSOR_FORBIDDEN
 	elif opts.get("fixed", false): cursor = Control.CURSOR_ARROW
-	_build.append({"id":id, "rect":r, "cursor":cursor, "focus":opts.get("focus", true), "drag":opts.get("drag", false)})
+	_build.append({"id":id, "rect":r, "cursor":cursor, "focus":opts.get("focus", true), "drag":opts.get("drag", false), "wheel_only":opts.get("wheel_only",false)})
 	if id == focus: _focus_rect = opts.get("focus_rect", r)
 
-func _hit_at(p: Vector2) -> Dictionary:
+func _hit_at(p: Vector2,for_wheel := false) -> Dictionary:
 	for i in range(_hits.size() - 1, -1, -1):
+		if _hits[i].get("wheel_only",false) and not for_wheel: continue
 		if (_hits[i].rect as Rect2).has_point(p): return _hits[i]
 	return {}
 
@@ -93,7 +95,7 @@ func _gui_input(event: InputEvent) -> void:
 					on_click(was, event)
 			accept_event()
 		elif event.pressed and event.button_index in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN]:
-			var h := _hit_at(event.position)
+			var h := _hit_at(event.position,true)
 			if not h.is_empty() and on_wheel(h.id, 1 if event.button_index == MOUSE_BUTTON_WHEEL_UP else -1): accept_event()
 
 func _notification(what: int) -> void:
@@ -203,6 +205,8 @@ func IMG(name: String, r: Rect2, modulate := Color.WHITE) -> void:
 
 ## Status lamp: shape + colour + glow, blinking for warn/live like the CSS.
 func lamp(p: Vector2, s: String) -> void:
+	if F("label").has_meta("artifact_metrics"):
+		UI.artifact_lamp(self,p,s,now,dim);return
 	if s == "lock":
 		IMG("lockA", Rect2(p + Vector2(2, 1), Vector2(14, 16))); return
 	var key := s if s in ["ok", "warn", "fault", "live"] else "off"
@@ -233,9 +237,35 @@ func module(r: Rect2, title: String) -> void:
 ## Right-aligned header chip inside a module header.
 func module_chip(r: Rect2, s: String, l: String) -> void:
 	if s.is_empty(): return
+	if F("label").has_meta("artifact_metrics") and l.is_empty(): l="off"
 	var f := F("body")
 	var w := tw(f, 16, s) + (24 if not l.is_empty() else 0)
 	chip(r.end.x - 4 - 22 - w, r.position.y + 2 + 6, s, l, 16, Color("#ddd8c8"), 20.8)
+
+var _artifact_glass_textures := {}
+func artifact_glass(r: Rect2,overlay := false) -> void:
+	var key := "glass_%dx%d%s"%[int(r.size.x),int(r.size.y),"_overlay" if overlay else ""]
+	if not _artifact_glass_textures.has(key):
+		var file := "res://art/ui/eito/stations02/graphics/"+key+".res"
+		_artifact_glass_textures[key]=load(file) if ResourceLoader.exists(file) else null
+	if _artifact_glass_textures[key]!=null: draw_texture_rect(_artifact_glass_textures[key],r,false)
+	elif overlay: UI.glass_overlay(self,r)
+	else: UI.glass(self,r)
+
+func artifact_glass_overlay(r: Rect2) -> void: artifact_glass(r,true)
+
+## Effective Stations 02 .stage button/.key cascade: body font, transparent
+## resting face, no border. Keep this separate from approved proposal-01 keys.
+func artifact_key(id: String,r: Rect2,label: String,selected := false,locked := false,sz := 18) -> void:
+	dim=locked
+	var y := 2.0 if selected else 0.0
+	var rr := Rect2(r.position+Vector2(0,y),r.size)
+	var style := {"notch":true,"insets":[[2,2,0,Color("#0f171a") if selected else Color("#557178")],[-2,-2,0,Color("#3c545b") if selected else Color("#141e22")]],"outer":[[0,3-y,0,UI.EDGE]]}
+	if selected: style["grad"]=[[0.0,Color("#1c2a2f")],[1.0,Color("#253940")]]
+	B(rr,style)
+	if selected: R(Rect2(rr.position.x+4,rr.end.y-6,rr.size.x-8,2),UI.WARN)
+	T(F("body",400,sz*0.04),sz,label,rr.position.x,rr.position.y,UI.CUE if selected else UI.TEXT,rr.size.y,1,rr.size.x)
+	dim=false;hit(id,r,{"locked":locked})
 
 func chip(x: float, top: float, s: String, l: String, sz := 16, color := Color("#ddd8c8"), h := 20.0) -> float:
 	var f := F("body")
@@ -271,6 +301,8 @@ func hazard(r: Rect2, c1: Color, c2: Color, period := 8.0) -> void:
 
 ## Corner brackets around the next action (".cue::after").
 func cue(r: Rect2) -> void:
+	if F("label").has_meta("artifact_metrics"):
+		UI.artifact_cue(self,r,now);return
 	var inset := -8.0 if fmod(now, 1.1) < 0.55 else -4.0
 	var g := r.grow(-inset)
 	var corners := [[g.position, Vector2(1, 1)], [Vector2(g.end.x, g.position.y), Vector2(-1, 1)], [Vector2(g.position.x, g.end.y), Vector2(1, -1)], [g.end, Vector2(-1, -1)]]
@@ -283,6 +315,46 @@ func cue(r: Rect2) -> void:
 				draw_rect(h.grow(2), Color(1, 0.95, 0.72, 0.18)); draw_rect(v.grow(2), Color(1, 0.95, 0.72, 0.18))
 			else:
 				draw_rect(h, UI.CUE); draw_rect(v, UI.CUE)
+
+## Stations 02's CSS pips, including the inset and the current-step blink.
+func artifact_pip(r: Rect2,index: int,stage: int) -> void:
+	var col := UI.INK if index==stage else Color("#3e6e47") if index<stage else Color("#c3b997")
+	if index==stage: col.a=blink()
+	var style := {"bg":col}
+	if index<stage: style["insets"]=[[-2,-2,0,Color("#24442b")]]
+	elif index>stage: style["insets"]=[[2,2,0,Color("#a99f7f")]]
+	B(r,style)
+
+## The export's shared flex-column procedure text. Live prerequisites can wrap
+## to several lines; the feedback strip grows upward within the same paper.
+func artifact_procedure(stage: int,total: int,todo: String,why: String,feedback: Dictionary,heading := "") -> float:
+	artifact_proc_state={"stage":stage,"total":total,"do":todo,"why":why,"heading":heading}
+	var do_rows := UI.wrap_balanced(F("body",600),25,todo,644).size()
+	var why_rows := UI.wrap_text(F("body"),18,why,644).size()
+	var fb_rows := UI.wrap_text(F("body"),18,str(feedback.t),588).size()
+	var do_h := do_rows*29.5;var why_h := why_rows*22.5;var text_h := fb_rows*21.6
+	var header_h := 26.0;var fb_h := maxf(40.0,text_h+16.0)
+	var excess := header_h+do_h+why_h+fb_h+17.0-174.0
+	for _i in range(6):
+		if excess<=0.01: break
+		var h_basis := header_h if header_h>19.01 else 0.0
+		var f_basis := fb_h-16.0 if fb_h>40.01 else 0.0
+		if h_basis+f_basis<=0.0: break
+		var new_h := maxf(19.0,header_h-excess*h_basis/(h_basis+f_basis))
+		var new_f := maxf(40.0,fb_h-excess*f_basis/(h_basis+f_basis))
+		excess-=(header_h-new_h)+(fb_h-new_f);header_h=new_h;fb_h=new_f
+	var label: String=heading if not heading.is_empty() else "COMPLETE" if stage>=total else "STEP %d OF %d"%[stage+1,total]
+	T(F("label",400,0.75),15,label,38,514,Color("#6a5a2a"),header_h)
+	var px := 38+tw(F("label",400,0.75),15,label)+12
+	for i in range(total): artifact_pip(Rect2(px+i*20,514+(header_h-10)*0.5,16,10),i,stage)
+	var do_y := 521.0+header_h;var why_y := do_y+do_h+5.0
+	P(F("body",600),25,todo,38,do_y,644,29.5,UI.INK,true)
+	P(F("body"),18,why,38,why_y,644,22.5,UI.INK_2)
+	var fb_y := maxf(why_y+why_h+5.0,688.0-fb_h)
+	B(Rect2(38,fb_y,644,fb_h),{"bg":Color("#172023"),"border":UI.EDGE,"insets":[[2,2,0,Color("#2c3b40")]]})
+	lamp(Vector2(52,fb_y+(fb_h-18)*0.5),str(feedback.s))
+	P(F("body"),18,str(feedback.t),80,fb_y+(fb_h-text_h)*0.5,588,21.6,Color("#ece6d4"))
+	return header_h
 
 ## Padlock pinned to the top-right corner of a locked control (".locked::before").
 func lock_corner(r: Rect2) -> void:
@@ -302,11 +374,11 @@ func locktag(r: Rect2, s: String, sz := 16, pad_right := 10.0) -> void:
 	for i in range(lines.size()): T(f, sz, lines[i], tx, top + i * lh, Color("#f6e7c1"), lh)
 
 ## Push button. state: "", "working", "done". Returns the button box.
-func push(id: String, x: float, y: float, w: float, cap: String, label: String, state := "", locked := false, fixed := false, cap_w := 84.0, cap_h := 50.0, cap_sz := 16, label_sz := 15, prog := -1, prog_cells := 8) -> Rect2:
+func push(id: String, x: float, y: float, w: float, cap: String, label: String, state := "", locked := false, fixed := false, cap_w := 84.0, cap_h := 50.0, cap_sz := 16, label_sz := 15, prog := -1, prog_cells := 8, show_lock := true, ink_override := Color.TRANSPARENT) -> Rect2:
 	var dx := nudge_dx(id)
 	x += dx
 	var f_lbl := F("body")
-	var lines := UI.wrap_text(f_lbl, label_sz, label, 110.0) if not label.is_empty() else PackedStringArray()
+	var lines := UI.wrap_text(f_lbl, label_sz, label, minf(120.0,w) if F("label").has_meta("artifact_metrics") else 110.0) if not label.is_empty() else PackedStringArray()
 	var lh := label_sz * 1.15
 	var bh := cap_h + (8.0 + lines.size() * lh if lines.size() > 0 else 0.0) + (8.0 + 8.0 if prog >= 0 else 0.0)
 	var box := Rect2(x, y, w, bh)
@@ -320,10 +392,14 @@ func push(id: String, x: float, y: float, w: float, cap: String, label: String, 
 	elif state == "done":
 		grad = [[0.0, Color("#7fd685")], [1.0, Color("#4c9f52")]]; ins = [[2,2,0,Color("#c9f5c9")],[-2,-2,0,Color("#2c6a31")]]
 		ty = 3; drop = 3
-	if pressed: ty = 4; drop = 2
+	elif state == "red":
+		grad=[[0.0,Color("#e46a52")],[1.0,Color("#b43c28")]];ins=[[2,2,0,Color("#ffb8a8")],[-2,-2,0,Color("#6e1d12")]]
+	if pressed:
+		ty = 4; drop = 2
+		if F("label").has_meta("artifact_metrics"): ins=[[2,2,0,Color("#f0ead2")],[-2,-2,0,Color("#7e7660")]]
 	var cap_r := Rect2(x + (w - cap_w) * 0.5, y + ty, cap_w, cap_h)
 	B(cap_r, {"grad":grad, "border":UI.EDGE, "insets":ins, "outer":[[0, drop, 0, UI.EDGE]]})
-	T(F("label", 400, 0.64), cap_sz, cap, cap_r.position.x, cap_r.position.y, Color("#1f2326"), cap_h, 1, cap_w)
+	T(F("label", 400, 0.64), cap_sz, cap, cap_r.position.x, cap_r.position.y, ink_override if ink_override.a>0 else Color("#fff2e8") if state=="red" else Color("#1f2326"), cap_h, 1, cap_w)
 	var cy := y + cap_h + 8
 	for i in range(lines.size()):
 		T(f_lbl, label_sz, lines[i], x, cy + i * lh, Color("#b4c3c1"), lh, 1, w)
@@ -334,7 +410,7 @@ func push(id: String, x: float, y: float, w: float, cap: String, label: String, 
 			var cr := Rect2(px + i * 10, cy, 8, 8)
 			R(cr, UI.LIVE if i < prog else Color("#0c1518"))
 			R(Rect2(cr.position, Vector2(8, 1)), Color.BLACK); R(Rect2(cr.position, Vector2(1, 8)), Color.BLACK)
-	if locked: lock_at(Vector2(box.end.x + 6 - 14, box.position.y - 6))
+	if locked and show_lock: lock_at(Vector2(box.end.x + 6 - 14, box.position.y - 6))
 	dim = false
 	hit(id, box, {"locked":locked, "fixed":fixed})
 	return box
@@ -355,13 +431,16 @@ func tagbtn(id: String, x: float, y: float, s: String, active := false) -> float
 ## Objective chip, centred nameplate and the Esc hint, laid out with
 ## justify-content: space-between exactly like ".hud".
 func hud(objective: String, nameplate: String, esc_label: String, obj_flash_t := -10.0, obj_key := "Objective") -> void:
+	var artifact := F("label").has_meta("artifact_metrics")
+	if artifact: obj_key=obj_key.to_upper()
 	var fk := F("label", 400, 0.84); var fv := F("body")
 	var kw := tw(fk, 14, obj_key); var vw := tw(fv, 19, objective)
 	var ow := 2 + 12 + kw + 10 + vw + 16 + 2
 	var fn := F("label", 400, 1.28)
 	var nw := 0.0 if nameplate.is_empty() else tw(fn, 16, nameplate) + 36 + 4
 	var fe := F("body")
-	var ekw := maxf(28.0, tw(F("label"), 14, "Esc") + 16)
+	var esc_key := "ESC" if artifact else "Esc"
+	var ekw := maxf(28.0, tw(F("label"), 14, esc_key) + 16)
 	var ew := ekw + 8 + tw(fe, 17, esc_label)
 	var gap := (1240.0 - ow - nw - ew) * 0.5
 	# objective chip
@@ -377,7 +456,7 @@ func hud(objective: String, nameplate: String, esc_label: String, obj_flash_t :=
 		B(nr, {"notch":true, "grad":[[0.0, Color("#c4cdc8")], [1.0, Color("#9aa9a5")]], "border":UI.EDGE, "insets":[[2,2,0,Color("#e4ece8")],[-2,-2,0,Color("#6f807c")]]})
 		T(fn, 16, nameplate, nr.position.x + 2 + 18, nr.position.y + 2 + 5, Color("#1b2326"), nr.size.y - 4 - 9)
 	var ex := 1260.0 - ew
-	kbd(ex, 16, "Esc")
+	kbd(ex, 16, esc_key)
 	T(fe, 17, esc_label, ex + ekw + 8, 16, Color("#a9b8b6"), 24)
 	hit("esc", Rect2(ex, 14, ew, 28), {"focus":false})
 

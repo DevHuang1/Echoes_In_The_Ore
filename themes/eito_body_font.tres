@@ -1,0 +1,12 @@
+[gd_resource type="FontVariation" format=3]
+
+[ext_resource type="FontFile" path="res://art/ui/fonts/PixelifySans-Medium.ttf" id="1_o7ll1"]
+[ext_resource type="FontFile" path="res://art/ui/pixel/ore_pixel_font.fnt" id="2_bncn3"]
+
+[resource]
+fallbacks = Array[Font]([ExtResource("2_bncn3")])
+base_font = ExtResource("1_o7ll1")
+opentype_features = {
+1668049255: 0,
+1818847073: 0
+}
