@@ -244,7 +244,7 @@ func ship_refresh_prompt() -> void:
 				continue
 			candidates.append({"id":id,"distance":_ship_player.global_position.distance_to(entry.marker.global_position),"prompt":str(entry.host.name).to_snake_case().capitalize()+"   /   [E] ACCESS","kind":"prop"})
 	var npc := get_node_or_null("AmaraOkoye") as Node2D
-	if npc!=null and ship_can_reach(npc.global_position,"",36.0):
+	if npc != null and _ship_player.global_position.distance_to(npc.global_position) <= 90.0:
 		var talk_priority := -100.0 if ship_story_active() else _ship_player.global_position.distance_to(npc.global_position)
 		candidates.append({"id":"amara","distance":talk_priority,"prompt":"AMARA OKOYE   /   [E] TALK","kind":"amara"})
 	if bool(get("_crew_tasks_unlocked")) and not ship_story_active():
@@ -372,13 +372,13 @@ func _ship_sync_hud() -> void:
 		var entry: Dictionary=_ship_points.get(station_id,{})
 		var host := get_node_or_null(SHIP_CATALOG.definition(station_id).path) as Node2D
 		var point: Vector2=entry.marker.global_position if is_instance_valid(entry.get("marker")) else host.global_position if host!=null else Vector2.ZERO
-		entries.append({"id":StringName(objective[0]),"title":objective[3],"description":objective[1],"marker_label":objective[2],"position":point,"marker_position":point+Vector2(0,-16)})
+		entries.append({"id":StringName(objective[0]),"title":objective[3],"action_hint":objective[1],"purpose":objective[4],"description":objective[1],"marker_label":objective[2],"position":point,"marker_position":point+Vector2(0,-16)})
 	var completion: Dictionary=_ship_state.completed.duplicate()
 	if bool(get("_crew_tasks_unlocked")):
 		for task in get("AMARA_CREW_TASKS"):
 			var host := get_node_or_null(task.station_path) as Node2D
 			var point: Vector2=call("_crew_task_interaction_position",task,host) if host!=null else _ship_player.global_position
-			entries.append({"id":task.id,"title":task.title,"description":"Optional / "+str(task.title),"marker_label":"OPTIONAL","position":point})
+			entries.append({"id":task.id,"title":task.title,"action_hint":task.get("action_hint", task.get("prompt", "Inspect this station.")),"purpose":task.get("purpose", "Optional crew requests provide context about ship systems and the people maintaining them."),"description":"Optional / "+str(task.title),"marker_label":"OPTIONAL","position":point})
 			if get("_completed_crew_tasks").has(task.id): completion[str(task.id)]=true
 	_ship_hud.set_ship_objectives(entries,completion)
 
@@ -756,21 +756,27 @@ func _story_sync() -> void:
 	var objective: Dictionary = _ship_story.objective()
 	if _ship_state.completed.has("hydro") and _ship_story.has("power.reported") and not _ship_story.has("amara.repair_reported"):
 		objective.title = "Report restored delivery"; objective.station = "amara"; objective.marker_label = "AMARA"
+		objective.action_hint = "Return to Amara and share the verified irrigation readings."
 		objective.description = "Return to Amara with the verified irrigation readings. Repair history is retained if conditions change."
+		objective.purpose = "The crew needs confirmation that the plants are receiving nutrients again before the watch report is closed."
 	elif _ship_state.completed.has("power") and not _ship_story.has("power.reported") and _ship_story.has("amara.observation_reported"):
 		objective.title = "Hear engineering's reply"; objective.station = "power.breaker"
-		objective.description = "At a power workstation, receive Leila's acknowledgement of the restored service feed."
+		objective.action_hint = "Use the power workstation to receive Leila's status reply."
+		objective.description = objective.action_hint
+		objective.purpose = "Confirm that engineering sees the restored power feed before continuing with the irrigation repair."
 	var point := _ship_player.global_position
 	if objective.station == "amara":
 		var npc := get_node_or_null("AmaraOkoye") as Node2D
 		if npc != null:
 			point = npc.global_position
-			if not _ship_in_area(point, "hydro"): objective.description += " Amara is currently on her ship patrol; follow her nearby crew prompt."
+			if not _ship_in_area(point, "hydro"):
+				objective.action_hint += " Amara is on patrol; follow her nearby crew marker."
+				objective.description = objective.action_hint
 	elif _ship_points.has(objective.station) and is_instance_valid(_ship_points[objective.station].marker):
 		point = _ship_points[objective.station].marker.global_position
 	objective.position = point; objective.marker_position = point+Vector2(0,-20)
 	_eito_track_objective(str(objective.title))
-	var key := str([objective.title, objective.description, Vector2i(point/8), _ship_story.completed_count(), get("_completed_crew_tasks"), get("_crew_tasks_unlocked")])
+	var key := str([objective.title, objective.description, objective.purpose, Vector2i(point/8), _ship_story.completed_count(), get("_completed_crew_tasks"), get("_crew_tasks_unlocked")])
 	if key == _ship_story_hud_key: return
 	_ship_story_hud_key = key
 	_ship_hud.set_story_objective(objective, _ship_story.completed_count(), bool(get("_crew_tasks_unlocked")), get("_completed_crew_tasks").size())

@@ -3,14 +3,14 @@ extends RefCounted
 const VERSION := 1
 const CREW := ["Maya Chen (CDR)", "Elias Ward (PLT)", "Amara Okoye (MED)", "Leila Haddad (ENG)", "Mateo Ruiz (MIN)"]
 const OBJECTIVES := [
-	["crew", "Verify the duty roster", "CREW QUARTERS", "Check-in"],
-	["cargo", "Inspect and secure the cargo", "CARGO BAY", "Inspection"],
-	["power", "Diagnose and restore distribution", "POWER", "Distribution"],
-	["life", "Service and verify life support", "LIFE SUPPORT", "Air service"],
-	["hydro", "Restore nutrient delivery", "HYDROPONICS", "Nutrients"],
-	["engine", "Diagnose and verify cooling", "ENGINES", "Cooling"],
-	["navigation", "Compare and correct flight readings", "BRIDGE", "Flight check"],
-	["communications", "Transmit the verified duty report", "BRIDGE", "Duty report"],
+	["crew", "Read the crew roster and accept the duty watch", "CREW QUARTERS", "Check-in", "Thura needs to know who is aboard and what the crew expects before taking responsibility for the watch."],
+	["cargo", "Inspect the sample container and confirm its seal", "CARGO BAY", "Inspection", "Verify the cargo is secure before the ship leaves Erebos; an unnoticed breach could endanger the crew."],
+	["power", "Trace the fault and restore stable power", "POWER", "Distribution", "Several ship systems depend on this feed. Find the fault before restoring power so the repair does not cause another failure."],
+	["life", "Replace the scrubber and verify breathable air", "LIFE SUPPORT", "Air service", "The crew cannot safely begin the survey without stable life support."],
+	["hydro", "Restore nutrient flow to the grow beds", "HYDROPONICS", "Nutrients", "The seedlings are weakening. Restore their supply and confirm the beds are receiving it."],
+	["engine", "Diagnose the coolant fault and stabilize the engines", "ENGINES", "Cooling", "The engines must stay within safe temperature before Asteria-1 can maneuver or land."],
+	["navigation", "Check the flight path and correct the approach", "BRIDGE", "Flight check", "A safe approach keeps the ship clear of debris and puts the lander over the right site."],
+	["communications", "Send the verified duty report to Mission Control", "BRIDGE", "Duty report", "Mission Control needs reliable system readings before it can advise the crew."],
 ]
 const OBJECTIVE_STATIONS := {
 	"crew":"quarters.desk", "cargo":"cargo.scale", "power":"power.breaker",

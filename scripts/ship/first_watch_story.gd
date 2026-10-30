@@ -42,36 +42,49 @@ func work_orders() -> PackedStringArray:
 	return allowed
 
 func objective() -> Dictionary:
-	var result := {"id": mission_id(), "title": "Receive the watch", "description": "Bridge: speak to Maya through the planning table beside the main helm.", "station": "bridge.planning", "marker_label": "BRIDGE"}
+	var result := {
+		"id": mission_id(), "title": "Receive your watch",
+		"description": "Bridge planning table: speak with Commander Chen, review the active duties, then acknowledge the handoff.",
+		"purpose": "Asteria-1 is approaching Erebos. Accept responsibility and learn what the crew needs from you.",
+		"station": "bridge.planning", "marker_label": "BRIDGE"
+	}
 	if has("watch.acknowledged"):
 		result.title = "Watch handed over"
-		result.description = "Await the Erebos survey briefing. Optional ship activities remain available; deployment is not authorized."
+		result.description = "Wait at the bridge for the Erebos survey briefing. Do not deploy until Commander Chen authorizes landing."
+		result.purpose = "The ship is not cleared to land yet. Your watch is complete, but the mission briefing is still pending."
 	elif has("amara.repair_reported"):
 		result.title = "Hand over the watch"
-		result.description = "Bridge planning table: review your measured summary and receive Maya's acknowledgement."
+		result.description = "Bridge planning table: present your verified service report and receive Commander Chen's acknowledgement."
+		result.purpose = "The crew needs a clear record of what was observed, repaired, and confirmed before the watch changes."
 	elif has("power.reported"):
 		result.title = "Restore irrigation"
-		result.description = "Hydroponics console: service the restricted manifold, restore and verify delivery, then report to Amara."
+		result.description = "Hydroponics console: route nutrients through the restricted manifold, verify flow, then report the readings to Amara."
+		result.purpose = "The plants are receiving too little nutrient flow. Repair the cause using the measurements you recorded."
 		result.station = "hydro.console"; result.marker_label = "HYDROPONICS"
 	elif has("amara.observation_reported"):
 		result.title = "Restore service power"
-		result.description = "Power room: diagnose, isolate and allocate at the breaker/converter, synchronize the cell banks, restore and verify."
+		result.description = "Power room: diagnose the fault, isolate the correct breaker, synchronize the cell banks, then verify the feed."
+		result.purpose = "The irrigation fault may be caused by low power. Stabilize the service feed before repairing the nutrient line."
 		result.station = "power.breaker"; result.marker_label = "POWER"
 	elif has("hydro.diagnosed"):
 		result.title = "Report the delivery problem"
-		result.description = "Speak to Amara about the healthy pump, normal reservoir and restricted delivery."
+		result.description = "Speak with Amara and compare the healthy pump, normal reservoir, and restricted delivery readings."
+		result.purpose = "Amara needs the evidence before the crew changes settings or replaces working equipment."
 		result.station = "amara"; result.marker_label = "AMARA"
 	elif has("amara.introduced"):
 		result.title = "Inspect nutrient delivery"
-		result.description = "Hydroponics console: capture EC, pump capacity and delivery; record the diagnosis supported by the readings."
+		result.description = "Hydroponics console: measure nutrient strength, pump output, and delivery; record what the readings show."
+		result.purpose = "Find out why the seedlings are weakening before attempting a repair."
 		result.station = "hydro.console"; result.marker_label = "HYDROPONICS"
 	elif has("roster.reviewed"):
 		result.title = "Meet Amara"
-		result.description = "Hydroponics, below crew quarters: talk to Amara Okoye about the grow beds."
+		result.description = "Hydroponics, below crew quarters: speak with Dr. Amara Okoye about the grow beds and her concerns."
+		result.purpose = "Meet the science officer and learn why she is worried about the ship's plant systems."
 		result.station = "amara"; result.marker_label = "AMARA"
 	elif has("watch.accepted"):
 		result.title = "Review the duty roster"
-		result.description = "Crew quarters, below the bridge corridor: use the personal computer desk to compare roster and watch records."
+		result.description = "Crew quarters: use Thura's personal terminal to read the duty roster and current watch records."
+		result.purpose = "Learn who is aboard and what needs attention before starting the ship's work orders."
 		result.station = "quarters.desk"; result.marker_label = "QUARTERS"
 	return result
 

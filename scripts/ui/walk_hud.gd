@@ -10,6 +10,7 @@ const EC := preload("res://scripts/ui/eito/eito_controls.gd")
 const EUI := preload("res://scripts/ui/eito/eito_ui.gd")
 const ESTYLE := preload("res://scripts/ui/eito/eito_style.gd")
 const MAP_CONTENT_VISIBLE := false
+const PLANET_SCENE_PATH := "res://scenes/planet/mock_planet_exterior.tscn"
 const THURA_ATLAS := preload("res://art/characters/runtime/thura_walk_4dir.png")
 const CHARACTER_FRAME_SIZE := Vector2(313.5, 313.5)
 
@@ -21,6 +22,8 @@ const MUTED := Color("#a9c4c2")
 const CYAN := Color("#62d0f0")
 const ORANGE := Color("#f0b23a")
 const GREEN := Color("#5fd067")
+const RED := Color(1.0, 0.35, 0.35)
+const VIOLET := Color(0.78, 0.56, 1.0)
 const SURFACE := Color("#0a1114")
 const SURFACE_RAISED := Color("#101a1e")
 const SURFACE_HOVER := Color("#1b292e")
@@ -40,7 +43,23 @@ const ITEM_DATA := {
 	},
 	&"industrial_plasma_cutter": {
 		"name": "Industrial Plasma Cutter", "short": "PLASMA", "color": GOLD, "equip_slot": &"tool",
+		"desc": "High-temperature cutting head mounted on the extraction rig. It cuts mineral lattice and is not carried as a personal weapon.",
 		"texture": preload("res://art/tools/industrial_plasma_cutter.png"), "icon_region": Rect2(95.0, 340.0, 840.0, 650.0),
+	},
+	&"harmonic_bypass_coupler": {
+		"name": "Harmonic Bypass Coupler", "short": "BYPASS", "color": GOLD, "equip_slot": &"tool",
+		"desc": "Mateo Ruiz's auxiliary frequency bridge. Bypasses the locked bore motor on the Erebos extraction rig.",
+		"texture": preload("res://art/tools/engineering_multitool.png"), "icon_region": Rect2(45.0, 335.0, 930.0, 790.0),
+	},
+	&"resonance_ore_core": {
+		"name": "Pristine Resonance Core", "short": "RESONANCE CORE", "color": CYAN, "equip_slot": &"pack",
+		"desc": "High-purity crystalline ore extracted at 4-pulse harmonic resonance. Ready for Cargo Bay containment.",
+		"texture": preload("res://art/planet/resonance_ore_sample.png"), "icon_region": Rect2(0.0, 0.0, 1240.0, 1268.0),
+	},
+	&"resonance_ore_core_fractured": {
+		"name": "Fractured Resonance Core", "short": "FRACTURED CORE", "color": ORANGE, "equip_slot": &"pack",
+		"desc": "Resonance core with lattice micro-fractures from unstable drilling harmonics. Requires careful stabilization.",
+		"texture": preload("res://art/planet/resonance_ore_sample.png"), "icon_region": Rect2(0.0, 0.0, 1240.0, 1268.0),
 	},
 	&"suit_flashlight": {
 		"name": "Suit Flashlight", "short": "LIGHT", "color": PALE, "equip_slot": &"suit",
@@ -57,6 +76,11 @@ const ITEM_DATA := {
 	&"survey_beacon": {
 		"name": "Survey Beacon", "short": "BEACON", "color": GOLD, "equip_slot": &"tool",
 		"texture": preload("res://art/tools/survey_beacon.png"), "icon_region": Rect2(100.0, 350.0, 830.0, 780.0),
+	},
+	&"resonance_ore_sample": {
+		"name": "Sealed Resonance Ore Sample", "short": "ORE SAMPLE", "color": CYAN, "equip_slot": &"pack",
+		"desc": "Quest sample from Erebos. Deliver it to Dr. Amara Okoye for analysis.",
+		"texture": preload("res://art/planet/resonance_ore_sample.png"), "icon_region": Rect2(0.0, 0.0, 1240.0, 1268.0),
 	},
 	&"emergency_flare": {
 		"name": "Emergency Flare", "short": "FLARE", "color": ORANGE, "equip_slot": &"tool",
@@ -79,6 +103,13 @@ const ITEM_DATA := {
 const EQUIPMENT_SLOTS: Array[StringName] = [&"head", &"suit", &"pack", &"tool"]
 const EQUIPMENT_LABELS := [&"HEAD", &"SUIT", &"PACK", &"TOOL"]
 const HOTBAR_KEY_CODES: Array[int] = [KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6, KEY_7, KEY_8, KEY_9]
+const ITEM_LIMITS: Dictionary = {
+	&"emergency_flare": {"default": 5, "max": 10, "unit": "FLARES"},
+	&"captains_revolver": {"default": 6, "max": 18, "unit": "ROUNDS"},
+	&"survey_beacon": {"default": 3, "max": 6, "unit": "BEACONS"},
+	&"medical_injector": {"default": 3, "max": 5, "unit": "DOSES"},
+	&"pressure_sealant": {"default": 50, "max": 100, "unit": "PSI"},
+}
 
 
 class PixelIcon extends Control:
@@ -252,6 +283,26 @@ class TaskLocationMarker extends Control:
 		draw_rect(Rect2(17, MARKER_SIZE.y - 4, 6, 2), EUI.WARN)
 
 
+class AchievementMedalIcon extends Control:
+	var medal_color: Color = Color(1.0, 0.78, 0.38, 1.0)
+	var unlocked: bool = true
+
+	func _ready() -> void:
+		custom_minimum_size = Vector2(20.0, 20.0)
+		size = Vector2(20.0, 20.0)
+		size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	func _draw() -> void:
+		var center: Vector2 = (size * 0.5).floor()
+		var col: Color = medal_color if unlocked else Color(0.28, 0.36, 0.40, 0.55)
+		draw_rect(Rect2(center + Vector2(-4.0, -6.0), Vector2(8.0, 6.0)), col, true)
+		draw_rect(Rect2(center + Vector2(-6.0, -5.0), Vector2(2.0, 3.0)), col.darkened(0.2), true)
+		draw_rect(Rect2(center + Vector2(4.0, -5.0), Vector2(2.0, 3.0)), col.darkened(0.2), true)
+		draw_rect(Rect2(center + Vector2(-1.0, 0.0), Vector2(2.0, 4.0)), col, true)
+		draw_rect(Rect2(center + Vector2(-4.0, 4.0), Vector2(8.0, 2.0)), col, true)
+
+
 class InventoryCell extends PanelContainer:
 	const CELL_GOLD := Color("#fff2b8")
 	const CELL_PALE := Color("#e6e1d2")
@@ -399,6 +450,56 @@ var _mission_stack: VBoxContainer
 var _mission_progress_label: Label
 var _mission_progress_bar: ProgressBar
 var _mission_rows: Dictionary = {}
+var _objective_toast: PanelContainer
+var _objective_toast_title: Label
+var _objective_toast_sub: Label
+var _objective_toast_timer: float = 0.0
+var _dev_sections: Dictionary = {}
+var _dev_tab_buttons: Dictionary = {}
+var _dev_active_tab: StringName = &"all"
+var _dev_god_mode_active: bool = false
+var _unlocked_items: Dictionary = {}
+var _collected_logs: Dictionary = {}
+var _unlocked_achievements: Dictionary = {}
+var _current_story_act: String = "ACT I — THE LONG APPROACH"
+var _item_amounts: Dictionary = {}
+var _equipped_status_label: Label
+var _story_act_label: Label
+var _comms_panel: PanelContainer = null
+var _comms_speaker_label: Label = null
+var _comms_message_label: Label = null
+var _comms_status_label: Label = null
+var _comms_timer: float = 0.0
+var _unlock_toast_panel: PanelContainer
+var _unlock_toast_badge: Label
+var _unlock_toast_icon: TextureRect
+var _unlock_toast_title: Label
+var _unlock_toast_subtitle: Label
+var _unlock_toast_timer: float = 0.0
+var _achievement_toast_panel: PanelContainer
+var _achievement_toast_medal: AchievementMedalIcon
+var _achievement_toast_badge: Label
+var _achievement_toast_title: Label
+var _achievement_toast_subtitle: Label
+var _achievement_toast_timer: float = 0.0
+var _achievement_toast_queue: Array[Dictionary] = []
+var _achievement_toast_tween: Tween
+var _achievement_filter: StringName = &"all"
+var _profile_score_label: Label
+var _profile_progress_bar: ProgressBar
+var _profile_achievements_list: VBoxContainer
+var _profile_filter_buttons: Dictionary = {}
+var _profile_view_tab: StringName = &"achievements"
+var _profile_tab_buttons: Dictionary = {}
+var _tasks_list_container: VBoxContainer
+var _tasks_arsenal_container: VBoxContainer
+var _tasks_progress_bar: ProgressBar
+var _tasks_filter_tab: StringName = &"all"
+var _tasks_filter_buttons: Dictionary = {}
+var _arsenal_filter_tab: StringName = &"all"
+var _tasks_status_summary_label: Label
+var _tasks_arsenal_summary_label: Label
+var _tasks_arsenal_bar: ProgressBar
 var _cargo_count_label: Label
 var _context_prompt: PanelContainer
 var _context_label: Label
@@ -414,6 +515,12 @@ var _inventory_hotbar_cells: Array = []
 var _active_overlay: StringName = &""
 var _overlay_nodes: Dictionary = {}
 var _map_surface: Control
+var _map_canvas: Control
+var _map_floor_layer: TextureRect
+var _map_wall_layer: TextureRect
+var _custom_map_floor_tex: Texture2D = null
+var _custom_map_wall_tex: Texture2D = null
+var _show_all_active_tasks: bool = false
 var _map_player_marker: Control
 var _map_task_markers: Dictionary = {}
 var _world_task_markers: Dictionary = {}
@@ -438,6 +545,209 @@ var _dev_force_lights_btn: Button
 var _dev_selected_room_index := 0
 const DEV_FLICKER_STYLES: Array[StringName] = [&"erratic", &"strobe", &"brownout", &"pulse"]
 const DEV_FLICKER_SPEEDS: Array[float] = [0.5, 1.0, 1.5, 2.5]
+const CAMPAIGN_META_KEY: StringName = &"echoes_campaign_inventory_state"
+const ALL_PROGRESSION_ITEMS: Array[StringName] = [
+	&"suit_flashlight",
+	&"engineering_multitool",
+	&"pressure_sealant",
+	&"medical_injector",
+	&"mineral_survey_scanner",
+	&"survey_beacon",
+	&"emergency_flare",
+	&"industrial_plasma_cutter",
+	&"electrical_discharge_tool",
+	&"captains_revolver",
+	&"harmonic_bypass_coupler",
+]
+
+const ARSENAL_CATALOG: Array[Dictionary] = [
+	{
+		"id": &"captains_revolver",
+		"category": "LETHAL WEAPON",
+		"category_color": Color(1.0, 0.45, 0.25),
+		"role": "12mm Kinetic Service Sidearm",
+		"desc": "Standard-issue lethal sidearm surrendered by Commander Chen. Kinetic rounds pierce armor and blast structural bulkheads.",
+		"unlock_lore": "Act IV Climax: Confront Commander Chen on Bridge during quarantine standoff.",
+		"task_id": &"commanders_secret_bridge",
+	},
+	{
+		"id": &"industrial_plasma_cutter",
+		"category": "INDUSTRIAL TOOL",
+		"category_color": Color(1.0, 0.78, 0.38),
+		"role": "Thermal Plasma Cutting Beam",
+		"desc": "High-temperature cutting beam for mineral lattice and damaged bulkheads. It cannot stop the Echo.",
+		"unlock_lore": "Not issued during the Erebos survey. Find a safe industrial use later in the mission.",
+		"task_id": &"subdeck_shadow_nest_check",
+	},
+	{
+		"id": &"electrical_discharge_tool",
+		"category": "STUN WEAPON",
+		"category_color": Color(0.36, 0.9, 1.0),
+		"role": "High-Voltage Arc Capacitor Tool",
+		"desc": "Discharges high-voltage electric bursts that disrupt the acoustic and cellular matrix of colloidal fluid entities.",
+		"unlock_lore": "Act IV, Chapter 3: Rescue Leila and assemble the capacitor arc tool together.",
+		"task_id": &"subdeck_pipe_pressure",
+	},
+	{
+		"id": &"mineral_survey_scanner",
+		"category": "SURVEY INSTRUMENT",
+		"category_color": Color(0.36, 0.9, 1.0),
+		"role": "Sub-Harmonic Acoustic Detector",
+		"desc": "Scans sub-surface ore density and tracks the four-pulse harmonic resonance frequency.",
+		"unlock_lore": "Act I Milestone 3: Route hydroponics nutrient flow and isolate drone vibration telemetry.",
+		"task_id": &"drone_vibration_scan",
+	},
+	{
+		"id": &"survey_beacon",
+		"category": "RECON INSTRUMENT",
+		"category_color": Color(1.0, 0.78, 0.38),
+		"role": "Deployable Waypoint Transponder",
+		"desc": "Marks surface landing targets and deep cavern drop sites for planetary descent.",
+		"unlock_lore": "Act I Milestone 4: Complete pre-descent shuttle bay beacon checklist.",
+		"task_id": &"landing_prep_beacons",
+	},
+	{
+		"id": &"emergency_flare",
+		"category": "TACTICAL UTILITY",
+		"category_color": Color(1.0, 0.5, 0.2),
+		"role": "High-Output Magnesium Flare",
+		"desc": "Ignites brilliantly to illuminate pitch-black caverns and distract hostile resonance forms.",
+		"unlock_lore": "Act II Erebos: Survey at least 2 crystal anomaly sites on the planet surface.",
+		"task_id": &"rig_test",
+	},
+	{
+		"id": &"suit_flashlight",
+		"category": "SUIT GEAR",
+		"category_color": Color(0.94, 0.91, 0.82),
+		"role": "Shoulder-Mounted High-Intensity LED Beam",
+		"desc": "Shoulder-mounted floodlight. Press [F] anytime to illuminate darkened ship compartments.",
+		"unlock_lore": "Act I Milestone 1: Listen to May's Yangon message & pilot ship through asteroid swarm.",
+		"task_id": &"bridge_flight_piloting",
+	},
+	{
+		"id": &"engineering_multitool",
+		"category": "MAINTENANCE TOOL",
+		"category_color": Color(1.0, 0.78, 0.38),
+		"role": "Standard Diagnostic Instrument",
+		"desc": "Used to calibrate power cells, bypass faulty relays, and synchronize electrical buses.",
+		"unlock_lore": "Act I Milestone 2: Reconnect aux power bus and replace life-support scrubber cartridge.",
+		"task_id": &"air_filter",
+	},
+	{
+		"id": &"pressure_sealant",
+		"category": "MAINTENANCE TOOL",
+		"category_color": Color(0.36, 0.9, 1.0),
+		"role": "Polymer Hull Sealant Injector",
+		"desc": "Rapid-curing polymer foam injector. Seals microscopic hull breaches and fluid manifolds.",
+		"unlock_lore": "Act I Milestone 3: Route hydroponics nutrient flow in greenhouse.",
+		"task_id": &"nutrient_flow",
+	},
+	{
+		"id": &"medical_injector",
+		"category": "TACTICAL UTILITY",
+		"category_color": Color(0.48, 0.93, 0.64),
+		"role": "Neural Stimulant Auto-Injector",
+		"desc": "Dispenses adrenaline and synthetic coagulant. Stabilizes vital signs during resonance attacks.",
+		"unlock_lore": "Act III Lab Outbreak: Salvage emergency medical injector from overturned cart in med-lab.",
+		"task_id": &"lab_trolley",
+	},
+	{
+		"id": &"harmonic_bypass_coupler",
+		"category": "MINING GEAR",
+		"category_color": Color(1.0, 0.78, 0.38),
+		"role": "Auxiliary Frequency Bridge",
+		"desc": "Mateo Ruiz's auxiliary frequency bridge. Bypasses the locked bore motor on the Erebos extraction rig to enable deep core drilling.",
+		"unlock_lore": "Act II Erebos: Report the rig bore failure to Amara, then collect the coupler from Mateo in the Shuttle Bay.",
+		"task_id": &"erebos_deep_mining",
+	},
+]
+
+const ACHIEVEMENTS_CATALOG: Array[Dictionary] = [
+	{"id": &"cabin_may_recording", "title": "Paper Star", "desc": "Play May's transmission"},
+	{"id": &"bridge_flight_piloting", "title": "Shearwater Pilot", "desc": "Evade the asteroid swarm at manual helm"},
+	{"id": &"auxiliary_power", "title": "Spark in the Dark", "desc": "Restore auxiliary power"},
+	{"id": &"air_filter", "title": "Breath of Asteria", "desc": "Replace air scrubber"},
+	{"id": &"nutrient_flow", "title": "Greenhouse", "desc": "Restore hydroponics flow"},
+	{"id": &"drone_vibration_scan", "title": "Four Pulses", "desc": "Isolate the drone signal"},
+	{"id": &"landing_prep_beacons", "title": "Site K-12 Ready", "desc": "Calibrate landing beacons"},
+	{"id": &"west_cyan_ore", "title": "Hollow Resonance", "desc": "Scan western crystal vein"},
+	{"id": &"north_viridian_ore", "title": "Into the Breach", "desc": "Recover the plasma cutter"},
+	{"id": &"erebos_deep_mining", "title": "Echo In The Ore", "desc": "Extract an intact resonance core"},
+	{"id": &"cargo_breach_inspection", "title": "Broken Containment", "desc": "Inspect breached core pod"},
+	{"id": &"subdeck_inventory_manifest", "title": "False Signal", "desc": "Trace Ward's lure in Sub-Deck 02 storage"},
+	{"id": &"subdeck_workshop_power", "title": "Sub-Deck Spark", "desc": "Restore S04 Workshop auxiliary power"},
+	{"id": &"subdeck_coolant_manifold", "title": "Coolant Routing", "desc": "Align S05 Coolant Bay valves"},
+	{"id": &"subdeck_pipe_pressure", "title": "High Voltage", "desc": "Stabilize Sub-Deck 02 turbines"},
+	{"id": &"subdeck_shadow_nest_check", "title": "The Shadow Nest", "desc": "Analyze the sub-hull nest"},
+	{"id": &"act_v_finale_home", "title": "Earthward", "desc": "Execute final helm protocol"},
+]
+
+const AUDIO_LOGS_CATALOG: Array[Dictionary] = [
+	{
+		"id": &"log_may_message",
+		"title": "Paper Star",
+		"speaker": "May (Yangon)",
+		"act": "ACT I — SHIP",
+		"location": "Cabin Bunk Terminal",
+		"transcript": "May's personal farewell message from the Yangon spaceport rooftop. She handed Thura a folded foil origami paper star before launch, asking if astronauts ever get afraid. 'Remember: space only has the meaning you bring with you.'",
+	},
+	{
+		"id": &"log_okoye_fields",
+		"title": "Acoustic Growth Anomalies",
+		"speaker": "Dr. Amara Okoye",
+		"act": "ACT I — SHIP",
+		"location": "Hydroponics Console",
+		"transcript": "Astrobiology log 04. Okoye notes anomalous micro-harmonic vibrations resonating through the greenhouse fluid tubes. The root growth angles are orienting toward Erebos ahead of orbital insertion.",
+	},
+	{
+		"id": &"log_ruiz_sponsors",
+		"title": "Drill Governor Overclock",
+		"speaker": "Mateo Ruiz",
+		"act": "ACT I — SHIP",
+		"location": "Drone Maintenance Rig",
+		"transcript": "Ruiz venting frustration regarding corporate budgets. 'Management cut the core rig cooling lines by 40%. If the rock is hard crystal, I'm bypassing the safety governor myself. We aren't returning without our quota.'",
+	},
+	{
+		"id": &"log_okoye_crystals",
+		"title": "Reflective Lattice Scan",
+		"speaker": "Dr. Amara Okoye",
+		"act": "ACT II — EREBOS",
+		"location": "Site K-12 Hollow Formations",
+		"transcript": "Field survey recording. The cyan crystal formations at Site K-12 lack normal mineral cleavage planes. Under spectrum analysis, they do not merely reflect sunlight—they vibrate, absorbing and modulating acoustic pulses.",
+	},
+	{
+		"id": &"log_ruiz_breach",
+		"title": "Cavity Breach Mayday",
+		"speaker": "Mateo Ruiz",
+		"act": "ACT II — EREBOS",
+		"location": "Main Subsurface Drill Breach",
+		"transcript": "[HEAVY STATIC] The drill broke through! There's an open cavern down here... black structures like ribs. Wait—the rig lost all power! Something black is moving up the drill column! It's not stone, it's alive! [SIGNAL TERMINATED]",
+	},
+	{
+		"id": &"log_okoye_containment_breach",
+		"title": "Colloidal Fluidic Entity",
+		"speaker": "Dr. Amara Okoye",
+		"act": "ACT III — LAB",
+		"location": "Wrecked Specimen Bench",
+		"transcript": "Emergency recording! The containment glass fractured! The organism isn't mineral—it's a living colloidal suspension that mimics sound and memory! Kinetic rounds pass through its fluid mass! Use the high-voltage arc tool from my bench to stun it! [ALARM KLAXONS]",
+	},
+	{
+		"id": &"log_chen_debate",
+		"title": "Classified Mass Telemetry",
+		"speaker": "Commander Maya Chen",
+		"act": "ACT IV — BRIDGE",
+		"location": "Mission Planning Table",
+		"transcript": "Confidential flight log. Commander Chen confirms the specimen container gained 4.2 kilograms during ascent from Erebos. 'I chose not to alert Dr. Min. We lost two crew members. I needed the sample to prove their deaths were not in vain.'",
+	},
+	{
+		"id": &"log_chen_farewell",
+		"title": "Captain's Final Command",
+		"speaker": "Commander Maya Chen",
+		"act": "ACT IV — BRIDGE",
+		"location": "Decontamination Airlock",
+		"transcript": "My hands won't stop shaking. The acoustic humming in the walls... it's speaking in May's voice, Ruiz's voice, my own voice. Thura, take my revolver. Don't let that thing reach Earth. I'm sealing this hatch from the inside. Protect the navigation core.",
+	},
+]
 
 
 func setup(player: ShipPlayer, task_entries: Array[Dictionary], map_world_origin: Vector2, map_world_size: Vector2) -> void:
@@ -544,6 +854,71 @@ func _build_mission_panel() -> void:
 	stack.add_child(sub_heading)
 	for entry in _task_entries:
 		_add_mission_row(entry)
+	_build_objective_toast()
+
+
+func _build_objective_toast() -> void:
+	var toast := PanelContainer.new()
+	_objective_toast = toast
+	toast.name = "ObjectiveToast"
+	toast.anchor_left = 0.5
+	toast.anchor_top = 0.0
+	toast.anchor_right = 0.5
+	toast.anchor_bottom = 0.0
+	toast.offset_left = -220.0
+	toast.offset_top = 18.0
+	toast.offset_right = 220.0
+	toast.offset_bottom = 74.0
+	var toast_style := _panel_style(Color(0.015, 0.035, 0.055, 0.96), Color(0.24, 0.95, 0.54, 0.9), 6.0)
+	toast.add_theme_stylebox_override("panel", toast_style)
+	toast.visible = false
+	toast.modulate.a = 0.0
+	_root.add_child(toast)
+
+	var toast_vbox := VBoxContainer.new()
+	toast_vbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	toast_vbox.add_theme_constant_override("separation", 2)
+	toast.add_child(toast_vbox)
+
+	_objective_toast_title = _label("✔ OBJECTIVE COMPLETED", 15, Color(0.24, 0.95, 0.54))
+	_objective_toast_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	toast_vbox.add_child(_objective_toast_title)
+
+	_objective_toast_sub = _label("", 13, PALE)
+	_objective_toast_sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_objective_toast_sub.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	toast_vbox.add_child(_objective_toast_sub)
+
+
+func show_objective_toast(title: String, subtitle: String, is_complete: bool = false) -> void:
+	if not is_instance_valid(_objective_toast) or not is_instance_valid(_objective_toast_title):
+		return
+	_objective_toast_title.text = title
+	_objective_toast_title.add_theme_color_override("font_color", GREEN if is_complete else GOLD)
+	_objective_toast_sub.text = subtitle
+	_objective_toast.visible = true
+	_objective_toast_timer = 3.5
+	_play_mission_chime(is_complete)
+
+
+func _play_mission_chime(is_complete: bool) -> void:
+	if not is_inside_tree():
+		return
+	var player := AudioStreamPlayer.new()
+	player.bus = &"Master"
+	add_child(player)
+	var freq: float = 1174.66 if is_complete else 880.0
+	var tone: AudioStreamWAV = DialogueAudioSynth.generate_tone(freq, 0.35 if is_complete else 0.2, 0.01, 0.12, "octave" if is_complete else "two_tone", 0.4)
+	player.stream = tone
+	player.play()
+	player.finished.connect(player.queue_free)
+
+
+func _is_equipment_task_entry(entry: Dictionary) -> bool:
+	if bool(entry.get("is_equipment_task", false)):
+		return true
+	var reward_id: StringName = StringName(entry.get("reward_item", &""))
+	return reward_id != &""
 
 
 func _add_mission_row(entry: Dictionary) -> void:
@@ -1018,6 +1393,39 @@ func _update_map_markers() -> void:
 		marker.queue_redraw()
 
 
+func _map_canvas_normalized_position(world_position: Vector2) -> Vector2:
+	if _map_world_size.x <= 0.0 or _map_world_size.y <= 0.0:
+		return Vector2.ZERO
+	var world_normalized: Vector2 = (world_position - _map_world_origin) / _map_world_size
+	if not is_instance_valid(_map_canvas):
+		return world_normalized
+	var canvas_size: Vector2 = _map_canvas.size
+	if canvas_size.x <= 0.0 or canvas_size.y <= 0.0:
+		return world_normalized
+	var fit_scale: float = minf(canvas_size.x / _map_world_size.x, canvas_size.y / _map_world_size.y)
+	var image_size: Vector2 = _map_world_size * fit_scale
+	var image_offset: Vector2 = (canvas_size - image_size) * 0.5
+	var canvas_position: Vector2 = image_offset + world_normalized * image_size
+	return canvas_position / canvas_size
+
+
+func _get_active_sequential_task_ids() -> Array[StringName]:
+	var active_ids: Array[StringName] = []
+	for entry in _task_entries:
+		var tid: StringName = StringName(entry.get("id", &""))
+		if tid == &"" or bool(_task_completed.get(tid, false)):
+			continue
+		if _show_all_active_tasks:
+			active_ids.append(tid)
+			continue
+		active_ids.append(tid)
+		break
+	return active_ids
+
+
+func is_task_unlocked_in_sequence(task_id: StringName) -> bool:
+	var active_ids: Array[StringName] = _get_active_sequential_task_ids()
+	return active_ids.has(task_id)
 func _update_world_task_markers() -> void:
 	if not is_instance_valid(_world_task_marker_layer):
 		return
@@ -1101,22 +1509,53 @@ func _refresh_mission_panel() -> void:
 	_update_map_markers()
 
 
-func set_task_completed(task_id: StringName) -> void:
-	if not _task_completed.has(task_id):
-		return
-	_task_completed[task_id] = true
+func set_task_completed(task_id: StringName, silent: bool = false) -> void:
+	if _task_completed.has(task_id):
+		var was_already_done: bool = bool(_task_completed[task_id])
+		_task_completed[task_id] = true
+		_refresh_mission_panel()
+		_refresh_tasks_overlay()
+		_update_world_task_markers()
+		if not silent and not was_already_done:
+			var completed_title := ""
+			for entry in _task_entries:
+				if StringName(entry.get("id", &"")) == task_id:
+					completed_title = _format_clean_title(str(entry.get("title", "Duty")))
+					break
+			if not completed_title.is_empty():
+				show_objective_toast("✔ OBJECTIVE COMPLETED", completed_title, true)
+		unlock_achievement(task_id, silent or was_already_done)
+	else:
+		unlock_achievement(task_id, silent)
+
+
+func set_show_all_active_tasks(show_all: bool) -> void:
+	_show_all_active_tasks = show_all
 	_refresh_mission_panel()
 	_update_world_task_markers()
+
+
+func set_map_textures(floor_tex: Texture2D, wall_tex: Texture2D) -> void:
+	_custom_map_floor_tex = floor_tex
+	_custom_map_wall_tex = wall_tex
+	if is_instance_valid(_map_floor_layer) and floor_tex != null:
+		_map_floor_layer.texture = floor_tex
+	if is_instance_valid(_map_wall_layer) and wall_tex != null:
+		_map_wall_layer.texture = wall_tex
 
 
 func set_interaction_prompt(text: String, is_visible: bool) -> void:
 	if not is_instance_valid(_context_prompt):
 		return
 	var formatted_text := text
-	if formatted_text.find("[E]") != -1:
-		formatted_text = formatted_text.replace("[E]", "").replace("   /   ", " // ").strip_edges()
-		if not formatted_text.begins_with("USE") and not formatted_text.begins_with("INTERACT"):
-			formatted_text = "USE // " + formatted_text
+	var key_hint_index := formatted_text.find("[E]")
+	if key_hint_index != -1:
+		# The E keycap is already displayed beside this text. Keep only the
+		# immediate action so nearby prompts don't repeat the station name,
+		# key, and mission description all at once.
+		formatted_text = formatted_text.substr(key_hint_index + 3).strip_edges()
+		formatted_text = formatted_text.trim_prefix("USE // ").trim_prefix("USE / ").trim_prefix("USE ")
+		formatted_text = formatted_text.replace("   /   ", " ").replace(" // ", " · ").strip_edges()
 	_context_label.text = formatted_text
 	_context_prompt.visible = is_visible and _walking_visible and _active_overlay == &""
 
@@ -1344,6 +1783,93 @@ func _button(text: String, minimum_size: Vector2, _accent: Color) -> Button:
 func _button_style(_accent: Color, highlighted: bool) -> StyleBox:
 	return PIXEL_THEME.get_stylebox("hover" if highlighted else "normal", "Button")
 
+func _flat_box(background: Color, border: Color, pad_x: float, pad_y: float, border_w: int = 1) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = background
+	style.border_color = border
+	style.set_border_width_all(border_w)
+	style.content_margin_left = pad_x
+	style.content_margin_right = pad_x
+	style.content_margin_top = pad_y
+	style.content_margin_bottom = pad_y
+	style.anti_aliasing = false
+	return style
+
+
+func _format_clean_title(raw_title: String) -> String:
+	var clean := raw_title.strip_edges()
+	if clean.begins_with("Amara: "):
+		clean = clean.substr(7).strip_edges()
+	var paren_pos := clean.find("(")
+	if paren_pos != -1:
+		var suffix := clean.substr(paren_pos)
+		for marker in ["Task", "Unlock", "->", "Multitool", "Suit Light", "Plasma", "Discharger", "Scanner", "Act IV"]:
+			if suffix.find(marker) != -1:
+				clean = clean.substr(0, paren_pos).strip_edges()
+				break
+	var angle_pos := clean.find("<")
+	if angle_pos != -1:
+		clean = clean.substr(0, angle_pos).strip_edges()
+	return clean
+
+
+func _unequip_active_tool() -> void:
+	_selected_hotbar_index = -1
+	_equipment_items[&"tool"] = &""
+	_refresh_hotbar()
+	_refresh_inventory_cells()
+	_sync_player_equipped_item()
+	_save_persistent_inventory_state()
+
+
+func _sync_player_equipped_item() -> void:
+	var active_item: StringName = StringName(_equipment_items.get(&"tool", &""))
+	if _selected_hotbar_index >= 0 and _selected_hotbar_index < _hotbar_items.size():
+		var hotbar_item: StringName = _hotbar_items[_selected_hotbar_index]
+		if hotbar_item != &"":
+			active_item = hotbar_item
+			_equipment_items[&"tool"] = hotbar_item
+		else:
+			active_item = &""
+			_equipment_items[&"tool"] = &""
+	var suit_item: StringName = StringName(_equipment_items.get(&"suit", &""))
+	var flashlight_unlocked: bool = suit_item == &"suit_flashlight" or _unlocked_items.has(&"suit_flashlight")
+	if is_instance_valid(_player):
+		if _player.has_method("set_suit_flashlight_unlocked"):
+			_player.set_suit_flashlight_unlocked(flashlight_unlocked)
+		if active_item == &"":
+			_player.unequip_item()
+		else:
+			_player.equip_item(active_item)
+	_update_equipped_status_banner()
+
+
+func _update_equipped_status_banner() -> void:
+	if not is_instance_valid(_equipped_status_label):
+		return
+	var active_item: StringName = StringName(_equipment_items.get(&"tool", &""))
+	var suit_item: StringName = StringName(_equipment_items.get(&"suit", &""))
+	var flashlight_unlocked: bool = _unlocked_items.has(&"suit_flashlight") or suit_item == &"suit_flashlight"
+	var flashlight_on := false
+	if is_instance_valid(_player) and _player.has_method("is_suit_flashlight_enabled"):
+		flashlight_on = _player.is_suit_flashlight_enabled()
+	var flashlight_status := ("ON" if flashlight_on else "OFF") if flashlight_unlocked else "LOCKED"
+	if active_item != &"" and ITEM_DATA.has(active_item):
+		var item_name := str(ITEM_DATA[active_item]["name"]).to_upper()
+		var amount_text := ""
+		var banner_color: Color = _item_color(active_item)
+		if is_item_limited(active_item):
+			var amount := get_item_amount(active_item)
+			amount_text = " [x%d]" % amount if amount > 0 else " [EMPTY / 0 LEFT]"
+			if amount <= 0:
+				banner_color = Color(1.0, 0.42, 0.35)
+		_equipped_status_label.text = "EQUIPPED: %s%s  //  [F] LIGHT: %s" % [item_name, amount_text, flashlight_status]
+		_equipped_status_label.add_theme_color_override("font_color", banner_color)
+	else:
+		_equipped_status_label.text = "UNARMED  //  [F] SUIT LIGHT: %s" % flashlight_status
+		_equipped_status_label.add_theme_color_override("font_color", MUTED)
+
+
 func _panel_style(background: Color, border: Color, padding: float) -> StyleBox:
 	if padding >= 5:
 		var frame := PIXEL_THEME.get_stylebox("panel", "PanelContainer").duplicate() as StyleBox
@@ -1447,11 +1973,73 @@ func _get_room_lighting() -> Node2D:
 	return null
 
 
+func grant_hotbar_item(item_id: StringName) -> bool:
+	if not ITEM_DATA.has(item_id):
+		return false
+	if _hotbar_items.has(item_id) or _storage_items.has(item_id):
+		return true
+	for i in range(_hotbar_items.size()):
+		if _hotbar_items[i] == &"":
+			_hotbar_items[i] = item_id
+			_refresh_hotbar()
+			_refresh_inventory_cells()
+			_save_persistent_inventory_state()
+			inventory_changed.emit()
+			return true
+	for i in range(_storage_items.size()):
+		if _storage_items[i] == &"":
+			_storage_items[i] = item_id
+			_refresh_hotbar()
+			_refresh_inventory_cells()
+			_save_persistent_inventory_state()
+			inventory_changed.emit()
+			return true
+	return false
+
+
+func consume_item(item_id: StringName) -> bool:
+	for i in range(_hotbar_items.size()):
+		if _hotbar_items[i] == item_id:
+			_hotbar_items[i] = &""
+			_refresh_hotbar()
+			_refresh_inventory_cells()
+			_save_persistent_inventory_state()
+			inventory_changed.emit()
+			return true
+	for i in range(_storage_items.size()):
+		if _storage_items[i] == item_id:
+			_storage_items[i] = &""
+			_refresh_hotbar()
+			_refresh_inventory_cells()
+			_save_persistent_inventory_state()
+			inventory_changed.emit()
+			return true
+	return false
+
+
 func inventory_count(item: StringName) -> int:
-	var count := _storage_items.count(item)+_hotbar_items.count(item)
+	var count := _storage_items.count(item) + _hotbar_items.count(item)
 	for carried in _equipment_items.values():
-		if StringName(carried)==item: count+=1
+		if StringName(carried) == item:
+			count += 1
 	return count
+
+
+func _set_dev_active_tab(tab_id: StringName) -> void:
+	_dev_active_tab = tab_id
+	for t_id in _dev_tab_buttons:
+		var btn: Button = _dev_tab_buttons[t_id]
+		if is_instance_valid(btn):
+			if t_id == tab_id:
+				btn.add_theme_color_override("font_color", GOLD)
+				btn.add_theme_stylebox_override("normal", _button_style(GOLD, true))
+			else:
+				btn.add_theme_color_override("font_color", MUTED)
+				btn.add_theme_stylebox_override("normal", _button_style(MUTED, false))
+	for s_id in _dev_sections:
+		var sec: Control = _dev_sections[s_id]
+		if is_instance_valid(sec):
+			sec.visible = (tab_id == &"all" or tab_id == s_id)
 
 
 func inventory_put(item: StringName, amount := 1) -> bool:
@@ -1576,7 +2164,7 @@ func _build_dev_menu_panel() -> void:
 	_dev_panel.offset_left = -410.0
 	_dev_panel.offset_top = 88.0
 	_dev_panel.offset_right = -18.0
-	_dev_panel.offset_bottom = 458.0
+	_dev_panel.offset_bottom = 510.0
 	_dev_panel.visible = false
 	_dev_panel.add_theme_stylebox_override("panel", ESTYLE.make("module", 14.0))
 	_root.add_child(_dev_panel)
@@ -1678,6 +2266,417 @@ func _build_dev_menu_panel() -> void:
 		scenario.pressed.connect(func(): mission_scenario_requested.emit(context);_dev_panel.hide())
 		scenarios.add_child(scenario)
 	stack.add_child(scenarios)
+	var mining_button := _button("START MINING TASK", Vector2(220, 36), GOLD)
+	mining_button.tooltip_text = "Development shortcut: warp to the Erebos extraction rig with the mining task active."
+	mining_button.pressed.connect(_on_dev_start_mining_task)
+	stack.add_child(mining_button)
+
+	_set_dev_active_tab(&"all")
+
+
+func _on_dev_spawn_monster_chase(stage: int) -> void:
+	if is_instance_valid(_dev_panel):
+		_dev_panel.visible = false
+	if not is_inside_tree():
+		return
+	var tree := get_tree()
+	var current_scene := tree.current_scene
+	if current_scene == null:
+		return
+	var villain: Node2D = tree.get_first_node_in_group("resonance_ore_villain") as Node2D
+	if villain == null and current_scene.has_node("ResonanceOreVillain"):
+		villain = current_scene.get_node("ResonanceOreVillain") as Node2D
+
+	if villain == null:
+		var villain_scene := load("res://scenes/ship/crew/resonance_ore_villain.tscn") as PackedScene
+		if villain_scene != null:
+			villain = villain_scene.instantiate() as Node2D
+			var spawn_parent: Node = current_scene
+			var floor_layer := current_scene.get_node_or_null("FloorLayer")
+			if floor_layer != null:
+				spawn_parent = floor_layer
+			spawn_parent.add_child(villain)
+
+	if villain != null:
+		if is_instance_valid(_player):
+			var spawn_offset := Vector2(160.0, 0.0)
+			villain.global_position = _player.global_position + spawn_offset
+		villain.set("stalk_player_distance", 9999.0)
+		villain.set("is_active", true)
+		villain.set("in_ducts", false)
+		villain.visible = true
+		match stage:
+			1:
+				if villain.has_method("fuse_with_amara"):
+					villain.call("fuse_with_amara")
+			2:
+				if villain.has_method("mutate_to_stage2"):
+					villain.call("mutate_to_stage2")
+			3:
+				if villain.has_method("mutate_to_final_form"):
+					villain.call("mutate_to_final_form")
+			_:
+				villain.set("current_stage", 0)
+				villain.set("is_fused_with_amara", false)
+				villain.set("stalk_speed", 58.0)
+				if villain.has_node("AnimatedSprite2D"):
+					var spr := villain.get_node("AnimatedSprite2D") as AnimatedSprite2D
+					spr.modulate = Color(0.3, 0.85, 1.0, 0.9)
+					spr.scale = Vector2.ONE
+
+		var lighting := _get_room_lighting()
+		if lighting != null and lighting.has_method("set_flicker_current_room"):
+			lighting.call("set_flicker_current_room", true)
+			lighting.call("set_flicker_style", &"strobe")
+
+		var stage_name := "ORIGINAL LIQUID ORE"
+		var stage_color := CYAN
+		match stage:
+			1:
+				stage_name = "STAGE 1 (INFECTED AMARA)"
+				stage_color = CYAN
+			2:
+				stage_name = "STAGE 2 (MUTATED AMARA)"
+				stage_color = ORANGE
+			3:
+				stage_name = "STAGE 3 (FINAL FORM TITAN)"
+				stage_color = RED
+		show_achievement_popup("PURSUIT TRIGGERED: " + stage_name, "Monster tracking at distance 9999", "DEV CHASE", stage_color)
+
+
+func _on_dev_retreat_monster_ducts() -> void:
+	if not is_inside_tree():
+		return
+	var tree := get_tree()
+	var villain: Node2D = tree.get_first_node_in_group("resonance_ore_villain") as Node2D
+	var cur_scene := tree.current_scene
+	if villain == null and cur_scene != null and cur_scene.has_node("ResonanceOreVillain"):
+		villain = cur_scene.get_node("ResonanceOreVillain") as Node2D
+	if villain != null and villain.has_method("disappear_into_ducts"):
+		villain.call("disappear_into_ducts")
+		show_achievement_popup("MONSTER RETREATED", "Villain entered ship ventilation ducts", "DEV MONSTER", CYAN)
+
+
+func _on_dev_despawn_monster() -> void:
+	if not is_inside_tree():
+		return
+	var tree := get_tree()
+	var villains := tree.get_nodes_in_group("resonance_ore_villain")
+	for v in villains:
+		v.queue_free()
+	var cur_scene := tree.current_scene
+	if cur_scene != null and cur_scene.has_node("ResonanceOreVillain"):
+		cur_scene.get_node("ResonanceOreVillain").queue_free()
+	show_achievement_popup("MONSTER DESPAWNED", "All villain instances removed", "DEV MONSTER", MUTED)
+
+
+func _on_dev_repel_monster_test(tool_id: StringName) -> void:
+	if not is_inside_tree():
+		return
+	var tree := get_tree()
+	var villain: Node2D = tree.get_first_node_in_group("resonance_ore_villain") as Node2D
+	var cur_scene := tree.current_scene
+	if villain == null and cur_scene != null and cur_scene.has_node("ResonanceOreVillain"):
+		villain = cur_scene.get_node("ResonanceOreVillain") as Node2D
+	if villain != null and villain.has_method("repel_with_tool"):
+		var p_pos := _player.global_position if is_instance_valid(_player) else Vector2.ZERO
+		villain.call("repel_with_tool", tool_id, p_pos)
+		show_achievement_popup("REPEL SIGNAL SENT", "Tested tool: %s" % tool_id, "DEV TEST", ORANGE)
+
+
+func _on_dev_trigger_medbay_ambush() -> void:
+	if is_instance_valid(_dev_panel):
+		_dev_panel.visible = false
+	if not is_inside_tree():
+		return
+	var tree := get_tree()
+	var cur_scene := tree.current_scene
+	var target_medbay := Vector2(760.0, 200.0)
+	if cur_scene != null and cur_scene.scene_file_path == "res://scenes/ship/bare_ship_walkthrough.tscn":
+		if is_instance_valid(_player):
+			_player.global_position = target_medbay
+			if _player.camera != null:
+				_player.camera.reset_smoothing()
+		if cur_scene.has_method("_play_medbay_ambush_sequence"):
+			cur_scene.call(&"_play_medbay_ambush_sequence")
+	else:
+		Engine.set_meta(&"dev_warp_target", target_medbay)
+		Engine.set_meta(&"dev_trigger_ambush", true)
+		tree.change_scene_to_file("res://scenes/ship/bare_ship_walkthrough.tscn")
+
+
+func _on_dev_trigger_lab_breach() -> void:
+	if is_instance_valid(_dev_panel):
+		_dev_panel.visible = false
+	if not is_inside_tree():
+		return
+	var tree := get_tree()
+	var cur_scene := tree.current_scene
+	var target_lab := Vector2(430.0, 480.0)
+	if cur_scene != null and cur_scene.scene_file_path == "res://scenes/ship/bare_ship_walkthrough.tscn":
+		if is_instance_valid(_player):
+			_player.global_position = target_lab
+			if _player.camera != null:
+				_player.camera.reset_smoothing()
+		if cur_scene.has_method("_spawn_resonance_ore_villain"):
+			cur_scene.call(&"_spawn_resonance_ore_villain", true)
+		if cur_scene.has_method("_apply_lab_destruction_stage"):
+			cur_scene.call(&"_apply_lab_destruction_stage", 2, true)
+		show_achievement_popup("LAB BREACH TRIGGERED", "Containment shattered & ore unleashed", "DEV LAB", RED)
+	else:
+		Engine.set_meta(&"dev_warp_target", target_lab)
+		Engine.set_meta(&"dev_trigger_lab_breach", true)
+		tree.change_scene_to_file("res://scenes/ship/bare_ship_walkthrough.tscn")
+
+
+func _on_dev_trigger_piloting_encounter(encounter_id: StringName) -> void:
+	if is_instance_valid(_dev_panel):
+		_dev_panel.visible = false
+	if not is_inside_tree():
+		return
+	var tree := get_tree()
+	var cur_scene := tree.current_scene
+	if cur_scene != null and cur_scene.has_method("_open_ship_piloting_console"):
+		cur_scene.call(&"_open_ship_piloting_console", encounter_id, true)
+		return
+
+	var pilot_script := load("res://scripts/ui/ship_piloting_console.gd") as Script
+	if pilot_script != null:
+		var pilot_console: CanvasLayer = pilot_script.new() as CanvasLayer
+		if pilot_console != null:
+			set_walking_visible(false)
+			pilot_console.call(&"setup", encounter_id, true)
+			pilot_console.connect(&"piloting_closed", func(): set_walking_visible(true))
+			tree.root.add_child(pilot_console)
+
+
+func _on_dev_set_cosmic_sector(sector_id: StringName) -> void:
+	if not is_inside_tree():
+		return
+	var tree := get_tree()
+	var cur_scene := tree.current_scene
+	var backdrop: Node2D = null
+	if cur_scene != null:
+		backdrop = cur_scene.get_node_or_null("SpaceBackdrop") as Node2D
+		if backdrop == null and cur_scene.get("space_backdrop") != null:
+			backdrop = cur_scene.get("space_backdrop") as Node2D
+	if backdrop == null:
+		var found := tree.get_nodes_in_group("space_backdrop")
+		if not found.is_empty():
+			backdrop = found[0] as Node2D
+	if backdrop != null and backdrop.has_method("set_cosmic_sector"):
+		backdrop.call("set_cosmic_sector", sector_id, 1.5)
+		show_achievement_popup("COSMIC SECTOR: " + str(sector_id).to_upper(), "Accretion/starfield blend active", "DEV COSMOS", GOLD)
+
+
+func _on_dev_play_station_cutscene(station_id: StringName) -> void:
+	if is_instance_valid(_dev_panel):
+		_dev_panel.visible = false
+	if not is_inside_tree():
+		return
+	var tree := get_tree()
+	var cur_scene := tree.current_scene
+	if cur_scene != null and cur_scene.has_method("_trigger_story_station"):
+		cur_scene.call(&"_trigger_story_station", station_id)
+		return
+	if cur_scene != null and cur_scene.has_method("_build_cutscene_data"):
+		var cutscene_data: Dictionary = cur_scene.call(&"_build_cutscene_data", station_id)
+		if not cutscene_data.is_empty():
+			var overlay_script := load("res://scripts/ui/story_cutscene_overlay.gd") as Script
+			if overlay_script != null:
+				var overlay: CanvasLayer = overlay_script.new() as CanvasLayer
+				set_walking_visible(false)
+				overlay.connect(&"cutscene_finished", func(_c_id, _ch_id):
+					set_walking_visible(true)
+					overlay.queue_free()
+				)
+				tree.root.add_child(overlay)
+				overlay.call(&"play_cutscene", station_id, cutscene_data)
+
+
+func _on_dev_play_prologue_montage() -> void:
+	if is_instance_valid(_dev_panel):
+		_dev_panel.visible = false
+	if not is_inside_tree():
+		return
+	var tree := get_tree()
+	tree.change_scene_to_file("res://scenes/ui/earth_years_montage.tscn")
+
+
+func _on_dev_play_thadingyut_cutscene() -> void:
+	if is_instance_valid(_dev_panel):
+		_dev_panel.visible = false
+	if not is_inside_tree():
+		return
+	var tree := get_tree()
+	var cutscene_res := load("res://scenes/ui/thadingyut_memory_cutscene.tscn") as PackedScene
+	if cutscene_res != null:
+		var cutscene := cutscene_res.instantiate() as Control
+		tree.root.add_child(cutscene)
+
+
+func _on_dev_play_arrival_briefing() -> void:
+	if is_instance_valid(_dev_panel):
+		_dev_panel.visible = false
+	if not is_inside_tree():
+		return
+	var tree := get_tree()
+	var briefing_res := load("res://scenes/ui/arrival_briefing.tscn") as PackedScene
+	if briefing_res != null:
+		var briefing := briefing_res.instantiate() as CanvasLayer
+		briefing.connect(&"dismissed", func(): briefing.queue_free())
+		tree.root.add_child(briefing)
+
+
+func _on_dev_play_epilogue(ending_id: StringName) -> void:
+	if is_instance_valid(_dev_panel):
+		_dev_panel.visible = false
+	if not is_inside_tree():
+		return
+	var tree := get_tree()
+	var cur_scene := tree.current_scene
+	if cur_scene != null and cur_scene.has_method("_play_ending_epilogue"):
+		cur_scene.call(&"_play_ending_epilogue", ending_id)
+
+
+func _on_dev_warp_to_deck(scene_path: String, target_pos: Vector2) -> void:
+	if is_instance_valid(_dev_panel):
+		_dev_panel.visible = false
+	if not is_inside_tree():
+		return
+	var tree := get_tree()
+	var cur_scene := tree.current_scene
+	if cur_scene != null and cur_scene.scene_file_path == scene_path:
+		if is_instance_valid(_player):
+			_player.global_position = target_pos
+			if _player.camera != null:
+				_player.camera.reset_smoothing()
+		return
+	Engine.set_meta(&"dev_warp_target", target_pos)
+	tree.change_scene_to_file(scene_path)
+
+
+func _on_dev_start_mining_task() -> void:
+	if is_instance_valid(_dev_panel):
+		_dev_panel.visible = false
+	if not is_inside_tree():
+		return
+	Engine.set_meta(&"dev_start_mining_task", true)
+	Engine.set_meta(&"harmonic_bypass_coupler_unlocked", true)
+	Engine.set_meta(&"dev_warp_target", Vector2(1060.0, 520.0))
+	get_tree().change_scene_to_file(PLANET_SCENE_PATH)
+
+
+func _on_dev_warp_to_room_coords(scene_path: String, coords: Vector2, room_name: String) -> void:
+	if is_instance_valid(_dev_panel):
+		_dev_panel.visible = false
+	if not is_inside_tree():
+		return
+	var tree := get_tree()
+	var cur_scene := tree.current_scene
+	if cur_scene != null and cur_scene.scene_file_path == scene_path:
+		if is_instance_valid(_player):
+			_player.global_position = coords
+			if _player.camera != null:
+				_player.camera.reset_smoothing()
+			show_achievement_popup("WARPED TO " + room_name.to_upper(), "Coordinates: %s" % str(coords), "DEV WARP", CYAN)
+		return
+	Engine.set_meta(&"dev_warp_target", coords)
+	tree.change_scene_to_file(scene_path)
+
+
+func _on_dev_toggle_god_mode() -> void:
+	_dev_god_mode_active = not _dev_god_mode_active
+	if is_instance_valid(_player):
+		_player.is_concealed = _dev_god_mode_active
+		if _dev_god_mode_active:
+			_player.modulate = Color(0.6, 1.0, 0.9, 0.7)
+			show_achievement_popup("GOD MODE: ENABLED", "Invisible to monster & invulnerable", "DEV CHEAT", GREEN)
+		else:
+			_player.modulate = Color(1.0, 1.0, 1.0, 1.0)
+			show_achievement_popup("GOD MODE: DISABLED", "Standard vulnerability restored", "DEV CHEAT", MUTED)
+
+
+func _on_dev_complete_all_tasks() -> void:
+	var tasks_to_complete: Array[StringName] = [
+		&"cabin_may_recording",
+		&"bridge_flight_piloting",
+		&"auxiliary_power",
+		&"air_filter",
+		&"nutrient_flow",
+		&"drone_vibration_scan",
+		&"landing_prep_beacons",
+		&"erebos_landing_descent",
+		&"cargo_breach_inspection",
+		&"commanders_secret_bridge",
+		&"subdeck_workshop_power",
+		&"act_v_finale_home"
+	]
+	for t in tasks_to_complete:
+		_task_completed[t] = true
+	if is_inside_tree():
+		var tree := get_tree()
+		var cur_scene: Node = tree.current_scene if tree != null else null
+		if cur_scene != null and cur_scene.get("_completed_story_stations") != null:
+			var st_dict: Dictionary = cur_scene.get("_completed_story_stations")
+			for t in tasks_to_complete:
+				st_dict[t] = true
+		if cur_scene != null and cur_scene.get("_completed_crew_tasks") != null:
+			var cr_dict: Dictionary = cur_scene.get("_completed_crew_tasks")
+			for t in tasks_to_complete:
+				cr_dict[t] = true
+	_validate_inventory_against_task_progression()
+	_refresh_mission_panel()
+	_refresh_tasks_overlay()
+	_save_persistent_inventory_state()
+	show_achievement_popup("ALL MISSIONS CLEARED", "All main and crew tasks marked complete", "DEV PROGRESS", GOLD)
+
+
+func _on_dev_unlock_all_achievements() -> void:
+	for def in ACHIEVEMENTS_CATALOG:
+		var aid: StringName = def["id"]
+		unlock_achievement(aid, false)
+	show_achievement_popup("ALL ACHIEVEMENTS UNLOCKED", "Every medal awarded", "DEV ACHIEVE", GOLD)
+
+
+func _on_dev_override_crew_survival(all_survive: bool) -> void:
+	Engine.set_meta(&"commander_chen_saved", all_survive)
+	Engine.set_meta(&"mateo_ruiz_saved", all_survive)
+	Engine.set_meta(&"leila_rescued", all_survive)
+	Engine.set_meta(&"elias_ward_saved", all_survive)
+	if is_inside_tree():
+		var tree := get_tree()
+		var current_scene: Node = tree.current_scene if tree != null else null
+		if current_scene != null:
+			if current_scene.get("_chen_rescued") != null:
+				current_scene.set("_chen_rescued", all_survive)
+			if current_scene.get("_leila_rescued") != null:
+				current_scene.set("_leila_rescued", all_survive)
+	var status_text := "ALL CREW SURVIVED (CHEN, MATEO, LEILA, WARD)" if all_survive else "ALL CREW FALLEN / SACRIFICED"
+	show_achievement_popup("CREW FATE OVERRIDE", status_text, "DEV STORY", GREEN if all_survive else RED)
+
+
+func _on_dev_trigger_asteroid_cutscene() -> void:
+	if is_instance_valid(_dev_panel):
+		_dev_panel.visible = false
+	if not is_inside_tree():
+		return
+	var tree := get_tree()
+	var current_scene: Node = tree.current_scene
+	if current_scene != null and current_scene.has_method("trigger_emergency_asteroid_cutscene"):
+		current_scene.call("trigger_emergency_asteroid_cutscene")
+
+
+func _on_dev_switch_deck() -> void:
+	if not is_inside_tree():
+		return
+	var tree := get_tree()
+	var current_scene := tree.current_scene
+	if current_scene != null and current_scene.scene_file_path == "res://scenes/ship/second_floor_subdeck.tscn":
+		Engine.set_meta(&"returning_from_second_floor", true)
+		tree.change_scene_to_file("res://scenes/ship/bare_ship_walkthrough.tscn")
+	else:
+		tree.change_scene_to_file("res://scenes/ship/second_floor_subdeck.tscn")
 
 
 func _toggle_dev_menu() -> void:
@@ -1835,8 +2834,826 @@ func _refresh_dev_menu() -> void:
 		_dev_room_flicker_btn.text = "ROOM FLICKER: " + ("ON" if room_on else "OFF")
 
 
-func _select_hotbar(index: int) -> void:
+func _load_persistent_inventory_state() -> void:
+	if Engine.has_meta(CAMPAIGN_META_KEY):
+		var state: Dictionary = Engine.get_meta(CAMPAIGN_META_KEY)
+		var saved_hotbar: Array = state.get("hotbar", [])
+		if saved_hotbar.size() == 9:
+			for i in range(9):
+				_hotbar_items[i] = StringName(saved_hotbar[i])
+		var saved_storage: Array = state.get("storage", [])
+		if saved_storage.size() == 27:
+			for i in range(27):
+				_storage_items[i] = StringName(saved_storage[i])
+		var saved_eq: Dictionary = state.get("equipment", {})
+		for k in [&"head", &"suit", &"pack", &"tool"]:
+			if saved_eq.has(k):
+				_equipment_items[k] = StringName(saved_eq[k])
+		_selected_hotbar_index = int(state.get("selected_hotbar_index", 0))
+		_unlocked_items = state.get("unlocked_items", {}).duplicate()
+		_collected_logs = state.get("collected_logs", {}).duplicate()
+		_unlocked_achievements = state.get("unlocked_achievements", {}).duplicate()
+		_current_story_act = str(state.get("story_act", "ACT I — THE LONG APPROACH"))
+		var saved_amounts: Dictionary = state.get("item_amounts", {})
+		for item_id in saved_amounts:
+			_item_amounts[StringName(item_id)] = int(saved_amounts[item_id])
+		for item_id in _unlocked_items:
+			if ITEM_LIMITS.has(item_id) and not _item_amounts.has(item_id):
+				_item_amounts[item_id] = ITEM_LIMITS[item_id]["default"]
+		_validate_inventory_against_task_progression()
+		var suit_item: StringName = StringName(_equipment_items.get(&"suit", &""))
+		var flashlight_unlocked: bool = _unlocked_items.has(&"suit_flashlight") or suit_item == &"suit_flashlight"
+		if is_instance_valid(_player):
+			if _player.has_method("sync_equipment_amounts"):
+				_player.sync_equipment_amounts(_item_amounts)
+			if _player.has_method("set_suit_flashlight_unlocked"):
+				_player.set_suit_flashlight_unlocked(flashlight_unlocked)
+			if _player.has_method("set_suit_flashlight_enabled"):
+				_player.set_suit_flashlight_enabled(bool(state.get("flashlight_enabled", flashlight_unlocked)))
+	else:
+		_validate_inventory_against_task_progression()
+		_save_persistent_inventory_state()
+
+
+func _is_progression_item_allowed(item_id: StringName) -> bool:
+	if not ALL_PROGRESSION_ITEMS.has(item_id):
+		return true
+	# Ignore legacy unlock flags for combat items whose former Erebos-era unlocks
+	# were removed from the story progression. Completed mission state is the
+	# source of truth so old saves cannot carry chapter-late weapons back early.
+	var progression_locked_item := item_id in [&"emergency_flare", &"industrial_plasma_cutter", &"electrical_discharge_tool"]
+	if not progression_locked_item and Engine.has_meta(str(item_id) + "_unlocked") and bool(Engine.get_meta(str(item_id) + "_unlocked")):
+		return true
+	match item_id:
+		&"suit_flashlight":
+			return bool(_task_completed.get(&"bridge_flight_piloting", false))
+		&"engineering_multitool":
+			return bool(_task_completed.get(&"air_filter", false)) or bool(_task_completed.get(&"subdeck_workshop_power", false))
+		&"pressure_sealant":
+			return bool(_task_completed.get(&"nutrient_flow", false)) or bool(_task_completed.get(&"drone_vibration_scan", false)) or bool(_task_completed.get(&"subdeck_coolant_manifold", false))
+		&"mineral_survey_scanner":
+			return bool(_task_completed.get(&"drone_vibration_scan", false))
+		&"survey_beacon":
+			return bool(_task_completed.get(&"landing_prep_beacons", false))
+		&"emergency_flare":
+			return bool(_task_completed.get(&"subdeck_inventory_manifest", false))
+		&"industrial_plasma_cutter":
+			return false
+		&"electrical_discharge_tool":
+			var story_state: Dictionary = Engine.get_meta(&"echoes_story_progression_state", {})
+			return bool(_task_completed.get(&"subdeck_pipe_pressure", false)) and bool(story_state.get("leila_rescued", false))
+		&"medical_injector":
+			return bool(_task_completed.get(&"lab_trolley", false))
+		&"captains_revolver":
+			return bool(_task_completed.get(&"commanders_secret_bridge", false)) or bool(_task_completed.get(&"act_v_finale_home", false))
+		&"harmonic_bypass_coupler":
+			return Engine.has_meta(&"harmonic_bypass_coupler_unlocked") and bool(Engine.get_meta(&"harmonic_bypass_coupler_unlocked"))
+	return false
+
+
+func _validate_inventory_against_task_progression() -> void:
+	for item_id in ALL_PROGRESSION_ITEMS:
+		if not _is_progression_item_allowed(item_id):
+			if _unlocked_items.has(item_id):
+				_unlocked_items.erase(item_id)
+			for i in range(_hotbar_items.size()):
+				if _hotbar_items[i] == item_id:
+					_hotbar_items[i] = &""
+			for s in range(_storage_items.size()):
+				if _storage_items[s] == item_id:
+					_storage_items[s] = &""
+			for slot in _equipment_items:
+				if _equipment_items[slot] == item_id:
+					_equipment_items[slot] = &""
+			if _item_amounts.has(item_id):
+				_item_amounts.erase(item_id)
+
+	var has_hotbar_item := false
+	for i in range(_hotbar_items.size()):
+		if _hotbar_items[i] != &"":
+			has_hotbar_item = true
+			break
+	if not has_hotbar_item:
+		_selected_hotbar_index = 0
+		_equipment_items[&"tool"] = &""
+
+
+func _save_persistent_inventory_state() -> void:
+	var flashlight_on := false
+	if is_instance_valid(_player) and _player.has_method("is_suit_flashlight_enabled"):
+		flashlight_on = _player.is_suit_flashlight_enabled()
+	var state := {
+		"hotbar": _hotbar_items.duplicate(),
+		"storage": _storage_items.duplicate(),
+		"equipment": _equipment_items.duplicate(),
+		"item_amounts": _item_amounts.duplicate(),
+		"selected_hotbar_index": _selected_hotbar_index,
+		"unlocked_items": _unlocked_items.duplicate(),
+		"collected_logs": _collected_logs.duplicate(),
+		"unlocked_achievements": _unlocked_achievements.duplicate(),
+		"story_act": _current_story_act,
+		"flashlight_enabled": flashlight_on,
+	}
+	Engine.set_meta(CAMPAIGN_META_KEY, state)
+
+
+func is_item_limited(item_id: StringName) -> bool:
+	return ITEM_LIMITS.has(item_id)
+
+
+func get_item_amount(item_id: StringName) -> int:
+	if not ITEM_LIMITS.has(item_id):
+		return -1
+	if not _item_amounts.has(item_id):
+		_item_amounts[item_id] = ITEM_LIMITS[item_id]["default"]
+	return int(_item_amounts[item_id])
+
+
+func get_item_max_amount(item_id: StringName) -> int:
+	if not ITEM_LIMITS.has(item_id):
+		return -1
+	return int(ITEM_LIMITS[item_id]["max"])
+
+
+func set_item_amount(item_id: StringName, amount: int) -> void:
+	if not ITEM_LIMITS.has(item_id):
+		return
+	var max_amt: int = int(ITEM_LIMITS[item_id]["max"])
+	_item_amounts[item_id] = clampi(amount, 0, max_amt)
+	if is_instance_valid(_player) and _player.has_method("set_equipment_amount"):
+		_player.set_equipment_amount(item_id, _item_amounts[item_id])
+	_refresh_hotbar()
+	_refresh_inventory_cells()
+	_update_equipped_status_banner()
+	_save_persistent_inventory_state()
+
+
+func add_item_amount(item_id: StringName, delta: int) -> int:
+	if not ITEM_LIMITS.has(item_id):
+		return -1
+	var cur: int = get_item_amount(item_id)
+	var max_amt: int = int(ITEM_LIMITS[item_id]["max"])
+	var new_amt: int = clampi(cur + delta, 0, max_amt)
+	set_item_amount(item_id, new_amt)
+	return new_amt
+
+
+func restock_all_equipment_amounts() -> void:
+	for item_id in ITEM_LIMITS:
+		_item_amounts[item_id] = int(ITEM_LIMITS[item_id]["max"])
+		if is_instance_valid(_player) and _player.has_method("set_equipment_amount"):
+			_player.set_equipment_amount(item_id, _item_amounts[item_id])
+	_refresh_hotbar()
+	_refresh_inventory_cells()
+	_update_equipped_status_banner()
+	_save_persistent_inventory_state()
+	if is_instance_valid(_equipped_status_label):
+		_equipped_status_label.text = "ALL FLARES, ROUNDS, BEACONS & DOSES RESTOCKED TO MAXIMUM"
+		_equipped_status_label.add_theme_color_override("font_color", GREEN)
+
+
+func _on_player_equipment_amount_changed(item_id: StringName, remaining_amount: int) -> void:
+	_item_amounts[item_id] = remaining_amount
+	_refresh_hotbar()
+	_refresh_inventory_cells()
+	_update_equipped_status_banner()
+	_save_persistent_inventory_state()
+
+
+func _on_player_equipment_depleted(item_id: StringName) -> void:
+	if not ITEM_DATA.has(item_id):
+		return
+	var iname: String = str(ITEM_DATA[item_id]["name"]).to_upper()
+	if is_instance_valid(_equipped_status_label):
+		_equipped_status_label.text = "OUT OF %s (0 LEFT)   //   RESTOCK AT STORAGE OR SHIP CRATES" % iname
+		_equipped_status_label.add_theme_color_override("font_color", Color(1.0, 0.42, 0.35))
+
+
+func has_equipment_item(item_id: StringName) -> bool:
+	return _unlocked_items.has(item_id)
+
+
+func get_unlocked_equipment_count() -> int:
+	return _unlocked_items.size()
+
+
+func get_collected_logs_count() -> int:
+	return _collected_logs.size()
+
+
+func get_equipment_items() -> Dictionary:
+	return _equipment_items.duplicate()
+
+
+func get_hotbar_items() -> Array[StringName]:
+	return _hotbar_items.duplicate()
+
+
+func get_storage_items() -> Array[StringName]:
+	return _storage_items.duplicate()
+
+
+func get_active_overlay() -> StringName:
+	return _active_overlay
+
+
+func record_audio_log(log_id: StringName, _log_title: String = "") -> bool:
+	if log_id == &"" or _collected_logs.has(log_id):
+		return false
+	_collected_logs[log_id] = true
+	_refresh_story_act_label()
+	_refresh_profile_overlay()
+	_refresh_mission_panel()
+	_refresh_tasks_overlay()
+	_save_persistent_inventory_state()
+	var def: Dictionary = get_audio_log_def(log_id)
+	if not def.is_empty():
+		var spk: String = str(def.get("speaker", "AUDIO INTERCEPT"))
+		var title_str: String = str(def.get("title", "DATAPAD")).to_upper()
+		var txt: String = str(def.get("transcript", ""))
+		play_radio_transmission(spk, "[DECRYPTED // %s]\n\"%s\"" % [title_str, txt])
+	return true
+
+
+func get_audio_log_def(log_id: StringName) -> Dictionary:
+	for def in AUDIO_LOGS_CATALOG:
+		if def["id"] == log_id:
+			return def
+	return {}
+
+
+func play_radio_transmission(speaker: String, text: String, is_static: bool = true) -> void:
+	if not is_instance_valid(_comms_panel):
+		return
+	if is_instance_valid(_comms_speaker_label):
+		_comms_speaker_label.text = ("// " + speaker).to_upper()
+	if is_instance_valid(_comms_status_label):
+		_comms_status_label.text = "[● STATIC INTERCOM]" if is_static else "[● SECURE LINK]"
+		_comms_status_label.add_theme_color_override("font_color", ORANGE if is_static else CYAN)
+	if is_instance_valid(_comms_message_label):
+		_comms_message_label.text = text
+	_comms_panel.visible = true
+	_comms_timer = 5.8
+	_comms_panel.modulate = Color(1.0, 1.0, 1.0, 0.0)
+	var tw := create_tween()
+	tw.tween_property(_comms_panel, "modulate:a", 1.0, 0.22).set_trans(Tween.TRANS_SINE)
+
+
+func set_story_act_label(act_label: String) -> void:
+	_current_story_act = act_label
+	_refresh_story_act_label()
+	_save_persistent_inventory_state()
+
+
+func _refresh_story_act_label() -> void:
+	if is_instance_valid(_story_act_label):
+		_story_act_label.text = "%s  //  GEAR %02d/10  ·  LOGS %d/8" % [_current_story_act, _unlocked_items.size(), _collected_logs.size()]
+
+
+func unlock_equipment_item(item_id: StringName, equip_immediately: bool = true, reason_text: String = "") -> bool:
+	if item_id == &"" or not ITEM_DATA.has(item_id):
+		return false
+	Engine.set_meta(str(item_id) + "_unlocked", true)
+	var already_had: bool = _unlocked_items.has(item_id)
+	_unlocked_items[item_id] = true
+	if ITEM_LIMITS.has(item_id):
+		if not _item_amounts.has(item_id) or int(_item_amounts[item_id]) <= 0:
+			_item_amounts[item_id] = int(ITEM_LIMITS[item_id]["default"])
+		else:
+			_item_amounts[item_id] = mini(int(_item_amounts[item_id]) + int(ITEM_LIMITS[item_id]["default"]), int(ITEM_LIMITS[item_id]["max"]))
+		if is_instance_valid(_player) and _player.has_method("set_equipment_amount"):
+			_player.set_equipment_amount(item_id, _item_amounts[item_id])
+
+	var eq_slot: StringName = ITEM_DATA[item_id]["equip_slot"]
+	if eq_slot == &"suit":
+		_equipment_items[&"suit"] = item_id
+		if is_instance_valid(_player):
+			if _player.has_method("set_suit_flashlight_unlocked"):
+				_player.set_suit_flashlight_unlocked(true)
+			if equip_immediately and _player.has_method("set_suit_flashlight_enabled"):
+				_player.set_suit_flashlight_enabled(true)
+	else:
+		var existing_idx: int = _hotbar_items.find(item_id)
+		if existing_idx < 0 and _storage_items.find(item_id) < 0:
+			var placed := false
+			for i in range(_hotbar_items.size()):
+				if _hotbar_items[i] == &"":
+					_hotbar_items[i] = item_id
+					existing_idx = i
+					placed = true
+					break
+			if not placed:
+				for s in range(_storage_items.size()):
+					if _storage_items[s] == &"":
+						_storage_items[s] = item_id
+						break
+		if equip_immediately and existing_idx >= 0:
+			_selected_hotbar_index = existing_idx
+			_equipment_items[&"tool"] = item_id
+	_refresh_hotbar()
+	_refresh_inventory_cells()
+	_refresh_story_act_label()
+	_sync_player_equipped_item()
+	_save_persistent_inventory_state()
+	if _unlocked_items.size() >= ALL_PROGRESSION_ITEMS.size():
+		unlock_achievement(&"full_arsenal_mastery", false)
+	_refresh_profile_overlay()
+	_refresh_mission_panel()
+	_refresh_tasks_overlay()
+	if not already_had:
+		show_equipment_unlocked_toast(item_id, reason_text)
+	return not already_had
+
+
+func unlock_all_equipment_items() -> void:
+	for item_id in ALL_PROGRESSION_ITEMS:
+		unlock_equipment_item(item_id, false, "Dev Menu Full Loadout")
+		if is_item_limited(item_id):
+			set_item_amount(item_id, get_item_max_amount(item_id))
+	_select_hotbar(0, false)
+	show_equipment_unlocked_toast(&"captains_revolver", "ALL 10 EQUIPMENT ITEMS UNLOCKED & RESTOCKED")
+
+
+func show_equipment_unlocked_toast(item_id: StringName, reason_text: String = "") -> void:
+	if not is_instance_valid(_unlock_toast_panel) or not ITEM_DATA.has(item_id):
+		return
+	var item_name: String = str(ITEM_DATA[item_id]["name"]).to_upper()
+	var slot_idx: int = _hotbar_items.find(item_id)
+	if is_instance_valid(_unlock_toast_badge):
+		if item_id == &"suit_flashlight":
+			_unlock_toast_badge.text = "[ EQUIPMENT FOUND // SUIT HARNESS SLOT [F] ]"
+		elif slot_idx >= 0:
+			_unlock_toast_badge.text = "[ EQUIPMENT FOUND // QUICK SLOT [%d]  ·  %d/10 GEAR ]" % [slot_idx + 1, _unlocked_items.size()]
+		else:
+			_unlock_toast_badge.text = "[ EQUIPMENT FOUND // CARGO INVENTORY [I] ]"
+	_unlock_toast_icon.texture = _item_icon_texture(item_id)
+	_unlock_toast_title.text = item_name
+	_unlock_toast_title.add_theme_color_override("font_color", _item_color(item_id))
+	if reason_text.is_empty():
+		if item_id == &"suit_flashlight":
+			_unlock_toast_subtitle.text = "Shoulder beam online  ·  Press [F] anytime to toggle light"
+		elif slot_idx >= 0:
+			_unlock_toast_subtitle.text = "Press [%d] to hold in hand  ·  [Q] Unequip" % (slot_idx + 1)
+		else:
+			_unlock_toast_subtitle.text = "Press [I] to open Loadout & assign to Quick Bar"
+	else:
+		_unlock_toast_subtitle.text = reason_text
+	_unlock_toast_panel.visible = true
+	_unlock_toast_timer = 4.8
+
+
+func _get_achievement_def(ach_id: StringName) -> Dictionary:
+	for def in ACHIEVEMENTS_CATALOG:
+		if def["id"] == ach_id:
+			return def
+	return {}
+
+
+func unlock_achievement(ach_id: StringName, silent: bool = false) -> bool:
+	if ach_id == &"":
+		return false
+	var def: Dictionary = _get_achievement_def(ach_id)
+	if def.is_empty():
+		return false
+	var already_unlocked: bool = _unlocked_achievements.has(ach_id)
+	_unlocked_achievements[ach_id] = true
+	_save_persistent_inventory_state()
+	_refresh_profile_overlay()
+	_refresh_mission_panel()
+	_refresh_tasks_overlay()
+	if not already_unlocked and not silent:
+		show_achievement_popup(str(def["title"]))
+	return not already_unlocked
+
+
+func _on_dev_unlock_next_achievement() -> void:
+	for def in ACHIEVEMENTS_CATALOG:
+		var aid: StringName = def["id"]
+		if not _unlocked_achievements.has(aid):
+			unlock_achievement(aid, false)
+			return
+	show_achievement_popup("All Achievements Unlocked")
+
+
+func show_achievement_popup(title_text: String, subtitle_text: String = "", badge_text: String = "", accent_color: Color = GOLD) -> void:
+	if not is_instance_valid(_achievement_toast_panel):
+		return
+	if _achievement_toast_timer > 0.0 and _achievement_toast_panel.visible:
+		_achievement_toast_queue.append({
+			"title": title_text,
+			"subtitle": subtitle_text,
+			"badge": badge_text,
+			"color": accent_color,
+		})
+		return
+	_display_achievement_toast_now(title_text, subtitle_text, badge_text, accent_color)
+
+
+func _display_achievement_toast_now(title_text: String, _subtitle_text: String, _badge_text: String, accent_color: Color) -> void:
+	if not is_instance_valid(_achievement_toast_panel):
+		return
+	if is_instance_valid(_achievement_toast_medal):
+		_achievement_toast_medal.medal_color = accent_color
+		_achievement_toast_medal.unlocked = true
+		_achievement_toast_medal.queue_redraw()
+	if is_instance_valid(_achievement_toast_badge):
+		_achievement_toast_badge.text = "ACHIEVEMENT UNLOCKED"
+		_achievement_toast_badge.add_theme_color_override("font_color", accent_color)
+	_achievement_toast_title.text = title_text.to_upper()
+	_achievement_toast_panel.visible = true
+	_achievement_toast_timer = 3.6
+	if is_instance_valid(_achievement_toast_tween) and _achievement_toast_tween.is_running():
+		_achievement_toast_tween.kill()
+	_achievement_toast_panel.offset_left = -20.0
+	_achievement_toast_panel.offset_right = 240.0
+	_achievement_toast_panel.modulate = Color(1.0, 1.0, 1.0, 0.0)
+	_achievement_toast_tween = create_tween()
+	_achievement_toast_tween.set_parallel(true)
+	_achievement_toast_tween.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	_achievement_toast_tween.tween_property(_achievement_toast_panel, "offset_left", -276.0, 0.26)
+	_achievement_toast_tween.tween_property(_achievement_toast_panel, "offset_right", -16.0, 0.26)
+	_achievement_toast_tween.tween_property(_achievement_toast_panel, "modulate", Color(1.0, 1.0, 1.0, 1.0), 0.18)
+
+
+func _refresh_profile_overlay() -> void:
+	for tid in _profile_tab_buttons:
+		var tb: Button = _profile_tab_buttons[tid] as Button
+		if is_instance_valid(tb):
+			var is_active: bool = (tid == _profile_view_tab)
+			tb.add_theme_color_override("font_color", GOLD if is_active else MUTED)
+
+	for fid in _profile_filter_buttons:
+		var fb: Button = _profile_filter_buttons[fid] as Button
+		if is_instance_valid(fb):
+			fb.visible = (_profile_view_tab == &"achievements")
+			var is_active: bool = (fid == _achievement_filter)
+			fb.add_theme_color_override("font_color", CYAN if is_active else MUTED)
+
+	if not is_instance_valid(_profile_achievements_list):
+		return
+	for child in _profile_achievements_list.get_children():
+		child.queue_free()
+
+	if _profile_view_tab == &"achievements":
+		var total_count: int = ACHIEVEMENTS_CATALOG.size()
+		var unlocked_count: int = 0
+		for def in ACHIEVEMENTS_CATALOG:
+			if _unlocked_achievements.has(def["id"]):
+				unlocked_count += 1
+		if is_instance_valid(_profile_score_label):
+			_profile_score_label.text = "%d / %d ACHIEVEMENTS" % [unlocked_count, total_count]
+		if is_instance_valid(_profile_progress_bar):
+			_profile_progress_bar.max_value = maxi(total_count, 1)
+			_profile_progress_bar.value = unlocked_count
+
+		var shown_count: int = 0
+		for def in ACHIEVEMENTS_CATALOG:
+			var aid: StringName = def["id"]
+			var is_unlocked: bool = _unlocked_achievements.has(aid)
+			if _achievement_filter == &"unlocked" and not is_unlocked:
+				continue
+			if _achievement_filter == &"locked" and is_unlocked:
+				continue
+			shown_count += 1
+			_profile_achievements_list.add_child(_build_achievement_card(def, is_unlocked))
+		if shown_count == 0:
+			_profile_achievements_list.add_child(_label("None yet.", 10, MUTED))
+	else:
+		var total_logs: int = AUDIO_LOGS_CATALOG.size()
+		var unlocked_logs: int = 0
+		for log_def in AUDIO_LOGS_CATALOG:
+			if _collected_logs.has(log_def["id"]):
+				unlocked_logs += 1
+		if is_instance_valid(_profile_score_label):
+			_profile_score_label.text = "%d / %d LOGS DECRYPTED" % [unlocked_logs, total_logs]
+		if is_instance_valid(_profile_progress_bar):
+			_profile_progress_bar.max_value = maxi(total_logs, 1)
+			_profile_progress_bar.value = unlocked_logs
+
+		for log_def in AUDIO_LOGS_CATALOG:
+			var lid: StringName = log_def["id"]
+			var is_unlocked: bool = _collected_logs.has(lid)
+			_profile_achievements_list.add_child(_build_audio_log_card(log_def, is_unlocked))
+
+
+func _build_audio_log_card(log_def: Dictionary, is_unlocked: bool) -> Control:
+	var row_bg: Color = Color(0.04, 0.07, 0.09, 0.88) if is_unlocked else Color(0.018, 0.03, 0.042, 0.5)
+	var row_border: Color = Color(0.24, 0.95, 0.54, 0.55) if is_unlocked else Color(0.18, 0.26, 0.3, 0.35)
+	var card := PanelContainer.new()
+	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	card.add_theme_stylebox_override("panel", _flat_box(row_bg, row_border, 8.0, 10.0, 1))
+
+	var stack := VBoxContainer.new()
+	stack.add_theme_constant_override("separation", 3)
+	card.add_child(stack)
+
+	var hdr_row := HBoxContainer.new()
+	hdr_row.add_theme_constant_override("separation", 8)
+	stack.add_child(hdr_row)
+
+	var act_tag := _label("[%s // %s]" % [str(log_def.get("act", "ACT")), str(log_def.get("location", "DECK"))], 8, CYAN if is_unlocked else MUTED)
+	hdr_row.add_child(act_tag)
+	hdr_row.add_spacer(false)
+	var status_tag := _label("[● DECRYPTED]" if is_unlocked else "[LOCKED FILE]", 8, GREEN if is_unlocked else Color(0.85, 0.45, 0.35))
+	hdr_row.add_child(status_tag)
+
+	var title_text: String = str(log_def.get("title", "Audio Log"))
+	var speaker_text: String = str(log_def.get("speaker", "Unknown"))
+	var title_lbl := _label("%s  //  %s" % [title_text.to_upper(), speaker_text], 10, GOLD if is_unlocked else MUTED)
+	stack.add_child(title_lbl)
+
+	var body_text: String = str(log_def.get("transcript", "")) if is_unlocked else "[Encrypted audio datapad. Discover this station in Asteria-1 or Erebos to decrypt recording.]"
+	var body_lbl := _label(body_text, 9, PALE if is_unlocked else MUTED)
+	body_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	stack.add_child(body_lbl)
+
+	return card
+
+
+func _build_achievement_card(def: Dictionary, is_unlocked: bool) -> Control:
+	var row_bg: Color = Color(0.04, 0.07, 0.09, 0.72) if is_unlocked else Color(0.018, 0.03, 0.042, 0.45)
+	var row_border: Color = Color(1.0, 0.78, 0.38, 0.45) if is_unlocked else Color(0.16, 0.24, 0.28, 0.3)
+	var card := PanelContainer.new()
+	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	card.custom_minimum_size.y = 36.0
+	card.add_theme_stylebox_override("panel", _flat_box(row_bg, row_border, 12.0, 6.0, 1))
+
+	var hbox := HBoxContainer.new()
+	hbox.add_theme_constant_override("separation", 10)
+	hbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	card.add_child(hbox)
+
+	var medal := AchievementMedalIcon.new()
+	medal.unlocked = is_unlocked
+	medal.medal_color = GOLD
+	hbox.add_child(medal)
+
+	var t_lbl := _label(str(def["title"]).to_upper(), 10, PALE if is_unlocked else Color(0.48, 0.56, 0.60))
+	t_lbl.custom_minimum_size.x = 150.0
+	hbox.add_child(t_lbl)
+
+	var d_lbl := _label(str(def["desc"]), 9, MUTED if is_unlocked else Color(0.36, 0.44, 0.48))
+	d_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	d_lbl.clip_text = true
+	hbox.add_child(d_lbl)
+
+	var status_lbl := _label("UNLOCKED" if is_unlocked else "LOCKED", 9, GOLD if is_unlocked else Color(0.34, 0.42, 0.46))
+	status_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	hbox.add_child(status_lbl)
+
+	return card
+
+
+func _refresh_tasks_overlay() -> void:
+	if not is_instance_valid(_tasks_list_container) or not is_instance_valid(_tasks_arsenal_container):
+		return
+
+	# Update sub-filter button states for tasks
+	for f_id in _tasks_filter_buttons:
+		var btn: Button = _tasks_filter_buttons[f_id]
+		var is_active: bool = (f_id == _tasks_filter_tab)
+		btn.add_theme_color_override("font_color", GOLD if is_active else MUTED)
+		var f_bg := Color(0.05, 0.09, 0.13, 0.9) if is_active else Color(0.02, 0.035, 0.05, 0.5)
+		var f_border: Color = GOLD if is_active else Color(0.18, 0.28, 0.34, 0.45)
+		btn.add_theme_stylebox_override("normal", _flat_box(f_bg, f_border, 10.0, 4.0, 1))
+
+	# 2. Populate Tasks List
+	for child in _tasks_list_container.get_children():
+		_tasks_list_container.remove_child(child)
+		child.queue_free()
+
+	var completed_tasks := 0
+	for tid in _task_completed:
+		if bool(_task_completed[tid]):
+			completed_tasks += 1
+	var total_tasks := _task_entries.size()
+	if is_instance_valid(_tasks_status_summary_label):
+		_tasks_status_summary_label.text = "%d / %d COMPLETED" % [completed_tasks, maxi(total_tasks, 1)]
+		_tasks_status_summary_label.add_theme_color_override("font_color", GREEN if completed_tasks >= total_tasks and total_tasks > 0 else Color(0.48, 0.93, 0.64))
+
+	if is_instance_valid(_tasks_progress_bar):
+		_tasks_progress_bar.max_value = maxi(total_tasks, 1)
+		_tasks_progress_bar.value = completed_tasks
+
+	var active_ids := _get_active_sequential_task_ids()
+	var step_idx := 0
+	for entry in _task_entries:
+		step_idx += 1
+		var tid: StringName = StringName(entry.get("id", &""))
+		var is_done: bool = bool(_task_completed.get(tid, false))
+		var is_active_task: bool = active_ids.has(tid)
+
+		if _tasks_filter_tab == &"active" and is_done:
+			continue
+		if _tasks_filter_tab == &"active" and not is_active_task:
+			continue
+		if _tasks_filter_tab == &"completed" and not is_done:
+			continue
+
+		var card := PanelContainer.new()
+		var card_bg: Color
+		var card_border: Color
+		if is_done:
+			card_bg = Color(0.012, 0.032, 0.022, 0.92)
+			card_border = Color(0.2, 0.52, 0.34, 0.5)
+		elif is_active_task:
+			card_bg = Color(0.016, 0.045, 0.065, 0.96)
+			card_border = Color(0.35, 0.82, 0.98, 0.85)
+		else:
+			card_bg = Color(0.016, 0.025, 0.036, 0.88)
+			card_border = Color(0.18, 0.28, 0.36, 0.45)
+
+		card.add_theme_stylebox_override("panel", _flat_box(card_bg, card_border, 16.0, 10.0, 1))
+
+		var card_box := VBoxContainer.new()
+		card_box.add_theme_constant_override("separation", 4)
+		card.add_child(card_box)
+
+		# Top header row: Room · Step · Status
+		var card_top := HBoxContainer.new()
+		card_top.add_theme_constant_override("separation", 8)
+
+		var room_text: String = str(entry.get("room_name", entry.get("marker_label", "MAIN DECK"))).to_upper()
+		var room_lbl := _label(room_text, 10, CYAN if not is_done else Color(0.48, 0.72, 0.62))
+		card_top.add_child(room_lbl)
+
+		var bullet := _label("·", 10, MUTED)
+		card_top.add_child(bullet)
+
+		var step_lbl := _label("STEP %02d" % step_idx, 10, MUTED)
+		card_top.add_child(step_lbl)
+
+		card_top.add_spacer(false)
+
+		var status_badge := Label.new()
+		status_badge.add_theme_font_size_override("font_size", 10)
+		if is_done:
+			status_badge.text = "COMPLETED ✔"
+			status_badge.add_theme_color_override("font_color", GREEN)
+		elif is_active_task:
+			status_badge.text = "● ACTIVE OBJECTIVE"
+			status_badge.add_theme_color_override("font_color", ORANGE)
+		else:
+			status_badge.text = "PENDING"
+			status_badge.add_theme_color_override("font_color", Color(0.45, 0.55, 0.62))
+		card_top.add_child(status_badge)
+		card_box.add_child(card_top)
+
+		# Task title (clean, readable)
+		var clean_title := _format_clean_title(str(entry.get("title", "Watch Duty")))
+		var title_lbl := _label(clean_title, 13, PALE if not is_done else Color(0.72, 0.84, 0.76))
+		title_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		card_box.add_child(title_lbl)
+
+		# Action hint
+		var hint_str: String = str(entry.get("action_hint", entry.get("prompt", "")))
+		if not hint_str.is_empty():
+			var hint_lbl := _label("▶  " + hint_str, 10, Color(0.68, 0.84, 0.9) if not is_done else Color(0.48, 0.62, 0.55))
+			hint_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			card_box.add_child(hint_lbl)
+		var purpose_str: String = str(entry.get("purpose", ""))
+		if not purpose_str.is_empty():
+			var purpose_lbl := _label("WHY  " + purpose_str, 10, Color(0.68, 0.76, 0.82) if not is_done else Color(0.48, 0.62, 0.55))
+			purpose_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			card_box.add_child(purpose_lbl)
+
+		# Reward preview row
+		var r_item: StringName = StringName(entry.get("reward_item", &""))
+		var m_item: StringName = StringName(entry.get("milestone_reward", r_item))
+		if r_item != &"" and ITEM_DATA.has(r_item):
+			var r_name: String = str(ITEM_DATA[r_item]["name"]).to_upper()
+			var r_lbl := Label.new()
+			r_lbl.add_theme_font_size_override("font_size", 10)
+			if is_done:
+				r_lbl.text = "★ WEAPON SECURED: " + r_name
+				r_lbl.add_theme_color_override("font_color", GREEN)
+			else:
+				r_lbl.text = "⚡ UNLOCKS WEAPON: " + r_name
+				r_lbl.add_theme_color_override("font_color", GOLD)
+			card_box.add_child(r_lbl)
+		elif m_item != &"" and ITEM_DATA.has(m_item):
+			var m_name: String = str(ITEM_DATA[m_item]["name"]).to_upper()
+			var m_lbl := Label.new()
+			m_lbl.add_theme_font_size_override("font_size", 10)
+			if is_done:
+				m_lbl.text = "✓ CONTRIBUTED TOWARDS: " + m_name
+				m_lbl.add_theme_color_override("font_color", Color(0.48, 0.93, 0.64))
+			else:
+				m_lbl.text = "◈ ADVANCES ARSENAL MILESTONE: " + m_name
+				m_lbl.add_theme_color_override("font_color", CYAN)
+			card_box.add_child(m_lbl)
+
+		_tasks_list_container.add_child(card)
+
+	# 3. Populate Arsenal Progression Showcase
+	for child in _tasks_arsenal_container.get_children():
+		_tasks_arsenal_container.remove_child(child)
+		child.queue_free()
+
+	var unlocked_arsenal_count := 0
+	for item_def in ARSENAL_CATALOG:
+		var item_id: StringName = item_def["id"]
+		var is_unlocked: bool = _unlocked_items.has(item_id) or (Engine.has_meta(str(item_id) + "_unlocked") and bool(Engine.get_meta(str(item_id) + "_unlocked")))
+		if is_unlocked:
+			unlocked_arsenal_count += 1
+
+		if _arsenal_filter_tab == &"unlocked" and not is_unlocked:
+			continue
+		if _arsenal_filter_tab == &"locked" and is_unlocked:
+			continue
+
+		var card := PanelContainer.new()
+		var card_bg := Color(0.015, 0.038, 0.028, 0.95) if is_unlocked else Color(0.016, 0.025, 0.036, 0.88)
+		var card_border := Color(0.24, 0.82, 0.52, 0.7) if is_unlocked else Color(0.18, 0.28, 0.35, 0.45)
+		card.add_theme_stylebox_override("panel", _flat_box(card_bg, card_border, 16.0, 10.0, 1))
+
+		var card_hbox := HBoxContainer.new()
+		card_hbox.add_theme_constant_override("separation", 14)
+		card.add_child(card_hbox)
+
+		# Icon thumbnail
+		var icon_frame := PanelContainer.new()
+		icon_frame.custom_minimum_size = Vector2(44, 44)
+		icon_frame.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		var if_bg := Color(0.02, 0.05, 0.04) if is_unlocked else Color(0.018, 0.025, 0.032)
+		var if_border: Color = item_def["category_color"] if is_unlocked else Color(0.25, 0.35, 0.4)
+		icon_frame.add_theme_stylebox_override("panel", _flat_box(if_bg, if_border, 4.0, 4.0, 1))
+
+		var icon_rect := TextureRect.new()
+		icon_rect.custom_minimum_size = Vector2(36, 36)
+		icon_rect.texture = _item_icon_texture(item_id)
+		icon_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		icon_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		icon_rect.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		if not is_unlocked:
+			icon_rect.modulate = Color(0.38, 0.48, 0.55, 0.55)
+		icon_frame.add_child(icon_rect)
+		card_hbox.add_child(icon_frame)
+
+		# Details stack
+		var details := VBoxContainer.new()
+		details.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		details.add_theme_constant_override("separation", 3)
+		card_hbox.add_child(details)
+
+		# Header row
+		var d_top := HBoxContainer.new()
+		d_top.add_theme_constant_override("separation", 8)
+
+		var cat_lbl := _label(str(item_def["category"]), 10, item_def["category_color"])
+		d_top.add_child(cat_lbl)
+
+		var bullet := _label("·", 10, MUTED)
+		d_top.add_child(bullet)
+
+		var name_str: String = str(ITEM_DATA[item_id]["name"]).to_upper() if ITEM_DATA.has(item_id) else str(item_id).to_upper()
+		var name_lbl := _label(name_str, 12, PALE if is_unlocked else Color(0.72, 0.82, 0.88))
+		d_top.add_child(name_lbl)
+
+		d_top.add_spacer(false)
+
+		var status_badge := Label.new()
+		status_badge.add_theme_font_size_override("font_size", 10)
+		if is_unlocked:
+			var is_equipped: bool = _equipment_items.values().has(item_id) or _hotbar_items.has(item_id)
+			status_badge.text = "EQUIPPED" if is_equipped else "AUTHORIZED ✔"
+			status_badge.add_theme_color_override("font_color", GREEN)
+		else:
+			status_badge.text = "LOCKED 🔒"
+			status_badge.add_theme_color_override("font_color", Color(1.0, 0.5, 0.38))
+		d_top.add_child(status_badge)
+		details.add_child(d_top)
+
+		# Role
+		var role_lbl := _label(str(item_def["role"]), 10, Color(0.68, 0.82, 0.9))
+		details.add_child(role_lbl)
+
+		# Unlock Lore / Requirement
+		var lore_lbl := Label.new()
+		lore_lbl.add_theme_font_size_override("font_size", 10)
+		lore_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		if is_unlocked:
+			lore_lbl.text = "✔ STATUS: Authorized for field operations."
+			lore_lbl.add_theme_color_override("font_color", Color(0.48, 0.93, 0.64))
+		else:
+			lore_lbl.text = "🔒 CLEARANCE: " + str(item_def["unlock_lore"])
+			lore_lbl.add_theme_color_override("font_color", Color(1.0, 0.78, 0.4))
+		details.add_child(lore_lbl)
+
+		_tasks_arsenal_container.add_child(card)
+
+	if is_instance_valid(_tasks_arsenal_summary_label):
+		_tasks_arsenal_summary_label.text = "%d / %d UNLOCKED" % [unlocked_arsenal_count, ARSENAL_CATALOG.size()]
+	if is_instance_valid(_tasks_arsenal_bar):
+		_tasks_arsenal_bar.max_value = ARSENAL_CATALOG.size()
+		_tasks_arsenal_bar.value = unlocked_arsenal_count
+
+
+func _select_hotbar(index: int, allow_toggle_unequip: bool = false) -> void:
 	if _operator_input_locked or index < 0 or index >= _hotbar_items.size():
+		return
+	if allow_toggle_unequip and _selected_hotbar_index == index and _equipment_items.get(&"tool", &"") != &"":
+		_unequip_active_tool()
 		return
 	_selected_hotbar_index = index
 	_refresh_hotbar()

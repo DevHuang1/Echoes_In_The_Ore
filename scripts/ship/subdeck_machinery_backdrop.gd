@@ -33,7 +33,16 @@ const MACHINERY_BAYS: Array = [
 	Rect2(1395.0, 812.0, 330.0, 135.0),
 ]
 
-# Recessed sub-hull ventilation fans, blowers & turbine heat-exchangers
+# Heavy structural sub-hull conduit runs connecting the recessed machinery bays
+var SUBHULL_CONDUIT_RUNS: Array = [
+	PackedVector2Array([Vector2(-80.0, 472.0), Vector2(680.0, 472.0), Vector2(755.0, 472.0), Vector2(755.0, 630.0)]),
+	PackedVector2Array([Vector2(755.0, 125.0), Vector2(1020.0, 125.0), Vector2(1020.0, 495.0), Vector2(1680.0, 495.0)]),
+	PackedVector2Array([Vector2(1045.0, 350.0), Vector2(1045.0, 625.0), Vector2(1480.0, 625.0)]),
+	PackedVector2Array([Vector2(120.0, 488.0), Vector2(120.0, 885.0), Vector2(1650.0, 885.0), Vector2(1795.0, 885.0)]),
+	PackedVector2Array([Vector2(1795.0, 60.0), Vector2(1795.0, 885.0)]),
+]
+
+# Recessed sub-hull ventilation fans & heat-exchanger rotors spinning slowly in the machinery wells
 const SUBHULL_FANS: Array = [
 	# Aft machinery bulkhead bay — 3 massive primary drive exhaust turbines
 	{"pos": Vector2(1805.0, 215.0), "radius": 44.0, "speed": 1.25, "blades": 8, "glow": Color(0.92, 0.44, 0.12, 0.36), "theme": &"exhaust"},

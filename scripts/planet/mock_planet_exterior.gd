@@ -2,13 +2,14 @@
 extends Node2D
 
 const SHIP_SCENE_PATH: String = "res://scenes/ship/bare_ship_walkthrough.tscn"
-const PLANET_TEXTURE_PATH: String = "res://art/planet/erebos_extraction_surface_v2.png"
-const EREBOS_SURFACE := preload("res://art/planet/erebos_extraction_surface_v2.png")
+const PLANET_TEXTURE_PATH: String = "res://art/planet/erebos_extraction_surface_pixel.png"
+const EREBOS_SURFACE := preload("res://art/planet/erebos_extraction_surface_pixel.png")
 const WALK_HUD_SCENE: PackedScene = preload("res://scenes/ui/walk_hud.tscn")
 const STORY_CUTSCENE_SCRIPT: Script = preload("res://scripts/ui/story_cutscene_overlay.gd")
 const THADINGYUT_MEMORY_SCENE := preload("res://scenes/ui/thadingyut_memory_cutscene.tscn")
 const ORE_EXTRACTION_CONSOLE := preload("res://scripts/ui/ore_extraction_console.gd")
 const STORY_STATE_META_KEY: StringName = &"echoes_story_progression_state"
+const SUIT_O2_DAMAGE_META_KEY: StringName = &"erebos_suit_o2_damaged"
 
 const ORE_ECHO_SAMPLE_RATE: float = 22050.0
 const ORE_ECHO_DURATION: float = 3.2
@@ -36,42 +37,45 @@ const EXTRACTION_RIG := {
 const ORE_SITES: Array[Dictionary] = [
 	{
 		"id": &"west_cyan_ore",
-		"title": "Strike hollow crystals (Site 1/2 -> Flare & Cutter)",
+		"title": "Collect a sealed sample from the exposed ore",
 		"marker_label": "SITE K-12 W",
 		"room_name": "Erebos Surface (West)",
-		"action_hint": "Test acoustic vibration on western cyan crystal formations",
+		"action_hint": "Approach the exposed seam and take one sealed sample to the landing airlock.",
+		"purpose": "Amara needs a clean sample to compare against the failed rig's four-pulse reading.",
 		"position": Vector2(310.0, 435.0),
 		"marker_position": Vector2(220.0, 336.0),
-		"prompt": "HOLLOW MINERAL FORMATION   /   [E] STRIKE & TEST RESONANCE",
-		"completion": "4-pulse crystal resonance logged (1/2 surface checks complete — inspect the Main Drill Breach next).",
+		"prompt": "EXPOSED RESONANCE ORE   /   [E] COLLECT SEALED SAMPLE",
+		"completion": "Resonance ore sample secured. Return to Asteria-1 and deliver it to Dr. Okoye.",
 		"reward_item": &"",
-		"milestone_reward": &"emergency_flare",
+		"milestone_reward": &"",
 		"log_id": &"log_okoye_crystals",
 	},
 	{
 		"id": &"north_viridian_ore",
-		"title": "Inspect drill breach (Unlocks Flare & Plasma Cutter)",
+		"title": "Inspect the drill breach and its black mineral ribs",
 		"marker_label": "THE BREACH",
 		"room_name": "Main Drill Breach",
-		"action_hint": "Inspect subsurface drill cavity and recover Ruiz's plasma cutter",
+		"action_hint": "Scan the cavity and log the four-pulse pattern.",
+		"purpose": "Check whether the hollow mineral ribs explain the signal heard from orbit.",
 		"position": Vector2(800.0, 320.0),
 		"marker_position": Vector2(800.0, 280.0),
 		"prompt": "SUBSURFACE DRILL CAVITY   /   [E] INSPECT BREACH & DRILL RIG",
-		"completion": "Drill breach logged (2/2 surface checks): Recovered Emergency Flare & Industrial Plasma Cutter!",
-		"reward_item": &"industrial_plasma_cutter",
-		"milestone_reward": &"industrial_plasma_cutter",
+		"completion": "Drill breach logged. The mineral ribs match the four-pulse signal from orbit.",
+		"reward_item": &"",
+		"milestone_reward": &"",
 		"log_id": &"log_ruiz_breach",
 	},
 	{
 		"id": &"east_amber_ore",
-		"title": "Search collapsed trench for Ruiz & Okoye",
-		"marker_label": "RUIZ / OKOYE",
+		"title": "Search the eastern trench for Ruiz's signal",
+		"marker_label": "RUIZ'S SIGNAL",
 		"room_name": "Collapsed Trench",
-		"action_hint": "Search excavation trench for crew survival signals",
+		"action_hint": "Follow the signal to Ruiz's helmet and recover its last transmission.",
+		"purpose": "Find out what happened to Ruiz before the tremors make the trench unsafe.",
 		"position": Vector2(1180.0, 440.0),
 		"marker_position": Vector2(1180.0, 400.0),
-		"prompt": "SHATTERED HELMET & COLLAPSED TRENCH   /   [E] SEARCH FOR CREW",
-		"completion": "Ruiz and Okoye lost in excavation collapse. Evacuate to Asteria-1 airlock!",
+		"prompt": "RUIZ'S DAMAGED HELMET   /   [E] TRACE LAST RADIO SIGNAL",
+		"completion": "Ruiz's signal fragment recovered. Return to Asteria-1 before the suit seal fails.",
 		"reward_item": &"",
 		"milestone_reward": &"",
 		"log_id": &"log_suit_fragment",
@@ -168,24 +172,11 @@ func _rig_test_task_entry() -> Dictionary:
 		"title": "Test the extraction rig",
 		"marker_label": "TEST RIG",
 		"room_name": "Erebos Deep Rig",
-		"action_hint": "Trigger test drill sequence at the extraction rig",
-		"milestone_reward": &"industrial_plasma_cutter",
+		"action_hint": "At the marked rig, start the test cycle and read the result.",
+		"purpose": "Verify the machine can run safely before Thura returns to Amara with a status report.",
+		"milestone_reward": &"",
 		"position": EXTRACTION_RIG_POSITION,
 		"marker_position": EXTRACTION_RIG_POSITION + Vector2(0.0, -36.0),
-	}
-
-
-func _ore_discovery_task_entry() -> Dictionary:
-	var site: Dictionary = ORE_SITES[0]
-	return {
-		"id": site["id"],
-		"title": site["title"],
-		"marker_label": site["marker_label"],
-		"room_name": "Site K-12 West",
-		"action_hint": "Strike cyan mineral crystals and log resonance",
-		"milestone_reward": &"emergency_flare",
-		"position": site["position"],
-		"marker_position": site.get("marker_position", site["position"] + Vector2(0.0, -36.0)),
 	}
 
 
@@ -216,10 +207,11 @@ func _echo_heard() -> bool:
 func _ridge_rest_task_entry() -> Dictionary:
 	return {
 		"id": RIDGE_REST_TASK_ID,
-		"title": "Sit by the extraction rig and wait for instructions",
+		"title": "Sit by the failed rig and remember the past",
 		"marker_label": "EXTRACTION RIG",
 		"room_name": "Erebos Surface Ridge",
-		"action_hint": "Wait by extraction rig for planetary radio instructions",
+		"action_hint": "Sit in front of the silent rig and let the memory play.",
+		"purpose": "Thura has no repair order from Amara yet. The quiet brings back the memory of asking his mother about the stars.",
 		"milestone_reward": &"",
 		"position": REST_POINT,
 		"marker_position": REST_POINT + Vector2(0.0, -42.0),
@@ -229,10 +221,11 @@ func _ridge_rest_task_entry() -> Dictionary:
 func _rig_report_task_entry() -> Dictionary:
 	return {
 		"id": RIG_REPORT_TASK_ID,
-		"title": "Return to Asteria-1 and report the rig failure",
+		"title": "Report the failed rig to Amara",
 		"marker_label": "REPORT TO AMARA",
 		"room_name": "Asteria-1 Airlock",
-		"action_hint": "Return to Asteria-1 airlock and deliver telemetry to Dr. Okoye",
+		"action_hint": "Board Asteria-1, find Dr. Okoye, and report what the test showed.",
+		"purpose": "Amara must know the rig is unsafe before Thura investigates the ore seam.",
 		"milestone_reward": &"",
 		"position": AIRLOCK_ENTRY_POS,
 		"marker_position": AIRLOCK_ENTRY_POS + Vector2(0.0, -46.0),
@@ -245,8 +238,9 @@ func _ore_return_task_entry() -> Dictionary:
 		"title": "Return the ore sample to Dr. Okoye",
 		"marker_label": "RETURN WITH ORE",
 		"room_name": "Asteria-1 Airlock",
-		"action_hint": "Deliver sampled resonance ore pod to airlock decontamination",
-		"milestone_reward": &"emergency_flare",
+		"action_hint": "Board Asteria-1 and hand the sealed ore sample to Dr. Okoye in the lab.",
+		"purpose": "Amara will compare the sample's resonance with the failed rig telemetry.",
+		"milestone_reward": &"",
 		"position": AIRLOCK_ENTRY_POS,
 		"marker_position": AIRLOCK_ENTRY_POS + Vector2(0.0, -46.0),
 	}
@@ -259,8 +253,9 @@ func _ore_echo_task_entry() -> Dictionary:
 		"title": "Follow the echo to the ore seam",
 		"marker_label": "ECHO SOURCE",
 		"room_name": "Resonance Seam",
-		"action_hint": "Follow sub-surface acoustic vibrations toward the source",
-		"milestone_reward": &"industrial_plasma_cutter",
+		"action_hint": "Return to the ore seam and follow the repeating pulses to their source.",
+		"purpose": "The echo began where Thura found the sample. Find out whether the source has changed.",
+		"milestone_reward": &"",
 		"position": site["position"],
 		"marker_position": site.get("marker_position", site["position"] + Vector2(0.0, -36.0)),
 	}
@@ -272,7 +267,36 @@ func _echo_return_task_entry() -> Dictionary:
 		"title": "Follow the echo back to Asteria-1",
 		"marker_label": "RETURN TO SHIP",
 		"room_name": "Asteria-1 Airlock",
-		"action_hint": "Retreat to Asteria-1 airlock before resonance field collapses",
+		"action_hint": "Return to the airlock and warn the crew about the echo.",
+		"purpose": "Something is wrong at the ore seam. Get back to the ship and check the lab and crew.",
+		"milestone_reward": &"",
+		"position": AIRLOCK_ENTRY_POS,
+		"marker_position": AIRLOCK_ENTRY_POS + Vector2(0.0, -46.0),
+	}
+
+
+func _rig_mining_task_entry() -> Dictionary:
+	return {
+		"id": &"erebos_deep_mining",
+		"title": "Drill resonance core with bypass coupler",
+		"marker_label": "DRILL RIG",
+		"room_name": "Erebos Extraction Rig",
+		"action_hint": "Operate the console, achieve 432 Hz harmonic lock, and vent coolant to extract the core intact.",
+		"purpose": "Secure an intact resonance crystal core for containment analysis in the ship's Cargo Bay.",
+		"milestone_reward": &"resonance_ore_core",
+		"position": EXTRACTION_RIG_POSITION,
+		"marker_position": EXTRACTION_RIG_POSITION + Vector2(0.0, -36.0),
+	}
+
+
+func _core_return_task_entry() -> Dictionary:
+	return {
+		"id": &"cargo_core_containment",
+		"title": "Secure Resonance Core in Cargo Bay",
+		"marker_label": "CARGO BAY",
+		"room_name": "Asteria-1 Cargo Bay",
+		"action_hint": "Board Asteria-1, weigh the core on the Cargo Scale, and lock it into the containment cradle.",
+		"purpose": "The resonance crystal must be kept under controlled pressure before lab examination.",
 		"milestone_reward": &"",
 		"position": AIRLOCK_ENTRY_POS,
 		"marker_position": AIRLOCK_ENTRY_POS + Vector2(0.0, -46.0),
@@ -294,6 +318,9 @@ func _ready() -> void:
 		set_process_unhandled_input(false)
 		return
 	_add_black_space_backdrop()
+	var dev_mining_start: bool = Engine.has_meta(&"dev_start_mining_task")
+	if dev_mining_start:
+		Engine.remove_meta(&"dev_start_mining_task")
 
 	if Engine.has_meta(STORY_STATE_META_KEY):
 		var raw_st: Dictionary = Engine.get_meta(STORY_STATE_META_KEY)
@@ -310,42 +337,53 @@ func _ready() -> void:
 	player.set_walkable_blocker_polygons(_make_terrain_blockers())
 	player.camera.zoom = Vector2(0.72, 0.72)
 	player.set_camera_bounds(Rect2(Vector2.ZERO, Vector2(1600.0, 1000.0)))
-	if Engine.has_meta(&"dev_warp_target"):
+	if dev_mining_start and Engine.has_meta(&"dev_warp_target"):
+		var mining_target: Vector2 = Engine.get_meta(&"dev_warp_target")
+		Engine.remove_meta(&"dev_warp_target")
+		player.global_position = mining_target
+	elif Engine.has_meta(&"dev_warp_target"):
 		var dev_target: Vector2 = Engine.get_meta(&"dev_warp_target")
 		Engine.remove_meta(&"dev_warp_target")
 		player.global_position = dev_target
 	else:
 		player.global_position = Vector2(800.0, 684.0)
+	if Engine.has_meta(SUIT_O2_DAMAGE_META_KEY) and bool(Engine.get_meta(SUIT_O2_DAMAGE_META_KEY)):
+		player.move_speed *= 0.78
 	player.camera.make_current()
 	player.camera.reset_smoothing()
 
-	if _ore_sample_collected():
-		for site in ORE_SITES:
-			_explored_sites[site["id"]] = true
-			_sampled_sites[site["id"]] = true
-
 	var hud_tasks: Array[Dictionary] = []
-	hud_tasks.append(_rig_test_task_entry())
-	if _rig_test_failed() and not _rig_failure_reported():
+	if dev_mining_start:
+		hud_tasks.append(_rig_mining_task_entry())
+	else:
+		hud_tasks.append(_rig_test_task_entry())
+	if not dev_mining_start and _rig_test_failed() and not _rig_failure_reported():
 		hud_tasks.append(_rig_report_task_entry())
-	elif _rig_test_failed() and not _ore_sample_collected():
-		hud_tasks.append(_ore_discovery_task_entry())
-	if _ore_sample_collected() and not _ore_sample_stored():
+	var has_coupler: bool = Engine.has_meta(&"harmonic_bypass_coupler_unlocked")
+	var core_extracted: bool = Engine.has_meta(&"resonance_ore_core_extracted") and bool(Engine.get_meta(&"resonance_ore_core_extracted"))
+	if not dev_mining_start and has_coupler and not core_extracted:
+		hud_tasks.append(_rig_mining_task_entry())
+	elif not dev_mining_start and core_extracted and not Engine.has_meta(&"resonance_ore_core_stored"):
+		hud_tasks.append(_core_return_task_entry())
+	if not dev_mining_start and _ore_sample_collected() and not _ore_sample_stored():
 		hud_tasks.append(_ore_return_task_entry())
-	if _ore_sample_stored() and not (Engine.has_meta(&"resonance_ore_rest_complete") and bool(Engine.get_meta(&"resonance_ore_rest_complete"))):
+	if not dev_mining_start and _ore_sample_stored() and not (Engine.has_meta(&"resonance_ore_rest_complete") and bool(Engine.get_meta(&"resonance_ore_rest_complete"))):
 		hud_tasks.append(_ridge_rest_task_entry())
-	if Engine.has_meta(&"resonance_ore_rest_complete") and bool(Engine.get_meta(&"resonance_ore_rest_complete")) and not _echo_heard():
+	if not dev_mining_start and Engine.has_meta(&"resonance_ore_rest_complete") and bool(Engine.get_meta(&"resonance_ore_rest_complete")) and not _echo_heard():
 		hud_tasks.append(_ore_echo_task_entry())
-	if _echo_heard():
+	if not dev_mining_start and _echo_heard():
 		hud_tasks.append(_echo_return_task_entry())
 
 	for site in ORE_SITES:
+		if dev_mining_start or not _rig_failure_reported():
+			continue
 		hud_tasks.append({
 			"id": site["id"],
 			"title": site["title"],
 			"marker_label": site["marker_label"],
 			"room_name": site.get("room_name", "Erebos Surface"),
 			"action_hint": site.get("action_hint", ""),
+			"purpose": site.get("purpose", ""),
 			"reward_item": site.get("reward_item", &""),
 			"milestone_reward": site.get("milestone_reward", site.get("reward_item", &"")),
 			"is_equipment_task": StringName(site.get("reward_item", &"")) != &"" or StringName(site.get("milestone_reward", &"")) != &"",
@@ -369,7 +407,7 @@ func _ready() -> void:
 	_walk_hud.modal_state_changed.connect(_on_hud_modal_state_changed)
 	add_child(_walk_hud)
 	_walk_hud.set_story_act_label("ACT II — EREBOS (SITE K-12)")
-	_walk_hud.set_show_all_active_tasks(true)
+	_walk_hud.set_show_all_active_tasks(false)
 	_walk_hud.set_walking_visible(true)
 
 	if not is_instance_valid(_interactive_highlights_canvas):
@@ -463,18 +501,21 @@ func _refresh_prompt() -> void:
 	if player.global_position.distance_to(AIRLOCK_ENTRY_POS) <= AIRLOCK_INTERACT_RADIUS:
 		_near_ship_airlock = true
 		var return_prompt := "ASTERIA-1 EXTERIOR AIRLOCK   /   [E] BOARD SHIP"
-		if not _rig_test_failed() and _sampled_sites.is_empty():
-			return_prompt = "TEST THE EXTRACTION RIG BEFORE LEAVING   /   [E] BOARD SHIP"
+		var core_extracted_airlock: bool = Engine.has_meta(&"resonance_ore_core_extracted") and bool(Engine.get_meta(&"resonance_ore_core_extracted"))
+		if core_extracted_airlock and not Engine.has_meta(&"resonance_ore_core_stored"):
+			return_prompt = "ASTERIA-1 AIRLOCK   /   [E] BOARD SHIP WITH EXTRACTED CORE"
+		elif not _rig_test_failed() and _sampled_sites.is_empty():
+			return_prompt = "RIG TEST STILL AVAILABLE   /   [E] BOARD ASTERIA-1"
 		elif _rig_test_failed() and not _rig_failure_reported():
-			return_prompt = "ASTERIA-1 AIRLOCK   /   [E] REPORT THE FAILED RIG"
+			return_prompt = "ASTERIA-1 AIRLOCK   /   [E] BOARD SHIP & REPORT FAILED RIG"
 		elif _rig_test_failed() and not _ore_sample_collected():
-			return_prompt = "COLLECT AN ORE SAMPLE BEFORE RETURNING   /   [E] BOARD SHIP"
+			return_prompt = "ORE SEAM STILL AVAILABLE   /   [E] BOARD ASTERIA-1"
 		elif _ore_sample_collected() and not _ore_sample_stored():
 			return_prompt = "ASTERIA-1 AIRLOCK   /   [E] RETURN WITH ORE SAMPLE"
 		elif _ore_sample_stored() and not (Engine.has_meta(&"resonance_ore_rest_complete") and bool(Engine.get_meta(&"resonance_ore_rest_complete"))):
-			return_prompt = "SIT BY THE EXTRACTION RIG AND WAIT FOR AMARA'S INSTRUCTIONS"
+			return_prompt = "REST TASK STILL OPEN   /   [E] RETURN TO ASTERIA-1"
 		elif Engine.has_meta(&"resonance_ore_rest_complete") and bool(Engine.get_meta(&"resonance_ore_rest_complete")) and not _echo_heard():
-			return_prompt = "FOLLOW THE ECHO TO THE ORE SEAM"
+			return_prompt = "ORE ECHO STILL ACTIVE   /   [E] RETURN TO ASTERIA-1"
 		elif _echo_heard():
 			return_prompt = "ASTERIA-1 AIRLOCK   /   [E] FOLLOW THE ECHO BACK TO THE LAB"
 		_walk_hud.set_interaction_prompt(return_prompt, true)
@@ -483,15 +524,26 @@ func _refresh_prompt() -> void:
 	var reflection_complete := Engine.has_meta(&"resonance_ore_rest_complete") and bool(Engine.get_meta(&"resonance_ore_rest_complete"))
 	if _ore_sample_stored() and not reflection_complete and player.global_position.distance_to(REST_POINT) <= REST_INTERACT_RADIUS:
 		_near_rest_point = true
-		_walk_hud.set_interaction_prompt("EXTRACTION RIG   /   [E] SIT AND WAIT FOR AMARA", true)
+		_walk_hud.set_interaction_prompt("FAILED EXTRACTION RIG   /   [E] SIT AND REMEMBER", true)
 		return
 	if reflection_complete and not _echo_heard() and player.global_position.distance_to(ORE_SITES[0]["position"]) <= ORE_INTERACT_RADIUS:
 		_near_echo_site = true
 		_walk_hud.set_interaction_prompt("ORE SEAM   /   [E] LISTEN TO THE ECHO", true)
 		return
-	if not _rig_test_failed() and player.global_position.distance_to(EXTRACTION_RIG_POSITION) <= 86.0:
+
+	var has_bypass: bool = Engine.has_meta(&"harmonic_bypass_coupler_unlocked") or (_walk_hud != null and _walk_hud.inventory_count(&"harmonic_bypass_coupler") > 0)
+	var core_extracted: bool = Engine.has_meta(&"resonance_ore_core_extracted") and bool(Engine.get_meta(&"resonance_ore_core_extracted"))
+
+	if player.global_position.distance_to(EXTRACTION_RIG_POSITION) <= 90.0:
 		_near_extraction_rig = true
-		_walk_hud.set_interaction_prompt("ORE EXTRACTION RIG   /   [E] RUN MACHINE TEST", true)
+		if not _rig_test_failed():
+			_walk_hud.set_interaction_prompt("ORE EXTRACTION RIG   /   [E] RUN MACHINE TEST", true)
+		elif has_bypass and not core_extracted:
+			_walk_hud.set_interaction_prompt("EXTRACTION RIG   /   [E] INSTALL BYPASS & DRILL CORE", true)
+		elif core_extracted:
+			_walk_hud.set_interaction_prompt("EXTRACTION RIG   /   [E] INSPECT BOREHOLE (CORE SECURED)", true)
+		else:
+			_walk_hud.set_interaction_prompt("FAILED EXTRACTION RIG   /   [E] BORE MOTOR LOCKED", true)
 		return
 
 	for site in ORE_SITES:
@@ -519,6 +571,11 @@ func _sample_ore(site_id: StringName) -> void:
 func _collect_ore_sample(site_id: StringName) -> void:
 	if _sampled_sites.has(site_id) or not _rig_test_failed() or not _rig_failure_reported():
 		return
+	var is_ore_seam := site_id == &"west_cyan_ore"
+	if is_ore_seam and not _walk_hud.grant_hotbar_item(&"resonance_ore_sample"):
+		_feedback_text = "INVENTORY FULL  //  CLEAR A HOTBAR OR STORAGE SLOT BEFORE TAKING THE SEALED SAMPLE"
+		_feedback_timer = 5.0
+		return
 	var completion: String = "Ore sample logged."
 	var log_id: StringName = &""
 	for site in ORE_SITES:
@@ -528,22 +585,14 @@ func _collect_ore_sample(site_id: StringName) -> void:
 			break
 	_sampled_sites[site_id] = true
 	_explored_sites[site_id] = true
-	Engine.set_meta(&"resonance_ore_seam_discovered", true)
-	Engine.set_meta(&"resonance_ore_sample_collected", true)
+	if is_ore_seam:
+		Engine.set_meta(&"resonance_ore_seam_discovered", true)
+		Engine.set_meta(&"resonance_ore_sample_collected", true)
 	_walk_hud.set_task_completed(site_id)
-	_walk_hud.grant_hotbar_item(&"resonance_ore_sample")
-	if not _ore_sample_stored() and is_instance_valid(_walk_hud):
+	if is_ore_seam and not _ore_sample_stored() and is_instance_valid(_walk_hud):
 		_walk_hud.add_task_entry(_ore_return_task_entry())
 	if log_id != &"":
 		_walk_hud.record_audio_log(log_id)
-
-	# Unlock Emergency Flare & Industrial Plasma Cutter only after at least 2 surface sites are investigated!
-	if _sampled_sites.size() >= 2:
-		if not _walk_hud.has_equipment_item(&"emergency_flare"):
-			_walk_hud.unlock_equipment_item(&"emergency_flare", false, "Erebos Surface Milestone (2 Sites): Emergency Flare unlocked!")
-		if _sampled_sites.has(&"north_viridian_ore") and not _walk_hud.has_equipment_item(&"industrial_plasma_cutter"):
-			_walk_hud.unlock_equipment_item(&"industrial_plasma_cutter", true, "Erebos Drill Breach Milestone: Recovered Ruiz's Industrial Plasma Cutter!")
-			_walk_hud.play_radio_transmission("MATEO RUIZ // DISTORTED COMMS", "The rig... it tore into an open cavern! Shadows climbing the drill bit! Thura, take the plasma cutter! Don't let it reach the— [SIGNAL TERMINATED]")
 
 	_save_planet_state()
 	_feedback_text = "%s\nEREBOS SITE K-12  %d / %d COMPLETE" % [completion, _sampled_sites.size(), ORE_SITES.size()]
@@ -558,13 +607,39 @@ func _collect_ore_sample(site_id: StringName) -> void:
 
 
 func _open_extraction_console() -> void:
-	if _rig_test_failed():
+	var has_bypass: bool = Engine.has_meta(&"harmonic_bypass_coupler_unlocked") or (_walk_hud != null and _walk_hud.inventory_count(&"harmonic_bypass_coupler") > 0)
+	var core_extracted: bool = Engine.has_meta(&"resonance_ore_core_extracted") and bool(Engine.get_meta(&"resonance_ore_core_extracted"))
+
+	if _rig_test_failed() and not has_bypass and not core_extracted:
+		_feedback_text = "BORE MOTOR LOCKED  //  REPORT TO DR. OKOYE ON ASTERIA-1 FOR A HARMONIC BYPASS"
+		_feedback_timer = 5.0
 		return
+
 	_extraction_console = ORE_EXTRACTION_CONSOLE.new() as OreExtractionConsole
 	add_child(_extraction_console)
 	_extraction_console.machine_test_failed.connect(_on_machine_test_failed)
+	_extraction_console.extraction_completed.connect(_on_core_extraction_completed)
 	_extraction_console.modal_state_changed.connect(_on_extraction_console_modal_state_changed)
-	_extraction_console.open(EXTRACTION_RIG)
+
+	var rig_config: Dictionary = EXTRACTION_RIG.duplicate(true)
+	rig_config["bypass_active"] = has_bypass
+	rig_config["test_only"] = not has_bypass and not _rig_test_failed()
+	_extraction_console.open(rig_config)
+
+
+func _on_core_extraction_completed(_site_id: StringName, is_pristine: bool = true) -> void:
+	Engine.set_meta(&"resonance_ore_core_extracted", true)
+	Engine.set_meta(&"resonance_ore_core_pristine", is_pristine)
+	var core_item: StringName = &"resonance_ore_core" if is_pristine else &"resonance_ore_core_fractured"
+	if is_instance_valid(_walk_hud):
+		_walk_hud.grant_hotbar_item(core_item)
+		_walk_hud.set_task_completed(&"erebos_deep_mining", true)
+		_walk_hud.set_task_completed(EXTRACTION_RIG_TASK_ID, true)
+		_walk_hud.add_task_entry(_core_return_task_entry())
+		var grade_str: String = "Pristine Resonance Core" if is_pristine else "Fractured Resonance Core"
+		_walk_hud.show_objective_toast("EXTRACTION SUCCESSFUL", "%s secured. Return to Cargo Bay." % grade_str, true)
+	_feedback_text = "CORE SAMPLE EXTRACTED  //  SECURE IN ASTERIA-1 CARGO BAY"
+	_feedback_timer = 6.0
 
 
 func _on_machine_test_failed(_site_id: StringName) -> void:
@@ -606,7 +681,7 @@ func _build_planet_cutscene(site_id: StringName) -> Dictionary:
 				"slides": [
 					{
 						"speaker": "DR. THURA MIN // SITE K-12 WEST RIDGE",
-						"text": "Erebos is silent except for radio chatter and vibrations travelling through the low-gravity regolith. When Thura strikes the glass-like mineral formation, it rings hollow — producing the exact four-pulse, seven-second pause pattern detected from orbit.",
+						"text": "Erebos is silent except for radio chatter and vibrations travelling through the low-gravity regolith. Near the failed rig, Thura spots an exposed seam of glass-like cyan ore. Its surface rings with the exact four-pulse pattern detected from orbit. He seals one sample for Dr. Okoye.",
 					},
 					{
 						"speaker": "DR. AMARA OKOYE & MATEO RUIZ // SURFACE RADIO",
@@ -620,11 +695,6 @@ func _build_planet_cutscene(site_id: StringName) -> Dictionary:
 				"clock": "EREBOS SURFACE // MAIN DRILL CAVITY",
 				"title": "THE BREACH BENEATH SITE K-12",
 				"echo_pulse": true,
-				"reward": {
-					"name": "Industrial Plasma Cutter & Emergency Flare",
-					"desc": "Surface Milestone Complete: Recovered Ruiz's Industrial Plasma Cutter & Emergency Flares!",
-					"texture": load("res://art/tools/icons/industrial_plasma_cutter.png"),
-				},
 				"slides": [
 					{
 						"speaker": "DRILL CAMERA FEED // SUBSURFACE CAVITY",
@@ -632,7 +702,7 @@ func _build_planet_cutscene(site_id: StringName) -> Dictionary:
 					},
 					{
 						"speaker": "MATEO RUIZ // SUIT TELEMETRY",
-						"text": "Ruiz goes out manually to restart the drill. His suit camera catches a thin black substance moving against the direction of gravity.\n\nHis radio cuts out. Over the channel, the crew hears Ruiz breathing heavily, followed by a sharp metallic impact. His tracking signal begins moving underground at impossible speed!\n\n[Thura recovers the heavy Industrial Plasma Cutter and Emergency Flare kit beside the stalled rig as Commander Chen orders an immediate search at the eastern trench.]",
+						"text": "Ruiz goes out manually to restart the drill. His suit camera catches a thin black substance moving against the direction of gravity.\n\nHis radio cuts out. Over the channel, the crew hears Ruiz breathing heavily, followed by a sharp metallic impact. His tracking signal begins moving underground at impossible speed. Commander Chen orders Thura to search the eastern trench while the team still has a signal.",
 					},
 				],
 			}
@@ -644,19 +714,19 @@ func _build_planet_cutscene(site_id: StringName) -> Dictionary:
 				"echo_pulse": true,
 				"slides": [
 					{
-						"speaker": "DR. THURA MIN & DR. AMARA OKOYE // EXCAVATION SITE",
-						"text": "Near the eastern crater trench, Thura and Okoye find Ruiz's damaged helmet — but no body. The reinforced visor is shattered outward, as though something escaped from inside it.\n\nA violent tremor collapses the ridge, separating Okoye from Thura!",
+						"speaker": "DR. THURA MIN // EASTERN EXCAVATION TRENCH",
+						"text": "Alone, Thura finds Ruiz's damaged helmet at the trench edge. The reinforced visor is shattered outward, as if something escaped from inside. Beneath the dust, Ruiz's suit radio clicks once, then falls silent.",
 					},
 					{
-						"speaker": "DR. AMARA OKOYE // LAST RADIO TRANSMISSION (LOG 7/8)",
-						"text": "Through the static, Thura hears Okoye calling for help:\n\nOKOYE: \"Thura, I found him.\"\nTHURA: \"Is Ruiz alive?\"\n\nThere is a long pause.\n\nOKOYE: \"Something is using his suit.\"\n[Her transmission ends.]",
+						"speaker": "MATEO RUIZ // RECOVERED SUIT RADIO FRAGMENT",
+						"text": "The helmet speaker gives a few clicks and a burst of static. A voice almost forms, then vanishes beneath the tremor. Thura cannot make out the words.",
 					},
 					{
 						"speaker": "COMMANDER MAYA CHEN // EVACUATION ORDER",
-						"text": "Another tremor destabilizes Site K-12. Commander Chen orders Thura back to the lander immediately. Before liftoff, the mining rig automatically seals its final black drill core inside a reinforced sample container...",
+						"text": "A tremor starts rolling through the trench. Chen orders Thura back to the lander. The damaged suit can hold pressure for a little longer, but every minute outside risks a full seal failure.",
 						"choices": [
-							{"id": &"search_longer", "label": "Resist order & search the collapsed trench longer for Okoye (damages O2)"},
-							{"id": &"evacuate_now", "label": "Obey Commander Chen & retreat to the Asteria-1 airlock immediately"},
+							{"id": &"search_longer", "label": "Search Ruiz's last signal (risk suit oxygen and move slower)"},
+							{"id": &"evacuate_now", "label": "Evacuate now (keep oxygen, leave the signal unrecovered)"},
 						],
 					},
 				],
@@ -669,43 +739,29 @@ func _on_cutscene_finished(_cutscene_id: StringName, choice_id: StringName) -> v
 	_walk_hud.set_walking_visible(true)
 	_update_player_walk_state()
 	if choice_id == &"search_longer":
-		_feedback_text = "SUIT O2 DAMAGED IN TREMOR  //  OKOYE NOT FOUND  //  BOARD ASTERIA-1 AIRLOCK"
+		Engine.set_meta(SUIT_O2_DAMAGE_META_KEY, true)
+		Engine.set_meta(&"ruiz_last_signal_recovered", true)
+		player.move_speed *= 0.78
+		_walk_hud.play_radio_transmission("MATEO RUIZ // RECOVERED FRAGMENT", "Thura, don't follow the lights. It's copying the beacon. I can hear it using— [SIGNAL LOST]")
+		_feedback_text = "RUIZ'S LAST SIGNAL RECOVERED  //  SUIT O2 LEAKING; MOVEMENT SLOWED  //  BOARD SHIP"
 		_feedback_timer = 5.5
 	elif choice_id == &"evacuate_now":
-		_feedback_text = "DRILL CORE SEALED IN CONTAINER  //  RETURN TO ASTERIA-1 AIRLOCK"
+		Engine.set_meta(&"ruiz_last_signal_recovered", false)
+		_feedback_text = "OXYGEN SEAL HOLDS  //  RUIZ'S LAST SIGNAL LOST  //  BOARD ASTERIA-1"
 		_feedback_timer = 5.5
 
 
 func _board_ship() -> void:
 	if _transitioning:
 		return
-	if not _rig_test_failed():
-		_feedback_text = "TEST THE EXTRACTION RIG BEFORE LEAVING"
-		_feedback_timer = 4.0
-		return
-	if not _rig_failure_reported():
-		_feedback_text = "REPORT THE FAILED EXTRACTION RIG TO DR. OKOYE BEFORE LEAVING"
-		_feedback_timer = 4.0
-		return
-	if not _ore_sample_collected():
-		_feedback_text = "COLLECT THE RESONANCE ORE SAMPLE FOR DR. OKOYE"
-		_feedback_timer = 4.0
-		return
-	# The first return is required to hand the sample to Amara. Once it is
-	# stored, the player must return here, reflect, and follow the echo.
-	if _ore_sample_stored() and not (Engine.has_meta(&"resonance_ore_rest_complete") and bool(Engine.get_meta(&"resonance_ore_rest_complete"))):
-		_feedback_text = "SIT BY THE EXTRACTION RIG AND THINK BEFORE RETURNING"
-		_feedback_timer = 4.0
-		return
-	if _ore_sample_stored() and not _echo_heard():
-		_feedback_text = "FOLLOW THE ECHO TO THE ORE SEAM BEFORE RETURNING"
-		_feedback_timer = 4.0
-		return
+	# Always allow a return to the ship. Story objectives remain pending when the
+	# player leaves early, so they can resume the surface sequence on the next EVA.
 	if _ore_sample_collected() and not _ore_sample_stored() and is_instance_valid(_walk_hud):
 		_walk_hud.set_task_completed(ORE_RETURN_TASK_ID)
 	if _echo_heard() and is_instance_valid(_walk_hud):
 		_walk_hud.set_task_completed(ECHO_RETURN_TASK_ID)
 	_save_planet_state()
+	Engine.remove_meta(SUIT_O2_DAMAGE_META_KEY)
 	_transitioning = true
 	Engine.set_meta(&"returning_from_planet", true)
 	get_tree().change_scene_to_file(SHIP_SCENE_PATH)
@@ -735,7 +791,7 @@ func _start_reflection() -> void:
 	Engine.set_meta(&"resonance_ore_rest_complete", true)
 	_walk_hud.set_task_completed(RIDGE_REST_TASK_ID)
 	_walk_hud.add_task_entry(_ore_echo_task_entry())
-	_reflection_text = "No instruction comes from Amara. A faint echo answers from the ore seam where you found the sample."
+	_reflection_text = "Amara gives no answer. Four slow pulses rise from the ore seam—the rhythm draws Thura back to the star he asked his mother about."
 	_walk_hud.set_interaction_prompt(_reflection_text, true)
 	await get_tree().create_timer(3.8).timeout
 	if not is_inside_tree():

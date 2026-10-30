@@ -228,14 +228,15 @@ var _subdeck_cool_pipe_runs: Array = []
 const SUBDECK_TASKS: Array = [
 	{
 		"id": &"subdeck_inventory_manifest",
-		"title": "Trace Ward's signal in the cargo vault (Flare)",
+		"title": "Verify the false distress call in the cargo vault",
 		"marker_label": "STORAGE",
 		"room_name": "S02 Bulk Storage Vault",
-		"action_hint": "Trace Ward's radio lure inside the bulk storage vault",
+		"action_hint": "Follow Ward's call in the storage vault and check its source.",
+		"purpose": "Confirm whether Ward is alive or the Echo is imitating his recorded voice.",
 		"milestone_reward": &"emergency_flare",
 		"position": Vector2(300.0, 250.0),
 		"prompt": "BULK STORAGE VAULT   /   [E] TRACE WARD'S VOICE",
-		"completion": "False radio lure confirmed. Unlocked: Emergency Flare.",
+		"completion": "False radio lure confirmed. The Echo can imitate recorded voices.",
 		"reward_item": &"emergency_flare",
 		"console_task_id": &"",
 	},
@@ -244,7 +245,8 @@ const SUBDECK_TASKS: Array = [
 		"title": "Calibrate S04 Workshop aux power (Multitool)",
 		"marker_label": "WORKSHOP",
 		"room_name": "S04 Engineering Workshop",
-		"action_hint": "Calibrate auxiliary power converter at capacitor banks",
+		"action_hint": "Use the workshop panel to synchronize the auxiliary capacitor banks.",
+		"purpose": "Restore enough power to operate the lower-deck systems without overheating the engines.",
 		"milestone_reward": &"engineering_multitool",
 		"position": Vector2(535.0, 675.0),
 		"prompt": "WORKSHOP POWER CONVERTER   /   [E] CALIBRATE AUX POWER BUS",
@@ -257,7 +259,8 @@ const SUBDECK_TASKS: Array = [
 		"title": "Align S05 Coolant Bay valves (Sealant)",
 		"marker_label": "COOLANT BAY",
 		"room_name": "S05 Coolant Bay",
-		"action_hint": "Align circulation manifold valves to equalize pressure",
+		"action_hint": "Align the coolant valves until circulation pressure is balanced.",
+		"purpose": "Cool the overheated conduit so Leila can be reached without sending the Echo more heat.",
 		"milestone_reward": &"pressure_sealant",
 		"position": Vector2(925.0, 680.0),
 		"prompt": "COOLANT CIRCULATION MANIFOLD   /   [E] ALIGN COOLANT VALVES",
@@ -267,28 +270,28 @@ const SUBDECK_TASKS: Array = [
 	},
 	{
 		"id": &"subdeck_pipe_pressure",
-		"title": "Rescue Leila Haddad in the engine hall (Arc Tool)",
+		"title": "Choose whether to rescue Leila or restore the engines",
 		"marker_label": "ENGINE HALL",
 		"room_name": "Turbine Engine Hall",
-		"action_hint": "Free Leila Haddad and construct high-voltage arc capacitor",
-		"milestone_reward": &"electrical_discharge_tool",
+		"action_hint": "Answer Leila's call and choose whether to free her or secure the engines",
+		"purpose": "Leila can help build an arc tool, but reaching her risks the engine room and the remaining crew.",
+		"milestone_reward": &"",
 		"position": Vector2(1500.0, 265.0),
-		"prompt": "TURBINE SERVICE CONSOLE   /   [E] RESCUE LEILA & BUILD ARC TOOL",
-		"completion": "Cooling valves equalized! Constructed: Electrical Discharge Tool.",
-		"reward_item": &"electrical_discharge_tool",
-		"console_task_id": &"air_filter",
+		"prompt": "TURBINE ENGINE HALL   /   [E] ANSWER LEILA'S CALL",
+		"completion": "Cooling restored. Your choice determines Leila's fate.",
+		"console_task_id": &"",
 	},
 	{
 		"id": &"subdeck_shadow_nest_check",
-		"title": "Inspect the hidden Echo nest (Plasma Cutter)",
+		"title": "Study the Echo's fused mineral nest",
 		"marker_label": "DARK NEST",
 		"room_name": "Breached Alcove S06",
-		"action_hint": "Inspect the mineral rib nest in the breached alcove",
-		"milestone_reward": &"industrial_plasma_cutter",
+		"action_hint": "Inspect the fused mineral ribs and record what they reveal about the Echo.",
+		"purpose": "Learn how the organism senses the ship and identify a way to destroy it before Earth entry.",
+		"milestone_reward": &"",
 		"position": Vector2(1600.0, 680.0),
 		"prompt": "BREACHED CONTAINMENT ALCOVE   /   [E] INSPECT ECHO NEST",
-		"completion": "Mineral rib nest logged. Recovered: Industrial Plasma Cutter.",
-		"reward_item": &"industrial_plasma_cutter",
+		"completion": "Mineral rib nest logged. Atmospheric heat may destroy the organism.",
 		"console_task_id": &"",
 	},
 ]
@@ -392,6 +395,7 @@ func _ready() -> void:
 			"marker_label": task["marker_label"],
 			"room_name": task.get("room_name", task["marker_label"]),
 			"action_hint": task.get("action_hint", task["prompt"]),
+			"purpose": task.get("purpose", ""),
 			"reward_item": task.get("reward_item", &""),
 			"milestone_reward": task.get("milestone_reward", task.get("reward_item", &"")),
 			"is_equipment_task": StringName(task.get("reward_item", &"")) != &"",
@@ -405,10 +409,10 @@ func _ready() -> void:
 	var subdeck_floor_tex: Texture2D = _load_png_texture("res://art/overview/subdeck_02_floor_pre_arrival.png")
 	var subdeck_wall_tex: Texture2D = _load_png_texture("res://art/overview/subdeck_02_walls_pre_arrival.png")
 	_walk_hud.set_map_textures(subdeck_floor_tex, subdeck_wall_tex)
-	_walk_hud.set_show_all_active_tasks(true)
+	_walk_hud.set_show_all_active_tasks(false)
 	_walk_hud.set_story_act_label("ACT IV — THE HUNT (SUB-DECK 02)")
 	for done_id in _completed_tasks:
-		_walk_hud.set_task_completed(StringName(done_id), true)
+		_walk_hud.set_task_completed(StringName(done_id))
 	_walk_hud.set_walking_visible(true)
 	_story_cutscene = STORY_CUTSCENE_SCRIPT.new() as CanvasLayer
 	_story_cutscene.connect(&"cutscene_finished", _on_subdeck_cutscene_finished)
@@ -1196,17 +1200,12 @@ func _build_subdeck_cutscene(task_id: StringName) -> Dictionary:
 			var c_dict: Dictionary = {
 				"act": "ACT IV — CHAPTER 3: THE ENGINEER",
 				"clock": "ASTERIA-1 // SUB-DECK 02 // TURBINE ENGINE HALL",
-				"title": "LEILA HADDAD & THE ELECTRICAL ARC WEAPON",
+				"title": "LEILA HADDAD'S LAST CHOICE",
 				"echo_pulse": true,
-				"reward": {
-					"name": "Electrical Discharge Tool",
-					"desc": "Sub-Deck Engine Hall Complete: High-voltage arc weapon unlocked!",
-					"texture": load("res://art/tools/icons/electrical_discharge_tool.png"),
-				},
 				"slides": [
 					{
 						"speaker": "LEILA HADDAD // CHIEF ENGINEER",
-						"text": "Leila Haddad is trapped behind the reactor-control partition while the Echo stalks the warm, powered steam conduits.\n\nLEILA: 'Thura! The organism grows by consuming electrical energy and heat, but high-voltage arc discharges force it to recoil! Reactivate the cooling valves and we can wire an Electrical Discharge Tool!'",
+						"text": "Leila Haddad is trapped behind the reactor-control partition while the Echo stalks the warm, powered steam conduits. The coolant valves Thura restored have slowed the heat in the corridor.\n\nLEILA: 'The creature recoils from a strong electrical arc. If you can reach me, we can build a field tool from the reactor capacitor.'",
 					},
 					{
 						"speaker": "CRITICAL DECISION // REACTOR COOLING MANIFOLD",
@@ -1225,11 +1224,6 @@ func _build_subdeck_cutscene(task_id: StringName) -> Dictionary:
 				"clock": "ASTERIA-1 // SUB-DECK 02 // SHADOW CONTAINMENT NEST",
 				"title": "DORMANT FOR THOUSANDS OF YEARS",
 				"echo_pulse": true,
-				"reward": {
-					"name": "Industrial Plasma Cutter",
-					"desc": "Sub-Deck Shadow Nest: Heavy plasma cutter recovered!",
-					"texture": load("res://art/tools/icons/industrial_plasma_cutter.png"),
-				},
 				"slides": [
 					{
 						"speaker": "DR. THURA MIN // CONTAINMENT ANALYSIS",
@@ -1252,9 +1246,11 @@ func _on_subdeck_cutscene_finished(cutscene_id: StringName, choice_id: StringNam
 		st["leila_rescued"] = (choice_id != &"prioritize_engine")
 		Engine.set_meta(STORY_STATE_META_KEY, st)
 		if choice_id == &"rescue_leila":
-			_feedback_text = "LEILA HADDAD RESCUED  //  ELECTRICAL DISCHARGE TOOL UNLOCKED"
+			if not _walk_hud.has_equipment_item(&"electrical_discharge_tool"):
+				_walk_hud.unlock_equipment_item(&"electrical_discharge_tool", true, "LEILA'S DESIGN: Electrical Discharge Tool assembled from the reactor capacitor.")
+			_feedback_text = "LEILA HADDAD RESCUED  //  ARC TOOL ASSEMBLED TOGETHER"
 		else:
-			_feedback_text = "ENGINE RESTORED REMOTELY  //  LEILA TAKEN BY THE ECHO  //  DISCHARGE TOOL RECOVERED"
+			_feedback_text = "ENGINE RESTORED REMOTELY  //  LEILA TAKEN BY THE ECHO  //  NO ARC TOOL"
 		_feedback_timer = 5.5
 
 

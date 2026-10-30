@@ -5,7 +5,7 @@ signal sample_study_started
 
 const WALK_ATLAS := preload("res://art/characters/runtime/amara_okoye_lab_walk_4dir.png")
 const SAMPLE_ATLAS := preload("res://art/planet/resonance_ore_intact.png")
-const SEATED_POSE_PATH := "res://art/characters/runtime/amara_okoye_seated_console.png"
+const SEATED_POSE_PATH := "res://art/characters/runtime/amara_okoye_seated_console_back.png"
 const FLOOR_ALPHA_THRESHOLD := 0.15
 const NAV_CELL_SIZE := 24.0
 const BODY_RADIUS := 7.0
@@ -187,6 +187,7 @@ enum RoamPhase { HYDROPONICS, SHIP_EXCURSION, RETURNING }
 @onready var sprite: AnimatedSprite2D = $AnimatedSprite2D
 
 var _random := RandomNumberGenerator.new()
+var _interaction_locks: Dictionary = {}
 var _floor_mask: Image
 var _floor_origin := Vector2.ZERO
 var _grid := AStarGrid2D.new()
@@ -219,7 +220,6 @@ var _bubble_tween: Tween
 var _player_nearby := false
 var _greeting_cooldown := 12.0
 var _bark_cooldown := 10.0
-var _interaction_locks := {}
 var _sample_watch_active := false
 var _sample_watch_timer := 0.0
 var _is_missing := false

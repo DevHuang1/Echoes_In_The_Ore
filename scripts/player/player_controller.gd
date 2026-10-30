@@ -25,6 +25,7 @@ var _camera_bounds := Rect2(Vector2.ZERO, Vector2(1774.0, 887.0))
 var _walkable_floor_mask: Image
 var _walkable_floor_origin := Vector2.ZERO
 var _walkable_body_margin := 8.0
+var _walkable_blocker_polygons: Array[PackedVector2Array] = []
 
 
 func _ready() -> void:
@@ -116,6 +117,10 @@ func set_walkable_floor_mask(floor_texture: Texture2D, floor_origin: Vector2 = V
 	_walkable_body_margin = maxf(body_margin, 0.0)
 
 
+func set_walkable_blocker_polygons(polygons: Array[PackedVector2Array]) -> void:
+	_walkable_blocker_polygons = polygons.duplicate()
+
+
 func _has_walkable_floor_mask() -> bool:
 	return _walkable_floor_mask != null and not _walkable_floor_mask.is_empty()
 
@@ -136,7 +141,7 @@ func _is_body_over_floor(center: Vector2, ignore_doors_for_access_planning := fa
 		for door in get_tree().get_nodes_in_group("ship_door"):
 			if door.has_method("blocks_position") and bool(door.call("blocks_position", center, _walkable_body_margin)):
 				return false
-	var diagonal := _walkable_body_margin * 0.70710678
+	var diagonal: float = _walkable_body_margin * 0.70710678
 	var offsets: Array[Vector2] = [
 		Vector2.ZERO,
 		Vector2(_walkable_body_margin, 0.0),
@@ -156,6 +161,9 @@ func _is_body_over_floor(center: Vector2, ignore_doors_for_access_planning := fa
 			return false
 		if _walkable_floor_mask.get_pixel(pixel_x, pixel_y).a < 0.15:
 			return false
+		for blocker in _walkable_blocker_polygons:
+			if Geometry2D.is_point_in_polygon(sample, blocker):
+				return false
 	return true
 
 

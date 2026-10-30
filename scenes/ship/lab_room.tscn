@@ -11,7 +11,7 @@
 [ext_resource type="Texture2D" uid="uid://ct46wmgde2fa7" path="res://art/concepts/lab_props/room_additions/wash_sink_user_4dir.png" id="10_tvoha"]
 [ext_resource type="PackedScene" path="res://scenes/ship/props/warm_ship_light.tscn" id="13_xv44b"]
 [ext_resource type="Texture2D" uid="uid://c2acgxvqdmbq0" path="res://art/concepts/lab_props/manual_placement/storage_cabinet_trimmed.png" id="30_manual_cabinet"]
-[ext_resource type="Script" path="res://scripts/ship/ore_containment_visual.gd" id="31_containment_visual"]
+[ext_resource type="Script" uid="uid://cognfrwfa0g38" path="res://scripts/ship/ore_containment_visual.gd" id="31_containment_visual"]
 
 [sub_resource type="RectangleShape2D" id="TableFootprint"]
 size = Vector2(445, 350)
@@ -330,10 +330,12 @@ position = Vector2(410, 155)
 scale = Vector2(0.043, 0.043)
 
 [node name="Sprite" type="Sprite2D" parent="StorageCabinetRightView" unique_id=1522971010]
+position = Vector2(-7348.8374, -1697.6744)
 texture = ExtResource("30_manual_cabinet")
 
 [node name="Collision" type="StaticBody2D" parent="StorageCabinetRightView" unique_id=1635742186]
 collision_mask = 0
 
 [node name="Footprint" type="CollisionPolygon2D" parent="StorageCabinetRightView/Collision" unique_id=894729976]
+position = Vector2(-7302.325, -1720.9302)
 polygon = PackedVector2Array(-400, -380, 340, -380, 430, -40, 330, 470, -330, 470, -430, -40)

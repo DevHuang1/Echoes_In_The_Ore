@@ -6,6 +6,7 @@ const INSTRUMENT := preload("res://scripts/ui/equipment_ui.gd")
 
 signal task_completed(task_id: StringName)
 signal console_closed
+signal containment_stimulated
 
 const GOLD := Color(1.0, 0.77, 0.34)
 const PALE := Color(0.94, 0.91, 0.82)
@@ -584,6 +585,7 @@ var _task_id: StringName = &""
 var _completed_count := 0
 var _task_total := 3
 var _task_complete := false
+var _containment_stimulus_sent := false
 var _is_closing := false
 
 var _root: Control
@@ -676,6 +678,7 @@ func _ready() -> void:
 
 
 func _build_ui() -> void:
+	var is_research_computer := _task_id == &"lab_containment"
 	_root = Control.new()
 	if _is_labroom_task(): SKIN.apply(_root)
 	else: INSTRUMENT.apply(_root)
@@ -1151,6 +1154,9 @@ func _on_containment_test() -> void:
 	_lab_station_display.status_text = "VESSEL SECURE"
 	_lab_station_display.queue_redraw()
 	_set_lab_device_status("PRESSURE-HOLD TEST PASSED  /  1.0 ATM", GREEN)
+	if not _containment_stimulus_sent:
+		_containment_stimulus_sent = true
+		containment_stimulated.emit()
 
 
 func _build_trolley_controls(parent: VBoxContainer) -> void:
@@ -1635,14 +1641,13 @@ func _build_filter_game() -> void:
 	controls.add_child(_filter_action_box)
 	_filter_stage_label = _label("STEP 01  /  REMOVE", 10, GOLD)
 	_filter_action_box.add_child(_filter_stage_label)
-	_filter_instruction = _label("The intake is clogged. Release the housing latch and remove the spent cartridge.", 14, PALE)
+	_filter_instruction = _label("FILTER B-04 IS CLOGGED. Release the pressure latch, remove the spent canister, then fit the replacement.", 14, PALE)
 	_filter_instruction.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_filter_instruction.custom_minimum_size.y = 65.0
 	_filter_action_box.add_child(_filter_instruction)
-	_filter_action_box.add_spacer(false)
 	_filter_stage_controls = VBoxContainer.new()
 	_filter_action_box.add_child(_filter_stage_controls)
-	_filter_release_button = _button("RELEASE PNEUMATIC LATCH  →", Vector2(0.0, 48.0), GOLD)
+	_filter_release_button = _button("RELEASE LATCH + REMOVE SPENT CANISTER  →", Vector2(0.0, 52.0), GOLD)
 	_filter_release_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_filter_release_button.pressed.connect(_on_filter_release_pressed)
 	_filter_stage_controls.add_child(_filter_release_button)

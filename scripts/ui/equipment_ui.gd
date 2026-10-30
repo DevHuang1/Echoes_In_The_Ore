@@ -88,10 +88,10 @@ class CommandButton extends Button:
 	var mechanism := ""
 	func _draw() -> void:
 		if mechanism.is_empty(): return
-		var c := MUTED if disabled else AMBER if mechanism=="isolate" else CYAN
+		var c := Color("a5b7bb") if disabled else Color("edb953") if mechanism=="isolate" else Color("68dce5")
 		var y := floorf(size.y/2)
 		if mechanism=="isolate" or mechanism=="restore":
-			draw_rect(Rect2(7,y-9,14,18),WELL)
+			draw_rect(Rect2(7,y-9,14,18),Color("0b171d"))
 			draw_rect(Rect2(9,y-7 if mechanism=="isolate" else y+1,10,6),c)
 		else:
 			draw_rect(Rect2(8,y-4,6,8),c)
@@ -108,7 +108,7 @@ static func stack(parent: Node, gap := 8) -> VBoxContainer:
 class SegmentedMeter extends Control:
 	var value := 0.0
 	var maximum := 100.0
-	var tint := CYAN
+	var tint := Color("68dce5")
 	var segments := 24
 	func _init() -> void:
 		custom_minimum_size.y=12;mouse_filter=Control.MOUSE_FILTER_IGNORE
@@ -116,7 +116,7 @@ class SegmentedMeter extends Control:
 		var w := floorf(size.x/segments)
 		var n := int(roundf(clampf(value/maxf(maximum,0.001),0,1)*segments))
 		for i in range(segments):
-			draw_rect(Rect2(i*w,0,maxf(1,w-2),size.y),tint if i<n else SHADOW)
+			draw_rect(Rect2(i*w,0,maxf(1,w-2),size.y),tint if i<n else Color("303e43"))
 	func set_reading(reading: float, limit: float=100.0, color: Color=CYAN) -> void:
 		value=reading;maximum=limit;tint=color;queue_redraw()
 
@@ -125,14 +125,32 @@ class Readout extends PanelContainer:
 	var reading: Label
 	var detail: Label
 	var meter: SegmentedMeter
+	static func _make_label(text: String, size: int, color: Color) -> Label:
+		var result := Label.new()
+		result.text = text
+		result.add_theme_font_size_override("font_size", size)
+		result.add_theme_color_override("font_color", color)
+		result.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		return result
+
 	func _init() -> void:
-		add_theme_stylebox_override("panel",ShipEquipmentUI.box(WELL,SHADOW,8))
+		var panel_style := StyleBoxFlat.new()
+		panel_style.bg_color = Color("0b171d")
+		panel_style.border_color = Color("303e43")
+		panel_style.set_border_width_all(2)
+		panel_style.border_width_bottom = 4
+		panel_style.set_content_margin_all(8)
+		panel_style.corner_detail = 1
+		panel_style.corner_radius_top_left = 3
+		panel_style.corner_radius_bottom_right = 3
+		panel_style.anti_aliasing = false
+		add_theme_stylebox_override("panel", panel_style)
 		size_flags_horizontal=Control.SIZE_EXPAND_FILL
-		var v := VBoxContainer.new();v.add_theme_constant_override("separation",4);add_child(v)
-		heading=ShipEquipmentUI.label("",10,MUTED);v.add_child(heading)
-		reading=ShipEquipmentUI.label("",18,CYAN);v.add_child(reading)
+		var v := VBoxContainer.new();v.add_theme_constant_override("separation",3);add_child(v)
+		heading=_make_label("",12,Color("a5b7bb"));v.add_child(heading)
+		reading=_make_label("",24,Color("68dce5"));v.add_child(reading)
 		meter=SegmentedMeter.new();v.add_child(meter)
-		detail=ShipEquipmentUI.label("",10,MUTED);detail.text_overrun_behavior=TextServer.OVERRUN_TRIM_ELLIPSIS
+		detail=_make_label("",12,Color("a5b7bb"));detail.text_overrun_behavior=TextServer.OVERRUN_TRIM_ELLIPSIS
 		v.add_child(detail)
 	func show_reading(title: String, value_text: String, hint: String, value: float, maximum: float, color: Color) -> void:
 		heading.text=title;reading.text=value_text;detail.text=hint;detail.tooltip_text=hint
@@ -142,20 +160,36 @@ class Readout extends PanelContainer:
 class Lamp extends HBoxContainer:
 	var bulb: ColorRect
 	var caption: Label
+	static func _make_label(text: String, size: int) -> Label:
+		var result := Label.new()
+		result.text = text
+		result.add_theme_font_size_override("font_size", size)
+		result.add_theme_color_override("font_color", Color("eee7d3"))
+		result.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		return result
+
 	func _init() -> void:
 		add_theme_constant_override("separation",6)
 		bulb=ColorRect.new();bulb.custom_minimum_size=Vector2(8,8)
 		bulb.size_flags_vertical=Control.SIZE_SHRINK_CENTER;bulb.mouse_filter=Control.MOUSE_FILTER_IGNORE
-		add_child(bulb);caption=ShipEquipmentUI.label("",10);add_child(caption)
+		add_child(bulb);caption=_make_label("",12);add_child(caption)
 	func set_status(text: String, color: Color) -> void:
 		bulb.color=color;caption.text=text;caption.add_theme_color_override("font_color",color)
 
 class Confirmation extends VBoxContainer:
 	## A review card above the real commit control; no duplicate mission state.
+	static func _make_label(text: String, color: Color) -> Label:
+		var result := Label.new()
+		result.text = text
+		result.add_theme_font_size_override("font_size", 12)
+		result.add_theme_color_override("font_color", color)
+		result.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		return result
+
 	func show_review(title: String,description: String) -> void:
-		add_theme_constant_override("separation",5)
-		add_child(ShipEquipmentUI.label(title,10,AMBER))
-		var detail := ShipEquipmentUI.label(description,10,MUTED)
+		add_theme_constant_override("separation",4)
+		add_child(_make_label(title,Color("edb953")))
+		var detail := _make_label(description,Color("a5b7bb"))
 		detail.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;add_child(detail)
 
 class Chassis extends Control:
@@ -164,6 +198,6 @@ class Chassis extends Control:
 	func _draw() -> void:
 		for x in [7.0,size.x-9]:
 			for y in [7.0,size.y-9]:
-				draw_rect(Rect2(x,y,4,4),WELL);draw_line(Vector2(x,y),Vector2(x+3,y),EDGE,1)
+				draw_rect(Rect2(x,y,4,4),Color("0b171d"));draw_line(Vector2(x,y),Vector2(x+3,y),Color("a5b7bb"),1)
 		for i in range(12):
-			draw_rect(Rect2(size.x/2-36+i*6,3,3,4),SHADOW)
+			draw_rect(Rect2(size.x/2-36+i*6,3,3,4),Color("303e43"))

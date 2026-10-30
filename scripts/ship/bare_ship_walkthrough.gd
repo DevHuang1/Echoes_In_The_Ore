@@ -5,7 +5,6 @@ const FLOOR_TEXTURE: Texture2D = preload("res://art/overview/asteria_overview_fl
 const RESONANCE_ORE_TANK_STORED_TEXTURE := preload("res://art/concepts/lab_props/ore_containment_stored_refined.png")
 const RESONANCE_ORE_TANK_CRACKING_TEXTURE := preload("res://art/planet/modern_ore_containment_cracking.png")
 const RESONANCE_ORE_TANK_DESTROYED_TEXTURE := preload("res://art/concepts/lab_props/destroyed/ore_containment_redesigned.png")
-const RESONANCE_ORE_LEAK_TEXTURE := preload("res://art/concepts/lab_props/destroyed/ore_leak_tank_to_floor.png")
 const RESONANCE_ORE_VILLAIN_SCENE := preload("res://scenes/ship/crew/resonance_ore_villain.tscn")
 const ECHO_LIQUID_ATLAS := preload("res://art/characters/runtime/echo_liquid_walk_4dir.png")
 const XENOMORPH_INCUBATION_SECONDS := 60.0
@@ -78,6 +77,9 @@ const LAB_DEVICES := [
 const LAB_DOOR_REPAIR_TASK_ID := &"repair_lab_pressure_door"
 const LAB_ENTRY_TASK_ID := &"investigate_echo_lab"
 const RIG_REPORT_TASK_ID := &"report_failed_rig"
+const ORE_FIELD_RETURN_TASK_ID := &"return_to_erebos_ore_seam"
+const ORE_DELIVERY_TASK_ID := &"return_ore_to_amara"
+const REFLECTION_FIELD_RETURN_TASK_ID := &"return_to_erebos_reflection"
 
 # Strengthened multi-task storyline: individual tasks advance the story & ship systems,
 # and equipment is earned only after completing multi-task storyline milestones!
@@ -87,7 +89,8 @@ const ROOM_TASKS: Array[Dictionary] = [
 		"title": "Reconnect aux power bus",
 		"marker_label": "AUX POWER",
 		"room_name": "Power Core",
-		"action_hint": "Reconnect aux power bus capacitor banks",
+		"action_hint": "Use the power panel to reconnect and synchronize the auxiliary cells.",
+		"purpose": "This feed supports ship operations. Restore it before the crew begins deeper system checks.",
 		"station_path": NodePath("PowerMaintenanceRoomProps/PowerCellModule"),
 		"marker_offset": Vector2(0.0, -24.0),
 		"prompt": "AUXILIARY POWER CELL   /   [E] RECONNECT POWER BUS",
@@ -101,7 +104,8 @@ const ROOM_TASKS: Array[Dictionary] = [
 		"title": "Replace air scrubber",
 		"marker_label": "LIFE SUPPORT",
 		"room_name": "Life Support",
-		"action_hint": "Replace scrubber cartridge on life-support unit",
+		"action_hint": "Open the filter housing, replace the scrubber, and stabilize airflow.",
+		"purpose": "The crew needs clean air before Asteria-1 can prepare for landing.",
 		"station_path": NodePath("LifeSupportRoomProps/FilterCartridge"),
 		"marker_offset": Vector2(0.0, -26.0),
 		"prompt": "LIFE-SUPPORT FILTER   /   [E] REPLACE SCRUBBER CARTRIDGE",
@@ -115,7 +119,8 @@ const ROOM_TASKS: Array[Dictionary] = [
 		"title": "Route nutrient flow",
 		"marker_label": "HYDROPONICS",
 		"room_name": "Greenhouse",
-		"action_hint": "Align nutrient delivery manifold valves",
+		"action_hint": "Route nutrient flow through the correct manifold valves.",
+		"purpose": "The grow beds need steady nutrient delivery to keep the crew's food supply healthy.",
 		"station_path": NodePath("HydroponicsRoomProps/ControlConsole"),
 		"interaction_offset": Vector2(32.0, 0.0),
 		"marker_offset": Vector2(0.0, -22.0),
@@ -138,6 +143,8 @@ const AMARA_CREW_TASKS: Array[Dictionary] = [
 		"id": &"amara_nutrient_pump",
 		"title": "Amara (1/2): Inspect nutrient pump",
 		"marker_label": "AMARA / PUMP",
+		"action_hint": "Inspect the pump and report whether it is delivering nutrients.",
+		"purpose": "Amara is checking the grow beds before the crew depends on them for food.",
 		"station_path": NodePath("HydroponicsRoomProps/NutrientPump"),
 		"interaction_offset": Vector2(36.0, 0.0),
 		"marker_offset": Vector2(0.0, -22.0),
@@ -149,6 +156,8 @@ const AMARA_CREW_TASKS: Array[Dictionary] = [
 		"id": &"amara_seedling_sensor",
 		"title": "Amara (2/2): Calibrate seedling sensor (Astrobiology Log)",
 		"marker_label": "SEEDLINGS",
+		"action_hint": "Calibrate the humidity sensor and confirm its reading.",
+		"purpose": "Reliable moisture readings help Amara tell whether the seedlings are weakening from poor irrigation.",
 		"station_path": NodePath("HydroponicsRoomProps/SeedlingRack"),
 		"interaction_offset": Vector2(44.0, 0.0),
 		"marker_offset": Vector2(0.0, -28.0),
@@ -165,7 +174,8 @@ const STORY_STATIONS: Array[Dictionary] = [
 		"title": "Play May's Yangon message",
 		"marker_label": "CREW BUNK",
 		"room_name": "Living Quarters",
-		"action_hint": "Examine Thura's personal terminal desk",
+		"action_hint": "Use the terminal beside Thura's bunk and play May's saved message.",
+		"purpose": "Thura is leaving home for a long mission. May's message grounds him before the voyage begins.",
 		"station_path": NodePath("CrewLivingQuarterProps/PersonalComputerDesk"),
 		"interaction_offset": Vector2(0.0, 44.0),
 		"marker_offset": Vector2(0.0, -24.0),
@@ -179,7 +189,8 @@ const STORY_STATIONS: Array[Dictionary] = [
 		"title": "Pilot ship & evade asteroids",
 		"marker_label": "PILOT HELM",
 		"room_name": "Navigation Bridge",
-		"action_hint": "Take manual helm console and evade asteroid swarm",
+		"action_hint": "Take the manual helm and guide Asteria-1 through the debris field.",
+		"purpose": "The autopilot cannot safely clear the incoming asteroids on its own.",
 		"station_path": NodePath("BridgeRoomProps/UpperBowFlightConsole"),
 		"interaction_offset": Vector2(28.0, 14.0),
 		"marker_offset": Vector2(0.0, -26.0),
@@ -193,7 +204,8 @@ const STORY_STATIONS: Array[Dictionary] = [
 		"title": "Scan Erebos drone feed",
 		"marker_label": "DRONE BAY",
 		"room_name": "Cargo Bay",
-		"action_hint": "Isolate deep acoustic vibration feed from drone rig",
+		"action_hint": "Repair the mining drone, then isolate the repeating vibration in its feed.",
+		"purpose": "Determine whether the four-pulse signal from Erebos is geological or something else.",
 		"station_path": NodePath("CargoBayProps/MaintenanceTrolley"),
 		"interaction_offset": Vector2(-34.0, 0.0),
 		"marker_offset": Vector2(0.0, -34.0),
@@ -207,7 +219,8 @@ const STORY_STATIONS: Array[Dictionary] = [
 		"title": "Prep Site K-12 landing gear",
 		"marker_label": "SHUTTLE BAY",
 		"room_name": "Shuttle Bay",
-		"action_hint": "Calibrate locator transponders in landing crate",
+		"action_hint": "Calibrate and pack the locator beacons for Site K-12.",
+		"purpose": "The beacons will mark a safe landing point and help the crew find the lander again.",
 		"station_path": NodePath("ShuttleBayCargo"),
 		"interaction_offset": Vector2(-42.0, -18.0),
 		"marker_offset": Vector2(-16.0, -38.0),
@@ -221,13 +234,14 @@ const STORY_STATIONS: Array[Dictionary] = [
 		"title": "Initiate Erebos landing descent",
 		"marker_label": "LANDING HELM",
 		"room_name": "Navigation Bridge",
-		"action_hint": "Align orbit and fire descent thrusters for Site K-12",
+		"action_hint": "At the flight helm, align with Site K-12 and begin the landing burn.",
+		"purpose": "Bring the crew down safely to the survey site before the orbital window closes.",
 		"station_path": NodePath("BridgeRoomProps/MainHelmConsole"),
 		"interaction_offset": Vector2(36.0, 0.0),
 		"marker_offset": Vector2(-6.0, -28.0),
 		"prompt": "BRIDGE FLIGHT HELM   /   [E] INITIATE EREBOS ORBITAL LANDING",
 		"reward_item": &"",
-		"milestone_reward": &"emergency_flare",
+		"milestone_reward": &"",
 		"log_id": &"",
 	},
 	{
@@ -235,13 +249,14 @@ const STORY_STATIONS: Array[Dictionary] = [
 		"title": "Inspect breached drill core",
 		"marker_label": "SAMPLE CORE",
 		"room_name": "Cargo Bay",
-		"action_hint": "Inspect breached core containment pod scale",
+		"action_hint": "Check the cargo scale and inspect the sample container for damage.",
+		"purpose": "The container's mass changed during the return trip. Find out whether the seal is still secure.",
 		"station_path": NodePath("CargoBayProps/CargoInspectionScale"),
 		"interaction_offset": Vector2(-38.0, 12.0),
 		"marker_offset": Vector2(0.0, -34.0),
 		"prompt": "DRILL CORE CONTAINMENT   /   [E] INSPECT MASS ANOMALY",
 		"reward_item": &"",
-		"milestone_reward": &"electrical_discharge_tool",
+		"milestone_reward": &"",
 		"log_id": &"log_chen_debate",
 	},
 	{
@@ -249,13 +264,14 @@ const STORY_STATIONS: Array[Dictionary] = [
 		"title": "Descend to Second Floor (Sub-Deck 02)",
 		"marker_label": "SUB-DECK 02",
 		"room_name": "Center Recess",
-		"action_hint": "Activate freight lift to access Sub-Deck 02",
+		"action_hint": "Use the freight lift to reach Sub-Deck 02 and continue the search.",
+		"purpose": "The Echo is moving through the lower maintenance spaces beyond the main deck.",
 		"station_path": NodePath("CenterRecessRoom/SubDeckAccessLift"),
 		"interaction_offset": Vector2(0.0, 0.0),
 		"marker_offset": Vector2(0.0, -26.0),
 		"prompt": "SUB-DECK CARGO LIFT   /   [E] DESCEND TO SECOND FLOOR",
 		"reward_item": &"",
-		"milestone_reward": &"electrical_discharge_tool",
+		"milestone_reward": &"",
 		"log_id": &"",
 	},
 	{
@@ -357,8 +373,6 @@ var _amara_ore_handoff_active: bool = false
 var _active_lab_device_id: StringName = &""
 var _tank_countdown_label: Label = null
 var _tank_liquid_sprite: AnimatedSprite2D = null
-var _ore_leak_sprite: Sprite2D = null
-var _ore_leak_phase: float = 0.0
 var _villain_instance: Node2D = null
 var _xenomorph_timer_active: bool = false
 var _xenomorph_countdown: float = XENOMORPH_INCUBATION_SECONDS
@@ -387,24 +401,6 @@ func _load_single_sprite_png(sprite: Sprite2D, res_path: String, sprite_scale: V
 	sprite.vframes = 1
 	sprite.frame = 0
 	sprite.scale = sprite_scale
-
-
-func _set_ore_leak_visible(is_visible: bool) -> void:
-	if not is_instance_valid(_ore_leak_sprite):
-		var lab_room := get_node_or_null("LabRoom") as Node2D
-		if lab_room == null:
-			return
-		_ore_leak_sprite = Sprite2D.new()
-		_ore_leak_sprite.name = "ResonanceOreLeak"
-		_ore_leak_sprite.texture = RESONANCE_ORE_LEAK_TEXTURE
-		_ore_leak_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-		# The narrow stream starts beneath the tank; the wider pool spreads into the open floor.
-		_ore_leak_sprite.position = Vector2(276.0, 122.0)
-		_ore_leak_sprite.scale = Vector2(0.052, 0.052)
-		_ore_leak_sprite.z_index = 0
-		_ore_leak_sprite.visible = false
-		lab_room.add_child(_ore_leak_sprite)
-	_ore_leak_sprite.visible = is_visible
 
 
 func _is_ore_sample_collected() -> bool:
@@ -476,6 +472,8 @@ func _lab_door_repair_task_entry() -> Dictionary:
 	return {
 		"id": LAB_DOOR_REPAIR_TASK_ID,
 		"title": "Restore all sealed laboratory doors",
+		"action_hint": "Go to the maintenance workshop and repair the shared pressure-door controls.",
+		"purpose": "Every lab door has sealed shut. Repair the maintenance controls to reach the dark lab and search for Amara.",
 		"marker_label": "LAB ACCESS REPAIR",
 		"position": interaction_position,
 		"marker_position": marker_position,
@@ -488,6 +486,8 @@ func _lab_entry_task_entry() -> Dictionary:
 	return {
 		"id": LAB_ENTRY_TASK_ID,
 		"title": "Enter the lab and investigate the echo",
+		"action_hint": "Use the repaired lab entrance, switch on the lights, and inspect the wreckage.",
+		"purpose": "Get inside, restore the room lights, and find out what happened to the equipment and Amara.",
 		"marker_label": "LAB ACCESS",
 		"position": door_position + Vector2(0.0, 48.0),
 		"marker_position": door_position + Vector2(0.0, -34.0),
@@ -495,15 +495,54 @@ func _lab_entry_task_entry() -> Dictionary:
 
 
 func _rig_report_task_entry() -> Dictionary:
-	var marker_position := amara.global_position + Vector2(0.0, -48.0)
-	var interaction_position := amara.global_position + Vector2(0.0, 38.0)
+	var marker_position: Vector2 = amara.global_position + Vector2(0.0, -48.0)
+	var interaction_position: Vector2 = amara.global_position + Vector2(0.0, 38.0)
 	return {
 		"id": RIG_REPORT_TASK_ID,
 		"title": "Report the failed extraction rig to Dr. Okoye",
+		"action_hint": "Board Asteria-1, find Dr. Okoye, and tell her the test failed.",
+		"purpose": "Amara needs the rig telemetry before she can decide what Thura should do next.",
 		"marker_label": "REPORT TO AMARA",
 		"position": interaction_position,
 		"marker_position": marker_position,
 	}
+
+
+func _airlock_mission_entry(task_id: StringName, title: String, action_hint: String, purpose: String = "") -> Dictionary:
+	var airlock_position := exterior_airlock.global_position if is_instance_valid(exterior_airlock) else floor_layer.to_global(AIRLOCK_RETURN_FLOOR_POS)
+	return {
+		"id": task_id,
+		"title": title,
+		"marker_label": "EXTERIOR AIRLOCK",
+		"room_name": "Asteria-1 Airlock",
+		"action_hint": action_hint,
+		"purpose": purpose,
+		"position": airlock_position + Vector2(0.0, 28.0),
+		"marker_position": airlock_position + Vector2(0.0, -48.0),
+	}
+
+
+func _ore_delivery_task_entry() -> Dictionary:
+	var amara_position := amara.global_position if is_instance_valid(amara) else Vector2(1010.0, 530.0)
+	return {
+		"id": ORE_DELIVERY_TASK_ID,
+		"title": "Give the resonance ore sample to Dr. Okoye",
+		"marker_label": "ORE HANDOFF",
+		"room_name": "Research Lab",
+		"action_hint": "Find Dr. Okoye at her lab station and hand over the sealed sample.",
+		"purpose": "Amara can compare the ore's pulses with the rig failure and check whether it is safe.",
+		"position": amara_position + Vector2(0.0, 38.0),
+		"marker_position": amara_position + Vector2(0.0, -48.0),
+	}
+
+
+func _reflection_field_return_task_entry() -> Dictionary:
+	return _airlock_mission_entry(
+		REFLECTION_FIELD_RETURN_TASK_ID,
+		"Return to Erebos and sit by the extraction rig",
+		"Go outside and sit in front of the failed machine.",
+		"There is no repair order yet. While Thura waits, the quiet brings back the night he asked his mother about the stars.",
+	)
 
 
 func _ensure_tank_countdown_label() -> Label:
@@ -655,43 +694,11 @@ func _wreck_lab_prop(node_path: NodePath, rot: float, offset: Vector2, tint: Col
 		node.modulate = tint
 
 
-func _add_dirty_lab_floor() -> void:
-	var lab_room := get_node_or_null("LabRoom") as Node2D
-	if lab_room == null or lab_room.has_node("DirtyFloor"):
-		return
-	var stains := Node2D.new()
-	stains.name = "DirtyFloor"
-	stains.z_index = -1
-	lab_room.add_child(stains)
-	var patches := [
-		{"position": Vector2(174.0, 196.0), "size": Vector2(35.0, 8.0), "color": Color(0.045, 0.055, 0.052, 0.72)},
-		{"position": Vector2(244.0, 211.0), "size": Vector2(48.0, 11.0), "color": Color(0.09, 0.052, 0.035, 0.74)},
-		{"position": Vector2(318.0, 190.0), "size": Vector2(38.0, 9.0), "color": Color(0.035, 0.06, 0.055, 0.78)},
-		{"position": Vector2(388.0, 211.0), "size": Vector2(31.0, 8.0), "color": Color(0.11, 0.055, 0.036, 0.7)},
-		{"position": Vector2(444.0, 181.0), "size": Vector2(26.0, 7.0), "color": Color(0.04, 0.05, 0.047, 0.68)},
-	]
-	for index in range(patches.size()):
-		var patch: Dictionary = patches[index]
-		var stain := Polygon2D.new()
-		stain.name = "GrimePatch%d" % index
-		stain.position = patch["position"]
-		stain.color = patch["color"]
-		var size: Vector2 = patch["size"]
-		var points := PackedVector2Array()
-		for point_index in range(14):
-			var angle := TAU * float(point_index) / 14.0
-			var unevenness := 0.78 + 0.22 * sin(float(point_index) * 2.7 + float(index))
-			points.append(Vector2(cos(angle) * size.x, sin(angle) * size.y) * unevenness)
-		stain.polygon = points
-		stains.add_child(stain)
-
-
 func _apply_lab_destruction_stage(stage: int, animate: bool) -> void:
 	match stage:
 		1:
 			# Stage 1: OreContainment shattered.
 			_load_sprite_png(get_node_or_null("LabRoom/OreContainment/SampleContainment") as Sprite2D, "res://art/concepts/lab_props/destroyed/ore_containment_redesigned.png")
-			_set_ore_leak_visible(true)
 			_wreck_lab_prop(NodePath("LabRoom/OreContainment"), -0.05, Vector2(0.0, 3.0), Color.WHITE, animate)
 			var analysis_sleeve := get_node_or_null("LabRoom/CableRuns/AnalysisToConsoleSleeve") as Line2D
 			var analysis_power := get_node_or_null("LabRoom/CableRuns/AnalysisToConsolePower") as Line2D
@@ -738,7 +745,6 @@ func _apply_lab_destruction_stage(stage: int, animate: bool) -> void:
 				wg.color = Color(1.0, 0.25, 0.14, 1.0)
 		6:
 			# Stage 6: Left Storage Cabinet, Waste Bins & Wash Sink destroyed
-			_add_dirty_lab_floor()
 			_load_single_sprite_png(get_node_or_null("LabRoom/LeftStorageCabinet/Sprite") as Sprite2D, "res://art/concepts/lab_props/destroyed/sample_cabinet.png")
 			_load_single_sprite_png(get_node_or_null("LabRoom/LabWasteBins/Sprite") as Sprite2D, "res://art/concepts/lab_props/destroyed/lab_waste_bins.png", Vector2(0.4, 0.4))
 			_load_single_sprite_png(get_node_or_null("LabRoom/WashSink/Sprite") as Sprite2D, "res://art/concepts/lab_props/destroyed/wash_sink.png", Vector2(0.5, 0.5))
@@ -756,53 +762,32 @@ func _apply_lab_destruction_stage(stage: int, animate: bool) -> void:
 func _destroy_all_lab_immediately() -> void:
 	for st in range(1, 7):
 		_apply_lab_destruction_stage(st, false)
-	_set_lab_station_lights_visible(false)
+	_restore_lab_station_lighting()
 
 
-func _set_lab_station_lights_visible(is_visible: bool) -> void:
+func _cache_lab_station_lighting() -> void:
 	var lighting := get_node_or_null("LabRoom/StationLighting") as Node2D
 	if lighting == null:
 		return
 	for child in lighting.get_children():
 		if child is PointLight2D:
-			(child as PointLight2D).visible = is_visible
+			var light := child as PointLight2D
+			light.set_meta(&"lab_original_energy", light.energy)
+			light.set_meta(&"lab_original_color", light.color)
 
 
-func _play_lab_breach_wave() -> void:
-	var lab_room := get_node_or_null("LabRoom") as Node2D
-	if lab_room == null:
+func _restore_lab_station_lighting() -> void:
+	var lighting := get_node_or_null("LabRoom/StationLighting") as Node2D
+	if lighting == null:
 		return
-	var wave := Polygon2D.new()
-	wave.name = "ResonanceBreachWave"
-	wave.color = Color(0.05, 0.78, 0.72, 0.36)
-	wave.position = Vector2(286.0, 132.0)
-	wave.scale = Vector2(0.01, 0.01)
-	wave.z_index = 5
-	var circle := PackedVector2Array()
-	for index in range(48):
-		var angle := TAU * float(index) / 48.0
-		circle.append(Vector2(cos(angle), sin(angle)))
-	wave.polygon = circle
-	lab_room.add_child(wave)
-
-	var lights := get_node_or_null("LabRoom/StationLighting") as Node2D
-	if lights != null:
-		for child in lights.get_children():
-			if child is PointLight2D:
-				var light := child as PointLight2D
-				light.visible = true
-				light.color = Color(0.24, 1.0, 0.86, 1.0)
-				var flicker := create_tween()
-				flicker.tween_property(light, "energy", 1.1, 0.12)
-				flicker.tween_property(light, "energy", 0.06, 0.18)
-				flicker.tween_property(light, "energy", 0.85, 0.08)
-				flicker.tween_property(light, "energy", 0.0, 0.24)
-
-	var surge := create_tween()
-	surge.tween_property(wave, "scale", Vector2(255.0, 138.0), 0.62).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	await surge.finished
-	wave.queue_free()
-	_set_lab_station_lights_visible(false)
+	for child in lighting.get_children():
+		if child is PointLight2D:
+			var light := child as PointLight2D
+			light.visible = true
+			if light.has_meta(&"lab_original_energy"):
+				light.energy = float(light.get_meta(&"lab_original_energy"))
+			if light.has_meta(&"lab_original_color"):
+				light.color = light.get_meta(&"lab_original_color")
 
 
 func _spawn_resonance_ore_villain(play_breakout_fx: bool) -> void:
@@ -876,12 +861,11 @@ func _spawn_resonance_ore_villain(play_breakout_fx: bool) -> void:
 		if not is_instance_valid(villain):
 			return
 		_apply_lab_destruction_stage(1, true)
-		await get_tree().create_timer(0.22).timeout
-		await _play_lab_breach_wave()
 		for stage in range(2, 7):
-			_apply_lab_destruction_stage(stage, false)
-		_room_task_feedback = "RESONANCE SURGE  /  LAB SYSTEMS CRITICAL"
-		_room_task_feedback_timer = 6.5
+			_apply_lab_destruction_stage(stage, true)
+		_restore_lab_station_lighting()
+		_room_task_feedback = ""
+		_room_task_feedback_timer = 0.0
 	else:
 		villain.global_position = landing_pos
 		if Engine.has_meta(&"echo_disappeared_into_ducts") and bool(Engine.get_meta(&"echo_disappeared_into_ducts")):
@@ -968,6 +952,7 @@ func _update_contained_ore_sample() -> void:
 func _on_containment_stimulated() -> void:
 	if not _is_ore_sample_stored():
 		return
+	Engine.set_meta(&"resonance_ore_stimulated", true)
 	Engine.set_meta(&"resonance_ore_incubation_remaining", XENOMORPH_INCUBATION_SECONDS)
 	_xenomorph_countdown = XENOMORPH_INCUBATION_SECONDS
 	_start_xenomorph_incubation_timer()
@@ -990,6 +975,7 @@ func _ready() -> void:
 		set_process_unhandled_input(false)
 		return
 
+	_cache_lab_station_lighting()
 	_load_persistent_story_state()
 
 	player.set_walkable_floor_mask(FLOOR_TEXTURE, floor_layer.global_position, 8.0)
@@ -1001,6 +987,10 @@ func _ready() -> void:
 	var returning_from_planet: bool = _returning_from_planet
 	var returning_from_second_floor: bool = Engine.has_meta(&"returning_from_second_floor") and bool(Engine.get_meta(&"returning_from_second_floor"))
 	var is_continue: bool = Engine.has_meta("ship_story_continue_path")
+	if _has_heard_ore_echo() and not (Engine.has_meta(&"resonance_lab_entered_after_echo") and bool(Engine.get_meta(&"resonance_lab_entered_after_echo"))):
+		_echo_lab_return_active = true
+		_lab_door_repair_required = not _has_repaired_lab_door()
+		_set_lab_doors_locked(_lab_door_repair_required)
 	if not returning_from_planet and not returning_from_second_floor and not is_continue:
 		if Engine.has_meta(&"echoes_campaign_inventory_state") and Engine.has_meta(&"ship_story_bootstrap"):
 			Engine.remove_meta(&"echoes_campaign_inventory_state")
@@ -1022,7 +1012,6 @@ func _ready() -> void:
 		elif Engine.has_meta(&"dev_trigger_lab_breach"):
 			Engine.remove_meta(&"dev_trigger_lab_breach")
 			call_deferred(&"_spawn_resonance_ore_villain", true)
-			call_deferred(&"_play_lab_breach_wave")
 			call_deferred(&"_apply_lab_destruction_stage", 2, true)
 	else:
 		player.global_position = player_spawn
@@ -1032,8 +1021,8 @@ func _ready() -> void:
 		player.camera.make_current()
 		player.camera.reset_smoothing()
 	player.set_physics_process(false)
-	if not player.equipment_used.is_connected(_on_player_equipment_used):
-		player.equipment_used.connect(_on_player_equipment_used)
+	if player.has_signal(&"equipment_used") and not player.is_connected(&"equipment_used", _on_player_equipment_used):
+		player.connect(&"equipment_used", _on_player_equipment_used)
 	var all_defs_by_id: Dictionary = {}
 	for task in ROOM_TASKS:
 		all_defs_by_id[task["id"]] = task
@@ -1055,6 +1044,7 @@ func _ready() -> void:
 			"marker_label": entry_def["marker_label"],
 			"room_name": entry_def.get("room_name", "Ship Deck"),
 			"action_hint": entry_def.get("action_hint", ""),
+			"purpose": entry_def.get("purpose", ""),
 			"reward_item": entry_def.get("reward_item", &""),
 			"milestone_reward": entry_def.get("milestone_reward", entry_def.get("reward_item", &"")),
 			"is_equipment_task": StringName(entry_def.get("reward_item", &"")) != &"" or StringName(entry_def.get("milestone_reward", &"")) != &"",
@@ -1067,13 +1057,25 @@ func _ready() -> void:
 		hud_task_entries.append(_lab_entry_task_entry())
 	if returning_from_planet and _is_rig_test_failed() and not _is_rig_failure_reported():
 		hud_task_entries.append(_rig_report_task_entry())
+	if _is_ship_landed() and _is_rig_test_failed() and _is_rig_failure_reported() and not _has_heard_ore_echo():
+		if not _is_ore_sample_collected():
+			hud_task_entries.append(_airlock_mission_entry(
+				ORE_FIELD_RETURN_TASK_ID,
+				"Return to Erebos and locate the exposed ore seam",
+				"Exit through the airlock and search the western crystal ridge.",
+				"Amara needs an ore sample to compare against the failed rig's signal.",
+			))
+		elif not _is_ore_sample_stored():
+			hud_task_entries.append(_ore_delivery_task_entry())
+		elif not (Engine.has_meta(&"resonance_ore_rest_complete") and bool(Engine.get_meta(&"resonance_ore_rest_complete"))):
+			hud_task_entries.append(_reflection_field_return_task_entry())
 	_walk_hud = WALK_HUD_SCENE.instantiate() as WalkHud
 	_walk_hud.setup(player, hud_task_entries, floor_layer.global_position, FLOOR_TEXTURE.get_size())
 	if _echo_lab_return_active and not _lab_door_repair_required:
 		_walk_hud.set_task_completed(LAB_DOOR_REPAIR_TASK_ID)
 	_walk_hud.modal_state_changed.connect(_on_hud_modal_state_changed)
 	add_child(_walk_hud)
-	_walk_hud.set_show_all_active_tasks(true)
+	_walk_hud.set_show_all_active_tasks(false)
 
 	for done_id in _completed_room_tasks:
 		_walk_hud.set_task_completed(StringName(done_id), true)
@@ -1105,8 +1107,17 @@ func _ready() -> void:
 	if returning_from_planet:
 		_arrival_briefing_open = false
 		_walk_hud.set_walking_visible(true)
-		_walk_hud.set_story_act_label("ACT III — THE RETURN")
-		_room_task_feedback = "ACT III: THE RETURN  //  INSPECT DRILL CORE IN CARGO BAY"
+		_walk_hud.set_story_act_label("ACT II — EREBOS // THE RESONANCE")
+		if _is_rig_test_failed() and not _is_rig_failure_reported():
+			_room_task_feedback = "RIG TEST FAILED  //  REPORT TO DR. OKOYE IN THE LAB"
+		elif _is_ore_sample_collected() and not _is_ore_sample_stored():
+			_room_task_feedback = "ORE SAMPLE SECURED  //  DELIVER IT TO DR. OKOYE"
+		elif _is_ore_sample_stored() and not (Engine.has_meta(&"resonance_ore_rest_complete") and bool(Engine.get_meta(&"resonance_ore_rest_complete"))):
+			_room_task_feedback = "SAMPLE HANDED OVER  //  RETURN TO EREBOS AND SIT BY THE RIG"
+		elif _has_heard_ore_echo():
+			_room_task_feedback = "THE ORE ECHO IS REAL  //  LAB DOORS SEALED; USE MAINTENANCE"
+		else:
+			_room_task_feedback = "ACT II: THE RESONANCE  //  FOLLOW THE ACTIVE MISSION"
 		_room_task_feedback_timer = 5.0
 		_update_player_walk_state()
 	elif returning_from_second_floor:
@@ -1144,6 +1155,8 @@ func _ready() -> void:
 	if is_instance_valid(exterior_airlock):
 		exterior_airlock.set("is_locked", not _is_ship_landed())
 	_setup_crew_characters()
+	if _is_lab_destroyed() and not _echo_lab_return_active:
+		call_deferred(&"_destroy_all_lab_immediately")
 
 
 func _is_ship_landed() -> bool:
@@ -1302,6 +1315,16 @@ func _update_echo_lab_entry() -> void:
 			continue
 		_lab_entry_reveal_started = true
 		Engine.set_meta(&"resonance_lab_entered_after_echo", true)
+		_destroy_all_lab_immediately()
+		Engine.set_meta(&"lab_doctor_missing", true)
+		if is_instance_valid(amara):
+			amara.set_physics_process(false)
+			amara.set_process(false)
+			amara.visible = false
+			amara.collision_layer = 0
+			amara.collision_mask = 0
+		_room_task_feedback = ""
+		_room_task_feedback_timer = 0.0
 		_walk_hud.set_task_completed(LAB_ENTRY_TASK_ID)
 		_echo_lab_return_active = false
 		return
@@ -1326,9 +1349,6 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		_room_task_feedback = "LAB BULKHEAD LOCKED BY A RESONANCE SURGE  //  USE THE MAINTENANCE WORKBENCH"
 		_room_task_feedback_timer = 4.5
-		return
-	if ship_handle_interact(event):
-		get_viewport().set_input_as_handled()
 		return
 	if _active_chen_interaction:
 		_begin_chen_dialogue()
@@ -1374,6 +1394,10 @@ func _exit_ship_to_planet() -> void:
 		_room_task_feedback = "SPEAK WITH DR. OKOYE BEFORE DEPARTURE"
 		_room_task_feedback_timer = 4.0
 		return
+	if _is_rig_failure_reported() and not _is_ore_sample_collected():
+		_walk_hud.set_task_completed(ORE_FIELD_RETURN_TASK_ID)
+	elif _is_ore_sample_stored() and not (Engine.has_meta(&"resonance_ore_rest_complete") and bool(Engine.get_meta(&"resonance_ore_rest_complete"))):
+		_walk_hud.set_task_completed(REFLECTION_FIELD_RETURN_TASK_ID)
 	_save_persistent_story_state()
 	_transitioning_to_planet = true
 	get_tree().change_scene_to_file(MOCK_PLANET_SCENE_PATH)
@@ -1655,8 +1679,8 @@ func _refresh_room_task_prompt() -> void:
 		_active_lab_device_id = closest_lab["id"]
 		var prompt_text: String = str(closest_lab["prompt"])
 		if _is_lab_destroyed():
-			if closest_lab["id"] == &"lab_specimen" and not _walk_hud.has_equipment_item(&"electrical_discharge_tool"):
-				prompt_text = "HIGH-VOLTAGE ANALYSIS BENCH   /   [E] SALVAGE ELECTRICAL DISCHARGE TOOL"
+			if closest_lab["id"] == &"lab_specimen" and not (Engine.has_meta(&"lab_breach_note_recovered") and bool(Engine.get_meta(&"lab_breach_note_recovered"))):
+				prompt_text = "WRECKED SPECIMEN BENCH   /   [E] RECOVER AMARA'S LAST ANALYSIS"
 			elif closest_lab["id"] == &"lab_trolley" and not _walk_hud.has_equipment_item(&"medical_injector"):
 				prompt_text = "OVERTURNED MED-CART   /   [E] SALVAGE MEDICAL INJECTOR"
 			else:
@@ -1708,6 +1732,16 @@ func _refresh_room_task_prompt() -> void:
 		_active_room_task_id = closest_task["id"]
 		_walk_hud.set_interaction_prompt(closest_task["prompt"], true)
 		return
+
+	var cargo_scale := get_node_or_null("CargoBayProps/CargoInspectionScale") as Node2D
+	var has_core := Engine.has_meta(&"resonance_ore_core_extracted") and bool(Engine.get_meta(&"resonance_ore_core_extracted"))
+	var core_stored := Engine.has_meta(&"resonance_ore_core_stored") and bool(Engine.get_meta(&"resonance_ore_core_stored"))
+	if cargo_scale != null and has_core and not core_stored:
+		var scale_dist := player.global_position.distance_to(cargo_scale.global_position)
+		if scale_dist <= 85.0:
+			_active_story_station_id = &"cargo_core_scale_store"
+			_walk_hud.set_interaction_prompt("CARGO INSPECTION SCALE   /   [E] WEIGH & CONTAIN RESONANCE CORE", true)
+			return
 
 	var closest_story: Dictionary = {}
 	var closest_story_dist: float = STORY_STATION_INTERACTION_RADIUS
@@ -1771,9 +1805,12 @@ func _begin_amara_dialogue() -> void:
 		await amara.walk_to_research_console_and_sit(console_position)
 		if not is_inside_tree():
 			return
+		_walk_hud.set_task_completed(ORE_DELIVERY_TASK_ID)
+		if not _has_heard_ore_echo():
+			_walk_hud.add_task_entry(_reflection_field_return_task_entry())
 		_amara_ore_handoff_active = false
 		_walk_hud.set_walking_visible(true)
-		_room_task_feedback = "ORE STORED BY DR. OKOYE  /  RETURN TO THE EXTRACTION RIG AND WAIT FOR INSTRUCTIONS"
+		_room_task_feedback = "ORE STORED BY DR. OKOYE  //  RETURN TO EREBOS AND SIT BY THE RIG"
 		_room_task_feedback_timer = 5.0
 		_update_player_walk_state()
 		return
@@ -1790,7 +1827,14 @@ func _begin_amara_dialogue() -> void:
 	_walk_hud.set_interaction_prompt("", false)
 	var lines: Array[String] = []
 	var choices: Array[Dictionary] = []
-	if _is_ore_sample_stored() and not _is_ore_villain_spawned():
+	var core_stored := Engine.has_meta(&"resonance_ore_core_stored") and bool(Engine.get_meta(&"resonance_ore_core_stored"))
+	if core_stored and not _is_ore_villain_spawned():
+		_walk_hud.set_task_completed(&"amara_core_debrief_task", true)
+		lines.append("Thura! The telemetry from the Cargo Bay scale is extraordinary — 84.2 kg of intact resonance crystal!")
+		lines.append("The 4-pulse harmonic frequency matches the signal Ruiz's drones tracked from orbit. Our deep extraction protocol worked!")
+		choices.append({"id": "amara_core_debrief", "label": "Review the core's acoustic spectroscopy data"})
+		choices.append({"id": "amara_resonance", "label": "Discuss acoustic frequencies and cellular vibration theories"})
+	elif _is_ore_sample_stored() and not _is_ore_villain_spawned():
 		lines.append("The Erebos ore is secured. I'm running spectrophotometry and monitoring its electromagnetic resonance.")
 		lines.append("It's fascinating... and unsettling. When the ship power grid pulses, the crystalline fluid vibrates in exact harmonic resonance.")
 		choices.append({"id": "amara_fluid_behavior", "label": "Inquire about colloidal fluidic behavior under magnification"})
@@ -1799,8 +1843,14 @@ func _begin_amara_dialogue() -> void:
 	elif reporting_rig_failure:
 		Engine.set_meta(&"erebos_rig_failure_reported", true)
 		_walk_hud.set_task_completed(RIG_REPORT_TASK_ID)
+		_walk_hud.add_task_entry(_airlock_mission_entry(
+			ORE_FIELD_RETURN_TASK_ID,
+			"Return to Erebos and locate the exposed ore seam",
+			"Exit through the airlock and search the western crystal ridge.",
+			"Amara needs an ore sample to compare against the failed rig's signal.",
+		))
 		lines.append("You made the right call withdrawing from the drill rig, Thura. The telemetry spike you transmitted showed severe harmonic overload.")
-		lines.append("The rig's diamond drive shattered, but I've located an exposed resonance seam in the western depression. We need a physical specimen.")
+		lines.append("The rig's bore motor tripped because acoustic feedback jammed the igniter. Speak with Mateo Ruiz in the Shuttle Bay to get his Harmonic Bypass Coupler, then use it to restart the extraction rig.")
 		choices.append({"id": "amara_seam_advice", "label": "Ask for guidance on extracting the resonance seam sample"})
 		choices.append({"id": "amara_containment_prep", "label": "Review sterile transport canister protocols"})
 		choices.append({"id": "amara_sensor_readings", "label": "Ask what her sensors registered during the drill failure"})
@@ -1862,6 +1912,8 @@ func _begin_mateo_dialogue() -> void:
 	else:
 		lines.append("We're down on Site K-12. That was a rough retro-burn through the crags, but Asteria-1 held together.")
 		lines.append("Exterior airlock is open. Mind the 0.84G gravity — your suit thrusters will feel lighter, but inertia is still your enemy.")
+		if _is_rig_test_failed() and not Engine.has_meta(&"harmonic_bypass_coupler_unlocked"):
+			choices.append({"id": "mateo_rig_bypass", "label": "Report bore motor failure and request harmonic bypass coupler"})
 		choices.append({"id": "mateo_surface", "label": "Ask about surface hazards at Site K-12"})
 		choices.append({"id": "mateo_gear", "label": "Confirm extraction rig telemetry"})
 		choices.append({"id": "mateo_mineral_caution", "label": "Inquire about the crystalline luster in the ore basin"})
@@ -2039,6 +2091,13 @@ func _on_crew_conversation_finished(conv_id: String, result_id: String) -> void:
 func _handle_amara_dialogue_result(result_id: String) -> void:
 	var response_lines: Array[String] = []
 	match result_id:
+		"amara_core_debrief":
+			var is_pristine := bool(Engine.get_meta(&"resonance_ore_core_pristine", true))
+			var purity_text := "The crystal lattice is 99.4% pristine — zero harmonic stress fractures!" if is_pristine else "There are slight micro-fractures along the shear plane, but the acoustic resonance is stable."
+			response_lines = [
+				"Take a look at the telemetry readout: %s" % purity_text,
+				"This core sample proves that crystalline structures can act as organic acoustic waveguides. Corporate will want patents, but for us... this changes everything we know about mineral physics."
+			]
 		"amara_tasks":
 			if not _crew_tasks_unlocked:
 				_crew_tasks_unlocked = true
@@ -2126,6 +2185,17 @@ func _handle_amara_dialogue_result(result_id: String) -> void:
 func _handle_mateo_dialogue_result(result_id: String) -> void:
 	var response_lines: Array[String] = []
 	match result_id:
+		"mateo_rig_bypass":
+			Engine.set_meta(&"harmonic_bypass_coupler_unlocked", true)
+			if is_instance_valid(_walk_hud):
+				_walk_hud.grant_hotbar_item(&"harmonic_bypass_coupler")
+				_walk_hud.show_objective_toast("GEAR ACQUIRED", "Harmonic Bypass Coupler added to inventory", true)
+			response_lines = [
+				"A bore motor lock? That's what I feared — the resonance crystal's acoustic feedback tripped the primary igniter breaker.",
+				"Take this: it's my Harmonic Bypass Coupler. Bridge it across the rig's auxiliary power leads.",
+				"Once the coupler is seated, tune the ultrasonic frequency to 432 Hz to match the 4-pulse harmonic, and throttle up the RPM drive.",
+				"Keep an eye on the heat gauge and vent coolant before the thermal overload trips the safety breaker. Good luck out there, Thura."
+			]
 		"mateo_sponsor":
 			response_lines = [
 				"Aegis Mining funded the Asteria-1 expedition with tens of billions of credits. They aren't interested in academic papers on crystalline physics.",
@@ -2141,7 +2211,7 @@ func _handle_mateo_dialogue_result(result_id: String) -> void:
 		"mateo_rig":
 			response_lines = [
 				"The automated extraction rig is parked at the rim of Site K-12. If the ground team needs to run a core sample, make sure the borehole anchors are locked into solid basalt.",
-				"And keep your Mining Plasma Cutter handy. If the drill head jams, a quick thermal cut to the slag guide will clear the drive shaft."
+				"The mining cutter stays mounted on the rig; it is a maintenance head, not field gear. Don't detach it until we've checked the borehole telemetry."
 			]
 		"mateo_surface":
 			response_lines = [
@@ -2675,6 +2745,8 @@ func _unlock_crew_tasks_on_hud(force: bool = false) -> void:
 			"id": task["id"],
 			"title": task["title"],
 			"marker_label": task["marker_label"],
+			"action_hint": task.get("action_hint", task.get("prompt", "")),
+			"purpose": task.get("purpose", ""),
 			"reward_item": &"",
 			"is_equipment_task": false,
 			"position": _crew_task_interaction_position(task, station),
@@ -2723,6 +2795,10 @@ func _complete_crew_task(task_id: StringName) -> void:
 
 
 func _trigger_story_station(station_id: StringName) -> void:
+	if station_id == &"cargo_core_scale_store":
+		_store_resonance_core_in_cargo()
+		return
+
 	if _cutscene_open or _piloting_console_open or not is_instance_valid(_story_cutscene):
 		return
 
@@ -2772,6 +2848,31 @@ func _trigger_story_station(station_id: StringName) -> void:
 	_walk_hud.set_walking_visible(false)
 	_update_player_walk_state()
 	_story_cutscene.call(&"play_cutscene", station_id, cutscene_data)
+
+
+func _store_resonance_core_in_cargo() -> void:
+	Engine.set_meta(&"resonance_ore_core_stored", true)
+	Engine.set_meta(&"resonance_ore_chamber_pressure", 1.02)
+	var is_pristine := bool(Engine.get_meta(&"resonance_ore_core_pristine", true))
+	var core_item: StringName = &"resonance_ore_core" if is_pristine else &"resonance_ore_core_fractured"
+	if is_instance_valid(_walk_hud):
+		_walk_hud.consume_item(core_item)
+		_walk_hud.set_task_completed(&"cargo_core_containment", true)
+		_walk_hud.add_task_entry({
+			"id": &"amara_core_debrief_task",
+			"title": "Debrief with Dr. Okoye in Hydroponics",
+			"marker_label": "DR. OKOYE",
+			"room_name": "Hydroponics Lab",
+			"action_hint": "Find Dr. Okoye and report the core's mass and harmonic spectrum.",
+			"purpose": "Confirm the Erebos extraction directive was fulfilled successfully.",
+			"milestone_reward": &"",
+			"position": Vector2(250.0, 720.0),
+			"marker_position": Vector2(250.0, 680.0),
+		})
+		_walk_hud.show_objective_toast("CONTAINMENT SECURED", "Mass: 84.2 kg · Hermetic seal locked at 1.02 atm", true)
+	_room_task_feedback = "CORE STORED IN CARGO CRADLE  //  REPORT FINDINGS TO DR. OKOYE"
+	_room_task_feedback_timer = 5.0
+	_save_persistent_story_state()
 
 
 func _build_cutscene_data(station_id: StringName) -> Dictionary:
@@ -3144,11 +3245,11 @@ func _open_lab_device_console(device_id: StringName) -> void:
 			player.face_toward(station.global_position)
 		break
 	if _is_lab_destroyed() or (_is_ore_villain_spawned() and device_id == &"lab_containment"):
-		if device_id == &"lab_specimen" and not _walk_hud.has_equipment_item(&"electrical_discharge_tool"):
-			_walk_hud.unlock_equipment_item(&"electrical_discharge_tool", true, "Lab Outbreak: Salvaged high-voltage arc tool from wrecked specimen bench!")
+		if device_id == &"lab_specimen":
+			Engine.set_meta(&"lab_breach_note_recovered", true)
 			_walk_hud.record_audio_log(&"log_okoye_containment_breach")
-			_walk_hud.play_radio_transmission("DR. AMARA OKOYE // RECORDED DISTRESS", "Thura! The entity is fluidic! Kinetic rounds won't stop it—overload its matrix with the high-voltage arc tool from my bench! Hurry!")
-			_room_task_feedback = "SALVAGED ELECTRICAL DISCHARGE TOOL  //  HIGH-VOLTAGE STUN WEAPON READY"
+			_walk_hud.play_radio_transmission("DR. AMARA OKOYE // RECOVERED LAB NOTE", "If the specimen breaches containment, cut the current and keep your distance. The resonance spikes around exposed electrical fields; do not bring it close to the crew or life-support lines.")
+			_room_task_feedback = "AMARA'S BREACH NOTE RECOVERED  //  SPECIMEN REACTS TO ELECTRICAL FIELDS"
 			_room_task_feedback_timer = 5.0
 			return
 		elif device_id == &"lab_trolley" and not _walk_hud.has_equipment_item(&"medical_injector"):
@@ -3192,7 +3293,7 @@ func _is_lab_device_interactable(device_id: StringName) -> bool:
 		return false
 	if _is_lab_destroyed():
 		if device_id == &"lab_specimen":
-			return not _walk_hud.has_equipment_item(&"electrical_discharge_tool")
+			return not (Engine.has_meta(&"lab_breach_note_recovered") and bool(Engine.get_meta(&"lab_breach_note_recovered")))
 		if device_id == &"lab_trolley":
 			return not _walk_hud.has_equipment_item(&"medical_injector")
 		return false

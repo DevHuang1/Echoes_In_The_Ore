@@ -2,18 +2,15 @@
 
 ## Placement and existing workflow
 
-The reference cargo bay corresponds to the playable central-lower compartment,
-internally **R08 / Center lower room**, between the center recess above, lower
-deck below and shuttle bay to the right. Its original floor module bounds are
-(697,405)–(1220,665), in FloorLayer coordinates. The current Valkyrie inner wall
-edges put the main open area roughly at x=774–1161, y=465–625; the west entrance
-uses a dogleg. Placement was checked against the current floor mask, rendered
-walls and saved door transforms, rather than coordinates from the reference.
+The central-lower compartment is reserved for the lab. The cargo props are
+placed together in the lower-right shuttle storage area so they do not overlap
+the lab stations. In `bare_ship_walkthrough.tscn`, the CargoBayProps root is at
+(1200,690) with a 0.7 scale; each prop's saved local position is listed below.
 
-`res://scenes/ship/props/cargo_bay_props.tscn` is instanced once at (697,405)
-in the walkthrough. The ship's saved root offset (-30,-23) is retained.
-Existing furniture, wall/floor assets, doors, lighting, player and gameplay
-scripts are unchanged.
+`res://scenes/ship/props/cargo_bay_props.tscn` is instanced once in the
+walkthrough. Its root placement keeps the cargo interactions grouped away from
+the lab. Existing prop scenes, doors, lighting, player and gameplay scripts are
+unchanged.
 
 The shared cargo script **extends the existing crew_quarters_prop.gd** and its
 base scene. It reuses the original editor preview, atlas textures, floor
@@ -27,17 +24,16 @@ All paths below start at the root of `bare_ship_walkthrough.tscn`.
 
 | Reusable scene under res://scenes/ship/props/cargo_bay/ | Exact Scene-tree path | Position within CargoBayProps | Initial facing |
 | --- | --- | --- | --- |
-| electric_pallet_mover.tscn | BareShipWalkthrough/CargoBayProps/ElectricPalletMover | (263,173) | East (forks right) |
-| cargo_inspection_scale.tscn | BareShipWalkthrough/CargoBayProps/CargoInspectionScale | (363,147) | South (display front) |
-| secured_cylinder_rack.tscn | BareShipWalkthrough/CargoBayProps/SecuredCylinderRack | (288,91) | South (restraint straps) |
-| maintenance_trolley.tscn | BareShipWalkthrough/CargoBayProps/MaintenanceTrolley | (383,91) | South (drawers) |
-| cargo_locker.tscn | BareShipWalkthrough/CargoBayProps/CargoLocker | (446,174) | West (door left) |
-| tied_box_bundle.tscn | BareShipWalkthrough/CargoBayProps/TiedBoxBundle | (118,173) | As drawn |
+| electric_pallet_mover.tscn | BareShipWalkthrough/CargoBayProps/ElectricPalletMover | (55,95) | East (forks right) |
+| cargo_inspection_scale.tscn | BareShipWalkthrough/CargoBayProps/CargoInspectionScale | (230,48) | South (display front) |
+| secured_cylinder_rack.tscn | BareShipWalkthrough/CargoBayProps/SecuredCylinderRack | (75,15) | South (restraint straps) |
+| maintenance_trolley.tscn | BareShipWalkthrough/CargoBayProps/MaintenanceTrolley | (155,15) | South (drawers) |
+| cargo_locker.tscn | BareShipWalkthrough/CargoBayProps/CargoLocker | (305,87) | West (door left) |
+| tied_box_bundle.tscn | BareShipWalkthrough/CargoBayProps/TiedBoxBundle | (10,90) | As drawn |
 
-These are starter placements: cylinders and trolley at the north wall, locker
-by the east wall with its door toward the room, boxes in the southwest storage
-area, and scale/pallet mover on the east side of the handling floor. The
-central aisle and all four entrance approaches remain clear.
+These placements group the rack and trolley along the north side, with the
+locker, boxes, scale and pallet mover below them. The cargo props remain
+separate from the lab stations.
 
 ## Select, move, resize and change facing
 

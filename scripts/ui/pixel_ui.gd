@@ -6,6 +6,12 @@ const IVORY := Color(0.94, 0.91, 0.82)
 const AMBER := Color(1.0, 0.77, 0.34)
 const MUTED := Color(0.59, 0.69, 0.73)
 
+static func get_clean_font() -> Font:
+	return THEME.get_font("font", "EitoTag")
+
+static func get_pixel_font() -> Font:
+	return THEME.default_font
+
 static func apply(control: Control) -> void:
 	control.theme = THEME
 	control.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST

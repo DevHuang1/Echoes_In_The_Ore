@@ -29,11 +29,6 @@ window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
 window/handheld/orientation=4
 
-[input_devices]
-
-pointing/emulate_mouse_from_touch=true
-pointing/android/enable_pan_and_scale_gestures=false
-
 [rendering]
 
 renderer/rendering_method="gl_compatibility"
