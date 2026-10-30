@@ -4,6 +4,9 @@ const UI := preload("res://scripts/ui/equipment_ui.gd")
 const DIAGRAM := preload("res://scripts/ui/ship_equipment_diagram.gd")
 const CATALOG := preload("res://scripts/ship/ship_mission_catalog.gd")
 const PRESENT := preload("res://scripts/ui/ship_station_presentation.gd")
+const STATION_STYLE := preload("res://scripts/ui/eito/eito_style.gd")
+const EITO := preload("res://scripts/ui/eito/eito_ui.gd")
+const SHARED_THEME := preload("res://themes/ship_pixel_theme.tres")
 signal action_requested(action_id: String, value: Variant)
 signal save_requested
 signal load_requested
@@ -27,6 +30,7 @@ var _tabs: HBoxContainer
 var _records: Control
 var _record_tabs: HBoxContainer
 var _workspace: Control
+var _action_rack: Control
 var _stage := "INSPECT"
 var _definition := {}
 var _pages := ["INSPECT","SERVICE","VERIFY","RECORDS"]
@@ -41,6 +45,8 @@ var _paging: HBoxContainer
 var _page_caption: Label
 var _report_preview: RichTextLabel
 var _empty_state: Label
+var _live_panel: PanelContainer
+var _live_readout: RichTextLabel
 var _explanation_id := ""
 
 func setup(model: Object, id: String, title: String) -> void:
@@ -54,39 +60,53 @@ func setup(model: Object, id: String, title: String) -> void:
 
 func _ready() -> void:
 	layer=21
-	_root=Control.new();_root.name="ShipProcedure";UI.apply(_root)
+	_root=Control.new();_root.name="ShipProcedure";_root.theme=SHARED_THEME
+	_root.texture_filter=CanvasItem.TEXTURE_FILTER_NEAREST
 	_root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT);add_child(_root)
-	var dim := ColorRect.new();dim.color=Color(0.005,0.012,0.018,0.93)
+	var dim := ColorRect.new();dim.color=Color(0.035,0.055,0.063,0.97)
 	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT);_root.add_child(dim)
 	var frame := UI.panel(16,true);frame.name="ProcedureFrame"
+	frame.add_theme_stylebox_override("panel",STATION_STYLE.make("module",16,true))
 	frame.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	frame.offset_left=16;frame.offset_top=16;frame.offset_right=-16;frame.offset_bottom=-16;_root.add_child(frame)
 	var content := UI.stack(frame,8)
 	var header := HBoxContainer.new();header.add_theme_constant_override("separation",12);content.add_child(header)
 	var identity := UI.stack(header,2)
-	identity.add_child(UI.label("ASTERIA-1 / "+str(_definition.get("room","ship")).to_upper()+" / LOCAL INSTRUMENT",12,UI.WELL))
-	var heading := UI.label(display_title.to_upper(),20,UI.WELL);heading.name="EquipmentTitle";identity.add_child(heading)
+	identity.add_child(UI.label("ASTERIA-1 / "+str(_definition.get("room","ship")).to_upper()+" / LOCAL INSTRUMENT",12,EITO.LABEL))
+	var heading := UI.label(display_title.to_upper(),22,EITO.TEXT);heading.name="EquipmentTitle";identity.add_child(heading)
 	var condition_frame := UI.panel(8);condition_frame.size_flags_vertical=Control.SIZE_SHRINK_CENTER
+	condition_frame.add_theme_stylebox_override("panel",STATION_STYLE.make("chip",8))
 	header.add_child(condition_frame);_condition=UI.Lamp.new();condition_frame.add_child(_condition)
 	if prop_id=="bridge.planning":
 		for setting in ["SAVE","LOAD"]:
 			var b := UI.button(setting,_save_or_load.bind(setting))
 			b.name=setting;header.add_child(b)
 	var close := UI.button("X",close_panel,"Close equipment panel (Esc)");close.name="Close"
+	close.theme_type_variation=&"CloseButton"
 	close.custom_minimum_size=Vector2(42,42);header.add_child(close)
+	var body := HBoxContainer.new();body.add_theme_constant_override("separation",12)
+	body.size_flags_vertical=Control.SIZE_EXPAND_FILL;content.add_child(body)
+	var left_column := VBoxContainer.new();left_column.add_theme_constant_override("separation",8)
+	left_column.size_flags_horizontal=Control.SIZE_EXPAND_FILL;left_column.size_flags_stretch_ratio=1.3
+	left_column.custom_minimum_size.x=480;body.add_child(left_column)
+	var right_panel := UI.panel(10);right_panel.add_theme_stylebox_override("panel",STATION_STYLE.make("module",10,true))
+	right_panel.size_flags_horizontal=Control.SIZE_EXPAND_FILL;right_panel.size_flags_stretch_ratio=0.9
+	right_panel.custom_minimum_size.x=330;body.add_child(right_panel);_action_rack=right_panel
 	_tabs=HBoxContainer.new();_tabs.add_theme_constant_override("separation",4);content.add_child(_tabs)
 	for page in _pages:
 		var tab := UI.button(page,_select_stage.bind(page));tab.name=page+"Tab";tab.toggle_mode=true
 		tab.size_flags_horizontal=Control.SIZE_EXPAND_FILL;_tabs.add_child(tab)
-	var center := UI.panel(10);center.size_flags_vertical=Control.SIZE_EXPAND_FILL;content.add_child(center)
+	var center := UI.panel(10);center.size_flags_vertical=Control.SIZE_EXPAND_FILL;left_column.add_child(center)
+	center.add_theme_stylebox_override("panel",STATION_STYLE.make("well",10))
 	var deck := Control.new();deck.size_flags_vertical=Control.SIZE_EXPAND_FILL
 	deck.custom_minimum_size.y=280;center.add_child(deck)
-	_workspace=HBoxContainer.new();_workspace.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_workspace=VBoxContainer.new();_workspace.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_workspace.add_theme_constant_override("separation",12);deck.add_child(_workspace)
-	var instrument := UI.stack(_workspace,8);instrument.size_flags_stretch_ratio=1.6
+	var instrument := UI.stack(_workspace,8);instrument.size_flags_vertical=Control.SIZE_EXPAND_FILL
 	var metrics := HBoxContainer.new();metrics.add_theme_constant_override("separation",6);instrument.add_child(metrics)
 	for i in range(3):
 		var meter := UI.Readout.new();metrics.add_child(meter);_metrics.append(meter)
+		meter.add_theme_stylebox_override("panel",STATION_STYLE.make("glass",8))
 	_diagram=DIAGRAM.new();_diagram.bind(state,_definition);instrument.add_child(_diagram)
 	_report_preview=RichTextLabel.new();_report_preview.name="PreparedReportPreview"
 	_report_preview.focus_mode=Control.FOCUS_ALL;_report_preview.selection_enabled=true
@@ -94,11 +114,21 @@ func _ready() -> void:
 	instrument.add_child(_report_preview)
 	_observation=UI.label("",12,UI.MUTED);instrument.add_child(_observation)
 	_timer=UI.SegmentedMeter.new();instrument.add_child(_timer)
-	var rack := UI.stack(_workspace,8);rack.custom_minimum_size.x=310
+	var rack := UI.stack(right_panel,8)
 	_stage_label=UI.label("",18,UI.AMBER);rack.add_child(_stage_label)
 	_actions=GridContainer.new();_actions.columns=2
 	_actions.add_theme_constant_override("h_separation",8);_actions.add_theme_constant_override("v_separation",8)
 	rack.add_child(_actions)
+	_live_panel=PanelContainer.new();_live_panel.name="LiveStationReadings"
+	_live_panel.add_theme_stylebox_override("panel",STATION_STYLE.make("glass",10))
+	_live_panel.size_flags_vertical=Control.SIZE_EXPAND_FILL;rack.add_child(_live_panel)
+	var live_stack := VBoxContainer.new();live_stack.add_theme_constant_override("separation",4)
+	_live_panel.add_child(live_stack)
+	live_stack.add_child(UI.label("LIVE / MEASURED STATE",12,EITO.PHOS_DIM))
+	_live_readout=RichTextLabel.new();_live_readout.name="LiveReadings"
+	_live_readout.custom_minimum_size.y=90;_live_readout.size_flags_vertical=Control.SIZE_EXPAND_FILL
+	_live_readout.selection_enabled=true;_live_readout.focus_mode=Control.FOCUS_ALL
+	live_stack.add_child(_live_readout)
 	_empty_state=UI.label("",14,UI.MUTED);_empty_state.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
 	rack.add_child(_empty_state)
 	_paging=HBoxContainer.new();rack.add_child(_paging)
@@ -120,13 +150,22 @@ func _ready() -> void:
 	_records.add_child(_readout)
 	var record := UI.button("RECORD PHASE NOTE",func(): action_requested.emit("record",null))
 	record.name="record";_records.add_child(record);_controls.record={"button":record,"reason":_interlock}
-	var feedback_panel := UI.panel(8);content.add_child(feedback_panel)
+	var feedback_panel := UI.panel(8);left_column.add_child(feedback_panel)
+	feedback_panel.add_theme_stylebox_override("panel",STATION_STYLE.make("paper",12))
+	var procedure := VBoxContainer.new();procedure.add_theme_constant_override("separation",5)
+	feedback_panel.add_child(procedure)
+	_tabs.reparent(procedure)
+	_stage_label.reparent(procedure);_stage_label.add_theme_color_override("font_color",EITO.INK)
+	_observation.reparent(procedure);_observation.add_theme_color_override("font_color",EITO.INK_2)
+	_interlock.reparent(procedure);_interlock.size_flags_vertical=Control.SIZE_SHRINK_BEGIN
+	_interlock.add_theme_color_override("font_color",EITO.INK_2)
+	var feedback_well := PanelContainer.new();feedback_well.add_theme_stylebox_override("panel",STATION_STYLE.make("well",8))
+	procedure.add_child(feedback_well)
 	_status=UI.label("Select a procedure stage. Read interlocks before operating.",14)
 	_status.name="ProcedureFeedback";_status.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART
-	_status.custom_minimum_size.y=32;feedback_panel.add_child(_status)
-	var footer := UI.label(("RETURN WATCH" if state.phase=="return" else "OUTBOUND WATCH")+"   /   TAB selects controls   /   ESC closes   /   SIMULATED INSTRUMENTS",12,UI.WELL)
+	_status.custom_minimum_size.y=32;feedback_well.add_child(_status)
+	var footer := UI.label(("RETURN WATCH" if state.phase=="return" else "OUTBOUND WATCH")+"   /   TAB selects controls   /   ESC closes   /   LOCAL INSTRUMENTS",12,EITO.LABEL)
 	content.add_child(footer)
-	var housing := UI.Chassis.new();housing.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT);frame.add_child(housing)
 	state.changed.connect(_schedule_rebuild);_rebuild();close.grab_focus()
 
 func _select_stage(page: String) -> void:
@@ -181,6 +220,7 @@ func _rebuild() -> void:
 	for action in state.actions(prop_id):
 		if action.id=="record": continue
 		var card := UI.panel(8);card.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+		card.add_theme_stylebox_override("panel",STATION_STYLE.make("module",8,false))
 		card.set_meta("page",_action_page(action.id));_actions.add_child(card)
 		var v := UI.stack(card,5)
 		var choice: Control
@@ -215,6 +255,9 @@ func _rebuild() -> void:
 				var style: StyleBox=_root.theme.get_stylebox(style_name,"Button").duplicate()
 				style.content_margin_left=26;b.add_theme_stylebox_override(style_name,style)
 		b.disabled=not action.enabled;b.pressed.connect(_dispatch.bind(action,choice));v.add_child(b)
+		if not action.enabled and not action.reason.is_empty():
+			var reason := UI.label(PRESENT.clean(action.reason),12,EITO.WARN)
+			reason.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART;v.add_child(reason)
 		b.mouse_entered.connect(_explain.bind(action.id));b.focus_entered.connect(_explain.bind(action.id))
 		_controls[action.id]={"button":b,"reason":_interlock,"choice":choice,"card":card}
 	_apply_stage();_update_readings()
@@ -229,6 +272,7 @@ func _rebuild() -> void:
 
 func _apply_stage() -> void:
 	_workspace.visible=_stage!="RECORDS";_records.visible=_stage=="RECORDS"
+	_action_rack.visible=_stage!="RECORDS"
 	var cards: Array=[]
 	for child in _actions.get_children():
 		child.visible=false
@@ -239,6 +283,7 @@ func _apply_stage() -> void:
 	for i in range(cards.size()): cards[i].visible=i>=_stock_page*4 and i<(_stock_page+1)*4
 	_paging.visible=page_count>1;_page_caption.text="%d / %d" % [_stock_page+1,page_count]
 	_empty_state.visible=cards.is_empty()
+	_live_panel.visible=cards.size()<=3 and _stage!="RECORDS"
 	_empty_state.text="No carried service items to return." if _stage=="RETURN" else "No supplies stored here. Return carried supplies or arrange a cargo transfer." if _stage=="SUPPLIES" else "Read the live instruments and station records."
 	for tab in _tabs.get_children(): tab.set_pressed_no_signal(tab.text==_stage)
 	_stage_label.text={"INSPECT":"DIAGNOSIS","SERVICE":"SERVICE CONTROLS","VERIFY":"RESTORE & VERIFY"}.get(_stage,_stage)
@@ -264,7 +309,7 @@ func _update_interlock() -> void:
 	var task: String=PRESENT.task(_definition)
 	var prerequisite: String=state.prerequisite(task)
 	var kind: String=_definition.get("kind","")
-	if kind in ["storage","storage_hide","rest","chair","planning"]: prerequisite=""
+	if kind in ["storage","rest","chair","planning"]: prerequisite=""
 	_interlock.text="INTERLOCK / "+prerequisite if not prerequisite.is_empty() else _stage_hint()
 	for action in state.actions(prop_id):
 		if _controls.has(action.id) and _controls[action.id].get("card")!=null:
@@ -272,7 +317,7 @@ func _update_interlock() -> void:
 
 func _stage_hint() -> String:
 	var task: String=PRESENT.task(_definition)
-	if _definition.get("kind") in ["storage","storage_hide"]: return "Transfers move one item between this station and your existing inventory. Stock and carried counts update together."
+	if _definition.get("kind")=="storage": return "Transfers move one item between this station and your existing inventory. Stock and carried counts update together."
 	if _definition.get("kind")=="rest":
 		for action in state.actions(prop_id):
 			if action.id=="rest": return action.reason if not action.enabled else "A short rest clears fatigue. Your recorded duties and unresolved check-ins remain active."
@@ -282,7 +327,6 @@ func _stage_hint() -> String:
 	if _stage=="SERVICE" and task=="engine": return "REQUEST 60% OUTPUT, then service pump 1 outbound or valve 2 on return at its own station. Restore its loop before verification."
 	if _stage=="SERVICE" and task=="power" and id!="power.cell": return "Keep essential at 70. Bank synchronization is performed at the power-cell module after service isolation."
 	if _stage=="VERIFY": return "Restore circulation/supply, then watch six stable seconds. Select a control to inspect its specific interlock."
-	if _definition.get("kind") in ["storage","storage_hide"]: return "Transfers move one item between this station and your existing inventory. Stock and carried counts update together."
 	return "Select a control for operating conditions. Full procedures, evidence and the latest command result are in RECORDS."
 
 func _dispatch(action: Dictionary, control: Control) -> void:
@@ -296,7 +340,7 @@ func feedback(message: String, success := true) -> void:
 	_last_feedback=message
 	var first_line := message.get_slice("\n",0)
 	_status.text=first_line if first_line.length()<150 else first_line.left(147)+"..."
-	_status.tooltip_text=message;_status.add_theme_color_override("font_color",UI.CYAN if success else UI.AMBER)
+	_status.tooltip_text=message;_status.add_theme_color_override("font_color",EITO.PHOS if success else EITO.WARN)
 
 func _process(delta: float) -> void:
 	_poll+=delta
@@ -310,20 +354,21 @@ func _process(delta: float) -> void:
 
 func _update_readings() -> void:
 	var room: String=str(_definition.get("room","bridge"))
+	_live_readout.text=PRESENT.clean(state.readings(room))
 	_update_records(room)
 	var readings: Array=PRESENT.metrics(state,_definition)
 	for i in range(_metrics.size()):
 		_metrics[i].visible=i<readings.size()
 		if i<readings.size(): _metrics[i].show_reading.callv(readings[i])
 	var condition: String=PRESENT.condition(state,_definition)
-	var color := UI.CYAN if condition in ["VERIFIED","ACCESS READY","REST READY","WATCH FILED","WATCH HANDED OVER","ROUTINE / HEALTHY","READY TO VERIFY"] else UI.RED if condition.begins_with("FAULT") else UI.AMBER
+	var color := EITO.PHOS if condition in ["VERIFIED","ACCESS READY","REST READY","WATCH FILED","WATCH HANDED OVER","ROUTINE / HEALTHY","READY TO VERIFY"] else EITO.FAULT if condition.begins_with("FAULT") else EITO.WARN
 	_condition.set_status(condition,color)
 	var task: String=PRESENT.task(_definition)
 	var timed: bool=room in ["power","life","hydro","engine"] and _definition.get("kind")!="storage_hide"
 	if state.work_order_context=="first_watch" and room not in state.authorized_work_orders: timed=false
 	_observation.visible=timed;_timer.visible=timed
 	_observation.text="STABLE OBSERVATION / %.1f OF 6.0 s" % minf(6,float(state.verification.get(task,0.0)))
-	_timer.set_reading(float(state.verification.get(task,0.0)),6.0,UI.CYAN)
+	_timer.set_reading(float(state.verification.get(task,0.0)),6.0,EITO.PHOS)
 	_report_preview.text=PRESENT.clean(str(state.systems.communications.report_text))
 	_diagram.queue_redraw()
 
@@ -336,9 +381,8 @@ func _update_records(room: String) -> void:
 				else:
 					for objective in CATALOG.OBJECTIVES:
 						text+=("VERIFIED / " if state.completed.has(objective[0]) else "OPEN / ")+objective[1]+"\n"+state.next_step(objective[0])+"\n\n"
-			elif _definition.get("kind") in ["storage","storage_hide"]:
+			elif _definition.get("kind")=="storage":
 				text="SHARED SERVICE STORE\nSUPPLIES retrieves one item. RETURN stores one carried service item. Station and carried counts update together. A full inventory leaves the stock here.\n\nFILTER-A: air filter\nSCRUB-A: scrubber medium\nCOOL-02: coolant service charge\nBUFFER-A: nutrient buffer\nO2-01: oxygen reserve\nN2-03: inert purge\n\n"
-				if _definition.get("kind")=="storage_hide": text+="ACCESS offers the marked concealment space. Press E to exit; a blocked exit allows retry."
 			else: text=state.next_step(PRESENT.task(_definition))+"\n\nOPERATING RANGES\n"+state.readings(room)
 		"CREW NOTE": text=state.narrative(room)
 		"EVIDENCE":

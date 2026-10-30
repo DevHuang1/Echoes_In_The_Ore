@@ -29,6 +29,11 @@ func flush() -> void:
 func finish() -> void:
 	_finished = true; flush()
 	print("FIRST WATCH ",validation_mode,": ",checks," checks / ",failures.size()," failures / actual walking ",walking_distance)
+	# Release active world/dialogue/audio before the renderer shuts down.
+	if is_instance_valid(get_tree().current_scene):
+		get_tree().current_scene.queue_free()
+		get_tree().current_scene=null
+	await frames(5)
 	get_tree().quit(0 if failures.is_empty() else 1)
 
 func _ready() -> void:
@@ -60,6 +65,22 @@ func click(control: Control) -> bool:
 	Input.parse_input_event(event); await frames(1)
 	event=InputEventMouseButton.new(); event.position=point; event.global_position=point; event.button_index=MOUSE_BUTTON_LEFT; event.pressed=false
 	Input.parse_input_event(event); await frames(3)
+	return true
+
+func artifact_click(id: String) -> bool:
+	await frames(3)
+	var panel=level._ship_panel
+	if not check(is_instance_valid(panel) and not str(panel.get("kind")).is_empty(),"Artifact pointer target has an active screen: "+id): return false
+	var screen=panel.screen
+	var target := Rect2()
+	for hit in screen._hits:
+		if hit.id==id: target=hit.rect;break
+	if not check(target.has_area(),"Artifact pointer target is present: "+id): return false
+	var point: Vector2=screen.get_global_transform_with_canvas()*target.get_center()
+	var motion := InputEventMouseMotion.new();motion.position=point;motion.global_position=point;Input.parse_input_event(motion)
+	for pressed in [true,false]:
+		var event := InputEventMouseButton.new();event.position=point;event.global_position=point;event.button_index=MOUSE_BUTTON_LEFT;event.pressed=pressed
+		Input.parse_input_event(event);await frames(2)
 	return true
 
 func capture(capture_name: String, both_sizes := false) -> void:
@@ -187,6 +208,8 @@ func station(id: String) -> bool:
 		level.ship_refresh_prompt()
 		if level._ship_active_id==id:
 			await interact()
+			if id=="bridge.planning" and not level._ship_story.has("watch.accepted") and is_instance_valid(level._ship_panel):
+				await artifact_click("tab:1");await artifact_click("brief")
 			return check(level._crew_dialogue_open or (is_instance_valid(level._ship_panel) and level._ship_panel.prop_id==id),"Actual E opens target "+id)
 		# A nearby NPC has priority. Let her real patrol continue and try another
 		# clear approach; never freeze/teleport her for the chapter proof.
@@ -236,6 +259,9 @@ func dialogue(result := "", capture_name := "") -> void:
 func operate(action_id: String) -> bool:
 	var panel=level._ship_panel
 	if not check(is_instance_valid(panel),"Procedure exists for "+action_id): return false
+	if str(panel.get("kind"))=="planning_table" and action_id in ["story:briefing","story:summary"]:
+		await artifact_click("tab:1" if action_id=="story:briefing" else "tab:2")
+		return await artifact_click("brief" if action_id=="story:briefing" else "review")
 	if not str(panel.get("kind") if panel.get("kind")!=null else "").is_empty():
 		# Redesigned station screens (power, irrigation, crew records) send the
 		# same actions through their layer; values are the readings-supported ones.

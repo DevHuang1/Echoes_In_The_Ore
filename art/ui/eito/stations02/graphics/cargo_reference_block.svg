@@ -1,0 +1,6 @@
+<svg data-dc-tpl="81" width="62" height="80" viewBox="0 0 90 80" aria-hidden="true">
+        <path data-dc-tpl="82" d="M30 10 h30 v10 h-30 z" fill="#557178" stroke="#05090b" stroke-width="2"></path>
+        <path data-dc-tpl="83" d="M14 26 h62 l8 46 h-78 z" fill="#5e777b" stroke="#05090b" stroke-width="2"></path>
+        <path data-dc-tpl="84" d="M18 30 h54 l2 8 h-58 z" fill="#9db3b4"></path>
+        <text data-dc-tpl="85" x="45" y="62" font-family="Silkscreen" font-size="14" text-anchor="middle" fill="#0b1214">20kg</text>
+      </svg>

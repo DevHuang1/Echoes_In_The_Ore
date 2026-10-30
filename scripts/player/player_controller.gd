@@ -82,6 +82,7 @@ func face_toward(target_position: Vector2) -> void:
 
 
 func set_concealment(value: bool, source_id: String) -> void:
+	var was_concealed := is_concealed
 	if value and not is_concealed:
 		_conceal_visuals.clear()
 		for item in find_children("*", "CanvasItem", true, false):
@@ -95,7 +96,7 @@ func set_concealment(value: bool, source_id: String) -> void:
 	if value:
 		for item in _conceal_visuals:
 			if is_instance_valid(item): item.visible = false
-	elif is_instance_valid(sprite):
+	elif not was_concealed and is_instance_valid(sprite):
 		sprite.visible = true
 	if value: add_to_group("concealed_players")
 	elif is_in_group("concealed_players"): remove_from_group("concealed_players")

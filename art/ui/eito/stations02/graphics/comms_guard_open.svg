@@ -1,0 +1,5 @@
+<svg data-dc-tpl="77" width="90" height="90" viewBox="0 0 90 90" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+          <rect data-dc-tpl="78" x="20" y="30" width="50" height="50" fill="#1a2023" stroke="#05090b" stroke-width="3"></rect>
+          <rect data-dc-tpl="79" x="38" y="44" width="14" height="28" fill="#9db3b4" stroke="#05090b" stroke-width="2" transform="rotate(-30 45 72)"></rect>
+          <g data-dc-tpl="80" transform="translate(0 -40) scale(1 0.3)"><rect data-dc-tpl="81" x="14" y="24" width="62" height="58" fill="#c0392b" fill-opacity=".85" stroke="#05090b" stroke-width="3"></rect><path data-dc-tpl="82" d="M14 24 L76 82 M76 24 L14 82" stroke="#e9b52c" stroke-width="3" opacity=".6"></path></g>
+        </svg>

@@ -43,7 +43,7 @@ func _draw() -> void:
 	draw_rect(Rect2(Vector2.ZERO,size),UI.WELL)
 	for x in range(12,int(size.x),18): draw_rect(Rect2(x,8,2,2),UI.SHADOW)
 	var kind: String=definition.get("kind","")
-	if kind in ["storage","storage_hide"]: _storage();return
+	if kind=="storage": _storage();return
 	if kind=="planning": _planning();return
 	if kind=="navigation": _navigation();return
 	if kind=="communications": _communications();return
@@ -77,6 +77,10 @@ func _power() -> void:
 	text_at(345,220,"%d UNITS / CAPACITY %d" % [p.reserve,p.capacity])
 
 func _engine() -> void:
+	var id: String=str(definition.get("id",""))
+	if id.begins_with("engine.pump"): _engine_pump();return
+	if id.begins_with("engine.turbine"): _engine_turbine();return
+	if id.begins_with("engine.valve"): _engine_valve();return
 	var e: Dictionary=model.systems.engine
 	for i in range(2):
 		var y := 20.0+i*100
@@ -100,7 +104,72 @@ func _engine() -> void:
 	var pressure: String=model.readings("engine").get_slice("\n",3).trim_prefix("Upstream/downstream pressure: ")
 	text_at(20,238,pressure,UI.AMBER if e.health[0]<0.9 or e.valves[1]<0.9 else UI.CYAN)
 
+func _engine_loop() -> int:
+	var id: String=str(definition.get("id",""))
+	return 0 if id.ends_with(".1") or id.ends_with(".3") else 1
+
+func _engine_pump() -> void:
+	var e: Dictionary=model.systems.engine
+	var loop_index := _engine_loop()
+	var flow: float=model.engine_flow(loop_index)
+	var good: bool=flow>=0.9 and e.temperature<=65
+	module(12,18,385,194,"COOLANT PUMP %d / CUTAWAY" % (loop_index+1),UI.CYAN if good else UI.AMBER)
+	module(415,18,173,194,"LOOP READOUT",UI.CYAN if good else UI.AMBER)
+	pipe([Vector2(20,111),Vector2(130,111),Vector2(290,111),Vector2(386,111)],UI.CYAN if good else UI.AMBER)
+	var center := point(210,111)
+	for radius in [64.0,49.0,31.0]: draw_arc(center,radius,0,TAU,32,UI.METAL,5,false)
+	for i in range(6):
+		var a := Vector2.from_angle(i*TAU/6)
+		draw_line(center+a*12,center+a*39,UI.EDGE,7)
+	text_at(32,197,"HEALTH %.0f%%" % (e.health[loop_index]*100),UI.CYAN if good else UI.AMBER)
+	text_at(431,89,"FLOW %.0f%%" % (flow*100),UI.CYAN if good else UI.AMBER)
+	text_at(431,128,"TEMP %.1f C" % e.temperature)
+	text_at(431,165,"ISOLATED" if e.isolated[loop_index] else "IN CIRCUIT",UI.AMBER if e.isolated[loop_index] else UI.MUTED)
+	text_at(18,237,"SERVICE REQUIRES COOL-02 + MULTITOOL / STABLE FLOW VERIFICATION",UI.MUTED)
+
+func _engine_turbine() -> void:
+	var e: Dictionary=model.systems.engine
+	var loop_index := _engine_loop()
+	var flow: float=model.engine_flow(loop_index)
+	var cooling: bool=flow>=0.9 and e.temperature<=65
+	var verified: bool=cooling and model.completed.has("engine")
+	module(12,18,358,194,"TURBINE / INSPECTION PORT",UI.CYAN if cooling else UI.AMBER)
+	module(390,18,198,194,"OUTPUT AND COOLING",UI.CYAN if cooling else UI.AMBER)
+	var center := point(190,112)
+	for radius in [78.0,66.0,29.0]: draw_arc(center,radius,0,TAU,40,UI.METAL,5,false)
+	for i in range(8):
+		var a := Vector2.from_angle(i*TAU/8)
+		draw_line(center+a*32,center+a*61,UI.EDGE,9)
+	text_at(405,81,"OUTPUT %.0f%%" % (e.load*100))
+	text_at(405,120,"FLOW %.0f%%" % (flow*100),UI.CYAN if cooling else UI.AMBER)
+	text_at(405,160,"VERIFIED" if verified else "IN RANGE" if cooling else "OUT OF RANGE",UI.CYAN if cooling else UI.AMBER)
+	text_at(18,237,"COOLING INDICATOR IS READ-ONLY / CONTROL VIA ENGINE SERVICE",UI.MUTED)
+
+func _engine_valve() -> void:
+	var e: Dictionary=model.systems.engine
+	var loop_index := _engine_loop()
+	var opening: float=e.valves[loop_index]
+	var color: Color=UI.CYAN if opening>=0.9 else UI.AMBER
+	module(12,18,395,194,"FEED MANIFOLD / LOOP %d" % (loop_index+1),color)
+	module(425,18,163,194,"LINE CONTROL",color)
+	pipe([Vector2(30,143),Vector2(390,143)],color)
+	for i in range(3):
+		var x := 76.0+i*116
+		pipe([Vector2(x,78),Vector2(x,143)],color)
+		var center := point(x,69)
+		draw_arc(center,21,0,TAU,16,UI.AMBER,5,false)
+		draw_line(center-Vector2(13,0),center+Vector2(13,0),UI.AMBER,4)
+		text_at(x-12,197,"V%d" % (i+1),UI.MUTED)
+	text_at(443,104,"%.0f%%" % (opening*100),color,24)
+	text_at(443,153,"ISOLATED" if e.isolated[loop_index] else "IN CIRCUIT",UI.MUTED)
+	text_at(18,237,"THREE PHYSICAL HANDWHEELS / ONE RECORDED LOOP OPENING",UI.MUTED)
+
 func _life() -> void:
+	match str(definition.get("id","")):
+		"life.duct": _life_duct();return
+		"life.filter": _life_filter();return
+		"life.scrubber": _life_scrubber();return
+		"life.oxygen": _life_oxygen();return
 	var l: Dictionary=model.systems.life
 	var flow := UI.AMBER if l.airflow<62 or l.isolated else UI.CYAN
 	pipe([Vector2(125,65),Vector2(180,65),Vector2(320,65),Vector2(460,65)],flow)
@@ -119,7 +188,67 @@ func _life() -> void:
 	text_at(235,175,"RESERVE SUPPLY RETAINED",UI.MUTED)
 	text_at(235,220,"HOUSING ISOLATED" if l.isolated else "CIRCULATION CONNECTED",UI.AMBER if l.isolated else UI.CYAN)
 
+func _life_duct() -> void:
+	var l: Dictionary=model.systems.life
+	var flow: Color=UI.CYAN if l.airflow>=62 and l.airflow<=72 and not l.isolated else UI.AMBER
+	module(12,20,376,192,"DUCT 2 / SECTION",flow)
+	module(408,20,180,192,"INSTRUMENTS",flow)
+	draw_rect(area(40,76,321,75),UI.METAL)
+	draw_rect(area(47,83,307,61),UI.WELL)
+	for x in range(73,340,26): draw_rect(area(float(x),89,5,50),UI.SHADOW)
+	pipe([Vector2(20,113),Vector2(360,113)],flow)
+	text_at(28,193,"SERVICE HOUSING / "+("ISOLATED" if l.isolated else "CONNECTED"),UI.MUTED)
+	text_at(425,82,"AIRFLOW %.0f%%" % l.airflow,flow)
+	text_at(425,120,"O2 %.1f%%" % l.oxygen)
+	text_at(425,158,"CO2 %.3f%%" % l.co2)
+	text_at(20,237,"CURRENT READINGS ONLY / NO RECORDED TREND",UI.MUTED)
+
+func _life_filter() -> void:
+	var l: Dictionary=model.systems.life
+	module(12,18,363,194,"FILTER HOUSING / DUCT 2",UI.CYAN if l.serviced else UI.AMBER)
+	module(394,18,194,194,"FIT AND AIRFLOW",UI.CYAN if l.airflow>=62 else UI.AMBER)
+	draw_rect(area(95,56,188,128),UI.METAL)
+	draw_rect(area(105,67,168,107),UI.SHADOW)
+	for x in range(118,266,18): draw_rect(area(float(x),76,7,88),UI.EDGE if l.serviced else UI.AMBER)
+	text_at(24,202,"FILTER-A / "+("SEATED" if l.serviced else "SERVICE NEEDED"),UI.CYAN if l.serviced else UI.AMBER)
+	text_at(416,84,"HOUSING",UI.MUTED)
+	text_at(416,116,"ISOLATED" if l.isolated else "CONNECTED",UI.AMBER if l.isolated else UI.CYAN)
+	text_at(416,163,"%.0f%%" % l.airflow,UI.CYAN if l.airflow>=62 else UI.AMBER,24)
+	text_at(18,237,"AIRFLOW TARGET 62-72% / FILTER SERVICE USES EXISTING CONTROLS",UI.MUTED)
+
+func _life_scrubber() -> void:
+	var l: Dictionary=model.systems.life
+	var healthy: bool=l.scrubber>=0.9 and l.co2<=0.1
+	module(12,18,365,194,"SWING BEDS / CO2 REMOVAL",UI.CYAN if healthy else UI.AMBER)
+	module(395,18,193,194,"CABIN CO2",UI.CYAN if l.co2<=0.1 else UI.RED)
+	for i in range(2):
+		var x := 43.0+i*155
+		draw_rect(area(x,66,123,106),UI.METAL)
+		draw_rect(area(x+9,77,105,83),UI.WELL)
+		for y in range(88,155,14): draw_rect(area(x+18,float(y),87,5),UI.CYAN if healthy else UI.AMBER)
+		text_at(x+22,191,"BED "+("A" if i==0 else "B"),UI.MUTED)
+	text_at(412,99,"%.3f%%" % l.co2,UI.CYAN if l.co2<=0.1 else UI.RED,23)
+	text_at(412,146,"REMOVAL %.0f%%" % (l.scrubber*100),UI.MUTED)
+	text_at(18,237,"SCRUB-A MEDIUM / MAXIMUM CABIN CO2 0.100%",UI.MUTED)
+
+func _life_oxygen() -> void:
+	var l: Dictionary=model.systems.life
+	module(12,18,388,194,"OXYGEN RACK / RESERVE",UI.CYAN if l.reserve>=50 else UI.AMBER)
+	module(416,18,172,194,"REGULATOR",UI.CYAN if l.oxygen>=20 and l.oxygen<=22 else UI.AMBER)
+	for i in range(3):
+		var x := 38.0+i*118
+		draw_rect(area(x,65,75,129),UI.METAL)
+		draw_rect(area(x+10,76,55,106),UI.WELL)
+		draw_rect(area(x+27,52,20,18),UI.EDGE)
+		text_at(x+15,204,"O2-%02d" % (i+1),UI.MUTED)
+	text_at(432,93,"%.1f%%" % l.oxygen,UI.CYAN if l.oxygen>=20 and l.oxygen<=22 else UI.AMBER,23)
+	text_at(432,145,"BANK %.0f%%" % l.reserve,UI.MUTED)
+	text_at(18,237,"O2 RESERVE IS DISTINCT FROM CO2 REMOVAL",UI.MUTED)
+
 func _hydro() -> void:
+	match str(definition.get("id","")):
+		"hydro.pump": _hydro_pump();return
+		"hydro.seedlings": _hydro_seedlings();return
 	var h: Dictionary=model.systems.hydro
 	var env: Dictionary=model.hydro_environment()
 	var good: bool=h.flow>=90 and h.ec>=1.8 and h.ec<=2.4
@@ -145,8 +274,50 @@ func _hydro() -> void:
 	text_at(210,186,"RECOVERING" if good else "DELIVERY WARNING",flow)
 	text_at(210,210,"BAY %.0f%% RH / RANGE 55-70" % env.humidity,UI.MUTED)
 
+func _hydro_pump() -> void:
+	var h: Dictionary=model.systems.hydro
+	var env: Dictionary=model.hydro_environment()
+	var good: bool=h.flow>=90 and not h.isolated
+	module(12,18,390,194,"NUTRIENT PUMP / RUNNING STATE",UI.CYAN if good else UI.AMBER)
+	module(420,18,168,194,"HANDHELD READINGS",UI.CYAN if good else UI.AMBER)
+	pipe([Vector2(20,110),Vector2(130,110),Vector2(275,110),Vector2(389,110)],UI.CYAN if good else UI.AMBER)
+	var center := point(201,112)
+	for radius in [66.0,49.0,27.0]: draw_arc(center,radius,0,TAU,24,UI.METAL,6,false)
+	for i in range(6):
+		var a := Vector2.from_angle(i*TAU/6)
+		draw_line(center+a*23,center+a*43,UI.EDGE,7)
+	text_at(30,195,"ISOLATED" if h.isolated else "DELIVERY CONNECTED",UI.AMBER if h.isolated else UI.CYAN)
+	text_at(434,88,"FLOW %.0f%%" % h.flow)
+	text_at(434,126,"EC %.2f" % h.ec)
+	text_at(434,163,"CAP %.0f%%" % env.pump_capacity,UI.MUTED)
+	text_at(18,237,"OPTIONAL CHECK RECORDS EXISTING PUMP READINGS",UI.MUTED)
+
+func _hydro_seedlings() -> void:
+	var h: Dictionary=model.systems.hydro
+	var env: Dictionary=model.hydro_environment()
+	var humidity: float=env.humidity
+	var healthy: bool=humidity>=55 and humidity<=70 and h.flow>=90
+	module(12,18,377,194,"SEEDLING RACK / THREE SHELVES",UI.CYAN if healthy else UI.AMBER)
+	module(408,18,180,194,"BAY COMPARISON",UI.CYAN if healthy else UI.AMBER)
+	for i in range(3):
+		var y := 70.0+i*47
+		draw_rect(area(34,y,331,10),UI.METAL)
+		for x in range(53,345,43):
+			var center := point(float(x),y-6)
+			draw_line(center+Vector2(0,8),center-Vector2(0,7),UI.CYAN if healthy else UI.AMBER,3)
+			draw_line(center-Vector2(0,3),center-Vector2(7,8),UI.CYAN if healthy else UI.AMBER,3)
+			draw_line(center-Vector2(0,3),center+Vector2(7,-8),UI.CYAN if healthy else UI.AMBER,3)
+	text_at(426,91,"%.0f%% RH" % humidity,UI.CYAN if healthy else UI.AMBER,21)
+	text_at(426,129,"BAND 55-70%",UI.MUTED)
+	text_at(426,166,"FLOW %.0f%%" % h.flow)
+	text_at(18,237,"OPTIONAL SENSOR CHECK / NO CALIBRATION CONTROL IN GAME",UI.MUTED)
+
 func _cargo(kind: String) -> void:
 	var c: Dictionary=model.systems.cargo
+	match str(definition.get("id","")):
+		"cargo.scale": _cargo_scale();return
+		"cargo.mover": _cargo_mover();return
+		"cargo.trolley": _cargo_trolley();return
 	if kind=="cylinders":
 		var ids := ["coolant_charge","oxygen_reserve","inert_purge"]
 		for i in range(3):
@@ -173,23 +344,61 @@ func _cargo(kind: String) -> void:
 	text_at(460,135,"UNOPENED" if c.quarantined else "HANDLING LOG",UI.MUTED)
 	text_at(25,238,"20 kg CHECK REFERENCE / TARE EMPTY PLATFORM",UI.MUTED)
 
+func _cargo_scale() -> void:
+	var c: Dictionary=model.systems.cargo
+	module(10,18,180,192,"SCALE / LOAD CELL",UI.CYAN if c.tare else UI.AMBER)
+	module(208,18,205,192,"PLATFORM",UI.CYAN if c.location=="scale" else UI.MUTED)
+	module(430,18,160,192,"CUSTODY",UI.AMBER if c.quarantined else UI.CYAN)
+	draw_rect(area(28,70,144,75),UI.INK)
+	text_at(38,111,"%.1f kg" % c.measured_mass if c.weighed else "--.- kg",UI.CYAN,23)
+	text_at(28,174,"ZEROED" if c.tare else "ZERO REQUIRED",UI.CYAN if c.tare else UI.AMBER)
+	draw_rect(area(228,63,165,120),UI.METAL)
+	draw_rect(area(237,72,147,102),UI.WELL)
+	for x in [245.0,375.0]: draw_rect(area(x,80,7,86),UI.EDGE)
+	text_at(240,202,"LOAD: "+str(c.location).to_upper(),UI.CYAN if c.location=="scale" else UI.MUTED)
+	text_at(447,83,str(c.id))
+	text_at(447,120,"SEAL CHECKED" if c.seal_checked else "SEAL PENDING",UI.CYAN if c.seal_checked else UI.AMBER)
+	text_at(447,158,"QUARANTINED" if c.quarantined else "UNOPENED")
+	text_at(20,236,"MANIFEST %.1f kg  /  TOLERANCE +/- 0.5 kg" % c.manifest_mass,UI.MUTED)
+
+func _cargo_mover() -> void:
+	var c: Dictionary=model.systems.cargo
+	module(12,16,220,200,"TILLER HEAD")
+	module(250,16,338,200,"FORKS AND LOAD",UI.CYAN if c.location=="scale" else UI.AMBER)
+	draw_rect(area(60,55,110,35),UI.METAL)
+	draw_rect(area(75,90,80,62),UI.SHADOW)
+	for x in [83.0,139.0]: draw_rect(area(x,143,10,28),UI.METAL)
+	text_at(34,198,"IDENTIFIED LOAD / "+str(c.id),UI.MUTED)
+	draw_rect(area(282,66,260,74),UI.SHADOW)
+	for y in [72.0,122.0]:
+		draw_rect(area(296,y,234,12),UI.METAL)
+		draw_rect(area(520,y,14,15),UI.EDGE)
+	text_at(275,180,"DESTINATION / "+str(c.location).to_upper(),UI.CYAN)
+	text_at(16,236,"SECURED TRANSFER ONLY / NO PHYSICAL DRIVING",UI.MUTED)
+
+func _cargo_trolley() -> void:
+	var stock: Dictionary=model.stocks.get("cargo.trolley",{})
+	module(12,15,270,205,"MAINTENANCE TROLLEY")
+	for i in range(3):
+		var y := 62.0+i*43
+		draw_rect(area(35,y,223,34),UI.METAL)
+		draw_rect(area(47,y+4,199,26),UI.SHADOW)
+		draw_rect(area(115,y+15,60,5),UI.EDGE)
+	for x in [55.0,228.0]: draw_arc(point(x,205),9,0,TAU,12,UI.METAL,3,false)
+	module(300,15,288,205,"DRAWER STOCK",UI.CYAN)
+	var items := [["filter_cartridge","FILTER-A"],["scrubber_media","SCRUB-A"],["coolant_charge","COOL-02"],["nutrient_buffer","BUFFER-A"]]
+	for i in range(items.size()):
+		var y := 68.0+i*35
+		text_at(322,y,items[i][1],UI.MUTED)
+		text_at(505,y,"x%d" % int(stock.get(items[i][0],0)),UI.CYAN)
+	text_at(16,238,"ISSUE KIT TO CARRIED INVENTORY / STOCK DEDUCTS ONCE",UI.MUTED)
+
 func _planning() -> void:
-	if model.work_order_context=="first_watch":
-		var titles := ["RECEIVE THE WATCH","MEET AMARA / READINGS","RESTORE SERVICE POWER","IRRIGATION / REPORT BACK","COMMAND HANDOFF"]
-		var count: int=int(model.story_progress.get("completed",0))
-		for i in range(titles.size()):
-			var x := 12.0+(i%2)*296; var y := 14.0+int(i/2.0)*70
-			module(x,y,280,60,titles[i],UI.CYAN if i<count else UI.AMBER if i==count else UI.MUTED)
-			text_at(x+18,y+46,"COMPLETE" if i<count else "CURRENT" if i==count else "LATER",UI.MUTED)
-		return
-	for i in range(CATALOG.OBJECTIVES.size()):
-		var obj: Array=CATALOG.OBJECTIVES[i]
-		var x := 12.0+(i%2)*296
-		var y := 14.0+int(i/2.0)*55
-		var done: bool=model.completed.has(obj[0])
-		var available: bool=model.prerequisite(obj[0]).is_empty()
-		module(x,y,280,48,obj[2]+" / "+obj[3].to_upper(),UI.CYAN if done else UI.AMBER if available else UI.MUTED)
-		text_at(x+25,y+39,"VERIFIED" if done else "AVAILABLE" if available else "INTERLOCKED",UI.MUTED)
+	# The approved planning frame leaves its central viewport empty until a
+	# real ship schematic exists. Live assignment/status text stays in Records.
+	draw_rect(Rect2(Vector2.ZERO,size),Color("04100c"))
+	draw_rect(Rect2(Vector2.ZERO,Vector2(size.x,2)),UI.METAL)
+	draw_rect(Rect2(Vector2.ZERO,Vector2(2,size.y)),UI.METAL)
 
 func _navigation() -> void:
 	var n: Dictionary=model.systems.navigation

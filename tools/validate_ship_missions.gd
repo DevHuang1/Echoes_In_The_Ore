@@ -74,8 +74,10 @@ func run_context(context: String) -> void:
 	action("quarters.table","crew_log")
 	action("quarters.desk","crew_compare","records_match" if context=="return" else "all_checked_in",false)
 	action("quarters.desk","crew_compare","unconfirmed" if context=="return" else "one_missing")
-	action("cargo.bundle","manifest")
-	action("cargo.bundle","seal")
+	check(state.actions("cargo.bundle").map(func(entry: Dictionary): return entry.id)==["hide"],"Tied bundle exposes hiding only")
+	check(state.actions("cargo.locker").map(func(entry: Dictionary): return entry.id)==["hide"],"Cargo locker exposes hiding only")
+	action("cargo.scale","manifest")
+	action("cargo.scale","seal")
 	action("cargo.scale","tare")
 	action("cargo.mover","move_load","scale")
 	action("cargo.scale","weigh")
@@ -136,7 +138,8 @@ func run_context(context: String) -> void:
 	action(service_prop,"isolate")
 	if context=="outbound":
 		action("cargo.trolley","transfer_kit")
-		action("engine.locker.1","take:coolant_charge")
+		check(hud.inventory_count(&"coolant_charge")==1,"Trolley issue carries exactly one COOL-02 kit")
+		check(state.actions("engine.locker.1").map(func(entry: Dictionary): return entry.id)==["hide"],"Engine locker exposes hiding only")
 	action(service_prop,"engine_service")
 	action(service_prop,"restore");state.tick(10.0);action(service_prop,"verify")
 	action("engine.turbine.1","resume_output")
@@ -161,7 +164,7 @@ func run_context(context: String) -> void:
 	check(inventory_before==JSON.stringify(hud.inventory_snapshot()) and completions==state.completed.size(),"Duplicate submission creates no reward or consumption")
 	action("bridge.planning","file_report")
 	for room in ["bridge","quarters","cargo","engine","power","life","hydro"]:
-		var prop: String={"bridge":"bridge.planning","quarters":"quarters.desk","cargo":"cargo.bundle","engine":"engine.pump.1","power":"power.breaker","life":"life.filter","hydro":"hydro.console"}[room]
+		var prop: String={"bridge":"bridge.planning","quarters":"quarters.desk","cargo":"cargo.scale","engine":"engine.pump.1","power":"power.breaker","life":"life.filter","hydro":"hydro.console"}[room]
 		action(prop,"record")
 		check(state.evidence.has(context+"."+room),"Phase-specific narrative evidence: "+room)
 	check(level.ship_save_game().begins_with("Ship-side mission"),"Mission save succeeds in isolated test path")

@@ -1,0 +1,17 @@
+<svg data-dc-tpl="45" viewBox="0 -6 230 230" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="230" height="230">
+            <path data-dc-tpl="46" d="M115 20 A95 95 0 1 1 30 160 L10 160 L10 120 L30 120" fill="#c9c0a4" stroke="#05090b" stroke-width="4"></path>
+            <circle data-dc-tpl="47" cx="115" cy="115" r="76" fill="#0f2a3a" stroke="#05090b" stroke-width="3"></circle>
+            <g data-dc-tpl="48" class="spin-slow">
+              <circle data-dc-tpl="49" cx="115" cy="115" r="70" fill="transparent"></circle>
+              <g data-dc-tpl="50" transform="translate(115 115)">
+                <path data-dc-tpl="51" d="M10 -10 Q34 -18 46 -54" stroke="#9db3b4" stroke-width="7" fill="none" stroke-linecap="round" transform="rotate(0)"></path>
+                <path data-dc-tpl="52" d="M10 -10 Q34 -18 46 -54" stroke="#9db3b4" stroke-width="7" fill="none" stroke-linecap="round" transform="rotate(60)"></path>
+                <path data-dc-tpl="53" d="M10 -10 Q34 -18 46 -54" stroke="#9db3b4" stroke-width="7" fill="none" stroke-linecap="round" transform="rotate(120)"></path>
+                <path data-dc-tpl="54" d="M10 -10 Q34 -18 46 -54" stroke="#9db3b4" stroke-width="7" fill="none" stroke-linecap="round" transform="rotate(180)"></path>
+                <path data-dc-tpl="55" d="M10 -10 Q34 -18 46 -54" stroke="#9db3b4" stroke-width="7" fill="none" stroke-linecap="round" transform="rotate(240)"></path>
+                <path data-dc-tpl="56" d="M10 -10 Q34 -18 46 -54" stroke="#9db3b4" stroke-width="7" fill="none" stroke-linecap="round" transform="rotate(300)"></path>
+              </g>
+            </g>
+            <circle data-dc-tpl="57" cx="115" cy="115" r="14" fill="#e9b52c" stroke="#05090b" stroke-width="3"></circle>
+            <circle data-dc-tpl="58" cx="115" cy="115" r="4" fill="#05090b"></circle>
+          </svg>

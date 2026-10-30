@@ -7,9 +7,27 @@ const SCREENS := {
 	"power": preload("res://scripts/ui/eito/power_panel.gd"),
 	"irrigation": preload("res://scripts/ui/eito/irrigation_panel.gd"),
 	"records": preload("res://scripts/ui/eito/crew_records_panel.gd"),
+	"cargo_scale": preload("res://scripts/ui/eito/cargo_scale_panel.gd"),
+	"pallet_mover": preload("res://scripts/ui/eito/pallet_mover_panel.gd"),
+	"cylinder_rack": preload("res://scripts/ui/eito/cylinder_rack_panel.gd"),
+	"maintenance_trolley": preload("res://scripts/ui/eito/maintenance_trolley_panel.gd"),
+	"air_duct": preload("res://scripts/ui/eito/air_duct_panel.gd"),
+	"air_filter": preload("res://scripts/ui/eito/air_filter_panel.gd"),
+	"co2_scrubber": preload("res://scripts/ui/eito/co2_scrubber_panel.gd"),
+	"oxygen_rack": preload("res://scripts/ui/eito/oxygen_rack_panel.gd"),
+	"supply_stores": preload("res://scripts/ui/eito/supply_stores_panel.gd"),
+	"turbine": preload("res://scripts/ui/eito/turbine_panel.gd"),
+	"valve_manifold": preload("res://scripts/ui/eito/valve_manifold_panel.gd"),
+	"coolant_pump": preload("res://scripts/ui/eito/coolant_pump_panel.gd"),
+	"nutrient_pump_check": preload("res://scripts/ui/eito/nutrient_pump_check_panel.gd"),
+	"seedling_rack_check": preload("res://scripts/ui/eito/seedling_rack_check_panel.gd"),
+	"helm": preload("res://scripts/ui/eito/helm_panel.gd"),
+	"communications": preload("res://scripts/ui/eito/communications_panel.gd"),
+	"planning_table": preload("res://scripts/ui/eito/planning_table_panel.gd"),
 }
 
 signal action_requested(action_id: String, value: Variant)
+signal legacy_receipt_recorded(task_id: String)
 signal save_requested
 signal load_requested
 signal closed
@@ -20,12 +38,31 @@ var display_title := ""
 var kind := ""
 var story_mode := false
 var story_objective := ""
+var save_path := ""
 var screen: Control
 var _closing := false
 var _bg: Control
 
 static func kind_for(model: Object, id: String) -> String:
-	if model == null or model.phase != "outbound": return ""
+	if model == null: return ""
+	if id == "cargo.scale": return "cargo_scale"
+	if id == "cargo.mover": return "pallet_mover"
+	if id == "cargo.cylinders": return "cylinder_rack"
+	if id == "cargo.trolley": return "maintenance_trolley"
+	if id == "life.duct": return "air_duct"
+	if id == "life.filter": return "air_filter"
+	if id == "life.scrubber": return "co2_scrubber"
+	if id == "life.oxygen": return "oxygen_rack"
+	if id in ["quarters.drawer.1", "quarters.drawer.2", "quarters.wardrobe"]: return "supply_stores"
+	if id.begins_with("engine.turbine."): return "turbine"
+	if id.begins_with("engine.valve."): return "valve_manifold"
+	if id.begins_with("engine.pump."): return "coolant_pump"
+	if id == "hydro.pump": return "nutrient_pump_check"
+	if id == "hydro.seedlings": return "seedling_rack_check"
+	if id in ["bridge.helm","bridge.flight.upper","bridge.flight.lower"]: return "helm"
+	if id.begins_with("bridge.comms."): return "communications"
+	if id == "bridge.planning": return "planning_table"
+	if model.phase != "outbound": return ""
 	if id.begins_with("power."): return "power"
 	if id == "hydro.console": return "irrigation"
 	if id in ["quarters.desk", "quarters.table"]: return "records"
@@ -69,6 +106,8 @@ func act(action_id: String, value: Variant = null) -> void:
 		action_requested.emit(action_id, value)
 
 func feedback(message: String, success := true) -> void:
+	if is_instance_valid(screen) and screen.has_method("external_feedback"):
+		screen.external_feedback(message,success);return
 	if success or not is_instance_valid(screen) or not screen.has_method("say"): return
 	var first := message.strip_edges().get_slice("\n", 0)
 	screen.say("lock", first)

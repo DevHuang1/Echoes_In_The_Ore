@@ -34,6 +34,8 @@ const VOICE := Color("#201a2a")
 const VOICE_HI := Color("#3b3049")
 const VOICE_INK := Color("#f3ead6")
 const TEXT := Color("#e6e1d2")
+const BONE := Color("#d8cfb6")
+const YELLOW := Color("#e9b52c")
 
 const FONT_DIR := "res://art/ui/fonts/"
 
@@ -105,6 +107,52 @@ static func font(kind: String, weight := 400, spacing := 0.0) -> Font:
 	_fonts[key] = f
 	return f
 
+## Exact fonts embedded in the Stations 02 export. Kept separate so already
+## approved proposal-01 screens retain their own typography and measurements.
+static var _artifact_fonts := {}
+static var _artifact_lamps := {}
+static var _artifact_cue_texture: Texture2D
+static func artifact_cue(ci,r: Rect2,time: float) -> void:
+	if _artifact_cue_texture==null: _artifact_cue_texture=load("res://art/ui/eito/stations02/graphics/artifact_cue_corner.res")
+	var g := r.grow(8.0 if fmod(time,1.1)<0.55 else 4.0)
+	var points := [g.position,Vector2(g.end.x,g.position.y),g.end,Vector2(g.position.x,g.end.y)]
+	for i in range(4):
+		ci.draw_set_transform(points[i],i*PI*0.5)
+		ci.draw_texture_rect(_artifact_cue_texture,Rect2(-9,-9,30,30),false)
+	ci.draw_set_transform(Vector2.ZERO)
+
+static func artifact_lamp(ci,p: Vector2,state: String,time: float,dimmed := false) -> void:
+	var s := "warn" if state=="lock" else state if state in ["ok","warn","fault","live"] else "off"
+	var key := s+"_dim" if dimmed else s
+	if not _artifact_lamps.has(key):
+		var tex: Texture2D=load("res://art/ui/eito/stations02/graphics/artifact_lamp_"+s+".res")
+		_artifact_lamps[key]=ImageTexture.create_from_image(filt_image(tex.get_image(),0.2,0.6)) if dimmed else tex
+	var alpha := 1.0
+	if s in ["warn","live"]:
+		var period := 0.6 if s=="live" else 1.0
+		alpha=1.0 if fmod(time,period)<period*0.5 else 0.45
+	ci.draw_texture_rect(_artifact_lamps[key],Rect2(p-Vector2(6,6),Vector2(30,30)),false,Color(1,1,1,alpha))
+
+static func artifact_font(kind: String, weight := 400, spacing := 0.0) -> Font:
+	var key := "%s|%d|%.3f" % [kind,weight,spacing]
+	if _artifact_fonts.has(key): return _artifact_fonts[key]
+	var path: String = FONT_DIR + str({"body":"PixelifySans-Artifact.ttf","label":"Silkscreen-Artifact.ttf","num":"VT323-Regular.ttf"}.get(kind,"PixelifySans-Artifact.ttf"))
+	# Do not attach Stations 02 metrics/fallbacks to a shared FontFile used by
+	# approved proposal-01 screens (notably VT323).
+	var f: Font = load(path).duplicate()
+	if f.fallbacks.is_empty():
+		var fallback := SystemFont.new();fallback.font_names=PackedStringArray(["Trebuchet MS","Arial"] if kind=="body" else ["Courier New","monospace"])
+		f.fallbacks=[fallback]
+	if kind=="body" and weight>400:
+		var bold := FontVariation.new();bold.base_font=f
+		bold.variation_opentype={TextServerManager.get_primary_interface().name_to_tag("wght"):weight}
+		f=bold
+	if not is_zero_approx(spacing):
+		var spaced := FontVariation.new();spaced.base_font=f;spaced.set_meta("ls",spacing);f=spaced
+	f.set_meta("artifact_metrics",{"body":Vector2(0.92,0.28),"label":Vector2(1.03,0.25),"num":Vector2(0.8,0.2)}.get(kind,Vector2(0.92,0.28)))
+	_artifact_fonts[key]=f
+	return f
+
 static func ls_of(f: Font) -> float:
 	return float(f.get_meta("ls", 0.0)) if f.has_meta("ls") else 0.0
 
@@ -133,6 +181,8 @@ static func run(ci, f: Font, size: int, s: String, pos: Vector2, color: Color) -
 ## Baseline for text set in a CSS line box of height lh whose top is `top`.
 static func baseline(f: Font, size: int, top: float, lh: float = -1.0) -> float:
 	var a := f.get_ascent(size); var d := f.get_descent(size)
+	if f.has_meta("artifact_metrics"):
+		var m: Vector2=f.get_meta("artifact_metrics");a=roundf(m.x*size);d=roundf(m.y*size)
 	if lh < 0: lh = a + d
 	return top + (lh - (a + d)) * 0.5 + a
 
@@ -307,6 +357,15 @@ static func bezel(ci, r: Rect2) -> void:
 
 static func paper(ci, r: Rect2) -> void:
 	box(ci, r, {"notch":true, "bg":PAPER, "tex":tex("paper"), "border":Color("#6f6750"), "insets":[[2,2,0,PAPER_HI],[-2,-2,0,PAPER_LO]]})
+
+## Stations 02 paper uses the export's simple 1px/5px vertical grain.
+static func artifact_paper(ci,r: Rect2) -> void:
+	var clips := notch_strips(r)
+	fill(ci,r,clips,PAPER)
+	var x := r.position.x+2
+	while x<r.end.x:
+		fill(ci,Rect2(x,r.position.y,1,r.size.y),clips,Color(90/255.0,70/255.0,30/255.0,0.03));x+=5
+	box(ci,r,{"notch":true,"border":Color("#6f6750"),"insets":[[2,2,0,PAPER_HI],[-2,-2,0,PAPER_LO]]})
 
 ## Glass screen body (radial phosphor gradient + inner bevel). Call glass_overlay
 ## after drawing the screen contents for the scanlines and sheen.

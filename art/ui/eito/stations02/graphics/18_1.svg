@@ -1,0 +1,9 @@
+<svg data-dc-tpl="42" viewBox="0 0 120 150" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="120" height="150">
+          <rect data-dc-tpl="43" x="14" y="6" width="92" height="138" rx="10" fill="#e9b52c" stroke="#05090b" stroke-width="3"></rect>
+          <circle data-dc-tpl="44" cx="60" cy="58" r="38" fill="#efe8d4" stroke="#05090b" stroke-width="3"></circle>
+          <path data-dc-tpl="45" d="M34 82 A38 38 0 0 1 30 40" fill="none" stroke="#9c3b20" stroke-width="5"></path>
+          <path data-dc-tpl="46" d="M44 24 A38 38 0 0 1 80 26" fill="none" stroke="#2f7a37" stroke-width="5"></path>
+          <g data-dc-tpl="47" transform="rotate(24 60 58)"><path data-dc-tpl="48" d="M60 58 L60 26" stroke="#1f2326" stroke-width="3"></path></g>
+          <circle data-dc-tpl="49" cx="60" cy="58" r="4" fill="#1f2326"></circle>
+          <text data-dc-tpl="50" x="60" y="118" text-anchor="middle" font-family="Silkscreen" font-size="10" fill="#1f2326">REFERENCE</text>
+          </svg>

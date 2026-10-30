@@ -1,0 +1,22 @@
+<svg data-dc-tpl="19" width="340" height="340" viewBox="0 0 340 340" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+            <circle data-dc-tpl="20" cx="170" cy="170" r="160" fill="#0f1a1c" stroke="#55e0d0" stroke-width="3"></circle>
+            <circle data-dc-tpl="21" cx="170" cy="170" r="146" fill="none" stroke="#e0763a" stroke-width="12" opacity=".5"></circle>
+            <g data-dc-tpl="22" class="spin">
+              <circle data-dc-tpl="23" cx="170" cy="170" r="142" fill="transparent"></circle>
+              <g data-dc-tpl="24" transform="translate(170 170)" fill="#9db3b4" stroke="#05090b" stroke-width="2">
+                <path data-dc-tpl="25" d="M0 -20 L18 -138 L34 -132 L10 -18 Z"></path>
+                <path data-dc-tpl="26" d="M0 -20 L18 -138 L34 -132 L10 -18 Z" transform="rotate(30)"></path>
+                <path data-dc-tpl="27" d="M0 -20 L18 -138 L34 -132 L10 -18 Z" transform="rotate(60)"></path>
+                <path data-dc-tpl="28" d="M0 -20 L18 -138 L34 -132 L10 -18 Z" transform="rotate(90)"></path>
+                <path data-dc-tpl="29" d="M0 -20 L18 -138 L34 -132 L10 -18 Z" transform="rotate(120)"></path>
+                <path data-dc-tpl="30" d="M0 -20 L18 -138 L34 -132 L10 -18 Z" transform="rotate(150)"></path>
+                <path data-dc-tpl="31" d="M0 -20 L18 -138 L34 -132 L10 -18 Z" transform="rotate(180)"></path>
+                <path data-dc-tpl="32" d="M0 -20 L18 -138 L34 -132 L10 -18 Z" transform="rotate(210)"></path>
+                <path data-dc-tpl="33" d="M0 -20 L18 -138 L34 -132 L10 -18 Z" transform="rotate(240)"></path>
+                <path data-dc-tpl="34" d="M0 -20 L18 -138 L34 -132 L10 -18 Z" transform="rotate(270)"></path>
+                <path data-dc-tpl="35" d="M0 -20 L18 -138 L34 -132 L10 -18 Z" transform="rotate(300)"></path>
+                <path data-dc-tpl="36" d="M0 -20 L18 -138 L34 -132 L10 -18 Z" transform="rotate(330)"></path>
+              </g>
+            </g>
+            <circle data-dc-tpl="37" cx="170" cy="170" r="26" fill="#e9b52c" stroke="#05090b" stroke-width="3"></circle>
+          </svg>

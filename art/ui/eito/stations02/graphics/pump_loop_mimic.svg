@@ -1,0 +1,17 @@
+<svg data-dc-tpl="18" width="580" height="204" viewBox="0 0 604 220" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+
+          <rect data-dc-tpl="19" x="30" y="30" width="250" height="160" fill="none" stroke="#e0763a" stroke-width="6" class="flow-slow" stroke-dasharray="14 10"></rect>
+          <text data-dc-tpl="20" x="40" y="22" fill="#e0763a" font-family="Silkscreen" font-size="11">LOOP 1 · PUMP 1</text>
+
+          <rect data-dc-tpl="21" x="324" y="30" width="250" height="160" fill="none" stroke="#3aa0e0" stroke-width="6" class="flow-slow" stroke-dasharray="14 10"></rect>
+          <text data-dc-tpl="22" x="334" y="22" fill="#3aa0e0" font-family="Silkscreen" font-size="11">LOOP 2 · PUMP 2</text>
+
+          <g data-dc-tpl="23" transform="translate(302 110)"><rect data-dc-tpl="24" x="-40" y="-36" width="80" height="72" fill="#0f1a1c" stroke="#e9b52c" stroke-width="3"></rect><text data-dc-tpl="25" y="-6" text-anchor="middle" fill="#e9b52c" font-family="Silkscreen" font-size="11">TURBINE</text><text data-dc-tpl="26" y="18" text-anchor="middle" fill="#e9b52c" font-family="VT323" font-size="22" opacity="1">100%</text><text data-dc-tpl="27" y="18" text-anchor="middle" fill="#e9b52c" font-family="VT323" font-size="22" opacity="0">60%</text></g>
+
+          <g data-dc-tpl="28" transform="translate(30 110)"><circle data-dc-tpl="29" r="22" fill="#0f1a1c" stroke="#e0763a" stroke-width="4"></circle><path data-dc-tpl="30" d="M-10 -12 L14 0 L-10 12 Z" fill="#e0763a"></path></g>
+
+          <g data-dc-tpl="31" transform="translate(110 30)"><path data-dc-tpl="32" d="M-12 -10 L12 10 L12 -10 L-12 10 Z" fill="#7fe08a" stroke="#05090b" stroke-width="2"></path></g>
+          <g data-dc-tpl="33" transform="translate(110 190)"><path data-dc-tpl="34" d="M-12 -10 L12 10 L12 -10 L-12 10 Z" fill="#7fe08a" stroke="#05090b" stroke-width="2"></path></g>
+
+          <g data-dc-tpl="35" transform="translate(155 110)"><path data-dc-tpl="36" d="M-30 -20 L-20 20 L-10 -20 L0 20 L10 -20 L20 20 L30 -20" fill="none" stroke="#e0763a" stroke-width="3"></path><text data-dc-tpl="37" y="40" text-anchor="middle" fill="#e0763a" font-family="Silkscreen" font-size="10">HX</text></g>
+        </svg>

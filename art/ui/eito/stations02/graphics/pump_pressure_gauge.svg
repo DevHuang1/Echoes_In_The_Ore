@@ -1,0 +1,7 @@
+<svg data-dc-tpl="65" viewBox="0 0 120 120" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="120" height="120">
+                  <circle data-dc-tpl="66" cx="60" cy="60" r="54" fill="#efe8d4" stroke="#05090b" stroke-width="4"></circle>
+                  <path data-dc-tpl="67" d="M21.8 98.2 A54 54 0 0 1 21.8 21.8" fill="none" stroke="#9c3b20" stroke-width="7"></path>
+                  <path data-dc-tpl="68" d="M84.5 11.9 A54 54 0 0 1 113.3 68.4" fill="none" stroke="#2f7a37" stroke-width="7"></path>
+                  <g data-dc-tpl="69" transform="rotate(-35.999999999999986 60 60)"><path data-dc-tpl="70" d="M60 60 L60 18" stroke="#1f2326" stroke-width="4" stroke-linecap="round"></path></g>
+                  <circle data-dc-tpl="71" cx="60" cy="60" r="6" fill="#1f2326"></circle>
+                </svg>

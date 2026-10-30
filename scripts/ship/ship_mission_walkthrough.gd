@@ -270,7 +270,6 @@ func ship_refresh_prompt() -> void:
 func ship_handle_interact(event: InputEvent) -> bool:
 	if not ship_is_initialized() or not event.is_action_pressed(&"interact"): return false
 	if ship_control_locked():
-		if _ship_hide_phase == "concealed": ship_exit_hiding()
 		get_viewport().set_input_as_handled();return true
 	if _ship_active_id.is_empty(): return false
 	var entry: Dictionary=_ship_points[_ship_active_id]
@@ -281,13 +280,11 @@ func ship_open_procedure(id: String) -> bool:
 	if not _ship_points.has(id) or get("_task_console_open") or ship_control_locked(): return false
 	var point: Dictionary=_ship_points[id]
 	if not is_instance_valid(point.marker) or not ship_can_reach(point.marker.global_position,point.definition.room): return false
-	if point.definition.kind in ["storage_hide","cargo_hide"]: return ship_enter_hiding(id)
-	if ship_story_active() and id == "bridge.planning" and not _ship_story.has("watch.accepted"):
-		_story_assignment(); return true
+	if point.definition.kind in ["storage_hide","cargo_hide"]: return false
 	if ship_story_active() and id.begins_with("power.") and _ship_state.completed.has("power") and not _ship_story.has("power.reported") and _ship_story.has("amara.observation_reported"):
 		_story_power_ack(); return true
 	_ship_player.face_toward(point.host.global_position)
-	# Redesigned stations (power, irrigation, crew records) use the new screens;
+	# Ported artifact boards use their fixed 1280x720 screens;
 	# everything the design doesn't cover keeps the generic procedure panel.
 	var eito_kind: String = EITO_LAYER.kind_for(_ship_state, id)
 	if eito_kind.is_empty():
@@ -297,8 +294,10 @@ func ship_open_procedure(id: String) -> bool:
 		# Leila's comms card only belongs to the chapter once engineering has
 		# authorised the power work; an early repair is credited when it gets there.
 		_ship_panel.story_mode=ship_story_active() and (eito_kind != "power" or _ship_story.has("amara.observation_reported"))
+		_ship_panel.save_path=ship_mission_save_path
 		if ship_story_active(): _ship_panel.story_objective=str(_ship_story.objective().get("title",""))
 	_ship_panel.action_requested.connect(_ship_action.bind(id))
+	if _ship_panel is EITO_LAYER: _ship_panel.legacy_receipt_recorded.connect(_ship_eito_legacy_recorded)
 	_ship_panel.closed.connect(_ship_panel_closed)
 	_ship_panel.save_requested.connect(func(): _ship_panel.feedback(ship_save_game()))
 	_ship_panel.load_requested.connect(func(): _ship_panel.feedback(ship_load_game()))
@@ -345,6 +344,12 @@ func ship_legacy_completed(task_id: StringName) -> void:
 	if _ship_state.legacy_complete(str(task_id),_ship_service_prop):
 		var existing: Dictionary=get("_completed_room_tasks");existing[task_id]=true
 		_ship_status="Controls completed. Restore and verify the connected system at its station.";_ship_status_time=6.0
+
+func _ship_eito_legacy_recorded(task_id: String) -> void:
+	var existing: Dictionary=get("_completed_room_tasks")
+	existing[StringName(task_id)]=true
+	_ship_status="Controls completed. Restore and verify the connected system at its station."
+	_ship_status_time=6.0
 
 func ship_service_closed() -> void:
 	if is_instance_valid(_ship_service_console): _ship_state.legacy_progress[_ship_service_task]=_ship_service_console.progress_snapshot()
@@ -747,7 +752,7 @@ func _story_sync() -> void:
 	_ship_state.authorized_work_orders = _ship_story.work_orders()
 	_ship_state.optional_checks = get("_completed_crew_tasks").duplicate()
 	_ship_state.optional_checks.enabled = bool(get("_crew_tasks_unlocked"))
-	_ship_state.story_progress = {"completed": _ship_story.completed_count(), "acknowledged": _ship_story.has("watch.acknowledged"), "summary": _ship_story.summary, "can_submit": _ship_story.has("amara.repair_reported") and _story_repairs_healthy() and not _ship_story.has("watch.acknowledged")}
+	_ship_state.story_progress = {"completed": _ship_story.completed_count(), "acknowledged": _ship_story.has("watch.acknowledged"), "summary": _ship_story.summary, "can_submit": _ship_story.has("amara.repair_reported") and _story_repairs_healthy() and not _ship_story.has("watch.acknowledged"), "receipts":_ship_story.receipts.duplicate(), "objective":_ship_story.objective()}
 	var objective: Dictionary = _ship_story.objective()
 	if _ship_state.completed.has("hydro") and _ship_story.has("power.reported") and not _ship_story.has("amara.repair_reported"):
 		objective.title = "Report restored delivery"; objective.station = "amara"; objective.marker_label = "AMARA"

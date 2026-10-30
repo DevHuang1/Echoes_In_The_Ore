@@ -1,0 +1,18 @@
+<svg data-dc-tpl="17" width="634" height="364" viewBox="0 0 634 364" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+        <g data-dc-tpl="18" id="shelf">
+          <rect data-dc-tpl="19" x="20" y="20" width="440" height="10" fill="#d58cff" opacity=".6"></rect>
+          <rect data-dc-tpl="20" x="20" y="96" width="440" height="14" fill="#3a4448" stroke="#05090b" stroke-width="2"></rect>
+          <path data-dc-tpl="21" d="M40 96 Q46 70 52 96 M70 96 Q78 64 84 96 M100 96 Q104 74 112 96 M130 96 Q138 60 144 96 M160 96 Q166 72 172 96 M190 96 Q198 66 204 96 M220 96 Q226 76 232 96 M250 96 Q258 62 264 96 M280 96 Q286 70 292 96 M310 96 Q318 66 324 96 M340 96 Q346 74 352 96 M370 96 Q378 62 384 96 M400 96 Q406 72 412 96 M430 96 Q438 66 444 96" stroke="#4fae5a" stroke-width="4" fill="none"></path>
+        </g>
+        <g data-dc-tpl="22" transform="translate(0 116)">
+          <rect data-dc-tpl="23" x="20" y="20" width="440" height="10" fill="#d58cff" opacity=".6"></rect>
+          <rect data-dc-tpl="24" x="20" y="96" width="440" height="14" fill="#3a4448" stroke="#05090b" stroke-width="2"></rect>
+          <path data-dc-tpl="25" d="M40 96 Q46 76 52 96 M70 96 Q78 70 84 96 M100 96 Q104 80 112 96 M130 96 Q138 68 144 96 M160 96 Q166 78 172 96 M190 96 Q198 72 204 96 M220 96 Q226 80 232 96 M250 96 Q258 70 264 96 M280 96 Q286 76 292 96 M310 96 Q318 72 324 96 M340 96 Q346 80 352 96 M370 96 Q378 68 384 96 M400 96 Q406 78 412 96 M430 96 Q438 72 444 96" stroke="#4fae5a" stroke-width="4" fill="none"></path>
+        </g>
+        <g data-dc-tpl="26" transform="translate(0 232)">
+          <rect data-dc-tpl="27" x="20" y="20" width="440" height="10" fill="#d58cff" opacity=".6"></rect>
+          <rect data-dc-tpl="28" x="20" y="96" width="440" height="14" fill="#3a4448" stroke="#05090b" stroke-width="2"></rect>
+          <path data-dc-tpl="29" d="M40 96 Q46 84 52 96 M70 96 Q78 80 84 96 M100 96 Q104 86 112 96 M130 96 Q138 78 144 96 M160 96 Q166 84 172 96 M190 96 Q198 80 204 96 M220 96 Q226 86 232 96 M250 96 Q258 78 264 96 M280 96 Q286 84 292 96 M310 96 Q318 80 324 96 M340 96 Q346 86 352 96 M370 96 Q378 78 384 96 M400 96 Q406 84 412 96 M430 96 Q438 80 444 96" stroke="#4fae5a" stroke-width="4" fill="none"></path>
+        </g>
+        <path data-dc-tpl="30" d="M480 10 L480 354" stroke="#3a4448" stroke-width="8"></path>
+      </svg>
