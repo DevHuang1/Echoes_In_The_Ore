@@ -77,7 +77,60 @@ class PressureGauge extends Node2D:
 		draw_circle(lamp_center + Vector2(-0.45, -0.45), 0.45, Color(1.0, 1.0, 1.0, 0.72))
 
 
+class ResonanceChamberVFX extends Node2D:
+	var pulse_time := 0.0
+	var pressure := 0.82
+	var specimen_active := false
+
+	func _process(delta: float) -> void:
+		pulse_time = fposmod(pulse_time + delta * 3.5, 1000.0)
+		queue_redraw()
+
+	func _draw() -> void:
+		var center := Vector2(14.0, -4.0)
+		var unstable: bool = specimen_active or absf(pressure - 1.0) > 0.12
+		var pulse: float = 0.75 + 0.25 * sin(pulse_time * (6.0 if unstable else 2.5))
+
+		# 1. Glowing alien resonance core (shifting cyan / magenta / violet)
+		var res_col := Color.from_hsv(lerpf(0.52, 0.82, 0.5 + 0.5 * sin(pulse_time * 1.5)), 0.85, 0.95, 0.45 * pulse)
+		draw_circle(center, 24.0 * pulse, Color(res_col.r, res_col.g, res_col.b, 0.16 * pulse))
+		draw_circle(center, 13.0 * pulse, Color(res_col.r, res_col.g, res_col.b, 0.38 * pulse))
+		draw_circle(center, 5.0, Color(1.0, 1.0, 1.0, 0.88 * pulse))
+
+		# 2. Concentric spatial ripple rings pulsing outward
+		for r_i in range(3):
+			var r_prog: float = fposmod(pulse_time * 0.45 + float(r_i) * 0.33, 1.0)
+			var r_rad: float = 6.0 + r_prog * 28.0
+			var r_alpha: float = (1.0 - r_prog) * (0.65 if unstable else 0.35)
+			draw_arc(center, r_rad, 0.0, TAU, 22, Color(res_col.r, res_col.g, res_col.b, r_alpha), 1.3, false)
+
+		# 3. Levitating crystalline shards inside the tank
+		for c_i in range(5):
+			var c_ang: float = float(c_i) * 1.25 + pulse_time * (1.2 if unstable else 0.5)
+			var c_dist: float = 4.0 + 8.0 * (0.5 + 0.5 * sin(pulse_time * 2.0 + float(c_i)))
+			var c_pos := center + Vector2(cos(c_ang), sin(c_ang) * 0.6) * c_dist
+			draw_rect(Rect2(c_pos - Vector2(1.5, 1.5), Vector2(3.0, 3.0)), Color(res_col.r, res_col.g, res_col.b, 0.85))
+			draw_circle(c_pos, 0.8, Color(1.0, 1.0, 1.0, 0.95))
+
+		# 4. Crackling crystalline electric arcs across the glass
+		if unstable:
+			for arc_i in range(3):
+				var a_phase: float = fposmod(pulse_time * 5.0 + float(arc_i) * 1.7, 1.0)
+				if a_phase > 0.4:
+					continue
+				var a_start := center + Vector2(-15.0 + float(arc_i) * 12.0, -18.0)
+				var a_end := center + Vector2(-12.0 + float(arc_i) * 14.0, 14.0)
+				var prev := a_start
+				for seg in range(1, 5):
+					var t_seg := float(seg) / 4.0
+					var jit := sin(pulse_time * 30.0 + float(seg) * 2.5) * 5.0
+					var next_p := a_start.lerp(a_end, t_seg) + Vector2(jit, 0.0)
+					draw_line(prev, next_p, Color(0.35, 0.95, 1.0, 0.85), 1.4, false)
+					prev = next_p
+
+
 var _gauge: PressureGauge
+var _chamber_vfx: ResonanceChamberVFX
 
 
 func _ready() -> void:
@@ -87,6 +140,11 @@ func _ready() -> void:
 	support.scale = compensation
 	support.z_index = -1
 	add_child(support)
+	_chamber_vfx = ResonanceChamberVFX.new()
+	_chamber_vfx.name = "ResonanceChamberVFX"
+	_chamber_vfx.scale = compensation
+	_chamber_vfx.z_index = 1
+	add_child(_chamber_vfx)
 	_gauge = PressureGauge.new()
 	_gauge.name = "LivePressureGauge"
 	_gauge.scale = compensation
@@ -99,3 +157,6 @@ func _process(_delta: float) -> void:
 		return
 	_gauge.pressure = float(Engine.get_meta(&"resonance_ore_chamber_pressure", PRESSURE_START))
 	_gauge.specimen_active = Engine.has_meta(&"resonance_ore_stimulated") and bool(Engine.get_meta(&"resonance_ore_stimulated"))
+	if is_instance_valid(_chamber_vfx):
+		_chamber_vfx.pressure = _gauge.pressure
+		_chamber_vfx.specimen_active = _gauge.specimen_active

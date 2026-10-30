@@ -1495,6 +1495,7 @@ func _on_power_value_changed(value: float, index: int) -> void:
 	_power_diagram.queue_redraw()
 	_power_value_labels[index].text = "%02d%%" % roundi(value)
 	_update_power_readouts()
+	DialogueAudioSynth.play_sfx("capacitor_tune", self, -8.0, &"SFX", 0.06)
 
 
 func _update_power_readouts() -> void:
@@ -1515,6 +1516,7 @@ func _update_power_readouts() -> void:
 func _on_power_sync_pressed() -> void:
 	if _task_complete or _power_sync_button.disabled:
 		return
+	DialogueAudioSynth.play_sfx("bus_sync", self, -1.0)
 	_complete_task("AUXILIARY POWER RESTORED  /  CAPACITOR BANKS SYNCHRONIZED")
 
 
@@ -1598,6 +1600,7 @@ func _build_hydroponics_game() -> void:
 func _on_nutrient_rotate_pressed(index: int) -> void:
 	if _task_complete or index < 0 or index >= _nutrient_rotations.size():
 		return
+	DialogueAudioSynth.play_sfx("switch_toggle", self, -3.0)
 	_nutrient_rotations[index] = (_nutrient_rotations[index] + 1) % 4
 	_nutrient_diagram.rotations[index] = _nutrient_rotations[index]
 	_nutrient_diagram.queue_redraw()
@@ -1622,6 +1625,7 @@ func _update_nutrient_readouts() -> void:
 func _on_nutrient_flow_restore_pressed() -> void:
 	if _task_complete or not _nutrient_diagram.all_aligned():
 		return
+	DialogueAudioSynth.play_sfx("coolant_flush", self, -1.0)
 	_complete_task("HYDROPONICS RESTORED  /  NUTRIENT FLOW REACHING ALL GROW BEDS")
 
 
@@ -1689,6 +1693,7 @@ func _build_filter_game() -> void:
 func _on_filter_release_pressed() -> void:
 	if _task_complete or _filter_stage != 0:
 		return
+	DialogueAudioSynth.play_sfx("latch_release", self, -2.0)
 	_filter_stage = 1
 	_filter_diagram.filter_removed = true
 	_filter_diagram.queue_redraw()
@@ -1719,6 +1724,7 @@ func _on_filter_release_pressed() -> void:
 func _on_filter_rotate_pressed() -> void:
 	if _task_complete or _filter_stage != 1:
 		return
+	DialogueAudioSynth.play_sfx("switch_toggle", self, -4.0)
 	_filter_rotation = (_filter_rotation + 1) % 4
 	_filter_diagram.rotation_step = _filter_rotation
 	_filter_diagram.queue_redraw()
@@ -1733,6 +1739,7 @@ func _on_filter_rotate_pressed() -> void:
 func _on_filter_seat_pressed() -> void:
 	if _task_complete or _filter_stage != 1 or _filter_rotation != 2:
 		return
+	DialogueAudioSynth.play_sfx("cartridge_seat", self, -1.0)
 	_filter_stage = 2
 	_filter_diagram.cartridge_seated = true
 	_filter_diagram.queue_redraw()
@@ -1779,6 +1786,7 @@ func _on_filter_pressure_changed(value: float) -> void:
 func _on_filter_pressure_locked() -> void:
 	if _task_complete or _filter_stage != 2 or _filter_airflow < 62.0 or _filter_airflow > 72.0:
 		return
+	DialogueAudioSynth.play_sfx("steam_burst", self, -2.0)
 	_complete_task("LIFE SUPPORT RESTORED  /  AIRFLOW PRESSURE STABLE")
 
 

@@ -984,7 +984,7 @@ func _story_release_locks() -> void:
 	var camera: Camera2D = _ship_cue_active.get("camera")
 	if is_instance_valid(camera) and camera.is_inside_tree():
 		var restore_zoom: Vector2 = _ship_cue_active.get("zoom", camera.zoom)
-		if restore_zoom.x > 1.85:
+		if restore_zoom.x > 1.85 or restore_zoom.x < 1.4:
 			restore_zoom = Vector2(1.75, 1.75)
 		camera.zoom = restore_zoom
 		camera.position_smoothing_enabled = _ship_cue_active.get("smoothing", camera.position_smoothing_enabled)

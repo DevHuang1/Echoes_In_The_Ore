@@ -37,6 +37,9 @@ var _transitioning := false
 var _close_timer := 0.0
 var _open_progress := 0.0
 var _transition: Tween
+var _vapor_particles: Array[Dictionary] = []
+var _slam_shockwave_timer := 0.0
+var _led_pulse_time := 0.0
 
 
 func _ready() -> void:
@@ -46,6 +49,29 @@ func _ready() -> void:
 	else:
 		add_to_group("ship_door")
 		set_physics_process(true)
+		set_process(true)
+
+
+func _process(delta: float) -> void:
+	_led_pulse_time = fposmod(_led_pulse_time + delta * 6.0, 1000.0)
+	if _slam_shockwave_timer > 0.0:
+		_slam_shockwave_timer = maxf(_slam_shockwave_timer - delta, 0.0)
+
+	var idx := _vapor_particles.size() - 1
+	while idx >= 0:
+		var p: Dictionary = _vapor_particles[idx]
+		var t: float = float(p["timer"]) - delta
+		if t <= 0.0:
+			_vapor_particles.remove_at(idx)
+		else:
+			p["timer"] = t
+			var p_pos: Vector2 = p["pos"]
+			var p_vel: Vector2 = p["vel"]
+			p["pos"] = p_pos + p_vel * delta
+			p["vel"] = p_vel * pow(0.35, delta)
+			_vapor_particles[idx] = p
+		idx -= 1
+	queue_redraw()
 
 
 func _refresh_preview() -> void:
@@ -133,6 +159,7 @@ func _set_open_target(open: bool) -> void:
 	_is_open = false
 	if open:
 		opening_sound.play()
+		_spawn_decompression_vapor()
 	else:
 		DialogueAudioSynth.play_sfx_2d("door_close", global_position, self, -3.0)
 	if is_instance_valid(_transition) and _transition.is_running():
@@ -152,7 +179,62 @@ func _finish_transition(open: bool) -> void:
 	if open:
 		opened.emit(door_id)
 	else:
+		_slam_shockwave_timer = 0.35
 		closed.emit(door_id)
+
+
+func _spawn_decompression_vapor() -> void:
+	# Twin horizontal pneumatic decompression gas bursts from door jambs
+	for side in [-1.0, 1.0]:
+		for i in range(8):
+			var spd := randf_range(38.0, 85.0)
+			var angle := (0.0 if side > 0.0 else PI) + randf_range(-0.35, 0.35)
+			_vapor_particles.append({
+				"pos": Vector2(side * (opening_width * 0.22), randf_range(-wall_depth * 0.25, wall_depth * 0.25)),
+				"vel": Vector2(cos(angle), sin(angle)) * spd,
+				"timer": randf_range(0.28, 0.48),
+				"max_timer": 0.48,
+				"size": randf_range(2.5, 5.0),
+				"color": Color(0.72, 0.92, 1.0, 0.65),
+			})
+
+
+func _draw() -> void:
+	# 1. Door status LED indicator strip above frame
+	var led_pos := Vector2(0.0, -wall_depth * 0.5 - 2.5)
+	var led_col := Color(0.28, 0.92, 0.65)
+	if locked:
+		var blink := 0.5 + 0.5 * sin(_led_pulse_time * 1.5)
+		led_col = Color(1.0, 0.18, 0.12, 0.95 * blink)
+	elif _transitioning:
+		var blink := 0.5 + 0.5 * sin(_led_pulse_time * 3.0)
+		led_col = Color(1.0, 0.72, 0.22, 0.95 * blink)
+	elif not _is_open:
+		led_col = Color(0.35, 0.82, 0.95, 0.65)
+	draw_circle(led_pos, 3.2, Color(led_col.r, led_col.g, led_col.b, 0.25))
+	draw_circle(led_pos, 1.4, led_col)
+
+	# 2. Decompression steam vapor bursts
+	for p in _vapor_particles:
+		var p_t: float = clampf(float(p["timer"]) / float(p["max_timer"]), 0.0, 1.0)
+		var p_pos: Vector2 = p["pos"]
+		var p_sz: float = float(p["size"]) * (1.8 - 0.8 * p_t)
+		var p_col: Color = p["color"]
+		p_col.a *= pow(p_t, 1.2)
+		draw_circle(p_pos, p_sz, p_col)
+		draw_circle(p_pos + Vector2(p_sz * 0.3, -1.0), p_sz * 0.6, Color(1.0, 1.0, 1.0, p_col.a * 0.6))
+
+	# 3. Bulkhead slam floor contact shockwave ring
+	if _slam_shockwave_timer > 0.0:
+		var s_norm := 1.0 - (_slam_shockwave_timer / 0.35)
+		var ring_rx := opening_width * 0.3 + s_norm * 24.0
+		var ring_ry := wall_depth * 0.4 + s_norm * 12.0
+		var slam_col := Color(0.68, 0.82, 0.95, (1.0 - s_norm) * 0.65)
+		var pts := PackedVector2Array()
+		for i in range(17):
+			var a := TAU * float(i) / 16.0
+			pts.append(Vector2(cos(a) * ring_rx, sin(a) * ring_ry))
+		draw_polyline(pts, slam_col, 1.4, false)
 
 
 func _is_actor_near() -> bool:

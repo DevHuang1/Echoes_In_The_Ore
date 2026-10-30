@@ -328,7 +328,9 @@ var _walk_hud: WalkHud = null
 var _crew_dialogue: CrewDialogue = null
 var _story_cutscene: CanvasLayer = null
 var _monster_cinematic_camera_position: Vector2 = Vector2.ZERO
+var _monster_cinematic_camera_zoom: Vector2 = Vector2(1.75, 1.75)
 var _monster_cinematic_camera_saved: bool = false
+var _camera_glide_tween: Tween = null
 var _crew_dialogue_open: bool = false
 var _amara_intro_seen: bool = false
 var _crew_tasks_unlocked: bool = false
@@ -1001,6 +1003,10 @@ func _on_containment_stimulated() -> void:
 
 
 func _ready() -> void:
+	if is_inside_tree():
+		var bgm: Node = get_node_or_null("/root/BackgroundMusic")
+		if bgm != null and bgm.has_method("stop_music"):
+			bgm.call("stop_music")
 	_load_sprite_png(floor_layer, "res://art/concepts/Refined pixel-art spacecraft floor.png")
 	_load_sprite_png(wall_layer, "res://art/concepts/ship_walls_valkyrie.png")
 	_load_sprite_png(get_node_or_null("CenterRecessRoom/FloorVisual") as Sprite2D, "res://art/overview/floor_modules/rooms/r03_center_recess_floor.png")
@@ -1032,10 +1038,12 @@ func _ready() -> void:
 	if returning_from_planet:
 		Engine.remove_meta(&"returning_from_planet")
 		player.global_position = floor_layer.to_global(AIRLOCK_RETURN_FLOOR_POS)
+		DialogueAudioSynth.play_sfx("airlock_cycle", self, -1.0)
 	elif returning_from_second_floor:
 		Engine.remove_meta(&"returning_from_second_floor")
 		player.global_position = floor_layer.to_global(SUBDECK_RETURN_FLOOR_POS)
 		_subdeck_return_grace_timer = 0.65
+		DialogueAudioSynth.play_sfx("lift_arrive", self, -2.0)
 	elif Engine.has_meta(&"dev_warp_target"):
 		var dev_target: Vector2 = Engine.get_meta(&"dev_warp_target")
 		Engine.remove_meta(&"dev_warp_target")
@@ -1131,9 +1139,26 @@ func _ready() -> void:
 		_arrival_briefing_open = false
 		_walk_hud.set_walking_visible(true)
 		_walk_hud.set_story_act_label("ACT III — THE RETURN")
-		_room_task_feedback = "ACT III: THE RETURN  //  INSPECT DRILL CORE IN CARGO BAY"
-		_room_task_feedback_timer = 5.0
 		_update_player_walk_state()
+		if not _completed_story_stations.has(&"cargo_breach_inspection"):
+			var lighting: Node = get_node_or_null("ShipRoomLighting")
+			if lighting != null and lighting.has_method("set_flicker_all_rooms"):
+				lighting.call("set_flicker_all_rooms", true)
+			var breach_data := _build_cutscene_data(&"cargo_breach_inspection")
+			call_deferred("_trigger_cinematic_with_camera_focus",
+				&"cargo_breach_inspection",
+				breach_data,
+				NodePath("CargoBayProps/CargoInspectionScale"),
+				"CARGO BAY TELEMETRY // ALARM",
+				"WARNING: Mass anomaly detected in core containment pod. Bulkhead pressure dropping... Cable ducts severed."
+			)
+			_completed_story_stations[&"cargo_breach_inspection"] = true
+			_walk_hud.set_task_completed(&"cargo_breach_inspection")
+			_walk_hud.record_audio_log(&"log_chen_debate")
+			_save_persistent_story_state()
+		else:
+			_room_task_feedback = "ACT III: THE RETURN  //  INSPECT DRILL CORE IN CARGO BAY"
+			_room_task_feedback_timer = 5.0
 	elif returning_from_second_floor:
 		_arrival_briefing_open = false
 		_walk_hud.set_walking_visible(true)
@@ -1179,6 +1204,19 @@ func _is_ship_landed() -> bool:
 	if _completed_story_stations.has(&"erebos_landing_descent"):
 		return true
 	return false
+
+
+func _is_story_station_unlocked(st_id: StringName) -> bool:
+	match st_id:
+		&"cabin_may_recording", &"bridge_flight_piloting", &"drone_vibration_scan", &"landing_prep_beacons", &"erebos_landing_descent", &"subdeck_lift_descent":
+			return true
+		&"cargo_breach_inspection":
+			return _returning_from_planet or _is_ship_landed() or Engine.has_meta(&"resonance_ore_sample_collected")
+		&"commanders_secret_bridge":
+			return _completed_story_stations.has(&"cargo_breach_inspection") or _is_lab_destroyed() or Engine.has_meta(&"echo_outbreak_active")
+		&"act_v_finale_home":
+			return _completed_story_stations.has(&"commanders_secret_bridge")
+	return true
 
 
 func _load_persistent_story_state() -> void:
@@ -1339,6 +1377,10 @@ func _update_echo_lab_entry() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if _transitioning_to_planet or _arrival_briefing_open or _hud_modal_open or _task_console_open or _piloting_console_open or _crew_dialogue_open or _cutscene_open or not event.is_action_pressed(&"interact"):
 		return
+	if _active_story_station_id != &"":
+		get_viewport().set_input_as_handled()
+		_trigger_story_station(_active_story_station_id)
+		return
 	if ship_handle_interact(event):
 		return
 	if _active_airlock_exit:
@@ -1460,10 +1502,13 @@ func _on_ship_piloting_completed(encounter_id: StringName, hull_remaining: float
 		_save_persistent_story_state()
 		var touchdown_cutscene := _build_cutscene_data(&"erebos_touchdown_confirmed")
 		if not touchdown_cutscene.is_empty() and is_instance_valid(_story_cutscene):
-			_cutscene_open = true
-			_walk_hud.set_walking_visible(false)
-			_update_player_walk_state()
-			_story_cutscene.call(&"play_cutscene", &"erebos_touchdown_confirmed", touchdown_cutscene)
+			_trigger_cinematic_with_camera_focus(
+				&"erebos_touchdown_confirmed",
+				touchdown_cutscene,
+				NodePath("BridgeRoomProps/MainHelmConsole"),
+				"COMMANDER MAYA CHEN // SHIPWIDE",
+				"All thrusters offline. Touchdown confirmed at Site K-12. Erebos surface gravity acquired."
+			)
 			return
 		_walk_hud.set_story_act_label("ACT II — EREBOS // SITE K-12")
 		if is_instance_valid(exterior_airlock):
@@ -1480,10 +1525,13 @@ func _on_ship_piloting_completed(encounter_id: StringName, hull_remaining: float
 		# Play post-evasion narrative cutscene with Pilot Elias Ward
 		var cutscene_data: Dictionary = _build_cutscene_data(&"bridge_flight_piloting")
 		if not cutscene_data.is_empty() and is_instance_valid(_story_cutscene):
-			_cutscene_open = true
-			_walk_hud.set_walking_visible(false)
-			_update_player_walk_state()
-			_story_cutscene.call(&"play_cutscene", &"bridge_flight_piloting", cutscene_data)
+			_trigger_cinematic_with_camera_focus(
+				&"bridge_flight_piloting",
+				cutscene_data,
+				NodePath("BridgeRoomProps/UpperBowFlightConsole"),
+				"PILOT ELIAS WARD // BRIDGE",
+				"Shearwater debris field cleared! Nice hands on the auxiliary thrusters, Thura."
+			)
 			return
 		_room_task_feedback = "ASTEROID BELT CLEARED (HULL %d%%) — AUTOPILOT RESTORED\n%s" % [roundi(hull_remaining), milestone_msg]
 		_room_task_feedback_timer = 5.0
@@ -1501,6 +1549,7 @@ func _on_ship_piloting_completed(encounter_id: StringName, hull_remaining: float
 		_room_task_feedback = "COSMIC HAZARD SECTOR CLEARED (HULL %d%%)  //  AUTOPILOT RESUMED" % roundi(hull_remaining)
 		_room_task_feedback_timer = 4.5
 
+	_restore_camera_from_prop(0.35)
 	_walk_hud.set_walking_visible(not _arrival_briefing_open)
 	_update_player_walk_state()
 
@@ -1508,6 +1557,7 @@ func _on_ship_piloting_completed(encounter_id: StringName, hull_remaining: float
 func _on_ship_piloting_closed() -> void:
 	_piloting_console_open = false
 	_sync_space_backdrop_sector(&"normal_space")
+	_restore_camera_from_prop(0.35)
 	_walk_hud.set_walking_visible(not _arrival_briefing_open)
 	_update_player_walk_state()
 
@@ -1701,6 +1751,47 @@ func _refresh_room_task_prompt() -> void:
 				prompt_text = "WRECKED LAB STATION   /   [E] INSPECT DAMAGE"
 		_walk_hud.set_interaction_prompt(prompt_text, true)
 		return
+	var closest_story: Dictionary = {}
+	var closest_story_dist: float = STORY_STATION_INTERACTION_RADIUS
+	var helm_chair_node: Node2D = get_node_or_null("BridgeRoomProps/MainHelmChair") as Node2D
+	var upper_chair_node: Node2D = get_node_or_null("BridgeRoomProps/UpperStationChair") as Node2D
+	for st in STORY_STATIONS:
+		var st_id: StringName = st["id"]
+		if not _is_story_station_unlocked(st_id):
+			continue
+		# Allow re-triggering the Bridge Flight Piloting helm, Landing Helm & Act V finale
+		if _completed_story_stations.has(st_id) and st_id != &"act_v_finale_home" and st_id != &"bridge_flight_piloting" and st_id != &"erebos_landing_descent":
+			continue
+		var st_node: Node2D = get_node_or_null(st["station_path"]) as Node2D
+		if st_node == null:
+			continue
+		var st_pos: Vector2 = _room_task_interaction_position(st, st_node)
+		var d: float = minf(
+			player.global_position.distance_to(st_pos),
+			player.global_position.distance_to(st_node.global_position)
+		)
+		# Also let the player drive the ship right from the Bridge helm/station chairs at the ship head!
+		if st_id == &"bridge_flight_piloting" or st_id == &"erebos_landing_descent":
+			if is_instance_valid(helm_chair_node):
+				d = minf(d, player.global_position.distance_to(helm_chair_node.global_position))
+			if is_instance_valid(upper_chair_node):
+				d = minf(d, player.global_position.distance_to(upper_chair_node.global_position))
+		if d <= closest_story_dist:
+			closest_story_dist = d
+			closest_story = st
+	if not closest_story.is_empty():
+		_active_story_station_id = closest_story["id"]
+		var prompt_text: String = str(closest_story["prompt"])
+		if _completed_story_stations.has(_active_story_station_id) and _active_story_station_id != &"subdeck_lift_descent" and _active_story_station_id != &"erebos_landing_descent":
+			prompt_text = "%s   /   [E] REPLAY STORY MEMORY" % str(closest_story.get("marker_label", "CHECKPOINT"))
+		elif _active_story_station_id == &"erebos_landing_descent":
+			if _is_ship_landed():
+				prompt_text = "BRIDGE FLIGHT HELM   /   [E] DESCENT TELEMETRY (LANDED AT SITE K-12)"
+			elif _get_total_completed_main_tasks() < 7 and not _completed_story_stations.has(&"landing_prep_beacons"):
+				prompt_text = "BRIDGE FLIGHT HELM   /   [E] DESCENT LOCKED (COMPLETE PRE-DESCENT TASKS FIRST)"
+		_walk_hud.set_interaction_prompt(prompt_text, true)
+		return
+
 	if ship_is_initialized():
 		ship_refresh_prompt()
 		if not _ship_active_id.is_empty():
@@ -1749,43 +1840,6 @@ func _refresh_room_task_prompt() -> void:
 	if not closest_task.is_empty():
 		_active_room_task_id = closest_task["id"]
 		_walk_hud.set_interaction_prompt(closest_task["prompt"], true)
-		return
-
-	var closest_story: Dictionary = {}
-	var closest_story_dist: float = STORY_STATION_INTERACTION_RADIUS
-	var helm_chair_node: Node2D = get_node_or_null("BridgeRoomProps/MainHelmChair") as Node2D
-	var upper_chair_node: Node2D = get_node_or_null("BridgeRoomProps/UpperStationChair") as Node2D
-	for st in STORY_STATIONS:
-		var st_id: StringName = st["id"]
-		# Allow re-triggering the Bridge Flight Piloting helm, Landing Helm & Act V finale
-		if _completed_story_stations.has(st_id) and st_id != &"act_v_finale_home" and st_id != &"bridge_flight_piloting" and st_id != &"erebos_landing_descent":
-			continue
-		var st_node: Node2D = get_node_or_null(st["station_path"]) as Node2D
-		if st_node == null:
-			continue
-		var st_pos: Vector2 = _room_task_interaction_position(st, st_node)
-		var d: float = minf(
-			player.global_position.distance_to(st_pos),
-			player.global_position.distance_to(st_node.global_position)
-		)
-		# Also let the player drive the ship right from the Bridge helm/station chairs at the ship head!
-		if st_id == &"bridge_flight_piloting" or st_id == &"erebos_landing_descent":
-			if is_instance_valid(helm_chair_node):
-				d = minf(d, player.global_position.distance_to(helm_chair_node.global_position))
-			if is_instance_valid(upper_chair_node):
-				d = minf(d, player.global_position.distance_to(upper_chair_node.global_position))
-		if d <= closest_story_dist:
-			closest_story_dist = d
-			closest_story = st
-	if not closest_story.is_empty():
-		_active_story_station_id = closest_story["id"]
-		var prompt_text: String = str(closest_story["prompt"])
-		if _active_story_station_id == &"erebos_landing_descent":
-			if _is_ship_landed():
-				prompt_text = "BRIDGE FLIGHT HELM   /   [E] DESCENT TELEMETRY (LANDED AT SITE K-12)"
-			elif _get_total_completed_main_tasks() < 7 and not _completed_story_stations.has(&"landing_prep_beacons"):
-				prompt_text = "BRIDGE FLIGHT HELM   /   [E] DESCENT LOCKED (COMPLETE PRE-DESCENT TASKS FIRST)"
-		_walk_hud.set_interaction_prompt(prompt_text, true)
 		return
 
 	if _room_task_feedback_timer > 0.0:
@@ -2394,6 +2448,41 @@ func _handle_chen_dialogue_result(result_id: String) -> void:
 	})
 
 
+func _create_npc_badge(badge_text: String, accent_color: Color, badge_name: String = "NameBadge") -> Label:
+	var badge := Label.new()
+	badge.name = badge_name
+	badge.text = badge_text
+	badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	badge.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	badge.add_theme_font_size_override("font_size", 8)
+	badge.add_theme_color_override("font_color", accent_color)
+	badge.add_theme_color_override("font_outline_color", Color(0.01, 0.02, 0.04, 1.0))
+	badge.add_theme_constant_override("outline_size", 2)
+	badge.autowrap_mode = TextServer.AUTOWRAP_OFF
+	badge.clip_text = false
+	badge.z_as_relative = false
+	badge.z_index = 10
+
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.015, 0.035, 0.055, 0.90)
+	style.border_color = Color(accent_color.r, accent_color.g, accent_color.b, 0.80)
+	style.set_border_width_all(1)
+	style.corner_radius_top_left = 3
+	style.corner_radius_top_right = 3
+	style.corner_radius_bottom_left = 3
+	style.corner_radius_bottom_right = 3
+	style.content_margin_left = 5.0
+	style.content_margin_right = 5.0
+	style.content_margin_top = 2.0
+	style.content_margin_bottom = 2.0
+	badge.add_theme_stylebox_override("normal", style)
+
+	badge.resized.connect(func():
+		badge.position = Vector2(-badge.size.x * 0.5, -38.0)
+	)
+	return badge
+
+
 func _setup_crew_characters() -> void:
 	if is_instance_valid(_mateo_npc) or is_instance_valid(_chen_npc):
 		return
@@ -2419,18 +2508,10 @@ func _setup_crew_characters() -> void:
 	mateo_sprite.position = Vector2(0.0, -4.0)
 	mateo.add_child(mateo_sprite)
 
-	var mateo_badge := Label.new()
-	mateo_badge.text = "[ MATEO RUIZ / MINING ]"
-	mateo_badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	mateo_badge.add_theme_font_size_override("font_size", 8)
-	mateo_badge.add_theme_color_override("font_color", Color(1.0, 0.68, 0.28, 0.9))
-	mateo_badge.autowrap_mode = TextServer.AUTOWRAP_OFF
-	mateo_badge.clip_text = false
-	mateo_badge.size = Vector2.ZERO
-	mateo_badge.custom_minimum_size = Vector2(180.0, 12.0)
-	mateo_badge.position = Vector2(-90.0, -36.0)
+	var mateo_badge := _create_npc_badge("[ MATEO RUIZ / MINING ]", Color(1.0, 0.68, 0.28, 0.95), "MateoBadge")
 	mateo.add_child(mateo_badge)
 	add_child(mateo)
+	mateo_badge.reset_size()
 	mateo.global_position = Vector2(1240.0, 580.0)
 	var mateo_patrol: Array[Vector2] = [
 		Vector2(1240.0, 580.0),
@@ -2463,18 +2544,10 @@ func _setup_crew_characters() -> void:
 	chen_sprite.position = Vector2(0.0, -4.0)
 	chen.add_child(chen_sprite)
 
-	var chen_badge := Label.new()
-	chen_badge.text = "[ CDR MAYA CHEN / COMMAND ]"
-	chen_badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	chen_badge.add_theme_font_size_override("font_size", 8)
-	chen_badge.add_theme_color_override("font_color", Color(0.98, 0.84, 0.35, 0.9))
-	chen_badge.autowrap_mode = TextServer.AUTOWRAP_OFF
-	chen_badge.clip_text = false
-	chen_badge.size = Vector2.ZERO
-	chen_badge.custom_minimum_size = Vector2(200.0, 12.0)
-	chen_badge.position = Vector2(-100.0, -36.0)
+	var chen_badge := _create_npc_badge("[ CDR MAYA CHEN / COMMAND ]", Color(0.98, 0.84, 0.35, 0.95), "ChenBadge")
 	chen.add_child(chen_badge)
 	add_child(chen)
+	chen_badge.reset_size()
 	chen.global_position = Vector2(280.0, 340.0)
 	var chen_patrol: Array[Vector2] = [
 		Vector2(280.0, 340.0),
@@ -2508,18 +2581,10 @@ func _setup_crew_characters() -> void:
 		ward_sprite.position = Vector2(0.0, -4.0)
 		ward.add_child(ward_sprite)
 
-		var ward_badge := Label.new()
-		ward_badge.text = "[ ELIAS WARD / PILOT & MED ]"
-		ward_badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		ward_badge.add_theme_font_size_override("font_size", 8)
-		ward_badge.add_theme_color_override("font_color", Color(0.68, 0.88, 1.0, 0.9))
-		ward_badge.autowrap_mode = TextServer.AUTOWRAP_OFF
-		ward_badge.clip_text = false
-		ward_badge.size = Vector2.ZERO
-		ward_badge.custom_minimum_size = Vector2(200.0, 12.0)
-		ward_badge.position = Vector2(-100.0, -36.0)
+		var ward_badge := _create_npc_badge("[ ELIAS WARD / PILOT & MED ]", Color(0.68, 0.88, 1.0, 0.95), "WardBadge")
 		ward.add_child(ward_badge)
 		add_child(ward)
+		ward_badge.reset_size()
 		ward.global_position = Vector2(840.0, 170.0)
 		var ward_patrol: Array[Vector2] = [
 			Vector2(840.0, 170.0),
@@ -2553,18 +2618,10 @@ func _setup_crew_characters() -> void:
 		leila_sprite.position = Vector2(0.0, -4.0)
 		leila.add_child(leila_sprite)
 
-		var leila_badge := Label.new()
-		leila_badge.text = "[ LEILA HADDAD / CHIEF ENGINEER ]"
-		leila_badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		leila_badge.add_theme_font_size_override("font_size", 8)
-		leila_badge.add_theme_color_override("font_color", Color(0.42, 0.92, 0.65, 0.9))
-		leila_badge.autowrap_mode = TextServer.AUTOWRAP_OFF
-		leila_badge.clip_text = false
-		leila_badge.size = Vector2.ZERO
-		leila_badge.custom_minimum_size = Vector2(220.0, 12.0)
-		leila_badge.position = Vector2(-110.0, -36.0)
+		var leila_badge := _create_npc_badge("[ LEILA HADDAD / CHIEF ENGINEER ]", Color(0.42, 0.92, 0.65, 0.95), "LeilaBadge")
 		leila.add_child(leila_badge)
 		add_child(leila)
+		leila_badge.reset_size()
 		if _leila_rescued:
 			leila.global_position = Vector2(280.0, 360.0)
 			var rescued_patrol: Array[Vector2] = [
@@ -2803,6 +2860,92 @@ func _complete_crew_task(task_id: StringName) -> void:
 	_room_task_feedback_timer = 4.5
 
 
+func _glide_camera_to_prop(target_global_pos: Vector2, target_zoom: float = 2.15, duration: float = 0.65, on_complete: Callable = Callable()) -> void:
+	if not is_instance_valid(player) or not is_instance_valid(player.camera):
+		if on_complete.is_valid():
+			on_complete.call()
+		return
+	if is_instance_valid(_camera_glide_tween) and _camera_glide_tween.is_running():
+		_camera_glide_tween.kill()
+	var on_planet: bool = bool(player.get("is_on_planet")) if player.get("is_on_planet") != null else false
+	var default_base: Vector2 = Vector2(0.72, 0.72) if on_planet else Vector2(1.75, 1.75)
+	if not _monster_cinematic_camera_saved:
+		_monster_cinematic_camera_position = player.camera.position
+		if (not on_planet and player.camera.zoom.x >= 1.4) or (on_planet and player.camera.zoom.x >= 0.6):
+			_monster_cinematic_camera_zoom = player.camera.zoom
+		else:
+			_monster_cinematic_camera_zoom = default_base
+		_monster_cinematic_camera_saved = true
+	var final_zoom: float = target_zoom
+	if not on_planet and final_zoom <= 1.5:
+		final_zoom = 2.15
+	elif on_planet and final_zoom <= 0.75:
+		final_zoom = 0.88
+	var local_target: Vector2 = player.to_local(target_global_pos)
+	_camera_glide_tween = create_tween().set_parallel(true)
+	_camera_glide_tween.tween_property(player.camera, "position", local_target, duration).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	_camera_glide_tween.tween_property(player.camera, "zoom", Vector2(final_zoom, final_zoom), duration).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	if on_complete.is_valid():
+		_camera_glide_tween.chain().tween_callback(on_complete)
+
+
+func _restore_camera_from_prop(duration: float = 0.5) -> void:
+	if not is_instance_valid(player) or not is_instance_valid(player.camera):
+		return
+	if is_instance_valid(_camera_glide_tween) and _camera_glide_tween.is_running():
+		_camera_glide_tween.kill()
+	var on_planet: bool = bool(player.get("is_on_planet")) if player.get("is_on_planet") != null else false
+	var base_zoom: Vector2 = Vector2(0.72, 0.72) if on_planet else Vector2(1.75, 1.75)
+	var restore_zoom: Vector2 = _monster_cinematic_camera_zoom if _monster_cinematic_camera_saved else base_zoom
+	if not on_planet and (restore_zoom.x < 1.4 or restore_zoom.x > 2.0):
+		restore_zoom = Vector2(1.75, 1.75)
+	elif on_planet and (restore_zoom.x < 0.6 or restore_zoom.x > 0.85):
+		restore_zoom = Vector2(0.72, 0.72)
+
+	var target_pos: Vector2 = _monster_cinematic_camera_position if _monster_cinematic_camera_saved else Vector2.ZERO
+	if target_pos.length() > 500.0:
+		target_pos = Vector2.ZERO
+
+	_monster_cinematic_camera_saved = false
+
+	if duration <= 0.0:
+		player.camera.position = target_pos
+		player.camera.zoom = restore_zoom
+		return
+
+	_camera_glide_tween = create_tween().set_parallel(true)
+	_camera_glide_tween.tween_property(player.camera, "position", target_pos, duration).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	_camera_glide_tween.tween_property(player.camera, "zoom", restore_zoom, duration).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+
+
+func _trigger_cinematic_with_camera_focus(station_id: StringName, cutscene_data: Dictionary, prop_node_path: NodePath = NodePath(""), radio_lead_in_speaker: String = "", radio_lead_in_text: String = "") -> void:
+	if _cutscene_open or not is_instance_valid(_story_cutscene):
+		return
+
+	# Lock cutscene state and freeze player immediately upon trigger
+	_cutscene_open = true
+	if is_instance_valid(player):
+		player.velocity = Vector2.ZERO
+		if is_instance_valid(player.sprite):
+			player.sprite.stop()
+			player.sprite.frame = 0
+	if is_instance_valid(_walk_hud):
+		_walk_hud.set_walking_visible(false)
+	_update_player_walk_state()
+
+	if not radio_lead_in_speaker.is_empty() and not radio_lead_in_text.is_empty() and is_instance_valid(_walk_hud):
+		_walk_hud.play_radio_transmission(radio_lead_in_speaker, radio_lead_in_text)
+
+	var target_prop: Node2D = get_node_or_null(prop_node_path) as Node2D if not prop_node_path.is_empty() else null
+	if target_prop != null and is_instance_valid(player) and is_instance_valid(player.camera):
+		_glide_camera_to_prop(target_prop.global_position, 2.15, 0.65, func():
+			if is_instance_valid(_story_cutscene):
+				_story_cutscene.call(&"play_cutscene", station_id, cutscene_data)
+		)
+	else:
+		_story_cutscene.call(&"play_cutscene", station_id, cutscene_data)
+
+
 func _trigger_story_station(station_id: StringName) -> void:
 	if _cutscene_open or _piloting_console_open or not is_instance_valid(_story_cutscene):
 		return
@@ -2810,6 +2953,10 @@ func _trigger_story_station(station_id: StringName) -> void:
 	# New Main Task: Ship Driving & Asteroid Evasion at the Bridge Flight Helm!
 	if station_id == &"bridge_flight_piloting":
 		_open_ship_piloting_console(&"bridge_flight_piloting", false)
+		return
+
+	if station_id == &"subdeck_lift_descent":
+		_descend_to_second_floor()
 		return
 
 	if station_id == &"erebos_landing_descent":
@@ -2824,10 +2971,13 @@ func _trigger_story_station(station_id: StringName) -> void:
 			return
 		var cutscene_data: Dictionary = _build_cutscene_data(&"erebos_landing_descent")
 		if not cutscene_data.is_empty():
-			_cutscene_open = true
-			_walk_hud.set_walking_visible(false)
-			_update_player_walk_state()
-			_story_cutscene.call(&"play_cutscene", &"erebos_landing_descent", cutscene_data)
+			_trigger_cinematic_with_camera_focus(
+				&"erebos_landing_descent",
+				cutscene_data,
+				NodePath("BridgeRoomProps/MainHelmConsole"),
+				"COMMANDER MAYA CHEN // SHIPWIDE",
+				"Pre-descent checklist green. All hands brace for atmospheric insertion burn!"
+			)
 			return
 
 	var st_def: Dictionary = {}
@@ -2836,6 +2986,9 @@ func _trigger_story_station(station_id: StringName) -> void:
 			st_def = st
 			break
 	if st_def.is_empty():
+		var fallback_cutscene: Dictionary = _build_cutscene_data(station_id)
+		if not fallback_cutscene.is_empty():
+			_trigger_cinematic_with_camera_focus(station_id, fallback_cutscene)
 		return
 
 	_completed_story_stations[station_id] = true
@@ -2849,10 +3002,30 @@ func _trigger_story_station(station_id: StringName) -> void:
 	var cutscene_data: Dictionary = _build_cutscene_data(station_id)
 	if cutscene_data.is_empty():
 		return
-	_cutscene_open = true
-	_walk_hud.set_walking_visible(false)
-	_update_player_walk_state()
-	_story_cutscene.call(&"play_cutscene", station_id, cutscene_data)
+
+	var prop_path: NodePath = st_def.get("station_path", NodePath(""))
+	var radio_speaker := ""
+	var radio_text := ""
+	if station_id == &"cabin_may_recording":
+		radio_speaker = "PILOT ELIAS WARD // BRIDGE COMMS"
+		radio_text = "Thura, orbit insertion confirmed around Erebos. May's audio recording packet just decrypted at your bunk terminal. Have a listen before you head up to the flight helm."
+	elif station_id == &"drone_vibration_scan":
+		radio_speaker = "DRONE TELEMETRY // COMMS"
+		radio_text = "Mining drone acoustic array online. Receiving low-frequency pulse resonance from Erebos sub-crust."
+	elif station_id == &"landing_prep_beacons":
+		radio_speaker = "PILOT ELIAS WARD // SHUTTLE BAY"
+		radio_text = "Surface landing crates unlocked, Thura. Transponders ready for calibration."
+	elif station_id == &"cargo_breach_inspection":
+		radio_speaker = "CARGO BAY TELEMETRY // ALARM"
+		radio_text = "WARNING: Mass anomaly detected in core containment pod. Bulkhead pressure dropping... Cable ducts severed."
+	elif station_id == &"commanders_secret_bridge":
+		radio_speaker = "COMMANDER MAYA CHEN // DISTORTED COMMS"
+		radio_text = "Thura... stay back... the voices won't stop... they're rewriting what I remember... Meet me at the planning table."
+	elif station_id == &"act_v_finale_home":
+		radio_speaker = "MISSION CONTROL // EMERGENCY DIRECTIVE"
+		radio_text = "DO NOT BEGIN EARTH-ENTRY... CONFIRM BIOLOGICAL CONTAINMENT... [STATIC]"
+
+	_trigger_cinematic_with_camera_focus(station_id, cutscene_data, prop_path, radio_speaker, radio_text)
 
 
 func _build_cutscene_data(station_id: StringName) -> Dictionary:
@@ -2974,8 +3147,27 @@ func _build_cutscene_data(station_id: StringName) -> Dictionary:
 					},
 				],
 			}
+		&"subdeck_shadow_nest_check":
+			return {
+				"act": "ACT IV — THE ECHO'S TRAITS",
+				"clock": "ASTERIA-1 // SUB-DECK 02 // SHADOW CONTAINMENT NEST",
+				"title": "DORMANT FOR THOUSANDS OF YEARS",
+				"echo_pulse": true,
+				"reward": {
+					"name": "Industrial Plasma Cutter",
+					"desc": "Sub-Deck Shadow Nest: Heavy plasma cutter recovered!",
+					"texture": load("res://art/tools/icons/industrial_plasma_cutter.png"),
+				},
+				"slides": [
+					{
+						"speaker": "DR. THURA MIN // CONTAINMENT ANALYSIS",
+						"text": "Inside the breached shadow vault, black mineral ribs have fused into the bulkhead. Thura's analysis is complete: the Echo cannot survive prolonged atmospheric re-entry temperatures. If lured into the mining module and detached at a steep entry angle, the heat of Earth's atmosphere will destroy it completely.",
+					},
+				],
+			}
 		&"cargo_breach_inspection":
-			_walk_hud.set_story_act_label("ACT IV — THE HUNT")
+			if is_instance_valid(_walk_hud):
+				_walk_hud.set_story_act_label("ACT IV — THE HUNT")
 			var lighting: Node = get_node_or_null("ShipRoomLighting")
 			if lighting != null and lighting.has_method("set_flicker_all_rooms"):
 				lighting.call("set_flicker_all_rooms", true)
@@ -2987,6 +3179,7 @@ func _build_cutscene_data(station_id: StringName) -> Dictionary:
 				"slides": [
 					{
 						"speaker": "ACT III // THE RETURN FROM EREBOS",
+						"image": "res://art/concepts/lab_props/destroyed/ore_containment_redesigned.png",
 						"text": "Ruiz and Dr. Okoye are officially recorded as missing. Before the emergency evacuation from Site K-12, the automated rig sealed its final black drill core inside a reinforced sample container. It did not accidentally enter the container — it allowed itself to be collected.",
 					},
 					{
@@ -3000,7 +3193,8 @@ func _build_cutscene_data(station_id: StringName) -> Dictionary:
 				],
 			}
 		&"commanders_secret_bridge":
-			_walk_hud.set_story_act_label("ACT V — HOME")
+			if is_instance_valid(_walk_hud):
+				_walk_hud.set_story_act_label("ACT V — HOME")
 			return {
 				"act": "ACT IV — CHAPTER 4: THE TRAGIC SURRENDER",
 				"clock": "ASTERIA-1 // BRIDGE COMMAND DECK",
@@ -3031,7 +3225,7 @@ func _build_cutscene_data(station_id: StringName) -> Dictionary:
 				],
 			}
 		&"act_v_finale_home":
-			var logs_count: int = _walk_hud.get_unlocked_equipment_count() + _walk_hud.get_collected_logs_count()
+			var logs_count: int = (_walk_hud.get_unlocked_equipment_count() + _walk_hud.get_collected_logs_count()) if is_instance_valid(_walk_hud) else 8
 			var mateo_saved := Engine.has_meta(&"mateo_ruiz_saved") and bool(Engine.get_meta(&"mateo_ruiz_saved"))
 			var chen_saved := _chen_rescued or (Engine.has_meta(&"commander_chen_saved") and bool(Engine.get_meta(&"commander_chen_saved")))
 			var survivors: Array[String] = []
@@ -3078,6 +3272,7 @@ func _on_story_cutscene_finished(cutscene_id: StringName, choice_id: StringName)
 		_room_task_feedback = "TASK 1/2 COMPLETE  //  HEAD TO BRIDGE FLIGHT HELM (R01) TO PILOT ASTERIA-1 & UNLOCK SUIT LIGHT"
 		_room_task_feedback_timer = 5.5
 	elif cutscene_id == &"erebos_landing_descent":
+		_restore_camera_from_prop(0.35)
 		# Launch playable flight retro-burn descent encounter!
 		_open_ship_piloting_console(&"erebos_orbital_landing", true)
 		return
@@ -3091,6 +3286,11 @@ func _on_story_cutscene_finished(cutscene_id: StringName, choice_id: StringName)
 		_walk_hud.play_radio_transmission("COMMANDER MAYA CHEN // SHIPWIDE", "Exterior airlock unlocked. Remember: stay within telemetry range of the extraction rig.")
 		_room_task_feedback = "TOUCHDOWN CONFIRMED ON EREBOS (SITE K-12)  //  EXTERIOR AIRLOCK UNLOCKED FOR SURFACE OPERATIONS"
 		_room_task_feedback_timer = 6.0
+		_save_persistent_story_state()
+	elif cutscene_id == &"subdeck_shadow_nest_check":
+		_walk_hud.unlock_equipment_item(&"industrial_plasma_cutter", true, "Sub-Deck Shadow Nest: Heavy plasma cutter recovered!")
+		_room_task_feedback = "SHADOW CONTAINMENT NEST SURVEYED  //  INDUSTRIAL PLASMA CUTTER UNLOCKED"
+		_room_task_feedback_timer = 5.0
 		_save_persistent_story_state()
 	elif cutscene_id == &"commanders_secret_bridge":
 		_walk_hud.record_audio_log(&"log_chen_farewell")
@@ -3106,8 +3306,14 @@ func _on_story_cutscene_finished(cutscene_id: StringName, choice_id: StringName)
 	elif cutscene_id == &"act_v_finale_home" and choice_id != &"":
 		_play_ending_epilogue(choice_id)
 		return
+	elif cutscene_id == &"epilogue_complete":
+		_room_task_feedback = "MISSION COMPLETE // TRAJECTORY EPILOGUE RECORDED // REPLAY ANYTIME IN STORY ARCHIVES"
+		_room_task_feedback_timer = 8.0
+		_save_persistent_story_state()
 
-	_walk_hud.set_walking_visible(not _arrival_briefing_open)
+	_restore_camera_from_prop()
+	if is_instance_valid(_walk_hud):
+		_walk_hud.set_walking_visible(not _arrival_briefing_open)
 	_update_player_walk_state()
 
 
@@ -3196,9 +3402,23 @@ func _show_story_arrival_briefing() -> void:
 func _on_arrival_briefing_dismissed() -> void:
 	_arrival_briefing_open = false
 	_walk_hud.set_walking_visible(true)
-	_room_task_feedback = "TUTORIAL 1/3: USE [WASD / ARROWS] TO WALK  ·  COMPLETE MULTI-TASK MILESTONES TO UNLOCK GEAR"
-	_room_task_feedback_timer = 7.0
 	_update_player_walk_state()
+	if not _completed_story_stations.has(&"cabin_may_recording"):
+		var may_data := _build_cutscene_data(&"cabin_may_recording")
+		_trigger_cinematic_with_camera_focus(
+			&"cabin_may_recording",
+			may_data,
+			NodePath("CrewLivingQuarterProps/PersonalComputerDesk"),
+			"PILOT ELIAS WARD // BRIDGE COMMS",
+			"Thura, wake up! Orbit insertion confirmed around Erebos. May's audio recording packet just decrypted at your bunk terminal. Have a listen before you head up to the flight helm."
+		)
+		_completed_story_stations[&"cabin_may_recording"] = true
+		_walk_hud.set_task_completed(&"cabin_may_recording")
+		_walk_hud.record_audio_log(&"log_may_departure")
+		_save_persistent_story_state()
+	else:
+		_room_task_feedback = "TUTORIAL 1/3: USE [WASD / ARROWS] TO WALK  ·  COMPLETE MULTI-TASK MILESTONES TO UNLOCK GEAR"
+		_room_task_feedback_timer = 7.0
 
 
 func _on_hud_modal_state_changed(is_open: bool) -> void:
@@ -3207,6 +3427,8 @@ func _on_hud_modal_state_changed(is_open: bool) -> void:
 
 
 func _update_player_walk_state() -> void:
+	if not is_instance_valid(player):
+		return
 	player.set_physics_process(not (_arrival_briefing_open or _hud_modal_open or _task_console_open or _piloting_console_open or _crew_dialogue_open or _cutscene_open or ship_control_locked()))
 	if not player.is_physics_processing() and is_instance_valid(player.sprite):
 		player.sprite.stop()
@@ -3217,14 +3439,13 @@ func _set_monster_cinematic_active(active: bool, focus_position: Vector2 = Vecto
 	_cutscene_open = active
 	if active and focus_position != Vector2.INF and is_instance_valid(player) and is_instance_valid(player.camera):
 		_monster_cinematic_camera_position = player.camera.position
+		_monster_cinematic_camera_zoom = player.camera.zoom
 		_monster_cinematic_camera_saved = true
 		var camera_focus := player.to_local(focus_position)
 		var focus_tween := create_tween()
 		focus_tween.tween_property(player.camera, "position", camera_focus, 0.45).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	elif not active and _monster_cinematic_camera_saved and is_instance_valid(player) and is_instance_valid(player.camera):
-		var return_tween := create_tween()
-		return_tween.tween_property(player.camera, "position", _monster_cinematic_camera_position, 0.45).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-		_monster_cinematic_camera_saved = false
+	elif not active and is_instance_valid(player) and is_instance_valid(player.camera):
+		_restore_camera_from_prop(0.45)
 	var can_show_hud := not (_arrival_briefing_open or _hud_modal_open or _task_console_open or _piloting_console_open or _crew_dialogue_open)
 	if is_instance_valid(_walk_hud):
 		_walk_hud.set_walking_visible(can_show_hud)

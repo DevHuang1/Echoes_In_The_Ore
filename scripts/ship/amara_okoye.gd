@@ -211,6 +211,7 @@ var _current_station_info: Dictionary = {}
 var _door_wait_retries := 0
 
 # Unique NPC Overhead HUD Bubble
+var _amara_badge: Label
 var _bubble_root: Node2D
 var _bubble_panel: PanelContainer
 var _bubble_tag_label: Label
@@ -229,23 +230,49 @@ var _carried_sample_sprite: Sprite2D
 var _seated_pose_sprite: Sprite2D
 
 
+func _create_npc_badge(badge_text: String, accent_color: Color, badge_name: String = "NameBadge") -> Label:
+	var badge := Label.new()
+	badge.name = badge_name
+	badge.text = badge_text
+	badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	badge.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	badge.add_theme_font_size_override("font_size", 8)
+	badge.add_theme_color_override("font_color", accent_color)
+	badge.add_theme_color_override("font_outline_color", Color(0.01, 0.02, 0.04, 1.0))
+	badge.add_theme_constant_override("outline_size", 2)
+	badge.autowrap_mode = TextServer.AUTOWRAP_OFF
+	badge.clip_text = false
+	badge.z_as_relative = false
+	badge.z_index = 10
+
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.015, 0.035, 0.055, 0.90)
+	style.border_color = Color(accent_color.r, accent_color.g, accent_color.b, 0.80)
+	style.set_border_width_all(1)
+	style.corner_radius_top_left = 3
+	style.corner_radius_top_right = 3
+	style.corner_radius_bottom_left = 3
+	style.corner_radius_bottom_right = 3
+	style.content_margin_left = 5.0
+	style.content_margin_right = 5.0
+	style.content_margin_top = 2.0
+	style.content_margin_bottom = 2.0
+	badge.add_theme_stylebox_override("normal", style)
+
+	badge.resized.connect(func():
+		badge.position = Vector2(-badge.size.x * 0.5, -38.0)
+	)
+	return badge
+
+
 func _ready() -> void:
 	_random.randomize()
 	add_to_group("ship_crew")
 	_configure_sprite_animations()
 	_build_overhead_bubble()
-	var amara_badge := Label.new()
-	amara_badge.name = "AmaraBadge"
-	amara_badge.text = "[ DR. AMARA OKOYE / ASTROBIOLOGY ]"
-	amara_badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	amara_badge.add_theme_font_size_override("font_size", 8)
-	amara_badge.add_theme_color_override("font_color", Color(0.38, 0.88, 0.98, 0.9))
-	amara_badge.autowrap_mode = TextServer.AUTOWRAP_OFF
-	amara_badge.clip_text = false
-	amara_badge.size = Vector2.ZERO
-	amara_badge.custom_minimum_size = Vector2(200.0, 12.0)
-	amara_badge.position = Vector2(-100.0, -36.0)
-	add_child(amara_badge)
+	_amara_badge = _create_npc_badge("[ DR. AMARA OKOYE / ASTROBIOLOGY ]", Color(0.38, 0.88, 0.98, 0.95), "AmaraBadge")
+	add_child(_amara_badge)
+	_amara_badge.reset_size()
 
 	var returning_to_ship := Engine.has_meta(&"returning_from_planet") and bool(Engine.get_meta(&"returning_from_planet"))
 	var ore_stored := Engine.has_meta(&"resonance_ore_sample_stored") and bool(Engine.get_meta(&"resonance_ore_sample_stored"))
@@ -584,10 +611,17 @@ func _show_overhead_bark(tag: String, text: String, duration: float = 2.4) -> vo
 	if is_instance_valid(_bubble_tween) and _bubble_tween.is_running():
 		_bubble_tween.kill()
 
+	if is_instance_valid(_amara_badge):
+		_amara_badge.visible = false
+
 	_bubble_tween = create_tween()
 	_bubble_tween.tween_property(_bubble_root, "modulate:a", 1.0, 0.20).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 	_bubble_tween.tween_interval(maxf(duration - 0.5, 1.1))
 	_bubble_tween.tween_property(_bubble_root, "modulate:a", 0.0, 0.35).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+	_bubble_tween.tween_callback(func():
+		if is_instance_valid(_amara_badge) and visible:
+			_amara_badge.visible = true
+	)
 
 
 func _hide_overhead_bark() -> void:
@@ -597,6 +631,10 @@ func _hide_overhead_bark() -> void:
 		_bubble_tween.kill()
 	_bubble_tween = create_tween()
 	_bubble_tween.tween_property(_bubble_root, "modulate:a", 0.0, 0.20)
+	_bubble_tween.tween_callback(func():
+		if is_instance_valid(_amara_badge) and visible:
+			_amara_badge.visible = true
+	)
 
 
 func _check_player_proximity() -> void:

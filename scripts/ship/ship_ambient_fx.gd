@@ -25,10 +25,8 @@ const MAIN_DECK_FUME_ZONES: Array = [
 	{"pos": Vector2(1465.0, 295.0), "color": Color(0.95, 0.64, 0.28, 1.0), "opacity": 0.52, "spread": Vector2(76.0, 42.0), "blobs": 24, "size": Vector2(52.0, 36.0)},
 	{"pos": Vector2(1480.0, 395.0), "color": Color(0.76, 0.86, 0.96, 1.0), "opacity": 0.50, "spread": Vector2(82.0, 44.0), "blobs": 24, "size": Vector2(54.0, 36.0)},
 	{"pos": Vector2(1465.0, 485.0), "color": Color(0.92, 0.58, 0.26, 1.0), "opacity": 0.52, "spread": Vector2(76.0, 42.0), "blobs": 24, "size": Vector2(52.0, 36.0)},
-	# R07 Crew Quarters & R08 Central Cargo Bay mist
+	# R07 Crew Quarters mist (Lab Room kept clear of industrial fumes)
 	{"pos": Vector2(465.0, 565.0), "color": Color(0.62, 0.80, 0.92, 1.0), "opacity": 0.36, "spread": Vector2(72.0, 36.0), "blobs": 18, "size": Vector2(48.0, 32.0)},
-	{"pos": Vector2(835.0, 565.0), "color": Color(0.58, 0.86, 0.82, 1.0), "opacity": 0.42, "spread": Vector2(84.0, 40.0), "blobs": 22, "size": Vector2(52.0, 34.0)},
-	{"pos": Vector2(1015.0, 565.0), "color": Color(0.74, 0.82, 0.90, 1.0), "opacity": 0.40, "spread": Vector2(78.0, 38.0), "blobs": 20, "size": Vector2(50.0, 34.0)},
 	# R09 Shuttle Bay hazmat fumes
 	{"pos": Vector2(1285.0, 625.0), "color": Color(0.84, 0.66, 0.34, 1.0), "opacity": 0.46, "spread": Vector2(74.0, 38.0), "blobs": 22, "size": Vector2(50.0, 34.0)},
 	# R10 Hydroponics & R11 Lower Deck East dense bio-fumes & bilge fog
@@ -70,7 +68,26 @@ const MAIN_DECK_CONSOLES: Array = [
 
 const SUBDECK_CONSOLES: Array = []
 
-const SUBDECK_SHADOW_EYES: Array = []
+const SUBDECK_SHADOW_EYES: Array = [
+	{"pos": Vector2(420.0, 340.0), "phase": 0.4, "color": Color(1.0, 0.25, 0.15, 0.85)},
+	{"pos": Vector2(650.0, 210.0), "phase": 1.9, "color": Color(0.85, 0.20, 0.35, 0.85)},
+	{"pos": Vector2(1240.0, 690.0), "phase": 3.2, "color": Color(1.0, 0.30, 0.10, 0.90)},
+	{"pos": Vector2(1580.0, 660.0), "phase": 4.7, "color": Color(0.95, 0.18, 0.22, 0.95)},
+]
+
+const REACTOR_ARCS: Array = [
+	{"a": Vector2(1092.0, 315.0), "b": Vector2(1136.0, 315.0), "color": Color(0.35, 0.88, 1.0, 0.85)},
+	{"a": Vector2(1114.0, 315.0), "b": Vector2(1114.0, 355.0), "color": Color(1.0, 0.72, 0.28, 0.80)},
+	{"a": Vector2(1445.0, 385.0), "b": Vector2(1495.0, 385.0), "color": Color(0.42, 0.95, 1.0, 0.85)},
+	{"a": Vector2(1470.0, 370.0), "b": Vector2(1470.0, 415.0), "color": Color(1.0, 0.55, 0.20, 0.85)},
+]
+
+const HOLOGRAPHIC_TERMINALS: Array = [
+	{"pos": Vector2(261.0, 340.0), "type": &"radar_wireframe", "color": Color(0.28, 0.92, 1.0, 0.75)},
+	{"pos": Vector2(116.0, 335.0), "type": &"telemetry_stream", "color": Color(0.35, 0.95, 0.65, 0.70)},
+]
+
+const HYDROPONICS_SPORES_BOUNDS := Rect2(Vector2(140.0, 680.0), Vector2(300.0, 140.0))
 
 var _time: float = 0.0
 var _vent_positions: Array = []
@@ -141,9 +158,164 @@ func _get_player_world_pos() -> Vector2:
 
 func _draw() -> void:
 	_draw_console_telemetry()
+	_draw_holographic_terminals()
 	_draw_vent_fume_plumes()
+	_draw_vent_steam_geysers()
+	_draw_reactor_lightning_arcs()
+	_draw_engine_heat_and_embers()
+	_draw_hydroponics_bioluminescent_spores()
+	_draw_ambient_dust_motes()
 	if is_subdeck:
 		_draw_shadow_eyes()
+		_draw_subdeck_atmosphere()
+
+
+func _draw_reactor_lightning_arcs() -> void:
+	if is_subdeck:
+		return
+	# Periodic violent electrical discharges between conduit terminals
+	for arc_idx in range(REACTOR_ARCS.size()):
+		var arc_def: Dictionary = REACTOR_ARCS[arc_idx]
+		var p_start: Vector2 = arc_def["a"]
+		var p_end: Vector2 = arc_def["b"]
+		var base_col: Color = arc_def["color"]
+		var arc_cycle: float = fposmod(_time * 1.8 + float(arc_idx) * 1.33, 3.2)
+		if arc_cycle > 0.42:
+			continue
+		var arc_alpha: float = clampf(sin((arc_cycle / 0.42) * PI), 0.0, 1.0)
+		var segs: int = 6
+		var prev_pt := p_start
+		var delta_v := p_end - p_start
+		var perp_v := Vector2(-delta_v.y, delta_v.x).normalized()
+		for s in range(1, segs + 1):
+			var t_s: float = float(s) / float(segs)
+			var jitter: float = sin(_time * 36.0 + float(s) * 3.7 + float(arc_idx) * 5.2) * 6.5 * sin(t_s * PI)
+			var next_pt: Vector2 = p_start.lerp(p_end, t_s) + perp_v * jitter
+			draw_line(prev_pt, next_pt, Color(base_col.r, base_col.g, base_col.b, arc_alpha * 0.45), 3.4, true)
+			draw_line(prev_pt, next_pt, Color(1.0, 1.0, 1.0, arc_alpha * 0.95), 1.4, true)
+			prev_pt = next_pt
+		draw_circle(p_start, 2.5 * arc_alpha, Color(1.0, 1.0, 1.0, arc_alpha))
+		draw_circle(p_end, 2.5 * arc_alpha, Color(1.0, 1.0, 1.0, arc_alpha))
+
+
+func _draw_engine_heat_and_embers() -> void:
+	if is_subdeck:
+		return
+	# Turbine core heat pulse
+	var t_pos := Vector2(1475.0, 395.0)
+	var heat_pulse := 0.75 + 0.25 * sin(_time * 4.2)
+	draw_circle(t_pos, 36.0 * heat_pulse, Color(1.0, 0.42, 0.12, 0.08 * heat_pulse))
+	draw_circle(t_pos, 20.0 * heat_pulse, Color(1.0, 0.58, 0.18, 0.14 * heat_pulse))
+	draw_circle(t_pos, 8.0 * heat_pulse, Color(1.0, 0.88, 0.45, 0.35 * heat_pulse))
+
+	# Showers of floating industrial embers drifting from engine machinery
+	for e in range(18):
+		var e_phase: float = fposmod(_time * 0.18 + float(e) * 0.055, 1.0)
+		var e_origin := Vector2(1440.0 + fposmod(float(e) * 31.0, 80.0), 280.0 + fposmod(float(e) * 47.0, 240.0))
+		var e_drift := Vector2(sin(_time * 0.8 + float(e)) * 14.0, -e_phase * 34.0)
+		var e_pos := e_origin + e_drift
+		var e_fade := sin(e_phase * PI)
+		var e_sz := 1.2 + 0.6 * sin(float(e) * 2.0)
+		draw_rect(Rect2(e_pos - Vector2(e_sz, e_sz) * 0.5, Vector2(e_sz, e_sz)), Color(1.0, 0.62, 0.22, e_fade * 0.85))
+		draw_rect(Rect2(e_pos - Vector2(0.5, 0.5), Vector2(1.0, 1.0)), Color(1.0, 0.95, 0.75, e_fade))
+
+
+func _draw_vent_steam_geysers() -> void:
+	for i in range(_vent_positions.size()):
+		var vpos: Vector2 = _vent_positions[i]
+		var geyser_cycle: float = fposmod(_time * 0.35 + float(i) * 0.85, 4.0)
+		if geyser_cycle > 0.85:
+			continue
+		var g_norm: float = geyser_cycle / 0.85
+		var g_fade: float = sin(g_norm * PI)
+		var jet_h: float = g_norm * 38.0
+		var jet_w: float = 3.5 + g_norm * 14.0
+		var jet_col := Color(0.75, 0.90, 0.98, 0.28 * g_fade) if not is_subdeck else Color(0.65, 0.85, 0.55, 0.32 * g_fade)
+		_draw_custom_ellipse(vpos + Vector2(0.0, -jet_h * 0.6), jet_w * 0.5, jet_h * 0.5, jet_col)
+		draw_circle(vpos + Vector2(sin(_time * 8.0 + float(i)) * 4.0, -jet_h), 5.5 + g_norm * 8.0, Color(jet_col.r, jet_col.g, jet_col.b, jet_col.a * 0.75))
+
+
+func _draw_hydroponics_bioluminescent_spores() -> void:
+	if is_subdeck:
+		return
+	var b_pos := HYDROPONICS_SPORES_BOUNDS.position
+	var b_sz := HYDROPONICS_SPORES_BOUNDS.size
+	for s in range(26):
+		var s_phase: float = fposmod(_time * 0.12 + float(s) * 0.038, 1.0)
+		var sx: float = b_pos.x + fposmod(float(s) * 43.7 + sin(_time * 0.3 + float(s)) * 25.0, b_sz.x)
+		var sy: float = b_pos.y + fposmod(float(s) * 29.3 - s_phase * b_sz.y, b_sz.y)
+		var fade := sin(s_phase * PI)
+		var spore_pos := Vector2(sx, sy)
+		var spore_col := Color(0.35, 0.98, 0.65, 0.85 * fade) if s % 2 == 0 else Color(0.42, 0.88, 1.0, 0.85 * fade)
+		var halo_col := Color(spore_col.r, spore_col.g, spore_col.b, 0.22 * fade)
+		draw_circle(spore_pos, 4.2 + sin(_time * 3.0 + float(s)) * 1.2, halo_col)
+		draw_circle(spore_pos, 1.5, spore_col)
+		draw_circle(spore_pos, 0.7, Color(1.0, 1.0, 1.0, fade * 0.95))
+
+
+func _draw_holographic_terminals() -> void:
+	if is_subdeck:
+		return
+	for ht in HOLOGRAPHIC_TERMINALS:
+		var pos: Vector2 = ht["pos"]
+		var h_type: StringName = ht["type"]
+		var h_col: Color = ht["color"]
+		var h_pulse: float = 0.85 + 0.15 * sin(_time * 4.0)
+
+		# Upward projector beam cone
+		var p_top_l := pos + Vector2(-16.0, -28.0)
+		var p_top_r := pos + Vector2(16.0, -28.0)
+		var p_bot := pos + Vector2(0.0, -2.0)
+		draw_colored_polygon(
+			PackedVector2Array([p_bot, p_top_l, p_top_r]),
+			Color(h_col.r, h_col.g, h_col.b, 0.065 * h_pulse)
+		)
+
+		match h_type:
+			&"radar_wireframe":
+				var center := pos + Vector2(0.0, -24.0)
+				var rot_ang: float = _time * 1.5
+				_draw_custom_ellipse(center, 12.0, 5.0, Color(h_col.r, h_col.g, h_col.b, 0.45 * h_pulse))
+				var cross1 := center + Vector2(cos(rot_ang) * 12.0, sin(rot_ang) * 5.0)
+				var cross2 := center - Vector2(cos(rot_ang) * 12.0, sin(rot_ang) * 5.0)
+				draw_line(cross1, cross2, Color(1.0, 1.0, 1.0, 0.75 * h_pulse), 1.2, false)
+				draw_circle(center, 1.8, Color(1.0, 1.0, 1.0, 0.95 * h_pulse))
+			&"telemetry_stream":
+				var base_y := pos.y - 30.0
+				for line_i in range(4):
+					var ly := base_y + float(line_i) * 5.0
+					var l_w := 6.0 + 10.0 * (0.5 + 0.5 * sin(_time * 5.0 + float(line_i) * 2.1))
+					draw_line(Vector2(pos.x - 8.0, ly), Vector2(pos.x - 8.0 + l_w, ly), Color(h_col.r, h_col.g, h_col.b, 0.70 * h_pulse), 1.2, false)
+
+
+func _draw_ambient_dust_motes() -> void:
+	for m in range(24):
+		var m_phase: float = fposmod(_time * 0.08 + float(m) * 0.041, 1.0)
+		var mx: float = 120.0 + fposmod(float(m) * 73.1 + sin(_time * 0.2 + float(m)) * 18.0, 1500.0)
+		var my: float = 180.0 + fposmod(float(m) * 51.7 + cos(_time * 0.15 + float(m)) * 12.0, 600.0)
+		var fade: float = sin(m_phase * PI)
+		var mote_alpha: float = 0.45 * fade
+		draw_circle(Vector2(mx, my), 0.9, Color(0.85, 0.95, 1.0, mote_alpha))
+
+
+func _draw_subdeck_atmosphere() -> void:
+	var beacon_center := Vector2(882.0, 320.0)
+	var sweep_angle := _time * 2.2
+	var sweep_arm := beacon_center + Vector2(cos(sweep_angle), sin(sweep_angle)) * 160.0
+	draw_line(beacon_center, sweep_arm, Color(1.0, 0.18, 0.12, 0.22), 6.0, false)
+	draw_line(beacon_center, sweep_arm, Color(1.0, 0.45, 0.35, 0.45), 2.0, false)
+	draw_circle(beacon_center, 6.0, Color(1.0, 0.20, 0.15, 0.85))
+
+
+func _draw_custom_ellipse(center: Vector2, rx: float, ry: float, color: Color) -> void:
+	if rx <= 0.05 or ry <= 0.05 or color.a <= 0.005:
+		return
+	var pts := PackedVector2Array()
+	const STEPS := 16
+	for i in range(STEPS):
+		var angle := TAU * float(i) / float(STEPS)
+		pts.append(center + Vector2(cos(angle) * rx, sin(angle) * ry))
+	draw_colored_polygon(pts, color)
 
 
 func _draw_console_telemetry() -> void:

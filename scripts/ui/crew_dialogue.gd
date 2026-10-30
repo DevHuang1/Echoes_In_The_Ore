@@ -399,11 +399,11 @@ func _start_cutscene_camera(context: Dictionary) -> void:
 
 	if not _in_cutscene:
 		var tween_active: bool = is_instance_valid(_camera_tween) and _camera_tween.is_running()
-		var camera_zoomed: bool = _camera.zoom.x > 1.85
+		var camera_zoomed: bool = _camera.zoom.x > 1.85 or _camera.zoom.x < 1.4
 		if not tween_active and not camera_zoomed:
 			_original_camera_pos = _camera.position
 			_original_camera_zoom = _camera.zoom
-		elif _original_camera_zoom.x > 1.85:
+		else:
 			_original_camera_zoom = Vector2(1.75, 1.75)
 			_original_camera_pos = Vector2.ZERO
 		_in_cutscene = true
@@ -456,7 +456,7 @@ func _finish_cutscene_camera() -> void:
 
 	var restore_zoom := _original_camera_zoom
 	var restore_pos := _original_camera_pos
-	if restore_zoom.x > 1.85:
+	if restore_zoom.x > 1.85 or restore_zoom.x < 1.4:
 		restore_zoom = Vector2(1.75, 1.75)
 		_original_camera_zoom = restore_zoom
 	if restore_pos.length() > 5.0 and restore_zoom.x > 1.85:
@@ -971,9 +971,9 @@ func _resize_bubble() -> void:
 func _exit_tree() -> void:
 	if is_instance_valid(_camera_tween):
 		_camera_tween.kill()
-	if is_instance_valid(_camera) and _camera.zoom.x > 1.85:
-		var restore_zoom := _original_camera_zoom if _original_camera_zoom.x <= 1.85 else Vector2(1.75, 1.75)
-		var restore_pos := _original_camera_pos if _original_camera_zoom.x <= 1.85 else Vector2.ZERO
+	if is_instance_valid(_camera) and (_camera.zoom.x > 1.85 or _camera.zoom.x < 1.4):
+		var restore_zoom := _original_camera_zoom if (_original_camera_zoom.x <= 1.85 and _original_camera_zoom.x >= 1.4) else Vector2(1.75, 1.75)
+		var restore_pos := _original_camera_pos if (_original_camera_zoom.x <= 1.85 and _original_camera_zoom.x >= 1.4) else Vector2.ZERO
 		_camera.zoom = restore_zoom
 		_camera.position = restore_pos
 	cancel_dialogue()

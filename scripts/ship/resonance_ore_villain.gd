@@ -39,8 +39,8 @@ const SHIP_ROAM_AREAS := [
 ]
 const ANIMATION_ROWS := {
 	&"walk_down": 0,
-	&"walk_right": 1,
-	&"walk_left": 2,
+	&"walk_left": 1,
+	&"walk_right": 2,
 	&"walk_up": 3,
 }
 
@@ -118,6 +118,22 @@ var _rampage_targets: Array[Vector2] = []
 var _rampage_index := 0
 var _rampage_path_target_index := -1
 var _in_rampage := false
+var _acid_drips: Array[Dictionary] = []
+var _repel_burst_timer := 0.0
+
+var _walk_blend: float = 0.0
+var _walk_stride_phase: float = 0.0
+var _door_wait_retries: int = 0
+
+var _tentacle_attack_timer: float = 0.0
+var _tentacle_attack_duration: float = 0.55
+var _tentacle_target_pos: Vector2 = Vector2.ZERO
+var _tentacle_target_world_pos: Vector2 = Vector2.ZERO
+var _tentacle_target_dir: Vector2 = Vector2.DOWN
+var _tentacle_strikes: Array[Dictionary] = []
+var _tentacle_impact_particles: Array[Dictionary] = []
+var _tentacle_impact_spawned: bool = false
+var _foreground_overlay: Node2D = null
 
 
 func _ready() -> void:
@@ -135,10 +151,10 @@ func _ready() -> void:
 		initial_stage = FormStage.STAGE1_INFECTED
 
 	_build_aura_light()
+	_build_foreground_overlay()
 	set_form_stage(initial_stage, true)
 
-	await get_tree().physics_frame
-	await get_tree().physics_frame
+	_init_floor_layer_and_mask()
 	_build_navigation()
 
 	# If spawned inside a solid cell, shift to nearest clear cell
@@ -323,6 +339,7 @@ func repel_with_tool(tool_id: StringName, _source_pos: Vector2 = Vector2.ZERO) -
 	if _is_repelled or not visible or _in_ducts:
 		return
 	_is_repelled = true
+	_repel_burst_timer = 0.45
 	_repel_cooldown = 20.0
 	villain_repelled.emit(tool_id)
 	DialogueAudioSynth.play_sfx_2d("villain_hurt", global_position, self, -1.0)
@@ -343,9 +360,69 @@ func repel_with_tool(tool_id: StringName, _source_pos: Vector2 = Vector2.ZERO) -
 
 func _physics_process(delta: float) -> void:
 	_pulse_time += delta
+	if _repel_burst_timer > 0.0:
+		_repel_burst_timer = maxf(_repel_burst_timer - delta, 0.0)
+
+	var is_moving := velocity.length_squared() > 10.0 and visible and not _in_ducts
+	_walk_blend = move_toward(_walk_blend, 1.0 if is_moving else 0.0, delta * 8.0)
+	if is_moving:
+		_walk_stride_phase += delta * (move_speed / 6.5)
+	else:
+		_walk_stride_phase = fposmod(_walk_stride_phase, TAU)
+
+	if _tentacle_attack_timer > 0.0:
+		_tentacle_attack_timer = maxf(_tentacle_attack_timer - delta, 0.0)
+		if _tentacle_target_world_pos != Vector2.ZERO:
+			_tentacle_target_pos = to_local(_tentacle_target_world_pos)
+		var t_prog: float = 1.0 - (_tentacle_attack_timer / _tentacle_attack_duration)
+		if t_prog >= 0.28 and not _tentacle_impact_spawned:
+			_tentacle_impact_spawned = true
+			_spawn_tentacle_impact_fx(_tentacle_target_pos)
+
+	var tp_idx := _tentacle_impact_particles.size() - 1
+	while tp_idx >= 0:
+		var tp: Dictionary = _tentacle_impact_particles[tp_idx]
+		var tpt: float = float(tp["timer"]) - delta
+		if tpt <= 0.0:
+			_tentacle_impact_particles.remove_at(tp_idx)
+		else:
+			tp["timer"] = tpt
+			var tp_pos: Vector2 = tp["pos"]
+			var tp_vel: Vector2 = tp["vel"]
+			tp["pos"] = tp_pos + tp_vel * delta
+			tp["vel"] = tp_vel * pow(0.3, delta)
+			_tentacle_impact_particles[tp_idx] = tp
+		tp_idx -= 1
+
 	if is_instance_valid(_aura_light):
 		var base_e := 0.42 if _in_rampage else (0.35 if form_stage >= FormStage.STAGE2_MUTATED else 0.28)
 		_aura_light.energy = base_e + 0.12 * sin(_pulse_time * (8.5 if _in_rampage else 4.2))
+
+	# Dripping corrosive acid ichor puddles when moving
+	if is_moving:
+		if _random.randf() < delta * 3.8:
+			_acid_drips.append({
+				"pos": Vector2(_random.randf_range(-4.5, 4.5), _random.randf_range(-1.5, 3.0)),
+				"timer": 0.85,
+				"max_timer": 0.85,
+				"color": Color(0.35, 0.95, 0.45, 0.85) if form_stage == FormStage.LIQUID else Color(0.82, 0.25, 0.95, 0.85)
+			})
+			if _acid_drips.size() > 16:
+				_acid_drips.pop_front()
+
+	var d_idx := _acid_drips.size() - 1
+	while d_idx >= 0:
+		var ad: Dictionary = _acid_drips[d_idx]
+		ad["timer"] = float(ad["timer"]) - delta
+		if float(ad["timer"]) <= 0.0:
+			_acid_drips.remove_at(d_idx)
+		else:
+			_acid_drips[d_idx] = ad
+		d_idx -= 1
+
+	queue_redraw()
+	if is_instance_valid(_foreground_overlay):
+		_foreground_overlay.queue_redraw()
 
 	if _attack_cooldown > 0.0:
 		_attack_cooldown = maxf(_attack_cooldown - delta, 0.0)
@@ -405,10 +482,42 @@ func _physics_process(delta: float) -> void:
 	_update_facing(direction)
 
 	# Trigger doors ahead to slide open
-	_handle_doors_near(global_position + direction * 16.0)
+	_handle_doors_near(global_position + direction * 28.0)
 
 	var motion := direction * minf(move_speed * delta, distance)
+	var blocked_door := _get_blocking_door(global_position + motion)
+	if blocked_door != null:
+		if blocked_door.get("locked"):
+			var blocked_cell := _world_to_cell(global_position + motion)
+			if _grid_region.has_point(blocked_cell):
+				_grid.set_point_solid(blocked_cell, true)
+			velocity = Vector2.ZERO
+			_has_destination = false
+			_path.clear()
+			_path_index = 0
+			_repath_timer = 0.0
+			_door_wait_retries = 0
+			return
+
+		# Unlocked door is sliding open; pause briefly so it can open instead of aborting the path
+		velocity = Vector2.ZERO
+		_door_wait_retries += 1
+		if _door_wait_retries < 8:
+			_idle_remaining = 0.25
+			return
+		_door_wait_retries = 0
+		_path.clear()
+		_path_index = 0
+		_has_destination = false
+		_idle_remaining = 0.2
+		return
+	else:
+		_door_wait_retries = 0
+
 	if not _can_move_on_walkable_floor(motion):
+		var blocked_cell := _world_to_cell(global_position + motion)
+		if _grid_region.has_point(blocked_cell):
+			_grid.set_point_solid(blocked_cell, true)
 		velocity = Vector2.ZERO
 		_has_destination = false
 		_path.clear()
@@ -418,8 +527,13 @@ func _physics_process(delta: float) -> void:
 
 	velocity = direction * move_speed
 	var previous_position := global_position
-	move_and_slide()
-	if is_on_wall() and global_position.distance_squared_to(previous_position) < 1.0:
+	var collision := move_and_collide(motion)
+	if collision != null or not _position_is_walkable(global_position, true):
+		var blocked_cell := _world_to_cell(global_position if collision == null else (global_position + motion))
+		if _grid_region.has_point(blocked_cell):
+			_grid.set_point_solid(blocked_cell, true)
+		if not _position_is_walkable(global_position, true):
+			global_position = previous_position
 		velocity = Vector2.ZERO
 		_has_destination = false
 		_path.clear()
@@ -523,9 +637,66 @@ func _check_player_stalking() -> void:
 		_is_chasing = false
 
 
+func execute_tentacle_attack(target_world_pos: Vector2) -> void:
+	_tentacle_attack_timer = _tentacle_attack_duration
+	_tentacle_target_pos = to_local(target_world_pos)
+	var diff := target_world_pos - global_position
+	_tentacle_target_dir = diff.normalized() if not diff.is_zero_approx() else Vector2.DOWN
+	_tentacle_strikes.clear()
+
+	var is_final := (form_stage >= FormStage.STAGE2_MUTATED)
+	var tendril_count := 6 if is_final else 4
+	var target_dist := clampf(diff.length(), 16.0, 72.0)
+
+	for i in range(tendril_count):
+		var angle_spread := _random.randf_range(-0.45, 0.45)
+		var length_jitter := _random.randf_range(-6.0, 12.0)
+		_tentacle_strikes.append({
+			"angle": angle_spread,
+			"dist": target_dist + length_jitter,
+			"curl_freq": _random.randf_range(1.5, 3.2),
+			"curl_amp": _random.randf_range(6.0, 14.0) * (1.0 if i % 2 == 0 else -1.0),
+			"phase": _random.randf_range(0.0, TAU),
+			"width": _random.randf_range(2.6, 4.2) if is_final else _random.randf_range(2.0, 3.2),
+		})
+
+	_spawn_tentacle_impact_fx(_tentacle_target_pos)
+
+
+func _spawn_tentacle_impact_fx(local_pos: Vector2) -> void:
+	var is_final := (form_stage >= FormStage.STAGE2_MUTATED)
+	var particle_count := 14 if is_final else 8
+	var base_col := Color(0.85, 0.22, 1.0, 0.95) if is_final else Color(0.95, 0.35, 0.15, 0.95)
+	for i in range(particle_count):
+		var ang := _random.randf_range(0.0, TAU)
+		var spd := _random.randf_range(28.0, 85.0)
+		_tentacle_impact_particles.append({
+			"pos": local_pos,
+			"vel": Vector2(cos(ang), sin(ang)) * spd,
+			"timer": _random.randf_range(0.25, 0.48),
+			"max_timer": 0.48,
+			"size": _random.randf_range(1.4, 3.2),
+			"color": base_col if i % 2 == 0 else Color(1.0, 1.0, 1.0, 0.9),
+		})
+
+
 func _attack_player(player: Node2D) -> void:
 	_attack_cooldown = 1.8
-	DialogueAudioSynth.play_sfx_2d("villain_attack", global_position, self, -1.0)
+	DialogueAudioSynth.play_sfx_2d("villain_attack", global_position, self, 0.0)
+
+	# Execute visible tentacle lash / whip attack
+	execute_tentacle_attack(player.global_position)
+
+	# Trigger initial screen shake on player
+	if player.has_method("trigger_screen_shake"):
+		player.call("trigger_screen_shake", 0.70 if form_stage >= FormStage.STAGE2_MUTATED else 0.50)
+
+	# Visual chromatic flash on player sprite
+	var p_sprite := player.get_node_or_null("AnimatedSprite2D") as CanvasItem
+	if p_sprite != null:
+		var hit_tween := create_tween()
+		hit_tween.tween_property(p_sprite, "modulate", Color(2.8, 0.35, 0.45, 1.0), 0.08)
+		hit_tween.tween_property(p_sprite, "modulate", Color.WHITE, 0.22)
 
 	# Close any open service console on contact
 	for console in get_tree().get_nodes_in_group("service_task_console"):
@@ -534,11 +705,17 @@ func _attack_player(player: Node2D) -> void:
 
 	var equipped: StringName = player.get_equipped_item_id() if player.has_method("get_equipped_item_id") else &""
 	if equipped in [&"emergency_flare", &"electrical_discharge_tool"]:
-		repel_with_tool(equipped, player.global_position)
-		var hud := get_tree().get_first_node_in_group("walk_hud")
-		if hud != null and hud.has_method("show_room_feedback"):
-			hud.call("show_room_feedback", "CLOSE-RANGE DEFENSE TRIGGERED! %s REPELLED THE ECHO HOST!" % String(equipped).replace("_", " ").to_upper(), 4.0)
-		return
+		var charge_count := 1
+		if player.has_method("get_equipment_amount"):
+			charge_count = int(player.call("get_equipment_amount", equipped))
+		if charge_count > 0:
+			if player.has_method("consume_item_amount"):
+				player.call("consume_item_amount", equipped, 1)
+			repel_with_tool(equipped, player.global_position)
+			var hud := get_tree().get_first_node_in_group("walk_hud")
+			if hud != null and hud.has_method("show_room_feedback"):
+				hud.call("show_room_feedback", "CLOSE-RANGE DEFENSE TRIGGERED! %s REPELLED THE ECHO HOST!" % String(equipped).replace("_", " ").to_upper(), 4.0)
+			return
 
 	# Struggle escape with consumable survival items
 	var struggle_items: Array[StringName] = [&"emergency_flare", &"electrical_discharge_tool", &"survey_beacon", &"medical_injector"]
@@ -561,12 +738,19 @@ func _attack_player(player: Node2D) -> void:
 	var knock_dir := (player.global_position - global_position).normalized()
 	if knock_dir.is_zero_approx():
 		knock_dir = Vector2.UP
-	player.global_position += knock_dir * 22.0
+	player.global_position += knock_dir * (28.0 if form_stage >= FormStage.STAGE2_MUTATED else 22.0)
+
+	# Heavy trauma screen shake on unmitigated direct tentacle hit
+	if player.has_method("trigger_screen_shake"):
+		player.call("trigger_screen_shake", 0.85)
+
+	if player.has_method("take_damage"):
+		player.call("take_damage", 25.0)
 
 	var walk_hud := get_tree().get_first_node_in_group("walk_hud")
 	if walk_hud != null and walk_hud.has_method("show_room_feedback"):
 		var entity_name := "APEX ECHO HOST" if form_stage >= FormStage.STAGE2_MUTATED else "ECHO INFECTED DR. OKOYE"
-		walk_hud.call("show_room_feedback", "⚠️ CRITICAL CONTACT: %s ATTACKED!\nEQUIP FLARE / ARC TOOL OR RETREAT TO A SECURED LOCKER!" % entity_name, 4.0)
+		walk_hud.call("show_room_feedback", "⚠️ CRITICAL TENTACLE ATTACK: %s STRUCK!\nSUIT INTEGRITY DAMAGED! EQUIP FLARE / ARC TOOL OR RETREAT TO A SECURED LOCKER!" % entity_name, 4.0)
 
 
 func repel_with_light(intensity: float = 1.0, source_pos: Vector2 = Vector2.ZERO) -> void:
@@ -664,7 +848,7 @@ func _process_rampage(delta: float) -> void:
 		return
 	var dir := to_waypoint / dist
 	_update_facing(dir)
-	_handle_doors_near(global_position + dir * 16.0)
+	_handle_doors_near(global_position + dir * 28.0)
 	var motion := dir * minf(rampage_speed * delta, dist)
 	if not _can_move_on_walkable_floor(motion):
 		_has_destination = false
@@ -673,9 +857,229 @@ func _process_rampage(delta: float) -> void:
 		_rampage_path_target_index = -1
 		return
 	velocity = dir * rampage_speed
-	move_and_slide()
+	var prev_pos := global_position
+	var col := move_and_collide(motion)
+	if col != null or not _position_is_walkable(global_position, true):
+		if not _position_is_walkable(global_position, true):
+			global_position = prev_pos
+		_has_destination = false
+		_path.clear()
+		_path_index = 0
+		_rampage_path_target_index = -1
+		return
 	if not sprite.is_playing():
 		sprite.play(_facing_animation)
+
+
+func _build_foreground_overlay() -> void:
+	if is_instance_valid(_foreground_overlay):
+		return
+	_foreground_overlay = Node2D.new()
+	_foreground_overlay.name = "ForegroundOverlay"
+	_foreground_overlay.z_index = 4
+	_foreground_overlay.draw.connect(_draw_foreground)
+	add_child(_foreground_overlay)
+
+
+func _draw_foreground() -> void:
+	if not visible or _in_ducts or not is_instance_valid(_foreground_overlay):
+		return
+
+	# 1. Menacing predatory eye flares (drawn over the head of the sprite)
+	var eye_blink := 0.75 + 0.25 * sin(_pulse_time * 8.0)
+	var is_final := (form_stage >= FormStage.STAGE2_MUTATED)
+	var eye_col := Color(1.0, 0.18, 0.12, 0.95 * eye_blink) if is_final else Color(1.0, 0.45, 0.15, 0.90 * eye_blink)
+	var head_center := Vector2(0.0, -10.0 if _is_fused_form else -3.0)
+	_foreground_overlay.draw_circle(head_center + Vector2(-2.2, 0.0), 1.8, Color(eye_col.r, eye_col.g, eye_col.b, 0.45))
+	_foreground_overlay.draw_circle(head_center + Vector2(2.2, 0.0), 1.8, Color(eye_col.r, eye_col.g, eye_col.b, 0.45))
+	_foreground_overlay.draw_circle(head_center + Vector2(-2.2, 0.0), 0.9, eye_col)
+	_foreground_overlay.draw_circle(head_center + Vector2(2.2, 0.0), 0.9, eye_col)
+
+	# 2. Violent repulsion energy shockwave when struck
+	if _repel_burst_timer > 0.0:
+		var r_norm := 1.0 - (_repel_burst_timer / 0.45)
+		var ring_r := 6.0 + r_norm * 36.0
+		var repel_col := Color(0.85, 0.25, 1.0, (1.0 - r_norm) * 0.90)
+		_foreground_overlay.draw_arc(Vector2(0.0, -6.0), ring_r, 0.0, TAU, 22, repel_col, 2.0, true)
+		for sp_k in range(8):
+			var sp_a := float(sp_k) * (TAU / 8.0) + sin(float(sp_k) * 3.2) * 0.3
+			var sp_dist := ring_r * 0.92
+			_foreground_overlay.draw_circle(Vector2(0.0, -6.0) + Vector2(cos(sp_a), sin(sp_a)) * sp_dist, 1.4 * (1.0 - r_norm), Color(1.0, 1.0, 1.0, (1.0 - r_norm)))
+
+	# 3. High-velocity tentacle lash attack & impact shockwaves (drawn over player & monster)
+	_draw_tentacle_attack(_foreground_overlay)
+
+
+func _draw() -> void:
+	if not visible or _in_ducts:
+		return
+
+	# 0. Grounded, dynamic multi-ellipse shadow beneath monster's feet/contact point
+	_draw_shadow()
+
+	# 1. Eldritch void distortion aura
+	var aura_pulse: float = 0.78 + 0.22 * sin(_pulse_time * 6.5)
+	var is_final: bool = (form_stage >= FormStage.STAGE2_MUTATED)
+	var void_col := Color(0.68, 0.12, 0.95, 0.28 * aura_pulse) if is_final else Color(0.95, 0.25, 0.12, 0.22 * aura_pulse)
+	draw_circle(Vector2(0.0, -6.0), (14.0 if is_final else 9.5) * aura_pulse, void_col)
+	draw_circle(Vector2(0.0, -6.0), (7.0 if is_final else 5.0) * aura_pulse, Color(0.05, 0.01, 0.08, 0.55))
+
+	# 2. Writhing shadow tendrils reaching out behind body
+	var tendril_count := 6 if is_final else 4
+	for t_i in range(tendril_count):
+		var t_angle := float(t_i) * (TAU / float(tendril_count)) + sin(_pulse_time * 3.5 + float(t_i)) * 0.45
+		var t_len := (12.0 if is_final else 7.5) + sin(_pulse_time * 5.0 + float(t_i) * 1.8) * 4.0
+		var t_tip := Vector2(0.0, -6.0) + Vector2(cos(t_angle), sin(t_angle)) * t_len
+		draw_line(Vector2(0.0, -6.0), t_tip, Color(void_col.r, void_col.g, void_col.b, 0.65), 1.6, false)
+		draw_circle(t_tip, 1.1, Color(1.0, 0.85, 0.95, 0.85))
+
+	# 3. Corrosive acid drip puddles on the deck
+	for ad in _acid_drips:
+		var a_t: float = clampf(float(ad["timer"]) / float(ad["max_timer"]), 0.0, 1.0)
+		var a_pos: Vector2 = ad["pos"]
+		var a_col: Color = ad["color"]
+		a_col.a *= pow(a_t, 1.2)
+		draw_circle(a_pos, 2.2 * a_t, a_col)
+		draw_circle(a_pos + Vector2(0.0, -1.0 * (1.0 - a_t) * 4.0), 0.9 * a_t, Color(1.0, 1.0, 1.0, a_col.a * 0.75))
+
+	# Fallback if foreground overlay is not active
+	if not is_instance_valid(_foreground_overlay):
+		_draw_tentacle_attack(self)
+
+
+func _draw_shadow() -> void:
+	var shadow_offset_y := 7.0 if _is_fused_form else 1.5
+	var move_dir := velocity.normalized() if velocity.length_squared() > 1.0 else Vector2.DOWN
+	var shift := -move_dir * (1.2 * _walk_blend)
+	var center := Vector2(0.0, shadow_offset_y) + Vector2(shift.x, shift.y * 0.45)
+
+	var is_final := (form_stage >= FormStage.STAGE2_MUTATED)
+	var walk_pulse := sin(_walk_stride_phase * 2.0) * _walk_blend
+	var idle_pulse := sin(_pulse_time * 2.5) * 0.4 * (1.0 - _walk_blend)
+
+	var base_rx: float
+	var base_ry: float
+	match form_stage:
+		FormStage.STAGE3_FINAL_FORM:
+			base_rx = 14.5
+			base_ry = 6.5
+		FormStage.STAGE2_MUTATED:
+			base_rx = 12.0
+			base_ry = 5.5
+		FormStage.STAGE1_INFECTED:
+			base_rx = 9.5
+			base_ry = 4.2
+		FormStage.LIQUID, _:
+			base_rx = 11.0
+			base_ry = 3.2
+
+	var rx := base_rx + walk_pulse * 0.9 + idle_pulse
+	var ry := base_ry - absf(walk_pulse) * 0.35 + idle_pulse * 0.5
+
+	# 1. Subtle resonance chromatic deck reflection
+	var rim_color := Color(0.72, 0.18, 0.98, 0.14) if is_final else (Color(0.96, 0.35, 0.15, 0.12) if _is_fused_form else Color(0.35, 0.95, 0.45, 0.12))
+	_draw_ellipse(center, rx + 2.5, ry + 1.2, rim_color)
+
+	# 2. Soft outer penumbra shadow
+	_draw_ellipse(center, rx + 1.0, ry + 0.5, Color(0.01, 0.015, 0.03, 0.26))
+
+	# 3. Mid contact shadow
+	_draw_ellipse(center, rx * 0.78, ry * 0.78, Color(0.01, 0.01, 0.02, 0.42))
+
+	# 4. Deep core shadow directly under body
+	_draw_ellipse(center + Vector2(0.0, 0.3), rx * 0.52, ry * 0.52, Color(0.005, 0.005, 0.015, 0.60))
+
+	# Alternating footstep contact shadow blobs for humanoid walk cycle
+	if _is_fused_form and _walk_blend > 0.05:
+		var left_lift := maxf(0.0, sin(_walk_stride_phase)) * _walk_blend
+		var right_lift := maxf(0.0, -sin(_walk_stride_phase)) * _walk_blend
+		var left_pos := center + Vector2(-3.0, -0.3 - left_lift * 1.3)
+		var right_pos := center + Vector2(3.0, -0.3 - right_lift * 1.3)
+		_draw_ellipse(left_pos, 2.6 - left_lift * 0.5, 1.4 - left_lift * 0.25, Color(0.005, 0.008, 0.018, 0.38 * (1.0 - left_lift * 0.45)))
+		_draw_ellipse(right_pos, 2.6 - right_lift * 0.5, 1.4 - right_lift * 0.25, Color(0.005, 0.008, 0.018, 0.38 * (1.0 - right_lift * 0.45)))
+
+
+func _draw_ellipse(center: Vector2, rx: float, ry: float, color: Color) -> void:
+	if rx <= 0.05 or ry <= 0.05 or color.a <= 0.005:
+		return
+	var pts := PackedVector2Array()
+	const STEPS := 16
+	for i in range(STEPS):
+		var angle := TAU * float(i) / float(STEPS)
+		pts.append(center + Vector2(cos(angle) * rx, sin(angle) * ry))
+	draw_colored_polygon(pts, color)
+
+
+func _draw_tentacle_attack(target_canvas: CanvasItem = null) -> void:
+	var canvas: CanvasItem = target_canvas if target_canvas != null else self
+	if _tentacle_attack_timer <= 0.0 and _tentacle_impact_particles.is_empty():
+		return
+
+	var is_final := (form_stage >= FormStage.STAGE2_MUTATED)
+	var void_aura_col := Color(0.85, 0.22, 1.0, 0.65) if is_final else Color(0.98, 0.38, 0.18, 0.65)
+	var void_core_col := Color(0.06, 0.01, 0.09, 0.95)
+
+	if _tentacle_attack_timer > 0.0:
+		var t_prog: float = 1.0 - (_tentacle_attack_timer / _tentacle_attack_duration)
+		# Extension curve: rapid whip forward (0.0 to 0.35), strike/thrash (0.35 to 0.65), retract (0.65 to 1.0)
+		var whip_reach: float
+		if t_prog < 0.35:
+			whip_reach = sin((t_prog / 0.35) * PI * 0.5)
+		elif t_prog < 0.65:
+			whip_reach = 1.0 + sin((t_prog - 0.35) * 20.0) * 0.08
+		else:
+			var ret := (t_prog - 0.65) / 0.35
+			whip_reach = 1.0 - ret * ret
+
+		var root_pos := Vector2(0.0, -6.0 if _is_fused_form else -1.0)
+
+		for strike in _tentacle_strikes:
+			var s_ang: float = float(strike["angle"])
+			var s_dist: float = float(strike["dist"]) * whip_reach
+			var s_freq: float = float(strike["curl_freq"])
+			var s_amp: float = float(strike["curl_amp"])
+			var s_phase: float = float(strike["phase"])
+			var s_w: float = float(strike["width"])
+
+			var tendril_dir := _tentacle_target_dir.rotated(s_ang)
+			var normal := Vector2(-tendril_dir.y, tendril_dir.x)
+
+			var pts := PackedVector2Array()
+			const SEGMENTS := 12
+			for seg in range(SEGMENTS + 1):
+				var seg_f := float(seg) / float(SEGMENTS)
+				var seg_pt := root_pos + tendril_dir * (s_dist * seg_f)
+				var lateral := sin(seg_f * PI * s_freq + s_phase + _pulse_time * 10.0) * s_amp * sin(seg_f * PI) * whip_reach
+				seg_pt += normal * lateral
+				pts.append(seg_pt)
+
+			if pts.size() >= 2:
+				# Outer void aura
+				canvas.draw_polyline(pts, void_aura_col, s_w * 1.6, false)
+				# Inner dark tentacle core
+				canvas.draw_polyline(pts, void_core_col, s_w, false)
+				# Barbed tip
+				var tip: Vector2 = pts[pts.size() - 1]
+				canvas.draw_circle(tip, s_w * 0.8, Color(1.0, 0.9, 1.0, 0.95))
+
+		# Impact shockwave ring at target during strike phase
+		if t_prog >= 0.25 and t_prog <= 0.70:
+			var ring_norm := (t_prog - 0.25) / 0.45
+			var ring_r := 4.0 + ring_norm * 28.0
+			var ring_alpha := (1.0 - ring_norm) * 0.85
+			var ring_col := Color(void_aura_col.r, void_aura_col.g, void_aura_col.b, ring_alpha)
+			canvas.draw_arc(_tentacle_target_pos, ring_r, 0.0, TAU, 18, ring_col, 2.0, true)
+			# Central impact flare
+			canvas.draw_circle(_tentacle_target_pos, 3.5 * (1.0 - ring_norm), Color(1.0, 1.0, 1.0, ring_alpha))
+
+	# Draw impact particles
+	for p in _tentacle_impact_particles:
+		var p_t: float = clampf(float(p["timer"]) / float(p["max_timer"]), 0.0, 1.0)
+		var p_pos: Vector2 = p["pos"]
+		var p_col: Color = p["color"]
+		p_col.a *= pow(p_t, 1.1)
+		var p_sz: float = float(p["size"]) * p_t
+		canvas.draw_circle(p_pos, p_sz, p_col)
 
 
 func _build_aura_light() -> void:
@@ -807,10 +1211,75 @@ func _arrive_at_destination() -> void:
 	_idle_remaining = _random.randf_range(1.4, 2.8) if not _is_chasing else 0.0
 
 
-func _position_is_walkable(world_position: Vector2) -> bool:
+func _get_effective_radius() -> float:
+	match form_stage:
+		FormStage.STAGE3_FINAL_FORM:
+			return BODY_RADIUS + 3.0
+		FormStage.STAGE2_MUTATED:
+			return BODY_RADIUS + 1.5
+		FormStage.STAGE1_INFECTED:
+			return BODY_RADIUS
+		FormStage.LIQUID, _:
+			return 4.0
+
+
+func _get_attack_range() -> float:
+	match form_stage:
+		FormStage.STAGE3_FINAL_FORM:
+			return 48.0
+		FormStage.STAGE2_MUTATED:
+			return 40.0
+		FormStage.STAGE1_INFECTED:
+			return 34.0
+		FormStage.LIQUID, _:
+			return 28.0
+
+
+func _get_blocking_door(position_to_check: Vector2) -> Node2D:
+	if not is_inside_tree():
+		return null
+	for door in get_tree().get_nodes_in_group("ship_door"):
+		if door.has_method("blocks_position") and bool(door.call("blocks_position", position_to_check, _get_effective_radius())):
+			return door as Node2D
+	return null
+
+
+func _init_floor_layer_and_mask() -> void:
+	if _floor_mask != null:
+		return
+	var floor_layer: Sprite2D = null
+	if get_parent() != null:
+		floor_layer = get_parent().get_node_or_null("FloorLayer") as Sprite2D
+	if floor_layer == null and get_tree() != null and get_tree().current_scene != null:
+		floor_layer = get_tree().current_scene.get_node_or_null("FloorLayer") as Sprite2D
+	if floor_layer == null and get_tree() != null and get_tree().current_scene != null:
+		floor_layer = get_tree().current_scene.find_child("FloorLayer", true, false) as Sprite2D
+
+	if floor_layer != null and floor_layer.texture != null:
+		var raw_img := floor_layer.texture.get_image()
+		if raw_img != null:
+			if raw_img.is_compressed():
+				raw_img.decompress()
+			_floor_mask = raw_img
+			var origin := floor_layer.global_position
+			if floor_layer.centered:
+				origin -= floor_layer.texture.get_size() * 0.5
+			_floor_origin = origin + floor_layer.offset
+
+
+func _position_is_walkable(world_position: Vector2, check_doors: bool = true) -> bool:
+	_init_floor_layer_and_mask()
+
+	# Check closed pressure doors
+	if check_doors and is_inside_tree():
+		for door in get_tree().get_nodes_in_group("ship_door"):
+			if door.has_method("blocks_position") and bool(door.call("blocks_position", world_position, _get_effective_radius())):
+				return false
+
 	if _floor_mask == null:
 		return true
-	var radius := NAV_CLEARANCE_RADIUS
+
+	var radius := _get_effective_radius()
 	var diagonal := radius * 0.70710678
 	var offsets: Array[Vector2] = [
 		Vector2.ZERO,
@@ -835,22 +1304,23 @@ func _position_is_walkable(world_position: Vector2) -> bool:
 
 
 func _can_move_on_walkable_floor(motion: Vector2) -> bool:
-	if _floor_mask == null:
-		return true
+	_init_floor_layer_and_mask()
 	var sample_count := maxi(1, ceili(motion.length() / 4.0))
 	for sample_index in range(1, sample_count + 1):
 		var sample_position := global_position + motion * (float(sample_index) / float(sample_count))
-		if not _position_is_walkable(sample_position):
+		if not _position_is_walkable(sample_position, true):
 			return false
 	return true
 
 
 func _world_to_cell(world_position: Vector2) -> Vector2i:
+	_init_floor_layer_and_mask()
 	var local_position := world_position - _floor_origin
 	return Vector2i(floori(local_position.x / NAV_CELL_SIZE), floori(local_position.y / NAV_CELL_SIZE))
 
 
 func _cell_to_world(cell: Vector2i) -> Vector2:
+	_init_floor_layer_and_mask()
 	return _floor_origin + Vector2((float(cell.x) + 0.5) * NAV_CELL_SIZE, (float(cell.y) + 0.5) * NAV_CELL_SIZE)
 
 
@@ -903,7 +1373,7 @@ func _configure_sprite_animations(atlas_path: String) -> void:
 
 
 func _update_facing(direction: Vector2) -> void:
-	if direction.is_zero_approx():
+	if not is_instance_valid(sprite) or direction.is_zero_approx():
 		return
 	if absf(direction.x) > absf(direction.y):
 		_facing_animation = &"walk_right" if direction.x > 0.0 else &"walk_left"
@@ -915,26 +1385,14 @@ func _update_facing(direction: Vector2) -> void:
 
 
 func _build_navigation() -> void:
-	var floor_layer: Sprite2D = null
-	if get_parent() != null:
-		floor_layer = get_parent().get_node_or_null("FloorLayer") as Sprite2D
-	if floor_layer == null and get_tree() != null and get_tree().current_scene != null:
-		floor_layer = get_tree().current_scene.get_node_or_null("FloorLayer") as Sprite2D
-	if floor_layer == null and get_tree() != null and get_tree().current_scene != null:
-		floor_layer = get_tree().current_scene.find_child("FloorLayer", true, false) as Sprite2D
+	_init_floor_layer_and_mask()
 
 	var map_width := 1800.0
 	var map_height := 900.0
 
-	if floor_layer != null and floor_layer.texture != null:
-		var raw_img := floor_layer.texture.get_image()
-		if raw_img != null:
-			if raw_img.is_compressed():
-				raw_img.decompress()
-			_floor_mask = raw_img
-			_floor_origin = floor_layer.global_position
-			map_width = float(_floor_mask.get_width())
-			map_height = float(_floor_mask.get_height())
+	if _floor_mask != null:
+		map_width = float(_floor_mask.get_width())
+		map_height = float(_floor_mask.get_height())
 
 	var columns := ceili(map_width / NAV_CELL_SIZE)
 	var rows := ceili(map_height / NAV_CELL_SIZE)
@@ -962,9 +1420,19 @@ func _build_navigation() -> void:
 			var cell := Vector2i(x, y)
 			var center := _cell_to_world(cell)
 
-			if _floor_mask != null and not _position_is_walkable(center):
+			if _floor_mask != null and not _position_is_walkable(center, false):
 				_grid.set_point_solid(cell, true)
 				continue
+
+			if is_inside_tree():
+				var door_blocked := false
+				for door in get_tree().get_nodes_in_group("ship_door"):
+					if door.get("locked") and door.has_method("blocks_position") and bool(door.call("blocks_position", center, BODY_RADIUS)):
+						door_blocked = true
+						break
+				if door_blocked:
+					_grid.set_point_solid(cell, true)
+					continue
 
 			if space_state != null and probe_query != null:
 				probe_query.transform = Transform2D(0.0, center)

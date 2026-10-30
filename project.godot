@@ -20,6 +20,10 @@ InputBindings="*res://scripts/ship/input_bindings.gd"
 BackgroundMusic="*res://scripts/audio/background_music.gd"
 FirebaseManager="*res://scripts/network/firebase_manager.gd"
 
+[audio]
+
+busses/default_bus_layout="res://default_bus_layout.tres"
+
 [display]
 
 window/size/viewport_width=1280

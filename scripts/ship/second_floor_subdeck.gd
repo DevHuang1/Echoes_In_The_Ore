@@ -308,6 +308,10 @@ var _story_cutscene: CanvasLayer = null
 var _hud_modal_open: bool = false
 var _task_console_open: bool = false
 var _cutscene_open: bool = false
+var _monster_cinematic_camera_position: Vector2 = Vector2.ZERO
+var _monster_cinematic_camera_zoom: Vector2 = Vector2(1.75, 1.75)
+var _monster_cinematic_camera_saved: bool = false
+var _camera_glide_tween: Tween = null
 var _pending_cutscene_task_id: StringName = &""
 var _transitioning: bool = false
 var _near_lift: bool = false
@@ -360,6 +364,7 @@ func _load_png_texture(res_path: String) -> Texture2D:
 func _ready() -> void:
 	add_to_group("ship_room_lighting")
 	_build_subdeck_environment()
+	DialogueAudioSynth.play_sfx("lift_arrive", self, -2.0)
 	if Engine.is_editor_hint():
 		set_process(false)
 		set_physics_process(false)
@@ -416,6 +421,12 @@ func _ready() -> void:
 	_update_all_rooms(1.0, true)
 	if is_instance_valid(player) and not player.equipment_used.is_connected(_on_player_equipment_used):
 		player.equipment_used.connect(_on_player_equipment_used)
+	if not _completed_tasks.has(&"subdeck_arrival_comms"):
+		_completed_tasks[&"subdeck_arrival_comms"] = true
+		_walk_hud.play_radio_transmission(
+			"PILOT ELIAS WARD // DISTORTED COMMS",
+			"Thura... down here in the pipe trench... help me equalize the coolant before the shadows close the bulkhead..."
+		)
 
 
 func _build_subdeck_environment() -> void:
@@ -1103,6 +1114,83 @@ func _on_subdeck_console_completed(subdeck_task_id: StringName) -> void:
 	_pending_cutscene_task_id = subdeck_task_id
 
 
+func _glide_camera_to_pos(target_global_pos: Vector2, target_zoom: float = 2.15, duration: float = 0.65, on_complete: Callable = Callable()) -> void:
+	if not is_instance_valid(player) or not is_instance_valid(player.camera):
+		if on_complete.is_valid():
+			on_complete.call()
+		return
+	if is_instance_valid(_camera_glide_tween) and _camera_glide_tween.is_running():
+		_camera_glide_tween.kill()
+	var default_base := Vector2(1.75, 1.75)
+	if not _monster_cinematic_camera_saved:
+		_monster_cinematic_camera_position = player.camera.position
+		if player.camera.zoom.x >= 1.4:
+			_monster_cinematic_camera_zoom = player.camera.zoom
+		else:
+			_monster_cinematic_camera_zoom = default_base
+		_monster_cinematic_camera_saved = true
+	var final_zoom: float = target_zoom
+	if final_zoom <= 1.5:
+		final_zoom = 2.15
+	var local_target: Vector2 = player.to_local(target_global_pos)
+	_camera_glide_tween = create_tween().set_parallel(true)
+	_camera_glide_tween.tween_property(player.camera, "position", local_target, duration).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	_camera_glide_tween.tween_property(player.camera, "zoom", Vector2(final_zoom, final_zoom), duration).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	if on_complete.is_valid():
+		_camera_glide_tween.chain().tween_callback(on_complete)
+
+
+func _restore_camera_from_prop(duration: float = 0.5) -> void:
+	if not is_instance_valid(player) or not is_instance_valid(player.camera):
+		return
+	if is_instance_valid(_camera_glide_tween) and _camera_glide_tween.is_running():
+		_camera_glide_tween.kill()
+	var base_zoom := Vector2(1.75, 1.75)
+	var restore_zoom := _monster_cinematic_camera_zoom if _monster_cinematic_camera_saved else base_zoom
+	if restore_zoom.x < 1.4 or restore_zoom.x > 2.0:
+		restore_zoom = Vector2(1.75, 1.75)
+	var target_pos: Vector2 = _monster_cinematic_camera_position if _monster_cinematic_camera_saved else Vector2.ZERO
+	if target_pos.length() > 500.0:
+		target_pos = Vector2.ZERO
+
+	_monster_cinematic_camera_saved = false
+
+	if duration <= 0.0:
+		player.camera.position = target_pos
+		player.camera.zoom = restore_zoom
+		return
+
+	_camera_glide_tween = create_tween().set_parallel(true)
+	_camera_glide_tween.tween_property(player.camera, "position", target_pos, duration).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	_camera_glide_tween.tween_property(player.camera, "zoom", restore_zoom, duration).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+
+
+func _trigger_subdeck_cutscene_with_camera_focus(task_id: StringName, cutscene_data: Dictionary, target_pos: Vector2 = Vector2.INF, radio_speaker: String = "", radio_text: String = "") -> void:
+	if _cutscene_open or not is_instance_valid(_story_cutscene):
+		return
+
+	_cutscene_open = true
+	if is_instance_valid(player):
+		player.velocity = Vector2.ZERO
+		if is_instance_valid(player.sprite):
+			player.sprite.stop()
+			player.sprite.frame = 0
+	if is_instance_valid(_walk_hud):
+		_walk_hud.set_walking_visible(false)
+	_update_player_walk_state()
+
+	if not radio_speaker.is_empty() and not radio_text.is_empty() and is_instance_valid(_walk_hud):
+		_walk_hud.play_radio_transmission(radio_speaker, radio_text)
+
+	if target_pos != Vector2.INF and is_instance_valid(player) and is_instance_valid(player.camera):
+		_glide_camera_to_pos(target_pos, 2.15, 0.65, func():
+			if is_instance_valid(_story_cutscene):
+				_story_cutscene.call(&"play_cutscene", task_id, cutscene_data)
+		)
+	else:
+		_story_cutscene.call(&"play_cutscene", task_id, cutscene_data)
+
+
 func _on_subdeck_console_closed() -> void:
 	_task_console_open = false
 	if _pending_cutscene_task_id != &"":
@@ -1110,10 +1198,14 @@ func _on_subdeck_console_closed() -> void:
 		_pending_cutscene_task_id = &""
 		var cdata: Dictionary = _build_subdeck_cutscene(next_cutscene_id)
 		if not cdata.is_empty() and is_instance_valid(_story_cutscene):
-			_cutscene_open = true
-			_walk_hud.set_walking_visible(false)
-			_update_player_walk_state()
-			_story_cutscene.call(&"play_cutscene", next_cutscene_id, cdata)
+			var tpos := Vector2.INF
+			var r_spk := ""
+			var r_txt := ""
+			if next_cutscene_id == &"subdeck_pipe_pressure":
+				tpos = Vector2(1500.0, 265.0)
+				r_spk = "LEILA HADDAD // INTERCOM"
+				r_txt = "Thura, I'm pinned behind the coolant manifold! The Echo is mimicking Ward's voice... don't let it vent the reactor!"
+			_trigger_subdeck_cutscene_with_camera_focus(next_cutscene_id, cdata, tpos, r_spk, r_txt)
 			return
 	_walk_hud.set_walking_visible(true)
 	_update_player_walk_state()
@@ -1145,10 +1237,18 @@ func _complete_subdeck_task(task_id: StringName, play_cutscene_now: bool = true)
 	if play_cutscene_now:
 		var cdata: Dictionary = _build_subdeck_cutscene(task_id)
 		if not cdata.is_empty() and is_instance_valid(_story_cutscene):
-			_cutscene_open = true
-			_walk_hud.set_walking_visible(false)
-			_update_player_walk_state()
-			_story_cutscene.call(&"play_cutscene", task_id, cdata)
+			var tpos := Vector2.INF
+			var r_spk := ""
+			var r_txt := ""
+			if task_id == &"subdeck_shadow_nest_check":
+				tpos = Vector2(1600.0, 680.0)
+				r_spk = "ECHO MIMICRY // HULL RESONANCE"
+				r_txt = "Dr. Okoye whispered: 'Thura, I found him.'"
+			elif task_id == &"subdeck_inventory_manifest":
+				tpos = Vector2(400.0, 680.0)
+				r_spk = "PILOT ELIAS WARD // SUB-DECK 02"
+				r_txt = "Thura... can you hear me? Storage manifests are scrambled. Something crawled into the deck conduits..."
+			_trigger_subdeck_cutscene_with_camera_focus(task_id, cdata, tpos, r_spk, r_txt)
 
 
 func _build_subdeck_cutscene(task_id: StringName) -> Dictionary:
@@ -1247,6 +1347,7 @@ func _build_subdeck_cutscene(task_id: StringName) -> Dictionary:
 
 func _on_subdeck_cutscene_finished(cutscene_id: StringName, choice_id: StringName) -> void:
 	_cutscene_open = false
+	_restore_camera_from_prop()
 	_walk_hud.set_walking_visible(true)
 	_update_player_walk_state()
 	if cutscene_id == &"subdeck_pipe_pressure":
@@ -1288,7 +1389,8 @@ func _on_hud_modal_state_changed(is_open: bool) -> void:
 
 
 func _update_player_walk_state() -> void:
-	player.set_physics_process(not (_hud_modal_open or _task_console_open or _cutscene_open))
+	if is_instance_valid(player):
+		player.set_physics_process(not (_hud_modal_open or _task_console_open or _cutscene_open))
 
 
 func _update_all_rooms(delta: float, snap_immediately: bool) -> void:

@@ -7,12 +7,15 @@ signal equipment_amount_changed(item_id: StringName, remaining_amount: int)
 signal equipment_depleted(item_id: StringName)
 signal concealment_changed(concealed: bool, source_id: String)
 signal flashlight_battery_changed(current: float, max_val: float)
+signal suit_integrity_changed(current: float, max_val: float)
+signal player_died
 signal sound_emitted(origin: Vector2, radius: float)
 
 const FLARE_SAFE_RADIUS: float = 75.0
 
 var is_concealed := false
 var concealment_source := ""
+@export var is_on_planet: bool = false
 
 const THURA_ATLAS: Texture2D = preload("res://art/characters/runtime/thura_walk_4dir.png")
 const THURA_SIT_DOWN: Texture2D = preload("res://art/characters/runtime/thura_sit_down.png")
@@ -217,6 +220,10 @@ var _held_tool_tex_cache: Dictionary = {}
 var _using_custom_walk_sheet: bool = false
 
 var _equipped_item_id: StringName = &""
+var _suit_integrity: float = 100.0
+var _max_suit_integrity: float = 100.0
+var _is_dead: bool = false
+var _heartbeat_timer: float = 0.0
 var _suit_flashlight_unlocked: bool = false
 var _suit_flashlight_enabled: bool = false
 var _flashlight_battery: float = 100.0
@@ -231,6 +238,11 @@ var _action_impact_light: PointLight2D = null
 var _flashlight_light: PointLight2D = null
 var _equip_anim_timer: float = 0.0
 var _pulse_time: float = 0.0
+var _screen_shake_trauma: float = 0.0
+var _screen_shake_time: float = 0.0
+var _afterimages: Array[Dictionary] = []
+var _afterimage_timer: float = 0.0
+var _revolver_impact_bursts: Array[Dictionary] = []
 
 # Shooting, laser beam, flare projectile, and working animation state for all 10 equipments
 var _is_using_tool: bool = false
@@ -331,10 +343,11 @@ func _ready() -> void:
 	_standing_sprite_position = sprite.position
 	sprite.play(_facing_animation)
 	sprite.stop()
-	if is_instance_valid(camera):
+	if is_instance_valid(camera) and is_inside_tree():
 		camera.enabled = true
 		camera.make_current()
-	get_viewport().size_changed.connect(_update_camera_limits)
+	if get_viewport() != null:
+		get_viewport().size_changed.connect(_update_camera_limits)
 	_update_camera_limits()
 
 
@@ -384,8 +397,13 @@ func _setup_equipment_visual_nodes() -> void:
 
 
 func _physics_process(delta: float) -> void:
-	if is_concealed:
+	if is_concealed or _is_dead:
 		return
+	if _suit_integrity < 30.0 and _suit_integrity > 0.0:
+		_heartbeat_timer = maxf(_heartbeat_timer - delta, 0.0)
+		if is_zero_approx(_heartbeat_timer):
+			DialogueAudioSynth.play_sfx("heartbeat", self, 0.0)
+			_heartbeat_timer = 1.35
 	_pulse_time = fposmod(_pulse_time + delta * 4.5, 1000.0)
 	if _equip_anim_timer > 0.0:
 		_equip_anim_timer = maxf(_equip_anim_timer - delta * 4.2, 0.0)
@@ -423,12 +441,42 @@ func _physics_process(delta: float) -> void:
 		_footstep_timer -= delta
 		if _footstep_timer <= 0.0:
 			_footstep_timer = 0.24 if _is_sprinting else 0.36
-			DialogueAudioSynth.play_footstep(self, false, -6.0 if _is_sprinting else -9.0)
+			DialogueAudioSynth.play_footstep(self, is_on_planet, -6.0 if _is_sprinting else -9.0)
 			sound_emitted.emit(global_position, 300.0 if _is_sprinting else 120.0)
+		_afterimage_timer -= delta
+		if _afterimage_timer <= 0.0:
+			_afterimage_timer = 0.055 if _is_sprinting else 0.12
+			if is_instance_valid(sprite) and sprite.sprite_frames != null:
+				var ghost_col: Color = Color(0.24, 0.92, 1.0, 0.65) if _is_sprinting else Color(0.68, 0.84, 0.98, 0.35)
+				_afterimages.append({
+					"pos": sprite.global_position,
+					"anim": sprite.animation,
+					"frame": sprite.frame,
+					"flip_h": sprite.flip_h,
+					"scale": sprite.scale,
+					"timer": 0.28 if _is_sprinting else 0.16,
+					"max_timer": 0.28 if _is_sprinting else 0.16,
+					"color": ghost_col,
+				})
+				if _afterimages.size() > 14:
+					_afterimages.pop_front()
 	elif sprite.is_playing():
 		sprite.stop()
 		sprite.frame = 0
 		_footstep_timer = minf(_footstep_timer, 0.08)
+
+	# Smooth procedural trauma-based screen shake
+	if _screen_shake_trauma > 0.0:
+		_screen_shake_trauma = maxf(_screen_shake_trauma - delta * 2.8, 0.0)
+		_screen_shake_time += delta * 46.0
+		if is_instance_valid(camera):
+			var pwr: float = _screen_shake_trauma * _screen_shake_trauma
+			camera.offset = Vector2(
+				sin(_screen_shake_time * 1.37) * 7.5 * pwr,
+				cos(_screen_shake_time * 1.83) * 5.5 * pwr
+			)
+	elif is_instance_valid(camera) and not camera.offset.is_zero_approx():
+		camera.offset = Vector2.ZERO
 
 	_update_continuous_tool_action(delta)
 	_update_world_projectiles_and_deployables(delta)
@@ -605,6 +653,7 @@ func _fire_captains_revolver() -> void:
 	_action_anim_timer = 0.26
 	_recoil_amount = 1.0
 	DialogueAudioSynth.play_sfx("revolver_shot", self, -1.0)
+	trigger_screen_shake(0.58)
 
 	var muzzle_pos: Vector2 = _get_muzzle_world_pos()
 	var hit_dist: float = _raycast_floor_distance(muzzle_pos, _aim_dir, 285.0)
@@ -613,9 +662,16 @@ func _fire_captains_revolver() -> void:
 	_bullet_tracers.append({
 		"start": muzzle_pos,
 		"end": hit_pos,
-		"timer": 0.22,
-		"max_timer": 0.22,
+		"timer": 0.26,
+		"max_timer": 0.26,
 		"dir": _aim_dir,
+	})
+
+	_revolver_impact_bursts.append({
+		"pos": hit_pos,
+		"dir": -_aim_dir,
+		"timer": 0.38,
+		"max_timer": 0.38,
 	})
 
 	var perp: Vector2 = Vector2(-_aim_dir.y, _aim_dir.x)
@@ -634,6 +690,7 @@ func _shoot_emergency_flare() -> void:
 	_action_anim_timer = 0.38
 	_recoil_amount = 0.65
 	DialogueAudioSynth.play_sfx("flare_launch", self, -2.0)
+	trigger_screen_shake(0.28)
 
 	var start_pos: Vector2 = _get_muzzle_world_pos()
 	var max_throw: float = 175.0
@@ -739,6 +796,7 @@ func _trigger_medical_injector() -> void:
 	_action_anim_duration = 0.85
 	_action_anim_timer = 0.85
 	DialogueAudioSynth.play_sfx("med_inject", self, -2.0)
+	heal_suit_integrity(50.0)
 	for i in range(8):
 		var ang: float = float(i) * (TAU / 8.0)
 		_med_particles.append({
@@ -776,6 +834,7 @@ func _update_continuous_tool_action(delta: float) -> void:
 			_action_anim_timer = 0.25
 
 			if _equipped_item_id == &"industrial_plasma_cutter":
+				trigger_screen_shake(0.06)
 				var muzzle: Vector2 = _get_muzzle_world_pos()
 				_laser_beam_length = _raycast_floor_distance(muzzle, _aim_dir, 235.0)
 				_plasma_sfx_timer -= delta
@@ -859,6 +918,7 @@ func _update_world_projectiles_and_deployables(delta: float) -> void:
 				"light": f_light,
 				"seed": float(_burning_flares.size()) * 1.7 + _pulse_time,
 			})
+			DialogueAudioSynth.play_sfx_2d("flare_burn", target_p, self, -4.0, 450.0)
 			if _burning_flares.size() > 5:
 				var oldest_f: Dictionary = _burning_flares.pop_front()
 				var old_l: PointLight2D = oldest_f["light"] as PointLight2D
@@ -946,7 +1006,29 @@ func _update_world_projectiles_and_deployables(delta: float) -> void:
 			mp["pos"] = mp_pos + mp_vel * delta
 		i -= 1
 
-	# 9. Update dynamic action impact PointLight2D (muzzle flash, laser endpoint, arc flash)
+	# 9. Motion afterimages (sprint / dash ghost trail)
+	i = _afterimages.size() - 1
+	while i >= 0:
+		var ai: Dictionary = _afterimages[i]
+		var t: float = float(ai["timer"]) - delta
+		if t <= 0.0:
+			_afterimages.remove_at(i)
+		else:
+			ai["timer"] = t
+		i -= 1
+
+	# 10. Revolver wall impact shrapnel & spark bursts
+	i = _revolver_impact_bursts.size() - 1
+	while i >= 0:
+		var rib: Dictionary = _revolver_impact_bursts[i]
+		var t: float = float(rib["timer"]) - delta
+		if t <= 0.0:
+			_revolver_impact_bursts.remove_at(i)
+		else:
+			rib["timer"] = t
+		i -= 1
+
+	# 11. Update dynamic action impact PointLight2D (muzzle flash, laser endpoint, arc flash)
 	if is_instance_valid(_action_impact_light):
 		if _action_anim_timer > 0.01 and _equipped_item_id == &"industrial_plasma_cutter":
 			var muzzle: Vector2 = _get_muzzle_world_pos()
@@ -1055,6 +1137,66 @@ func recharge_flashlight_battery(amount: float = 100.0) -> void:
 
 func is_sprinting() -> bool:
 	return _is_sprinting
+
+
+func take_damage(_amount: float = 25.0) -> void:
+	if _is_dead:
+		return
+	_suit_integrity = clampf(_suit_integrity - _amount, 0.0, _max_suit_integrity)
+	suit_integrity_changed.emit(_suit_integrity, _max_suit_integrity)
+	trigger_screen_shake(0.85)
+	DialogueAudioSynth.play_sfx("suit_breach", self, 0.0)
+	if is_instance_valid(sprite):
+		var hit_tween := create_tween()
+		hit_tween.tween_property(sprite, "modulate", Color(2.8, 0.35, 0.45, 1.0), 0.08)
+		hit_tween.tween_property(sprite, "modulate", Color.WHITE, 0.22)
+	if _suit_integrity <= 0.0:
+		die()
+
+
+func heal_suit_integrity(amount: float = 50.0) -> void:
+	if _is_dead:
+		return
+	_suit_integrity = clampf(_suit_integrity + amount, 0.0, _max_suit_integrity)
+	suit_integrity_changed.emit(_suit_integrity, _max_suit_integrity)
+
+
+func get_suit_integrity() -> float:
+	return _suit_integrity
+
+
+func get_max_suit_integrity() -> float:
+	return _max_suit_integrity
+
+
+func is_dead() -> bool:
+	return _is_dead
+
+
+func die() -> void:
+	if _is_dead:
+		return
+	_is_dead = true
+	velocity = Vector2.ZERO
+	player_died.emit()
+	DialogueAudioSynth.play_sfx("flatline", self, 2.0)
+	if is_instance_valid(sprite):
+		var death_tween := create_tween()
+		death_tween.tween_property(sprite, "rotation", deg_to_rad(90.0), 0.55).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		death_tween.parallel().tween_property(sprite, "modulate", Color(0.45, 0.1, 0.15, 0.85), 0.55)
+
+
+func reset_player_state() -> void:
+	_is_dead = false
+	_suit_integrity = _max_suit_integrity
+	suit_integrity_changed.emit(_suit_integrity, _max_suit_integrity)
+	if is_instance_valid(sprite):
+		sprite.rotation = 0.0
+		sprite.modulate = Color.WHITE
+
+
+func trigger_screen_shake(amount: float) -> void:
+	_screen_shake_trauma = clampf(maxf(_screen_shake_trauma, amount), 0.0, 1.0)
 
 
 func is_position_in_flare_safe_zone(world_pos: Vector2, extra_radius: float = 0.0) -> bool:
@@ -1378,38 +1520,64 @@ func _on_fx_overlay_draw() -> void:
 			var norm_a: float = clampf(_action_anim_timer / maxf(_action_anim_duration, 0.01), 0.0, 1.0)
 			match _equipped_item_id:
 				&"captains_revolver":
-					# Starburst muzzle flash & blast ring at the revolver barrel
-					var flash_r: float = 12.0 * norm_a
-					_fx_overlay.draw_circle(tip_pos, flash_r * 0.85, Color(1.0, 0.68, 0.22, 0.55 * norm_a))
-					_fx_overlay.draw_line(tip_pos, tip_pos + f_dir * (flash_r * 1.7), Color(1.0, 0.95, 0.75, 0.95 * norm_a), 2.8, true)
-					_fx_overlay.draw_line(tip_pos - perp * (flash_r * 0.8), tip_pos + perp * (flash_r * 0.8), Color(1.0, 0.84, 0.38, 0.90 * norm_a), 2.2, true)
-					_fx_overlay.draw_circle(tip_pos, 3.5 * norm_a, Color(1.0, 0.98, 0.92, norm_a))
-					_fx_overlay.draw_arc(tip_pos, (1.0 - norm_a) * 18.0 + 4.0, 0.0, TAU, 16, Color(1.0, 0.76, 0.34, 0.55 * norm_a), 1.4, true)
+					# Blinding starburst muzzle flash, cross rays & supersonic blast ring
+					var flash_r: float = 16.0 * norm_a
+					_fx_overlay.draw_circle(tip_pos, flash_r * 0.95, Color(1.0, 0.62, 0.18, 0.65 * norm_a))
+					_fx_overlay.draw_circle(tip_pos, flash_r * 0.45, Color(1.0, 0.95, 0.85, 0.95 * norm_a))
+					# Cross flare rays
+					_fx_overlay.draw_line(tip_pos, tip_pos + f_dir * (flash_r * 2.6), Color(1.0, 0.98, 0.82, 0.98 * norm_a), 3.2, true)
+					_fx_overlay.draw_line(tip_pos - perp * (flash_r * 1.3), tip_pos + perp * (flash_r * 1.3), Color(1.0, 0.84, 0.38, 0.92 * norm_a), 2.6, true)
+					var diag_ray1: Vector2 = (f_dir + perp).normalized() * (flash_r * 1.1)
+					var diag_ray2: Vector2 = (f_dir - perp).normalized() * (flash_r * 1.1)
+					_fx_overlay.draw_line(tip_pos - diag_ray1, tip_pos + diag_ray1, Color(1.0, 0.72, 0.28, 0.75 * norm_a), 1.6, true)
+					_fx_overlay.draw_line(tip_pos - diag_ray2, tip_pos + diag_ray2, Color(1.0, 0.72, 0.28, 0.75 * norm_a), 1.6, true)
+					# Expanding supersonic blast ring
+					_fx_overlay.draw_arc(tip_pos, (1.0 - norm_a) * 26.0 + 5.0, 0.0, TAU, 20, Color(1.0, 0.82, 0.38, 0.70 * norm_a), 1.8, true)
 
 				&"industrial_plasma_cutter":
-					# High-energy continuous laser beam + helical rings + molten impact sparks
+					# High-energy continuous laser beam + helical plasma arcs + molten impact fountain
 					var beam_end: Vector2 = tip_pos + f_dir * _laser_beam_length
 					var beam_jit: float = 0.88 + 0.16 * sin(_pulse_time * 18.0)
-					_fx_overlay.draw_line(tip_pos, beam_end, Color(0.18, 0.78, 1.0, 0.28 * beam_jit), 8.5, true)
-					_fx_overlay.draw_line(tip_pos, beam_end, Color(0.38, 0.94, 1.0, 0.68 * beam_jit), 4.2, true)
-					_fx_overlay.draw_line(tip_pos, beam_end, Color(0.96, 1.0, 1.0, 0.96), 1.8, true)
+					# Outer glow beam & hyper core beam
+					_fx_overlay.draw_line(tip_pos, beam_end, Color(0.12, 0.65, 1.0, 0.38 * beam_jit), 11.0, true)
+					_fx_overlay.draw_line(tip_pos, beam_end, Color(0.38, 0.94, 1.0, 0.75 * beam_jit), 5.5, true)
+					_fx_overlay.draw_line(tip_pos, beam_end, Color(0.96, 1.0, 1.0, 0.98), 2.2, true)
 
-					# Traveling plasma energy nodes along the laser beam
-					var d_node: float = fposmod(_pulse_time * 95.0, 26.0)
+					# Twin helical plasma energy lightning tendrils wrapping around the beam
+					var seg_len: float = 8.0
+					var cur_d: float = 0.0
+					var prev_h1 := tip_pos
+					var prev_h2 := tip_pos
+					while cur_d < _laser_beam_length:
+						cur_d += seg_len
+						var t_phase: float = cur_d * 0.14 - _pulse_time * 24.0
+						var offset1 := perp * (sin(t_phase) * 4.8)
+						var offset2 := perp * (-sin(t_phase) * 4.8)
+						var next_h1 := tip_pos + f_dir * cur_d + offset1
+						var next_h2 := tip_pos + f_dir * cur_d + offset2
+						_fx_overlay.draw_line(prev_h1, next_h1, Color(0.45, 0.96, 1.0, 0.65), 1.6, true)
+						_fx_overlay.draw_line(prev_h2, next_h2, Color(1.0, 0.84, 0.32, 0.60), 1.4, true)
+						prev_h1 = next_h1
+						prev_h2 = next_h2
+
+					# Traveling plasma nodes
+					var d_node: float = fposmod(_pulse_time * 95.0, 22.0)
 					while d_node < _laser_beam_length - 6.0:
 						var n_pt: Vector2 = tip_pos + f_dir * d_node
-						_fx_overlay.draw_circle(n_pt, 2.8, Color(1.0, 0.84, 0.36, 0.72))
-						d_node += 26.0
+						_fx_overlay.draw_circle(n_pt, 3.4, Color(1.0, 0.92, 0.55, 0.85))
+						_fx_overlay.draw_circle(n_pt, 1.6, Color(1.0, 1.0, 1.0, 0.98))
+						d_node += 22.0
 
-					# Molten cutting impact flare & sparks at laser endpoint
-					_fx_overlay.draw_circle(beam_end, 7.5 * beam_jit, Color(1.0, 0.62, 0.22, 0.48))
-					_fx_overlay.draw_circle(beam_end, 3.6, Color(1.0, 0.98, 0.90, 0.96))
-					for sp_i in range(6):
-						var s_ang: float = (-f_dir).angle() + (float(sp_i) - 2.5) * 0.42 + sin(_pulse_time * 15.0 + float(sp_i)) * 0.22
-						var s_len: float = 6.0 + 10.0 * fposmod(_pulse_time * 4.5 + float(sp_i) * 0.23, 1.0)
+					# Molten cutting impact flare & shower of sparks at laser endpoint
+					_fx_overlay.draw_circle(beam_end, 10.5 * beam_jit, Color(1.0, 0.55, 0.18, 0.55))
+					_fx_overlay.draw_circle(beam_end, 5.2, Color(1.0, 0.98, 0.90, 0.98))
+					_fx_overlay.draw_arc(beam_end, 12.0 * beam_jit, 0.0, TAU, 16, Color(0.38, 0.92, 1.0, 0.65), 1.4, true)
+					for sp_i in range(8):
+						var s_ang: float = (-f_dir).angle() + (float(sp_i) - 3.5) * 0.38 + sin(_pulse_time * 16.0 + float(sp_i)) * 0.28
+						var s_len: float = 7.0 + 13.0 * fposmod(_pulse_time * 4.8 + float(sp_i) * 0.21, 1.0)
 						var sp_end: Vector2 = beam_end + Vector2(cos(s_ang), sin(s_ang)) * s_len
-						_fx_overlay.draw_line(beam_end, sp_end, Color(1.0, 0.78, 0.32, 0.88), 1.4, true)
-						_fx_overlay.draw_circle(sp_end, 1.1, Color(0.55, 0.96, 1.0, 0.92))
+						_fx_overlay.draw_line(beam_end, sp_end, Color(1.0, 0.82, 0.32, 0.92), 1.6, true)
+						_fx_overlay.draw_circle(sp_end, 1.3, Color(0.55, 0.98, 1.0, 0.95))
 
 				&"engineering_multitool":
 					# Rotary calibration reticle + welding arc + hot sparks
@@ -1472,6 +1640,29 @@ func _on_world_fx_draw() -> void:
 	if not is_instance_valid(_world_fx_canvas):
 		return
 
+	# 0. Motion afterimage ghost trails (sprinting / walking)
+	if is_instance_valid(sprite) and sprite.sprite_frames != null:
+		for ai in _afterimages:
+			var t_ai: float = clampf(float(ai["timer"]) / maxf(float(ai["max_timer"]), 0.001), 0.0, 1.0)
+			var a_pos: Vector2 = ai["pos"]
+			var col: Color = ai["color"]
+			col.a *= pow(t_ai, 1.3)
+			if col.a <= 0.02:
+				continue
+			var anim: StringName = ai["anim"]
+			var frame: int = ai["frame"]
+			if sprite.sprite_frames.has_animation(anim):
+				var frame_tex: Texture2D = sprite.sprite_frames.get_frame_texture(anim, frame)
+				if frame_tex != null:
+					var sc: Vector2 = ai["scale"]
+					var sz := frame_tex.get_size() * sc
+					var flip: bool = ai["flip_h"]
+					var dest_rect := Rect2(a_pos.x - sz.x * 0.5, a_pos.y - sz.y * 0.5, sz.x, sz.y)
+					if flip:
+						dest_rect.position.x += sz.x
+						dest_rect.size.x = -sz.x
+					_world_fx_canvas.draw_texture_rect(frame_tex, dest_rect, false, col)
+
 	# 1. Curing pressure sealant foam patches on the floor
 	for sp in _sealant_patches:
 		var spos: Vector2 = sp["pos"]
@@ -1504,21 +1695,41 @@ func _on_world_fx_draw() -> void:
 		_world_fx_canvas.draw_line(p_tail, p_head, Color(1.0, 0.98, 0.88, 0.96 * bt_norm), 1.4, true)
 
 		# Impact spark burst at bullet destination
-		_world_fx_canvas.draw_circle(b_end, 6.5 * bt_norm, Color(1.0, 0.68, 0.24, 0.45 * bt_norm))
-		for k in range(5):
-			var i_ang: float = (-b_dir).angle() + (float(k) - 2.0) * 0.48
-			var i_len: float = (1.0 - bt_norm) * 14.0 + 3.0
-			_world_fx_canvas.draw_line(b_end, b_end + Vector2(cos(i_ang), sin(i_ang)) * i_len, Color(1.0, 0.86, 0.42, 0.90 * bt_norm), 1.3, true)
+		_world_fx_canvas.draw_circle(b_end, 7.5 * bt_norm, Color(1.0, 0.68, 0.24, 0.55 * bt_norm))
+		for k in range(6):
+			var i_ang: float = (-b_dir).angle() + (float(k) - 2.5) * 0.44
+			var i_len: float = (1.0 - bt_norm) * 16.0 + 3.0
+			_world_fx_canvas.draw_line(b_end, b_end + Vector2(cos(i_ang), sin(i_ang)) * i_len, Color(1.0, 0.86, 0.42, 0.92 * bt_norm), 1.4, true)
+
+	# 3b. Revolver wall impact shrapnel & dust smoke shockwave bursts
+	for rib in _revolver_impact_bursts:
+		var r_pos: Vector2 = rib["pos"]
+		var r_dir: Vector2 = rib["dir"]
+		var r_t: float = clampf(float(rib["timer"]) / float(rib["max_timer"]), 0.0, 1.0)
+		var r_prog: float = 1.0 - r_t
+		_world_fx_canvas.draw_arc(r_pos, 4.0 + r_prog * 18.0, 0.0, TAU, 16, Color(1.0, 0.78, 0.38, r_t * 0.65), 1.5, true)
+		_world_fx_canvas.draw_circle(r_pos, 5.0 * r_t, Color(1.0, 0.95, 0.85, r_t * 0.85))
+		for sp_k in range(6):
+			var sp_ang: float = r_dir.angle() + (float(sp_k) - 2.5) * 0.55 + sin(float(sp_k) * 2.8) * 0.3
+			var sp_dist: float = r_prog * 22.0 + 3.0
+			var sp_pt: Vector2 = r_pos + Vector2(cos(sp_ang), sin(sp_ang)) * sp_dist
+			_world_fx_canvas.draw_line(r_pos, sp_pt, Color(1.0, 0.85, 0.35, r_t * 0.92), 1.4, true)
+			_world_fx_canvas.draw_circle(sp_pt, 1.1 * r_t, Color(1.0, 1.0, 1.0, r_t))
 
 	# 4. Flying flare projectiles in mid-air
 	for ff in _flying_flares:
 		var fpos: Vector2 = ff["pos"]
 		var fstart: Vector2 = ff["start"]
-		_world_fx_canvas.draw_line(fstart.lerp(fpos, 0.55), fpos, Color(1.0, 0.48, 0.18, 0.45), 3.0, true)
-		_world_fx_canvas.draw_circle(fpos, 6.0, Color(1.0, 0.36, 0.14, 0.42))
-		_world_fx_canvas.draw_circle(fpos, 2.8, Color(1.0, 0.92, 0.72, 0.98))
+		_world_fx_canvas.draw_line(fstart.lerp(fpos, 0.55), fpos, Color(1.0, 0.48, 0.18, 0.55), 3.4, true)
+		_world_fx_canvas.draw_circle(fpos, 8.0, Color(1.0, 0.36, 0.14, 0.50))
+		_world_fx_canvas.draw_circle(fpos, 3.4, Color(1.0, 0.95, 0.75, 0.98))
+		# Trailing sparks from flying flare
+		for fs_i in range(3):
+			var fs_phase: float = fposmod(_pulse_time * 6.0 + float(fs_i) * 0.33, 1.0)
+			var fs_pt: Vector2 = fpos.lerp(fstart, fs_phase * 0.35) + Vector2(sin(_pulse_time * 8.0 + float(fs_i)) * 4.0, 0.0)
+			_world_fx_canvas.draw_circle(fs_pt, 1.3 * (1.0 - fs_phase), Color(1.0, 0.84, 0.36, (1.0 - fs_phase) * 0.88))
 
-	# 5. Burning floor flares (intense room-lighting glow halo, magnesium sparks & rising smoke)
+	# 5. Burning floor flares (intense room-lighting glow halo, leaping flame tongues, magnesium sparks & rising smoke)
 	for bf in _burning_flares:
 		var bpos: Vector2 = bf["pos"]
 		var bt: float = float(bf["timer"])
@@ -1527,20 +1738,33 @@ func _on_world_fx_draw() -> void:
 		var flicker: float = 0.84 + 0.22 * sin(_pulse_time * 6.5 + bseed)
 
 		# Large warm room-illumination floor halo
-		_world_fx_canvas.draw_circle(bpos, 68.0 * flicker, Color(1.0, 0.38, 0.14, 0.08 * fade))
-		_world_fx_canvas.draw_circle(bpos, 34.0 * flicker, Color(1.0, 0.48, 0.18, 0.16 * fade))
-		_world_fx_canvas.draw_circle(bpos, 12.0 * flicker, Color(1.0, 0.64, 0.26, 0.36 * fade))
+		_world_fx_canvas.draw_circle(bpos, 74.0 * flicker, Color(1.0, 0.38, 0.14, 0.09 * fade))
+		_world_fx_canvas.draw_circle(bpos, 38.0 * flicker, Color(1.0, 0.48, 0.18, 0.18 * fade))
+		_world_fx_canvas.draw_circle(bpos, 14.0 * flicker, Color(1.0, 0.64, 0.26, 0.40 * fade))
+
+		# Leaping flame tongues
+		for flame_i in range(3):
+			var f_phase: float = fposmod(_pulse_time * 4.5 + float(flame_i) * 1.8 + bseed, 1.0)
+			var f_h: float = (5.5 + 8.5 * (1.0 - f_phase)) * flicker
+			var f_tip := bpos + Vector2(3.2 + (float(flame_i) - 1.0) * 2.2, 0.6 - f_h)
+			var f_base_l := bpos + Vector2(1.5 + (float(flame_i) - 1.0) * 2.0, 1.5)
+			var f_base_r := bpos + Vector2(4.8 + (float(flame_i) - 1.0) * 2.0, 1.5)
+			_world_fx_canvas.draw_colored_polygon(
+				PackedVector2Array([f_base_l, f_tip, f_base_r]),
+				Color(1.0, 0.65, 0.22, 0.75 * fade * (1.0 - f_phase * 0.5))
+			)
+			_world_fx_canvas.draw_circle(f_tip, 1.2 * (1.0 - f_phase), Color(1.0, 0.95, 0.80, 0.95 * fade))
 
 		# Flare canister body on floor + white-hot burning tip
 		_world_fx_canvas.draw_line(bpos - Vector2(3.5, 1.0), bpos + Vector2(3.5, 1.0), Color(0.82, 0.22, 0.14, 0.95 * fade), 2.8, true)
-		_world_fx_canvas.draw_circle(bpos + Vector2(3.2, 0.6), 3.2 * flicker, Color(1.0, 0.96, 0.84, 0.98 * fade))
+		_world_fx_canvas.draw_circle(bpos + Vector2(3.2, 0.6), 3.6 * flicker, Color(1.0, 0.96, 0.84, 0.98 * fade))
 
-		# Sputtering magnesium sparks
-		for s_i in range(5):
-			var sp_phase: float = fposmod(_pulse_time * 1.8 + float(s_i) * 0.21 + bseed, 1.0)
-			var sp_ang: float = float(s_i) * 1.25 + bseed + sin(_pulse_time * 3.0 + float(s_i)) * 0.4
-			var sp_pt: Vector2 = bpos + Vector2(3.2, 0.6) + Vector2(cos(sp_ang), sin(sp_ang)) * (sp_phase * 16.0) + Vector2(0.0, -sp_phase * 8.0)
-			_world_fx_canvas.draw_circle(sp_pt, 1.2 * (1.0 - sp_phase), Color(1.0, 0.84, 0.42, (1.0 - sp_phase) * 0.92 * fade))
+		# Sputtering magnesium sparks leaping high
+		for s_i in range(7):
+			var sp_phase: float = fposmod(_pulse_time * 2.2 + float(s_i) * 0.15 + bseed, 1.0)
+			var sp_ang: float = float(s_i) * 1.15 + bseed + sin(_pulse_time * 3.0 + float(s_i)) * 0.4
+			var sp_pt: Vector2 = bpos + Vector2(3.2, 0.6) + Vector2(cos(sp_ang), sin(sp_ang)) * (sp_phase * 22.0) + Vector2(0.0, -sp_phase * 14.0)
+			_world_fx_canvas.draw_circle(sp_pt, 1.4 * (1.0 - sp_phase), Color(1.0, 0.86, 0.45, (1.0 - sp_phase) * 0.95 * fade))
 
 	# 6. Deployed Survey Beacons on floor (rotating radar sweep & sonar rings)
 	for db in _deployed_beacons:
@@ -1596,7 +1820,7 @@ func _on_world_fx_draw() -> void:
 func set_camera_bounds(bounds: Rect2) -> void:
 	_camera_bounds = bounds
 	_update_camera_limits()
-	if is_instance_valid(camera):
+	if is_instance_valid(camera) and is_inside_tree():
 		camera.enabled = true
 		camera.make_current()
 		camera.reset_smoothing()

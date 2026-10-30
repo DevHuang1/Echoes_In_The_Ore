@@ -307,6 +307,7 @@ func _ready() -> void:
 	var mask_tex: ImageTexture = ImageTexture.create_from_image(mask_img)
 	player.set_walkable_floor_mask(mask_tex, Vector2.ZERO, 8.0)
 	player.set_walkable_blocker_polygons(_make_terrain_blockers())
+	player.is_on_planet = true
 	player.camera.zoom = Vector2(0.72, 0.72)
 	player.set_camera_bounds(Rect2(Vector2.ZERO, Vector2(1600.0, 1000.0)))
 	if Engine.has_meta(&"dev_warp_target"):
@@ -418,8 +419,33 @@ func _on_interactive_highlights_draw(canvas: Node2D = null) -> void:
 		canvas = _interactive_highlights_canvas
 	if not is_instance_valid(player) or not is_instance_valid(canvas) or not canvas.is_inside_tree():
 		return
-	# Overhead task markers already indicate each objective on top;
-	# unnecessary floor highlight boxes/brackets have been removed.
+
+	# 1. Swirling Erebos atmospheric dust storms & cosmic sand particles
+	for d in range(32):
+		var d_phase: float = fposmod(_highlight_pulse_time * 0.18 + float(d) * 0.031, 1.0)
+		var dx: float = fposmod(float(d) * 67.3 + _highlight_pulse_time * 45.0, 1600.0)
+		var dy: float = 120.0 + fposmod(float(d) * 41.7 + sin(_highlight_pulse_time * 0.4 + float(d)) * 24.0, 680.0)
+		var d_fade := sin(d_phase * PI)
+		canvas.draw_line(Vector2(dx - 6.0, dy), Vector2(dx, dy), Color(0.85, 0.65, 0.42, 0.35 * d_fade), 1.2, false)
+		canvas.draw_circle(Vector2(dx, dy), 0.9, Color(1.0, 0.88, 0.72, 0.55 * d_fade))
+
+	# 2. Resonant alien crystal glow & floating shards at ore sites
+	for site in ORE_SITES:
+		var s_pos: Vector2 = site["position"]
+		var s_pulse: float = 0.75 + 0.25 * sin(_highlight_pulse_time * 2.2 + float(site.hash() % 10))
+		var c_col := Color(0.24, 0.88, 1.0, 0.35 * s_pulse) if str(site["id"]).find("cyan") != -1 else Color(0.32, 0.95, 0.55, 0.35 * s_pulse)
+		canvas.draw_circle(s_pos, 18.0 * s_pulse, Color(c_col.r, c_col.g, c_col.b, 0.12 * s_pulse))
+		canvas.draw_circle(s_pos, 8.0 * s_pulse, Color(c_col.r, c_col.g, c_col.b, 0.28 * s_pulse))
+		canvas.draw_circle(s_pos, 2.8, Color(1.0, 1.0, 1.0, 0.85 * s_pulse))
+
+	# 3. Geothermal drill exhaust steam at extraction rig
+	var rig_pos := EXTRACTION_RIG_POSITION
+	for r_p in range(3):
+		var r_phase: float = fposmod(_highlight_pulse_time * 0.3 + float(r_p) * 0.33, 1.0)
+		var r_h := r_phase * 26.0
+		var r_w := 4.0 + r_phase * 12.0
+		var r_fade := sin(r_phase * PI)
+		canvas.draw_circle(rig_pos + Vector2(sin(_highlight_pulse_time * 2.0 + float(r_p)) * 4.0, -r_h), r_w * 0.5, Color(0.72, 0.85, 0.95, 0.22 * r_fade))
 
 
 func _draw_small_station_highlight(_canvas: Node2D, _center: Vector2, _half_extents: Vector2, _base_col: Color, _is_near: bool, _pulse: float) -> void:

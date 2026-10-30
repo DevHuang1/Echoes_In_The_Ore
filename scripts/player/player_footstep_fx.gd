@@ -4,7 +4,7 @@ extends Node2D
 const HYDROPONICS_BOUNDS := Rect2(Vector2(60.0, 640.0), Vector2(440.0, 195.0))
 const SHADOW_OFFSET := Vector2(0.0, 11.5)
 const STEP_INTERVAL := 0.16
-const MAX_PARTICLES := 48
+const MAX_PARTICLES := 120
 
 var _player: CharacterBody2D
 var _sprite: AnimatedSprite2D
@@ -71,43 +71,50 @@ func _spawn_footstep_burst(player_pos: Vector2, move_dir: Vector2, side: float) 
 	var perp := Vector2(-move_dir.y, move_dir.x)
 	var foot_world := player_pos + SHADOW_OFFSET + perp * (3.2 * side) - move_dir * 2.0
 	var in_hydro := HYDROPONICS_BOUNDS.has_point(player_pos)
+	var is_sprint := _player.has_method(&"is_sprinting") and bool(_player.call(&"is_sprinting"))
 
-	# 1. Expanding floor contact ring at boot strike point
+	# 1. Expanding floor contact shockwave ring at boot strike point
+	var ring_color := (
+		Color(0.42, 0.96, 0.72, 0.65)
+		if in_hydro
+		else (Color(0.45, 0.88, 1.0, 0.60) if is_sprint else Color(0.58, 0.72, 0.84, 0.38))
+	)
 	_push_particle({
 		"kind": 0,
 		"world_pos": foot_world,
-		"vel": -move_dir * 4.0,
+		"vel": -move_dir * (8.0 if is_sprint else 4.0),
 		"age": 0.0,
-		"lifetime": 0.34,
-		"size": 3.5,
-		"color": Color(0.56, 0.86, 0.64, 0.42) if in_hydro else Color(0.58, 0.72, 0.84, 0.38),
+		"lifetime": 0.38 if is_sprint else 0.34,
+		"size": 4.5 if is_sprint else 3.5,
+		"color": ring_color,
 	})
 
 	# 2. Layered pixel-art dust puffs trailing behind the boot
-	for i in range(4):
-		var spread_angle := _rng.randf_range(-0.65, 0.65)
+	var dust_count := 6 if is_sprint else 4
+	for i in range(dust_count):
+		var spread_angle := _rng.randf_range(-0.75, 0.75)
 		var backward := (-move_dir).rotated(spread_angle)
-		var speed := _rng.randf_range(9.0, 22.0)
-		var lift := Vector2(0.0, _rng.randf_range(-8.0, -3.0))
+		var speed := _rng.randf_range(14.0, 36.0) if is_sprint else _rng.randf_range(9.0, 22.0)
+		var lift := Vector2(0.0, _rng.randf_range(-12.0, -4.0))
 		var base_color := (
 			Color(0.62, 0.74, 0.60, 0.56)
 			if in_hydro
 			else Color(0.66, 0.73, 0.82, 0.54)
 		)
 		if i == 0:
-			base_color = base_color.lightened(0.16)
+			base_color = base_color.lightened(0.24)
 		_push_particle({
 			"kind": 1,
 			"world_pos": foot_world + Vector2(_rng.randf_range(-2.0, 2.0), _rng.randf_range(-1.2, 1.2)),
 			"vel": backward * speed + lift,
-			"swirl": side * _rng.randf_range(1.8, 3.6),
+			"swirl": side * _rng.randf_range(2.0, 4.5),
 			"age": 0.0,
-			"lifetime": _rng.randf_range(0.32, 0.52),
-			"size": _rng.randf_range(1.6, 2.8),
+			"lifetime": _rng.randf_range(0.35, 0.60),
+			"size": _rng.randf_range(1.8, 3.4) if is_sprint else _rng.randf_range(1.6, 2.8),
 			"color": base_color,
 		})
 
-	# 3. Unique low-G micro-mote (bioluminescent spore in Hydroponics / cyan static glint on metal deck)
+	# 3. Micro-motes & static glints
 	var glint_color := (
 		Color(0.48, 0.98, 0.54, 0.78)
 		if in_hydro
@@ -116,12 +123,47 @@ func _spawn_footstep_burst(player_pos: Vector2, move_dir: Vector2, side: float) 
 	_push_particle({
 		"kind": 2,
 		"world_pos": foot_world + perp * (_rng.randf_range(-2.5, 2.5)),
-		"vel": -move_dir * _rng.randf_range(6.0, 14.0) + Vector2(0.0, _rng.randf_range(-14.0, -7.0)),
+		"vel": -move_dir * _rng.randf_range(6.0, 18.0) + Vector2(0.0, _rng.randf_range(-16.0, -7.0)),
 		"age": 0.0,
 		"lifetime": _rng.randf_range(0.38, 0.58),
 		"size": 1.5,
 		"color": glint_color,
 	})
+
+	# 4. CRAZY magnetic boot contact sparks (on metal deck) or bio-fluid droplets (in Hydroponics)
+	if in_hydro:
+		# Hydroponic bio-splash droplets
+		var splash_count := 4 if is_sprint else 2
+		for s in range(splash_count):
+			var s_angle := _rng.randf_range(-PI * 0.8, -PI * 0.2)
+			var s_spd := _rng.randf_range(20.0, 45.0)
+			_push_particle({
+				"kind": 4,
+				"world_pos": foot_world,
+				"vel": Vector2(cos(s_angle), sin(s_angle)) * s_spd - move_dir * 8.0,
+				"gravity": 70.0,
+				"age": 0.0,
+				"lifetime": _rng.randf_range(0.25, 0.42),
+				"size": 1.8,
+				"color": Color(0.35, 0.98, 0.75, 0.90),
+			})
+	else:
+		# Metallic magnetic boot sparks arc out when walking on ship floor plating
+		var spark_count := 5 if is_sprint else 2
+		for s in range(spark_count):
+			var sp_dir := (-move_dir).rotated(_rng.randf_range(-1.2, 1.2))
+			var sp_speed := _rng.randf_range(30.0, 68.0) if is_sprint else _rng.randf_range(18.0, 42.0)
+			var sp_col := Color(1.0, 0.84, 0.38, 0.95) if s % 2 == 0 else Color(0.42, 0.92, 1.0, 0.95)
+			_push_particle({
+				"kind": 3,
+				"world_pos": foot_world,
+				"vel": sp_dir * sp_speed + Vector2(0.0, _rng.randf_range(-22.0, -8.0)),
+				"gravity": 60.0,
+				"age": 0.0,
+				"lifetime": _rng.randf_range(0.18, 0.35),
+				"size": 1.4,
+				"color": sp_col,
+			})
 
 
 func _push_particle(p: Dictionary) -> void:
@@ -143,7 +185,9 @@ func _update_particles(delta: float) -> void:
 			var vel: Vector2 = p["vel"]
 			if p.has("swirl"):
 				vel = vel.rotated(float(p["swirl"]) * delta)
-			vel *= pow(0.18, delta)
+			if p.has("gravity"):
+				vel.y += float(p["gravity"]) * delta
+			vel *= pow(0.24 if p.has("gravity") else 0.18, delta)
 			p["vel"] = vel
 			var wp: Vector2 = p["world_pos"]
 			p["world_pos"] = wp + vel * delta
@@ -207,7 +251,7 @@ func _draw_dust_particles() -> void:
 			var shadow_col := Color(0.08, 0.11, 0.15, alpha * 0.45)
 			draw_rect(Rect2(local_pos + Vector2(-sz * 0.5, -sz * 0.5 + 1.0), Vector2(sz, sz)), shadow_col)
 			draw_rect(Rect2(local_pos - Vector2(sz * 0.5, sz * 0.5), Vector2(sz, sz)), puff_col)
-		else:
+		elif kind == 2:
 			# Twinkling static / bio-spore mote
 			var twinkle := 0.65 + 0.35 * sin(t * 22.0)
 			var alpha := base_col.a * (1.0 - t * t) * twinkle
@@ -217,6 +261,23 @@ func _draw_dust_particles() -> void:
 			var glow_col := Color(base_col.r, base_col.g, base_col.b, alpha * 0.32)
 			draw_rect(Rect2(local_pos - Vector2(1.6, 1.6), Vector2(3.2, 3.2)), glow_col)
 			draw_rect(Rect2(local_pos - Vector2(0.8, 0.8), Vector2(1.6, 1.6)), mote_col)
+		elif kind == 3:
+			# Flying magnetic boot sparks with bright streak
+			var s_alpha := (1.0 - t) * base_col.a
+			if s_alpha <= 0.01:
+				continue
+			var s_vel: Vector2 = p.get("vel", Vector2.ZERO)
+			var s_head := local_pos
+			var s_tail := local_pos - s_vel.normalized() * (2.8 * (1.0 - t))
+			draw_line(s_tail, s_head, Color(base_col.r, base_col.g, base_col.b, s_alpha), 1.3, false)
+			draw_circle(s_head, 1.2 * (1.0 - t * 0.5), Color(1.0, 1.0, 1.0, s_alpha))
+		elif kind == 4:
+			# Bioluminescent liquid splash droplet
+			var d_alpha := (1.0 - t * t) * base_col.a
+			if d_alpha <= 0.01:
+				continue
+			draw_circle(local_pos, 1.4 * (1.0 - t * 0.4), Color(base_col.r, base_col.g, base_col.b, d_alpha))
+			draw_circle(local_pos, 0.7, Color(1.0, 1.0, 1.0, d_alpha * 0.8))
 
 
 func _draw_ellipse(center: Vector2, rx: float, ry: float, color: Color) -> void:

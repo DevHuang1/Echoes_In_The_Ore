@@ -6,8 +6,7 @@ const STORY := preload("res://scripts/ship/first_watch_story.gd")
 
 const INTRO_SCENE := "res://scenes/ui/earth_years_montage.tscn"
 const HERO_IMAGE := preload("res://art/storyboards/thura_earth/07_astronaut_selected.png")
-const _BGM_TRACK_1 := preload("res://audio/music/a_lament_on_erebos.mp3")
-const _BGM_TRACK_2 := preload("res://audio/music/Cold-Wake-01-90s-Loop.wav")
+const TITLE_MUSIC := preload("res://audio/music/Theme music dubstep.mp3")
 const FADE_SECONDS := 0.85
 
 var _background: TextureRect
@@ -27,6 +26,8 @@ func _ready() -> void:
 	else: _start_button.grab_focus()
 	_play_ambient_zoom()
 	_setup_firebase_listeners()
+	if has_node("/root/BackgroundMusic"):
+		BackgroundMusic.play_title_music()
 
 
 func _build_screen() -> void:
@@ -265,11 +266,15 @@ func _on_start_pressed() -> void:
 		Engine.set_meta("ship_story_intro_path",path)
 	else:
 		Engine.set_meta("ship_story_bootstrap", STORY.new().snapshot())
+	if has_node("/root/BackgroundMusic"):
+		BackgroundMusic.stop_music(FADE_SECONDS)
 	await _fade_to_black()
 	var result := get_tree().change_scene_to_file(INTRO_SCENE)
 	if result != OK:
 		push_error("Could not open the Earth-years montage: %s" % INTRO_SCENE)
 		_start_button.disabled = false
+		if has_node("/root/BackgroundMusic"):
+			BackgroundMusic.play_title_music(FADE_SECONDS)
 		await _fade_from_black()
 
 func _on_continue_pressed() -> void:
@@ -286,11 +291,15 @@ func _on_continue_pressed() -> void:
 		Engine.set_meta("ship_story_intro_payload",payload)
 		Engine.set_meta("ship_story_intro_path",_continue_path)
 	else: Engine.set_meta("ship_story_continue_path", _continue_path)
+	if has_node("/root/BackgroundMusic"):
+		BackgroundMusic.stop_music(FADE_SECONDS)
 	await _fade_to_black()
 	var result := get_tree().change_scene_to_file(INTRO_SCENE if resume_intro else "res://scenes/ship/bare_ship_walkthrough.tscn")
 	if result != OK:
 		Engine.remove_meta("ship_story_continue_path")
 		_start_button.disabled = false; _continue_button.disabled = false
+		if has_node("/root/BackgroundMusic"):
+			BackgroundMusic.play_title_music(FADE_SECONDS)
 		await _fade_from_black()
 
 

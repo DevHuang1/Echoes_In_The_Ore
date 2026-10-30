@@ -154,6 +154,58 @@ static func create_radio_squelch() -> AudioStreamWAV:
 	return _make_wav_from_samples(samples, sample_rate)
 
 
+static func create_tremor_pulse() -> AudioStreamWAV:
+	var sample_rate := 22050
+	var count := int(sample_rate * 0.38)
+	var samples := PackedFloat32Array()
+	samples.resize(count)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 4411
+	for i in range(count):
+		var t := float(i) / float(sample_rate)
+		var env := exp(-8.0 * t) * sin(PI * clampf(t / 0.38, 0.0, 1.0))
+		var sub := sin(TAU * 48.0 * t) * 0.75
+		var sub_harm := sin(TAU * 96.0 * t) * 0.35 * exp(-12.0 * t)
+		var metallic := (rng.randf_range(-0.2, 0.2)) * exp(-28.0 * t)
+		samples[i] = clampf((sub + sub_harm + metallic) * env * 0.85, -1.0, 1.0)
+	return _make_wav_from_samples(samples, sample_rate)
+
+
+static func create_landing_thud() -> AudioStreamWAV:
+	var sample_rate := 22050
+	var count := int(sample_rate * 0.55)
+	var samples := PackedFloat32Array()
+	samples.resize(count)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 8821
+	var hull_rumble := 0.0
+	for i in range(count):
+		var t := float(i) / float(sample_rate)
+		var env := exp(-6.5 * t)
+		var punch := sin(TAU * 55.0 * exp(-15.0 * t) * t) * 0.8
+		var crunch := rng.randf_range(-0.6, 0.6) * exp(-25.0 * t)
+		hull_rumble = lerpf(hull_rumble, rng.randf_range(-0.4, 0.4), 0.4)
+		var resonance := sin(TAU * 110.0 * t) * 0.3 * exp(-8.0 * t)
+		samples[i] = clampf((punch + crunch + hull_rumble * 0.5 + resonance) * env * 0.9, -1.0, 1.0)
+	return _make_wav_from_samples(samples, sample_rate)
+
+
+static func create_echo_mimic_whisper() -> AudioStreamWAV:
+	var sample_rate := 22050
+	var count := int(sample_rate * 0.45)
+	var samples := PackedFloat32Array()
+	samples.resize(count)
+	for i in range(count):
+		var t := float(i) / float(sample_rate)
+		var env := sin(PI * clampf(t / 0.45, 0.0, 1.0))
+		var fm := sin(TAU * 18.0 * t) * 45.0
+		var tone := sin(TAU * (310.0 + fm) * t) * 0.4
+		var drone := sin(TAU * 155.0 * t) * 0.35
+		samples[i] = clampf((tone + drone) * env * 0.6, -1.0, 1.0)
+	return _make_wav_from_samples(samples, sample_rate)
+
+
+
 # --- WEAPONS & EQUIPMENT SFX ---
 
 static func create_revolver_shot() -> AudioStreamWAV:
@@ -597,12 +649,172 @@ static func create_mining_drill() -> AudioStreamWAV:
 	return _make_wav_from_samples(samples, sample_rate)
 
 
+static func create_door_open() -> AudioStreamWAV:
+	var sample_rate := 22050
+	var count := int(sample_rate * 0.38)
+	var samples := PackedFloat32Array()
+	samples.resize(count)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 3388
+	for i in range(count):
+		var t := float(i) / float(sample_rate)
+		var hiss := rng.randf_range(-0.5, 0.5) * exp(-16.0 * t) * 0.5
+		var motor := sin(TAU * (70.0 + 90.0 * (t / 0.38)) * t) * 0.35 * sin(PI * clampf(t / 0.38, 0.0, 1.0))
+		samples[i] = (hiss + motor) * 0.6
+	return _make_wav_from_samples(samples, sample_rate)
+
+
+static func create_steam_burst() -> AudioStreamWAV:
+	var sample_rate := 22050
+	var count := int(sample_rate * 0.35)
+	var samples := PackedFloat32Array()
+	samples.resize(count)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 2211
+	var lp := 0.0
+	for i in range(count):
+		var t := float(i) / float(sample_rate)
+		var env := exp(-7.0 * t)
+		lp = lerpf(lp, rng.randf_range(-1.0, 1.0), 0.6)
+		samples[i] = lp * env * 0.55
+	return _make_wav_from_samples(samples, sample_rate)
+
+
+static func create_capacitor_tune() -> AudioStreamWAV:
+	var sample_rate := 22050
+	var count := int(sample_rate * 0.28)
+	var samples := PackedFloat32Array()
+	samples.resize(count)
+	for i in range(count):
+		var t := float(i) / float(sample_rate)
+		var env := sin(PI * clampf(t / 0.28, 0.0, 1.0))
+		var freq := 340.0 + 200.0 * sin(TAU * 4.0 * t)
+		var tone := sin(TAU * freq * t) * 0.55 + sin(TAU * freq * 2.0 * t) * 0.25
+		samples[i] = tone * env * 0.5
+	return _make_wav_from_samples(samples, sample_rate)
+
+
+static func create_bus_sync() -> AudioStreamWAV:
+	var sample_rate := 22050
+	var count := int(sample_rate * 0.55)
+	var samples := PackedFloat32Array()
+	samples.resize(count)
+	for i in range(count):
+		var t := float(i) / float(sample_rate)
+		var env := exp(-5.0 * t)
+		var sub := sin(TAU * 65.0 * t) * 0.75 * env
+		var chord := (sin(TAU * 220.0 * t) * 0.35 + sin(TAU * 330.0 * t) * 0.25 + sin(TAU * 440.0 * t) * 0.2) * env
+		samples[i] = clampf((sub + chord) * 0.75, -1.0, 1.0)
+	return _make_wav_from_samples(samples, sample_rate)
+
+
+static func create_latch_release() -> AudioStreamWAV:
+	var sample_rate := 22050
+	var count := int(sample_rate * 0.12)
+	var samples := PackedFloat32Array()
+	samples.resize(count)
+	for i in range(count):
+		var t := float(i) / float(sample_rate)
+		var env := exp(-60.0 * t)
+		var snap := sin(TAU * 750.0 * t) * 0.6 + sin(TAU * 1850.0 * t) * 0.4
+		samples[i] = snap * env * 0.55
+	return _make_wav_from_samples(samples, sample_rate)
+
+
+static func create_cartridge_seat() -> AudioStreamWAV:
+	var sample_rate := 22050
+	var count := int(sample_rate * 0.22)
+	var samples := PackedFloat32Array()
+	samples.resize(count)
+	for i in range(count):
+		var t := float(i) / float(sample_rate)
+		var slide := sin(TAU * 260.0 * t) * exp(-20.0 * t) * 0.35
+		var chunk := 0.0
+		if t > 0.06:
+			var tc := t - 0.06
+			chunk = (sin(TAU * 85.0 * tc) * 0.75 + sin(TAU * 420.0 * tc) * 0.35) * exp(-28.0 * tc)
+		samples[i] = (slide + chunk) * 0.65
+	return _make_wav_from_samples(samples, sample_rate)
+
+
+static func create_heartbeat() -> AudioStreamWAV:
+	var sample_rate := 22050
+	var count := int(sample_rate * 0.45)
+	var samples := PackedFloat32Array()
+	samples.resize(count)
+	for i in range(count):
+		var t := float(i) / float(sample_rate)
+		var beat1 := sin(TAU * 52.0 * t) * exp(-28.0 * t) * 0.95
+		var beat2 := 0.0
+		if t > 0.14:
+			var t2 := t - 0.14
+			beat2 = sin(TAU * 46.0 * t2) * exp(-24.0 * t2) * 0.85
+		samples[i] = clampf((beat1 + beat2) * 0.85, -1.0, 1.0)
+	return _make_wav_from_samples(samples, sample_rate)
+
+
+static func create_flatline() -> AudioStreamWAV:
+	var sample_rate := 22050
+	var count := int(sample_rate * 2.2)
+	var samples := PackedFloat32Array()
+	samples.resize(count)
+	for i in range(count):
+		var t := float(i) / float(sample_rate)
+		var env := 1.0
+		if t < 0.02:
+			env = t / 0.02
+		elif t > 1.9:
+			env = (2.2 - t) / 0.3
+		var tone := sin(TAU * 920.0 * t) * 0.42 + sin(TAU * 1840.0 * t) * 0.06
+		samples[i] = clampf(tone * env, -1.0, 1.0)
+	return _make_wav_from_samples(samples, sample_rate)
+
+
+static func create_suit_breach() -> AudioStreamWAV:
+	var sample_rate := 22050
+	var count := int(sample_rate * 0.55)
+	var samples := PackedFloat32Array()
+	samples.resize(count)
+	for i in range(count):
+		var t := float(i) / float(sample_rate)
+		var env := exp(-10.0 * t)
+		var beep := sin(TAU * lerpf(1200.0, 600.0, t / 0.55) * t) * 0.4
+		var hiss := (randf() * 2.0 - 1.0) * 0.28
+		samples[i] = clampf((beep + hiss) * env, -1.0, 1.0)
+	return _make_wav_from_samples(samples, sample_rate)
+
+
 # --- GENERAL SFX RETRIEVAL & PLAYBACK ---
 
-static func get_sfx(sfx_name: String) -> AudioStreamWAV:
-	if _sfx_cache.has(sfx_name):
-		return _sfx_cache[sfx_name] as AudioStreamWAV
+static func get_default_bus(sfx_name: String) -> StringName:
+	match sfx_name:
+		"heartbeat", "flatline", "suit_breach":
+			return &"Horror"
+		"tank_crack", "tank_rupture", "villain_emerge", "villain_attack", "villain_hurt", "villain_duct", "tremor_pulse", "echo_mimic_whisper":
+			return &"Horror"
+		"landing_thud":
+			return &"Environment"
+		"terminal_open", "button_click", "button_hover", "switch_toggle", "slider_tick", "access_denied", "task_complete", "radio_squelch", "unlock_chime":
+			return &"UI"
+		"door_close", "door_open", "airlock_cycle", "lift_move", "lift_arrive", "welding_spark", "steam_burst":
+			return &"Environment"
+		_:
+			return &"SFX"
 
+
+static func get_sfx(sfx_name: String) -> AudioStream:
+	if _sfx_cache.has(sfx_name):
+		return _sfx_cache[sfx_name] as AudioStream
+
+	# Check for high-fidelity pre-rendered WAV on disk
+	var wav_path := "res://audio/sfx/" + sfx_name + ".wav"
+	if ResourceLoader.exists(wav_path):
+		var disk_stream := load(wav_path) as AudioStream
+		if disk_stream != null:
+			_sfx_cache[sfx_name] = disk_stream
+			return disk_stream
+
+	# Procedural fallback
 	var stream: AudioStreamWAV = null
 	match sfx_name:
 		"revolver_shot": stream = create_revolver_shot()
@@ -620,11 +832,17 @@ static func get_sfx(sfx_name: String) -> AudioStreamWAV:
 		"footstep": stream = create_footstep(false)
 		"footstep_planet": stream = create_footstep(true)
 		"door_close": stream = create_door_close()
+		"door_open": stream = create_door_open()
 		"access_denied": stream = create_access_denied()
 		"airlock_cycle": stream = create_airlock_cycle()
 		"lift_move": stream = create_lift_move()
 		"lift_arrive": stream = create_lift_arrive()
 		"welding_spark": stream = create_welding_spark()
+		"steam_burst": stream = create_steam_burst()
+		"capacitor_tune": stream = create_capacitor_tune()
+		"bus_sync": stream = create_bus_sync()
+		"latch_release": stream = create_latch_release()
+		"cartridge_seat": stream = create_cartridge_seat()
 		"task_complete": stream = create_task_complete()
 		"tank_crack": stream = create_tank_crack()
 		"tank_rupture": stream = create_tank_rupture()
@@ -640,8 +858,14 @@ static func get_sfx(sfx_name: String) -> AudioStreamWAV:
 		"coolant_flush": stream = create_coolant_flush()
 		"mining_drill": stream = create_mining_drill()
 		"radio_squelch": stream = create_radio_squelch()
+		"tremor_pulse": stream = create_tremor_pulse()
+		"landing_thud": stream = create_landing_thud()
+		"echo_mimic_whisper": stream = create_echo_mimic_whisper()
 		"button_click": stream = create_button_click()
 		"button_hover": stream = create_button_hover()
+		"heartbeat": stream = create_heartbeat()
+		"flatline": stream = create_flatline()
+		"suit_breach": stream = create_suit_breach()
 		_: stream = create_button_click()
 
 	if stream != null:
@@ -649,14 +873,17 @@ static func get_sfx(sfx_name: String) -> AudioStreamWAV:
 	return stream
 
 
-static func play_sfx(sfx_name: String, parent_node: Node = null, volume_db: float = 0.0, bus: StringName = &"Master") -> AudioStreamPlayer:
+static func play_sfx(sfx_name: String, parent_node: Node = null, volume_db: float = 0.0, bus: StringName = &"", pitch_randomness: float = 0.08) -> AudioStreamPlayer:
 	var stream := get_sfx(sfx_name)
 	if stream == null:
 		return null
 	var player := AudioStreamPlayer.new()
 	player.stream = stream
-	player.volume_db = volume_db
-	player.bus = bus
+	player.volume_db = volume_db + randf_range(-0.35, 0.35)
+	if pitch_randomness > 0.001:
+		player.pitch_scale = randf_range(1.0 - pitch_randomness, 1.0 + pitch_randomness)
+	player.bus = bus if (bus != &"" and bus != &"Master") else get_default_bus(sfx_name)
+	
 	var target: Node = parent_node if (is_instance_valid(parent_node) and parent_node.is_inside_tree()) else null
 	if target == null:
 		var main_loop := Engine.get_main_loop()
@@ -672,15 +899,19 @@ static func play_sfx(sfx_name: String, parent_node: Node = null, volume_db: floa
 	return null
 
 
-static func play_sfx_2d(sfx_name: String, global_pos: Vector2, parent_node: Node = null, volume_db: float = 0.0, max_distance: float = 600.0) -> AudioStreamPlayer2D:
+static func play_sfx_2d(sfx_name: String, global_pos: Vector2, parent_node: Node = null, volume_db: float = 0.0, max_distance: float = 650.0, bus: StringName = &"", pitch_randomness: float = 0.08) -> AudioStreamPlayer2D:
 	var stream := get_sfx(sfx_name)
 	if stream == null:
 		return null
 	var player := AudioStreamPlayer2D.new()
 	player.stream = stream
-	player.volume_db = volume_db
+	player.volume_db = volume_db + randf_range(-0.35, 0.35)
+	if pitch_randomness > 0.001:
+		player.pitch_scale = randf_range(1.0 - pitch_randomness, 1.0 + pitch_randomness)
+	player.bus = bus if (bus != &"" and bus != &"Master") else get_default_bus(sfx_name)
 	player.max_distance = max_distance
 	player.global_position = global_pos
+	
 	var target: Node = parent_node if (is_instance_valid(parent_node) and parent_node.is_inside_tree()) else null
 	if target == null:
 		var main_loop := Engine.get_main_loop()
@@ -695,4 +926,5 @@ static func play_sfx_2d(sfx_name: String, global_pos: Vector2, parent_node: Node
 
 
 static func play_footstep(parent_node: Node = null, is_planet: bool = false, volume_db: float = -8.0) -> AudioStreamPlayer:
-	return play_sfx("footstep_planet" if is_planet else "footstep", parent_node, volume_db)
+	var sfx_name := "footstep_planet" if is_planet else "footstep"
+	return play_sfx(sfx_name, parent_node, volume_db, &"SFX", 0.12)

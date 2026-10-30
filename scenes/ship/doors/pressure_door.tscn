@@ -28,3 +28,4 @@ stream = ExtResource("3_open_sfx")
 volume_db = -4.0
 max_distance = 900.0
 attenuation = 1.0
+bus = &"Environment"

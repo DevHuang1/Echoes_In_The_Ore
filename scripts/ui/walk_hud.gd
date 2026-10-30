@@ -7,6 +7,7 @@ signal mission_scenario_requested(context: String)
 
 const SKIN := preload("res://scripts/ui/pixel_ui.gd")
 const PIXEL_THEME := preload("res://themes/ship_pixel_theme.tres")
+const STORY_SAVE := preload("res://scripts/ship/ship_story_save.gd")
 const MAP_CONTENT_VISIBLE := true
 const MAP_FLOOR_TEXTURE := preload("res://art/concepts/Refined pixel-art spacecraft floor.png")
 const MAP_WALL_TEXTURE := preload("res://art/concepts/ship_walls_valkyrie.png")
@@ -832,6 +833,8 @@ var _story_last_unlock_slide: Dictionary = {}
 var _roadmap_view_container: ScrollContainer = null
 var _roadmap_replay_btn: Button = null
 var _tasks_list_scroll: ScrollContainer = null
+var _story_archives_view_container: ScrollContainer = null
+var _story_archives_inner: VBoxContainer = null
 ## Objective pin on the ship map (story mode only)
 var _map_obj_pin: MapPin = null
 var _map_obj_pin_label: Label = null
@@ -850,6 +853,16 @@ var _item_amounts: Dictionary = {}
 const DEV_FLICKER_STYLES: Array[StringName] = [&"erratic", &"strobe", &"brownout", &"pulse"]
 const DEV_FLICKER_SPEEDS: Array[float] = [0.5, 1.0, 1.5, 2.5]
 const CAMPAIGN_META_KEY: StringName = &"echoes_campaign_inventory_state"
+const CHECKPOINT_META_KEY: StringName = &"echoes_last_checkpoint_state"
+
+var _suit_status_label: Label = null
+var _suit_progress_bar: ProgressBar = null
+var _low_health_vignette: ColorRect = null
+var _game_over_overlay: Control = null
+var _game_over_telemetry_label: Label = null
+var _game_over_btn_reload: Button = null
+var _game_over_btn_restart: Button = null
+var _game_over_btn_menu: Button = null
 const ALL_PROGRESSION_ITEMS: Array[StringName] = [
 	&"suit_flashlight",
 	&"engineering_multitool",
@@ -1061,8 +1074,13 @@ func setup(player: ShipPlayer, task_entries: Array[Dictionary], map_world_origin
 			_player.equipment_amount_changed.connect(_on_player_equipment_amount_changed)
 		if not _player.equipment_depleted.is_connected(_on_player_equipment_depleted):
 			_player.equipment_depleted.connect(_on_player_equipment_depleted)
+		if not _player.suit_integrity_changed.is_connected(_on_suit_integrity_changed):
+			_player.suit_integrity_changed.connect(_on_suit_integrity_changed)
+		if not _player.player_died.is_connected(_on_player_died):
+			_player.player_died.connect(_on_player_died)
 		if _player.has_method("sync_equipment_amounts"):
 			_player.sync_equipment_amounts(_item_amounts)
+		_on_suit_integrity_changed(_player.get_suit_integrity(), _player.get_max_suit_integrity())
 	_sync_player_equipped_item()
 	if is_instance_valid(_world_task_marker_layer):
 		for marker in _world_task_markers.values():
@@ -1167,6 +1185,7 @@ func _build_ui() -> void:
 	_build_comms_transmission_panel()
 	_build_context_prompt()
 	_build_hotbar()
+	_build_low_health_vignette()
 	_build_mobile_touch_controls()
 	_create_map_overlay()
 	for entry in _task_entries:
@@ -1175,6 +1194,7 @@ func _build_ui() -> void:
 	_create_inventory_overlay()
 	_create_profile_overlay()
 	_create_settings_overlay()
+	_build_game_over_overlay()
 	_refresh_mission_panel()
 	_refresh_tasks_overlay()
 	_refresh_inventory_cells()
@@ -1619,9 +1639,43 @@ func _build_hotbar() -> void:
 	status_pill.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	status_pill.add_theme_stylebox_override("panel", _panel_style(Color(0.015, 0.035, 0.048, 0.90), EDGE_SOFT, 4.0))
 	_root.add_child(status_pill)
+	var pill_box := HBoxContainer.new()
+	pill_box.name = "StatusPillBox"
+	pill_box.add_theme_constant_override("separation", 10)
+	pill_box.alignment = BoxContainer.ALIGNMENT_CENTER
+	status_pill.add_child(pill_box)
+
+	var suit_sec := HBoxContainer.new()
+	suit_sec.add_theme_constant_override("separation", 6)
+	suit_sec.alignment = BoxContainer.ALIGNMENT_CENTER
+
+	_suit_status_label = _label("SUIT: 100% NOMINAL", 8, GREEN)
+	_suit_status_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	suit_sec.add_child(_suit_status_label)
+
+	_suit_progress_bar = ProgressBar.new()
+	_suit_progress_bar.custom_minimum_size = Vector2(84.0, 7.0)
+	_suit_progress_bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_suit_progress_bar.min_value = 0.0
+	_suit_progress_bar.max_value = 100.0
+	_suit_progress_bar.value = 100.0
+	_suit_progress_bar.show_percentage = false
+	_suit_progress_bar.add_theme_stylebox_override("background", _panel_style(Color(0.015, 0.03, 0.045), Color(0.12, 0.22, 0.28), 2.0))
+	_suit_progress_bar.add_theme_stylebox_override("fill", _panel_style(Color(0.24, 0.95, 0.54), Color(0.24, 0.95, 0.54), 2.0))
+	suit_sec.add_child(_suit_progress_bar)
+	pill_box.add_child(suit_sec)
+
+	var pill_sep := VSeparator.new()
+	pill_sep.add_theme_color_override("separator_color", Color(0.24, 0.42, 0.46, 0.6))
+	pill_box.add_child(pill_sep)
+
 	_equipped_status_label = _label("UNARMED // COMPLETE TASKS TO OBTAIN GEAR", 9, GOLD)
-	_equipped_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	status_pill.add_child(_equipped_status_label)
+	_equipped_status_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_equipped_status_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	pill_box.add_child(_equipped_status_label)
+
+	if is_instance_valid(_player):
+		_on_suit_integrity_changed(_player.get_suit_integrity(), _player.get_max_suit_integrity())
 
 	var bar := HBoxContainer.new()
 	bar.name = "Hotbar"
@@ -2011,7 +2065,7 @@ func _create_tasks_overlay() -> void:
 
 	var filter_bar := HBoxContainer.new()
 	filter_bar.add_theme_constant_override("separation", 6)
-	for filter_def in [["ALL TASKS", &"all"], ["ACTIVE", &"active"], ["COMPLETED", &"completed"], ["ROADMAP", &"roadmap"]]:
+	for filter_def in [["ALL TASKS", &"all"], ["ACTIVE", &"active"], ["COMPLETED", &"completed"], ["ROADMAP", &"roadmap"], ["STORY ARCHIVES", &"story_archives"]]:
 		var f_label: String = filter_def[0]
 		var f_id: StringName = filter_def[1]
 		var f_btn := _flat_filter_button(f_label)
@@ -2062,6 +2116,20 @@ func _create_tasks_overlay() -> void:
 	_roadmap_replay_btn.add_theme_stylebox_override("hover", _panel_style(Color(0.04, 0.12, 0.18, 0.95), GOLD, 3.0))
 	_roadmap_replay_btn.pressed.connect(_on_roadmap_replay_pressed)
 	_roadmap_inner.add_child(_roadmap_replay_btn)
+
+	## Story & Memory Archives view — chronological cutscene replays & collected storyboards
+	_story_archives_view_container = ScrollContainer.new()
+	_story_archives_view_container.name = "StoryArchivesScroll"
+	_story_archives_view_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_story_archives_view_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_story_archives_view_container.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_story_archives_view_container.visible = false
+	left_col.add_child(_story_archives_view_container)
+	_story_archives_inner = VBoxContainer.new()
+	_story_archives_inner.name = "StoryArchivesInner"
+	_story_archives_inner.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_story_archives_inner.add_theme_constant_override("separation", 8)
+	_story_archives_view_container.add_child(_story_archives_inner)
 
 	# --- Vertical Divider ---
 	var divider := VSeparator.new()
@@ -3021,6 +3089,7 @@ func _open_settings() -> void:
 func _open_overlay(overlay_name: StringName) -> void:
 	if not _walking_visible or not _overlay_nodes.has(overlay_name):
 		return
+	DialogueAudioSynth.play_sfx("terminal_open", self, -4.0)
 	for name in _overlay_nodes:
 		_overlay_nodes[name].visible = name == overlay_name
 	var was_closed := _active_overlay == &""
@@ -3041,6 +3110,7 @@ func _open_overlay(overlay_name: StringName) -> void:
 func _close_overlay() -> void:
 	if _active_overlay == &"":
 		return
+	DialogueAudioSynth.play_sfx("switch_toggle", self, -5.0)
 	for overlay in _overlay_nodes.values():
 		overlay.visible = false
 	_active_overlay = &""
@@ -3929,23 +3999,53 @@ func _on_dev_play_station_cutscene(station_id: StringName) -> void:
 	if not is_inside_tree():
 		return
 	var tree := get_tree()
-	var cur_scene := tree.current_scene
+	var cur_scene: Node = tree.current_scene if tree != null else null
+	if cur_scene == null:
+		cur_scene = get_parent()
+	var cutscene_data: Dictionary = {}
+	if cur_scene != null and cur_scene.has_method("_build_cutscene_data"):
+		cutscene_data = cur_scene.call(&"_build_cutscene_data", station_id)
+	elif cur_scene != null and cur_scene.has_method("_build_subdeck_cutscene"):
+		cutscene_data = cur_scene.call(&"_build_subdeck_cutscene", station_id)
+	
+	if cutscene_data.is_empty():
+		var ship_script := load("res://scripts/ship/bare_ship_walkthrough.gd") as Script
+		if ship_script != null:
+			var dummy = ship_script.new()
+			if dummy.has_method("_build_cutscene_data"):
+				cutscene_data = dummy.call(&"_build_cutscene_data", station_id)
+			dummy.free()
+	if cutscene_data.is_empty():
+		var subdeck_script := load("res://scripts/ship/second_floor_subdeck.gd") as Script
+		if subdeck_script != null:
+			var dummy_sub = subdeck_script.new()
+			if dummy_sub.has_method("_build_subdeck_cutscene"):
+				cutscene_data = dummy_sub.call(&"_build_subdeck_cutscene", station_id)
+			dummy_sub.free()
+
+	if not cutscene_data.is_empty():
+		var overlay_script := load("res://scripts/ui/story_cutscene_overlay.gd") as Script
+		if overlay_script != null:
+			var overlay: CanvasLayer = overlay_script.new() as CanvasLayer
+			set_walking_visible(false)
+			if cur_scene != null:
+				cur_scene.set("_cutscene_open", true)
+			overlay.connect(&"cutscene_finished", func(_c_id, _ch_id):
+				set_walking_visible(true)
+				if is_instance_valid(cur_scene):
+					cur_scene.set("_cutscene_open", false)
+					if cur_scene.has_method("_update_player_walk_state"):
+						cur_scene.call("_update_player_walk_state")
+					if cur_scene.has_method("_restore_camera_from_prop"):
+						cur_scene.call("_restore_camera_from_prop")
+				overlay.queue_free()
+			)
+			tree.root.add_child(overlay)
+			overlay.call(&"play_cutscene", station_id, cutscene_data)
+			return
+
 	if cur_scene != null and cur_scene.has_method("_trigger_story_station"):
 		cur_scene.call(&"_trigger_story_station", station_id)
-		return
-	if cur_scene != null and cur_scene.has_method("_build_cutscene_data"):
-		var cutscene_data: Dictionary = cur_scene.call(&"_build_cutscene_data", station_id)
-		if not cutscene_data.is_empty():
-			var overlay_script := load("res://scripts/ui/story_cutscene_overlay.gd") as Script
-			if overlay_script != null:
-				var overlay: CanvasLayer = overlay_script.new() as CanvasLayer
-				set_walking_visible(false)
-				overlay.connect(&"cutscene_finished", func(_c_id, _ch_id):
-					set_walking_visible(true)
-					overlay.queue_free()
-				)
-				tree.root.add_child(overlay)
-				overlay.call(&"play_cutscene", station_id, cutscene_data)
 
 
 func _on_dev_play_prologue_montage() -> void:
@@ -3965,8 +4065,11 @@ func _on_dev_play_thadingyut_cutscene() -> void:
 	var tree := get_tree()
 	var cutscene_res := load("res://scenes/ui/thadingyut_memory_cutscene.tscn") as PackedScene
 	if cutscene_res != null:
-		var cutscene := cutscene_res.instantiate() as Control
-		tree.root.add_child(cutscene)
+		var cutscene := cutscene_res.instantiate() as CanvasLayer
+		if cutscene != null:
+			set_walking_visible(false)
+			cutscene.connect(&"finished", func(): set_walking_visible(true))
+			tree.root.add_child(cutscene)
 
 
 func _on_dev_play_arrival_briefing() -> void:
@@ -4862,14 +4965,20 @@ func _refresh_tasks_overlay() -> void:
 		var f_border: Color = GOLD if is_active else Color(0.18, 0.28, 0.34, 0.45)
 		btn.add_theme_stylebox_override("normal", _flat_box(f_bg, f_border, 10.0, 4.0, 1))
 
-	## Switch between task list and roadmap view.
+	## Switch between task list, roadmap view, and story archives view.
 	var is_roadmap_tab: bool = (_tasks_filter_tab == &"roadmap")
+	var is_archives_tab: bool = (_tasks_filter_tab == &"story_archives")
 	if is_instance_valid(_roadmap_view_container):
 		_roadmap_view_container.visible = is_roadmap_tab
+	if is_instance_valid(_story_archives_view_container):
+		_story_archives_view_container.visible = is_archives_tab
 	if is_instance_valid(_tasks_list_scroll):
-		_tasks_list_scroll.visible = not is_roadmap_tab
+		_tasks_list_scroll.visible = not is_roadmap_tab and not is_archives_tab
 	if is_roadmap_tab:
 		_refresh_roadmap(_story_completed_count)
+		return
+	if is_archives_tab:
+		_refresh_story_archives()
 		return
 
 	# 2. Populate Tasks List
@@ -5105,7 +5214,7 @@ func _select_hotbar(index: int, allow_toggle_unequip: bool = false) -> void:
 	if allow_toggle_unequip and _selected_hotbar_index == index and _equipment_items.get(&"tool", &"") != &"":
 		_unequip_active_tool()
 		return
-	DialogueAudioSynth.play_sfx("button_click", self, -7.0)
+	DialogueAudioSynth.play_sfx("item_equip", self, -5.0)
 	_selected_hotbar_index = index
 	var selected_item: StringName = _hotbar_items[index]
 	if selected_item != &"" and ITEM_DATA.has(selected_item):
@@ -5733,17 +5842,39 @@ func _refresh_roadmap(completed: int) -> void:
 func _on_roadmap_replay_pressed() -> void:
 	if _story_last_unlock_slide.is_empty():
 		return
+	var cur_scene: Node = get_tree().current_scene if (is_inside_tree() and get_tree().current_scene != null) else get_parent()
+	set_walking_visible(false)
+	if is_instance_valid(cur_scene):
+		cur_scene.set("_cutscene_open", true)
+		if cur_scene.has_method("_update_player_walk_state"):
+			cur_scene.call("_update_player_walk_state")
+
 	## Re-display the last unlock briefing via StoryCutsceneOverlay.
-	var overlay := get_node_or_null("RoadmapCutsceneOverlay")
+	var overlay := get_node_or_null("RoadmapCutsceneOverlay") as CanvasLayer
 	if overlay == null:
-		var OverlayScript := load("res://scripts/ui/story_cutscene_overlay.gd")
+		var OverlayScript := load("res://scripts/ui/story_cutscene_overlay.gd") as Script
 		if OverlayScript == null:
 			return
-		overlay = OverlayScript.new()
+		overlay = OverlayScript.new() as CanvasLayer
 		overlay.name = "RoadmapCutsceneOverlay"
 		add_child(overlay)
 		if not overlay.is_node_ready():
 			overlay._ready()
+
+	var on_finish := func(_c_id: StringName, _ch_id: StringName):
+		set_walking_visible(true)
+		if is_instance_valid(cur_scene):
+			cur_scene.set("_cutscene_open", false)
+			if cur_scene.has_method("_update_player_walk_state"):
+				cur_scene.call("_update_player_walk_state")
+			if cur_scene.has_method("_restore_camera_from_prop"):
+				cur_scene.call("_restore_camera_from_prop")
+
+	if overlay.has_signal(&"cutscene_finished"):
+		for conn in overlay.get_signal_connection_list(&"cutscene_finished"):
+			overlay.disconnect(&"cutscene_finished", conn.callable)
+		overlay.connect(&"cutscene_finished", on_finish, CONNECT_ONE_SHOT)
+
 	if overlay.has_method("play_cutscene"):
 		overlay.call("play_cutscene", &"roadmap.replay", _story_last_unlock_slide)
 
@@ -5822,3 +5953,696 @@ func _dim_map_non_objective_rooms(active_key: String) -> void:
 	_map_floor_layer.modulate = Color(1.0, 1.0, 1.0, dim_alpha)
 	if is_instance_valid(_map_wall_layer):
 		_map_wall_layer.modulate = Color(1.0, 1.0, 1.0, dim_alpha)
+
+
+## ─────────────────────────────────────────────────────────────────────────────
+## STORY & MEMORY ARCHIVES — Cutscene Replays, Storyboard Artwork & Lore
+## ─────────────────────────────────────────────────────────────────────────────
+
+const STORY_ARCHIVES_CATALOG: Array[Dictionary] = [
+	{
+		"id": &"cabin_may_recording",
+		"act": "PROLOGUE & ACT I — THE LONG APPROACH",
+		"title": "The Paper Star & May's Transmission",
+		"image": "res://art/storyboards/thura_earth/08_may_gives_paper_star.png",
+		"lore": "Thura's physics-teacher mother on the rainy Yangon rooftop during the blackout: 'They learn what their fear is trying to tell them.' Sister May folds him a paper star from their mother's lesson book before departure.",
+		"speaker": "MAY MIN & YOUNG THURA",
+		"unlocked_by": &"always",
+	},
+	{
+		"id": &"bridge_flight_piloting",
+		"act": "ACT I — THE LONG APPROACH",
+		"title": "Through the Shearwater Debris Belt",
+		"image": "res://art/storyboards/thura_earth/07_astronaut_selected.png",
+		"lore": "Asteria-1 breaches the basalt debris belt of Erebos. Thura takes auxiliary retro-steering at the Bridge Flight Helm to evade incoming high-velocity rock fragments.",
+		"speaker": "PILOT ELIAS WARD",
+		"unlocked_by": &"bridge_flight_piloting",
+	},
+	{
+		"id": &"drone_vibration_scan",
+		"act": "ACT I — THE LONG APPROACH",
+		"title": "Four Pulses, Seven Seconds",
+		"image": "res://art/storyboards/thura_earth/02_radio_with_father.png",
+		"lore": "Thura calibrates the autonomous mining drone's acoustic array, remembering his father's radio tuning bench in Yangon. A rhythmic signal echoes up from Erebos: 4 pulses, 7 seconds of silence.",
+		"speaker": "TELEMETRY & MATEO RUIZ",
+		"unlocked_by": &"drone_vibration_scan",
+	},
+	{
+		"id": &"landing_prep_beacons",
+		"act": "ACT I — THE LONG APPROACH",
+		"title": "Preparing for Site K-12 Surface Survey",
+		"image": "res://art/planet/erebos_extraction_surface_v2.png",
+		"lore": "Pre-descent engineering and science tasks complete. Ward issues surface beacons, recording bad jokes for his daughter back in Houston.",
+		"speaker": "PILOT ELIAS WARD",
+		"unlocked_by": &"landing_prep_beacons",
+	},
+	{
+		"id": &"erebos_landing_descent",
+		"act": "ACT I — THE DESCENT",
+		"title": "Atmospheric Insertion & Retro-Burn",
+		"image": "res://art/planet/erebos_extraction_surface_v2.png",
+		"lore": "Commander Chen fires main retro-thrusters as Asteria-1 enters the upper gravity well of Erebos, steering through gravitational turbulence and basalt dust plumes.",
+		"speaker": "COMMANDER MAYA CHEN",
+		"unlocked_by": &"erebos_landing_descent",
+	},
+	{
+		"id": &"erebos_touchdown_confirmed",
+		"act": "ACT II — TOUCHDOWN // SITE K-12",
+		"title": "Touchdown on Resonant Bedrock",
+		"image": "res://art/planet/erebos_extraction_surface_v2.png",
+		"lore": "THUD! Asteria-1's hydraulic landing struts bite into the basalt bedrock of Erebos. Commander Chen depressurizes the exterior airlock for EVA extraction operations.",
+		"speaker": "COMMANDER MAYA CHEN",
+		"unlocked_by": &"erebos_landing_descent",
+	},
+	{
+		"id": &"cargo_breach_inspection",
+		"act": "ACT III & IV — FIRST BLOOD",
+		"title": "The Sample Container is Empty",
+		"image": "res://art/concepts/lab_props/destroyed/ore_containment_redesigned.png",
+		"lore": "Returned from Erebos, the black drill core container sits completely empty with melted cable ducts. Deck lights fail across Asteria-1 as Dr. Okoye's voice whispers across the empty corridors.",
+		"speaker": "THE ECHO (OKOYE'S VOICE)",
+		"unlocked_by": &"cargo_breach_inspection",
+	},
+	{
+		"id": &"subdeck_shadow_nest_check",
+		"act": "ACT IV — SUB-DECK 02",
+		"title": "Shadow Containment Nest & Traits",
+		"image": "res://art/overview/subdeck_02_walkable_mask.png",
+		"lore": "In the breached shadow vault of Sub-Deck 02, black mineral tendrils fuse with the bulkheads. Thura discovers the Echo mimics human voices to lure crew away from safety.",
+		"speaker": "DR. THURA MIN",
+		"unlocked_by": &"subdeck_shadow_nest_check",
+	},
+	{
+		"id": &"commanders_secret_bridge",
+		"act": "ACT IV — BRIDGE STANDOFF",
+		"title": "The Tragic Surrender & Quarantine",
+		"image": "res://art/concepts/bridge_room_props/Pixel-art mission planning table sprite sheet.png",
+		"lore": "Commander Chen fights off the psychological acoustic assault of the Echo before sealing the decontamination lock, handing Thura his service revolver as his final captain's order.",
+		"speaker": "COMMANDER MAYA CHEN",
+		"unlocked_by": &"commanders_secret_bridge",
+	},
+	{
+		"id": &"act_v_finale_home",
+		"act": "ACT V — EARTH APPROACH",
+		"title": "Mother's Echo & The Final Trajectory",
+		"image": "res://art/storyboards/thura_earth/01_yangon_rooftop.png",
+		"lore": "At the master airlock, the Echo mimics the voice of Thura's physics-teacher mother from Yangon: 'Do astronauts ever get afraid?' Holding May's paper star, Thura executes the final trajectory choice.",
+		"speaker": "THE ECHO (MOTHER'S VOICE)",
+		"unlocked_by": &"act_v_finale_home",
+	},
+	{
+		"id": &"thadingyut_memory",
+		"act": "YANGON MEMORY ARCHIVES",
+		"title": "Thadingyut Festival of Lights",
+		"image": "res://art/storyboards/thura_earth/09_thadingyut_star_memory.png",
+		"lore": "A glowing childhood memory during the Festival of Lights in Yangon, watching candles and sparklers shine into the dark sky with his mother.",
+		"speaker": "THURA & MOTHER",
+		"unlocked_by": &"always",
+	},
+]
+
+
+func _is_story_archive_unlocked(entry: Dictionary) -> bool:
+	var unlocked_by: StringName = entry.get("unlocked_by", &"")
+	if unlocked_by == &"always":
+		return true
+	var eid: StringName = entry.get("id", &"")
+	if _task_completed.get(eid, false) or _task_completed.get(unlocked_by, false):
+		return true
+	if Engine.has_meta(&"ship_landed_on_erebos") and bool(Engine.get_meta(&"ship_landed_on_erebos")):
+		if eid in [&"erebos_landing_descent", &"erebos_touchdown_confirmed", &"landing_prep_beacons", &"bridge_flight_piloting", &"drone_vibration_scan"]:
+			return true
+	if Engine.has_meta(&"echo_outbreak_active") or Engine.has_meta(&"returning_from_planet"):
+		if eid in [&"cargo_breach_inspection", &"erebos_landing_descent", &"erebos_touchdown_confirmed", &"landing_prep_beacons", &"bridge_flight_piloting", &"drone_vibration_scan"]:
+			return true
+	return false
+
+
+func _refresh_story_archives() -> void:
+	if not is_instance_valid(_story_archives_inner):
+		return
+	for ch in _story_archives_inner.get_children():
+		_story_archives_inner.remove_child(ch)
+		ch.queue_free()
+
+	var header_box := VBoxContainer.new()
+	header_box.add_theme_constant_override("separation", 2)
+	var title_lbl := _label("CHRONOLOGICAL STORY & MEMORY ARCHIVES", 11, GOLD)
+	title_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	header_box.add_child(title_lbl)
+
+	var sub_lbl := _label("Replay unlocked story cutscenes, view collected Yangon memory storyboards, and read deep space logs.", 9, MUTED)
+	sub_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	sub_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	header_box.add_child(sub_lbl)
+	_story_archives_inner.add_child(header_box)
+	_story_archives_inner.add_child(HSeparator.new())
+
+	for entry in STORY_ARCHIVES_CATALOG:
+		var is_unlocked: bool = _is_story_archive_unlocked(entry)
+		var card := PanelContainer.new()
+		var bg_col := Color(0.016, 0.035, 0.052, 0.94) if is_unlocked else Color(0.010, 0.018, 0.026, 0.65)
+		var bd_col := Color(0.35, 0.82, 0.98, 0.65) if is_unlocked else Color(0.18, 0.28, 0.35, 0.35)
+		card.add_theme_stylebox_override("panel", _flat_box(bg_col, bd_col, 12.0, 8.0, 1))
+
+		var hbox := HBoxContainer.new()
+		hbox.add_theme_constant_override("separation", 12)
+		card.add_child(hbox)
+
+		# Thumbnail image
+		var img_path: String = str(entry.get("image", ""))
+		if not img_path.is_empty() and ResourceLoader.exists(img_path):
+			var thumb := TextureRect.new()
+			thumb.custom_minimum_size = Vector2(96.0, 64.0)
+			thumb.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			thumb.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+			thumb.texture = load(img_path) as Texture2D
+			thumb.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+			thumb.modulate = Color.WHITE if is_unlocked else Color(0.4, 0.45, 0.5, 0.5)
+			var thumb_frame := PanelContainer.new()
+			thumb_frame.add_theme_stylebox_override("panel", _flat_box(Color.BLACK, Color(0.3, 0.45, 0.55, 0.6), 2.0, 2.0, 1))
+			thumb_frame.add_child(thumb)
+			hbox.add_child(thumb_frame)
+
+		# Middle content
+		var vbox := VBoxContainer.new()
+		vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		vbox.add_theme_constant_override("separation", 3)
+		hbox.add_child(vbox)
+
+		var top_row := HBoxContainer.new()
+		top_row.add_theme_constant_override("separation", 8)
+		top_row.add_child(_label(str(entry.get("act", "")), 9, GOLD if is_unlocked else MUTED))
+		top_row.add_spacer(false)
+		top_row.add_child(_label(str(entry.get("speaker", "")), 9, CYAN if is_unlocked else MUTED))
+		vbox.add_child(top_row)
+
+		var entry_title := _label(str(entry.get("title", "")), 11, PALE if is_unlocked else MUTED)
+		vbox.add_child(entry_title)
+
+		var lore_lbl := _label(str(entry.get("lore", "")), 9, Color(0.72, 0.82, 0.88) if is_unlocked else Color(0.45, 0.52, 0.58))
+		lore_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		vbox.add_child(lore_lbl)
+
+		# Right action column
+		var right_box := VBoxContainer.new()
+		right_box.alignment = BoxContainer.ALIGNMENT_CENTER
+		hbox.add_child(right_box)
+
+		if is_unlocked:
+			var replay_btn := Button.new()
+			replay_btn.text = "[ ▶ REPLAY ]"
+			replay_btn.custom_minimum_size = Vector2(100.0, 36.0)
+			replay_btn.add_theme_font_size_override("font_size", 9)
+			replay_btn.add_theme_color_override("font_color", CYAN)
+			replay_btn.add_theme_stylebox_override("normal", _panel_style(Color(0.02, 0.08, 0.12, 0.9), CYAN, 3.0))
+			replay_btn.add_theme_stylebox_override("hover", _panel_style(Color(0.04, 0.14, 0.22, 0.95), GOLD, 3.0))
+			var eid: StringName = StringName(entry.get("id", &""))
+			replay_btn.pressed.connect(func(): _replay_story_archive(eid))
+			right_box.add_child(replay_btn)
+		else:
+			var locked_lbl := _label("[ 🔒 LOCKED ]", 9, MUTED)
+			right_box.add_child(locked_lbl)
+
+		_story_archives_inner.add_child(card)
+
+
+func _replay_story_archive(archive_id: StringName) -> void:
+	_close_overlay()
+
+	var cutscene_data: Dictionary = _get_archive_cutscene_data(archive_id)
+	if cutscene_data.is_empty():
+		return
+
+	var cur_scene: Node = get_tree().current_scene if (is_inside_tree() and get_tree().current_scene != null) else get_parent()
+	set_walking_visible(false)
+	if is_instance_valid(cur_scene):
+		cur_scene.set("_cutscene_open", true)
+		if cur_scene.has_method("_update_player_walk_state"):
+			cur_scene.call("_update_player_walk_state")
+
+	var overlay := get_node_or_null("RoadmapCutsceneOverlay") as CanvasLayer
+	if overlay == null:
+		var OverlayScript := load("res://scripts/ui/story_cutscene_overlay.gd") as Script
+		if OverlayScript == null:
+			return
+		overlay = OverlayScript.new() as CanvasLayer
+		overlay.name = "RoadmapCutsceneOverlay"
+		add_child(overlay)
+		if not overlay.is_node_ready():
+			overlay._ready()
+
+	var on_finish := func(_c_id: StringName, _ch_id: StringName):
+		set_walking_visible(true)
+		if is_instance_valid(cur_scene):
+			cur_scene.set("_cutscene_open", false)
+			if cur_scene.has_method("_update_player_walk_state"):
+				cur_scene.call("_update_player_walk_state")
+			if cur_scene.has_method("_restore_camera_from_prop"):
+				cur_scene.call("_restore_camera_from_prop")
+
+	if overlay.has_signal(&"cutscene_finished"):
+		for conn in overlay.get_signal_connection_list(&"cutscene_finished"):
+			overlay.disconnect(&"cutscene_finished", conn.callable)
+		overlay.connect(&"cutscene_finished", on_finish, CONNECT_ONE_SHOT)
+
+	if overlay.has_method("play_cutscene"):
+		overlay.call("play_cutscene", archive_id, cutscene_data)
+
+
+func _get_archive_cutscene_data(archive_id: StringName) -> Dictionary:
+	match archive_id:
+		&"cabin_may_recording":
+			return {
+				"act": "PROLOGUE & ACT I — THE LONG APPROACH",
+				"clock": "ASTERIA-1 // DAY 184 // HABITATION RING",
+				"title": "THE PAPER STAR & MAY'S TRANSMISSION",
+				"echo_pulse": false,
+				"slides": [
+					{
+						"speaker": "MEMORY // THE SKY ABOVE YANGON",
+						"image": "res://art/storyboards/thura_earth/01_yangon_rooftop.png",
+						"text": "Rain falls against a window in Yangon. The electricity has gone out. Young Thura climbs onto the roof with his mother, a physics teacher.\n\nYOUNG THURA: \"Do astronauts ever get afraid?\"\nMOTHER: \"Of course.\"\nYOUNG THURA: \"Then how do they go?\"\nMOTHER: \"They learn what their fear is trying to tell them.\"",
+					},
+					{
+						"speaker": "MAY MIN // DELAYED EARTH RECORDING",
+						"image": "res://art/storyboards/thura_earth/08_may_gives_paper_star.png",
+						"text": "Attached to Thura's sleeping compartment is the paper star May folded from one of their mother's old physics lesson books.\n\nMAY'S RECORDING: \"Ko Thura, everyone here keeps asking when you will bring back an alien. Please bring a friendly one. Also, Ma would say you look too thin.\"",
+					},
+					{
+						"speaker": "PILOT ELIAS WARD // BRIDGE INTERCOM",
+						"text": "ELIAS WARD (INTERCOM): \"Thura, glad you're up! Report to the Bridge Flight Helm in R01 — Autopilot is guiding us into the Erebos debris belt and Commander Chen wants you on the auxiliary flight controls before we issue your EVA Suit Flashlight.\"",
+					},
+				],
+			}
+		&"bridge_flight_piloting":
+			return {
+				"act": "ACT I — THE LONG APPROACH // HELM CLEARANCE",
+				"clock": "ASTERIA-1 // DAY 184 // BRIDGE FLIGHT DECK",
+				"title": "THROUGH THE SHEARWATER DEBRIS BELT",
+				"echo_pulse": false,
+				"slides": [
+					{
+						"speaker": "ELIAS WARD // PILOT & NAVIGATION OFFICER",
+						"image": "res://art/storyboards/thura_earth/07_astronaut_selected.png",
+						"text": "ELIAS WARD: \"Nice hands on the thrusters, Thura! Those Erebos shearwater fragments came in hot, and the autopilot's optical sensors didn't even flag them until we were right on top of the swarm.\"\n\nCOMMANDER MAYA CHEN: \"Stay alert. Autopilot will hold our orbital approach, but if another debris wave crosses our vector, we'll need manual evasion again. Report to Power Maintenance and Life Support next.\"",
+					},
+				],
+			}
+		&"drone_vibration_scan":
+			return {
+				"act": "ACT I — THE LONG APPROACH",
+				"clock": "ASTERIA-1 // DAY 184 // DRONE MAINTENANCE BAY",
+				"title": "FOUR PULSES, SEVEN SECONDS",
+				"echo_pulse": true,
+				"slides": [
+					{
+						"speaker": "NARRATION // DRONE TELEMETRY BENCH",
+						"image": "res://art/storyboards/thura_earth/02_radio_with_father.png",
+						"text": "In Yangon, Thura's father repaired generators and radios, teaching him to diagnose machines by listening to their sounds. As Thura calibrates the autonomous mining drone's acoustic array, a repeating vibration echoes up from Erebos below.",
+					},
+					{
+						"speaker": "ACOUSTIC TELEMETRY // EREBOS ORBITAL FEED",
+						"text": "4 PULSES  ...  7-SECOND PAUSE  ...  4 PULSES  ...  7-SECOND PAUSE.\n\nMATEO RUIZ (MINING SPECIALIST): \"It is a rock, Thura. Rocks make noise. The commercial sponsors didn't fund Asteria-1 so we could panic over echoes.\"\n\nDR. THURA MIN: \"Not usually with timing.\"",
+					},
+				],
+			}
+		&"landing_prep_beacons":
+			return {
+				"act": "ACT I — THE LONG APPROACH",
+				"clock": "ASTERIA-1 // DAY 184 // SHUTTLE BAY",
+				"title": "PREPARING FOR SITE K-12",
+				"echo_pulse": false,
+				"slides": [
+					{
+						"speaker": "ELIAS WARD // PILOT & NAVIGATION OFFICER",
+						"text": "ELIAS WARD: \"All pre-descent engineering and science tasks are green. Here's your Survey Beacon kit, Thura. I just recorded three terrible knock-knock jokes for my daughter back in Houston, so make sure we come back from this rock.\"\n\nCOMMANDER MAYA CHEN (INTERCOM): \"Pre-descent checklist verified. Thura, report to the Bridge Flight Helm to take manual retro-control and initiate our orbital landing descent to Site K-12!\"",
+					},
+				],
+			}
+		&"erebos_landing_descent":
+			return {
+				"act": "ACT I — THE DESCENT // ORBITAL INSERTION",
+				"clock": "ASTERIA-1 // DAY 184 // EREBOS EXOSPHERE",
+				"title": "ATMOSPHERIC INSERTION & RETRO-BURN",
+				"echo_pulse": false,
+				"slides": [
+					{
+						"speaker": "COMMANDER MAYA CHEN // SHIPWIDE DESCENT ALERT",
+						"image": "res://art/planet/erebos_extraction_surface_v2.png",
+						"text": "COMMANDER MAYA CHEN: \"All hands, this is Commander Chen. De-orbit burn sequence initiated. Main retro-thrusters firing in 3... 2... 1.\n\nAsteria-1 has breached the upper gravity well of Erebos. Thura, manual retro-steering is yours at the Bridge Helm — guide our descent corridor toward Site K-12!\"",
+					},
+				],
+			}
+		&"erebos_touchdown_confirmed":
+			return {
+				"act": "ACT II — TOUCHDOWN // SITE K-12",
+				"clock": "EREBOS BASALT CRATER // SITE K-12 // 0.84G SURFACE",
+				"title": "TOUCHDOWN CONFIRMED ON BEDROCK",
+				"echo_pulse": true,
+				"slides": [
+					{
+						"speaker": "DESCENT TELEMETRY // SITE K-12 BEDROCK",
+						"image": "res://art/planet/erebos_extraction_surface_v2.png",
+						"text": "THUD! The massive hydraulic landing struts of Asteria-1 bite into the resonant basalt bedrock of Erebos.\n\nShock absorbers hiss as planetary equalization cycles engage. Through the bridge viewports, the jagged black horizon of Erebos stretches out under a rust-colored twilight sky.",
+					},
+					{
+						"speaker": "COMMANDER MAYA CHEN // SHIPWIDE INTERCOM",
+						"text": "COMMANDER MAYA CHEN: \"Touchdown confirmed! Asteria-1 is safely down on Site K-12.\n\nAtmospheric pressure: 1.02 atm. Gravity: 0.84G. Exterior Airlock is now unlocked for surface operations. Dr. Min, don your EVA gear and begin extraction survey.\"",
+					},
+				],
+			}
+		&"cargo_breach_inspection":
+			return {
+				"act": "ACT III & IV — THE RETURN & FIRST BLOOD",
+				"clock": "ASTERIA-1 // RETURN TRAJECTORY // CARGO HOLD",
+				"title": "THE SAMPLE CONTAINER IS EMPTY",
+				"echo_pulse": true,
+				"slides": [
+					{
+						"speaker": "ACT III // THE RETURN FROM EREBOS",
+						"image": "res://art/concepts/lab_props/destroyed/ore_containment_redesigned.png",
+						"text": "Ruiz and Dr. Okoye are officially recorded as missing. Before emergency evacuation from Site K-12, the automated rig sealed its final black drill core inside a reinforced container. It did not accidentally enter the container — it allowed itself to be collected.",
+					},
+					{
+						"speaker": "LEILA HADDAD & DR. THURA MIN // CARGO BAY",
+						"text": "The sample container had been gaining mass. Now, inside the cargo bay, the reinforced container sits completely empty. There is no broken lock — only a narrow opening melted into the ship's cable ducts.\n\nSuddenly, the deck lights fail. Across multiple speakers simultaneously, Dr. Okoye's voice whispers:\nOKOYE'S VOICE: \"Thura, I found him.\"",
+					},
+					{
+						"speaker": "ACT IV — CHAPTER 1: FIRST BLOOD",
+						"text": "The colony of mineral organisms has absorbed recorded sounds and electrical patterns from the crew's equipment. The crew names it THE ECHO.\n\nMinutes later, Elias Ward investigates a false distress call in the medical bay using Okoye's voice. Thura watches the video feed freeze for exactly seven seconds. When it returns, Ward is gone — and his voice begins calling from Sub-Deck 02.",
+					},
+				],
+			}
+		&"subdeck_shadow_nest_check":
+			return {
+				"act": "ACT IV — THE ECHO'S TRAITS",
+				"clock": "ASTERIA-1 // SUB-DECK 02 // SHADOW VAULT",
+				"title": "DORMANT FOR THOUSANDS OF YEARS",
+				"echo_pulse": true,
+				"slides": [
+					{
+						"speaker": "DR. THURA MIN // CONTAINMENT ANALYSIS",
+						"image": "res://art/overview/subdeck_02_walkable_mask.png",
+						"text": "Inside the breached shadow vault, black mineral ribs have fused into the bulkhead. Thura's analysis is complete: the Echo cannot survive prolonged atmospheric re-entry temperatures. If lured into the mining module and detached at a steep entry angle, the heat of Earth's atmosphere will destroy it completely.",
+					},
+				],
+			}
+		&"commanders_secret_bridge":
+			return {
+				"act": "ACT IV — CHAPTER 4: THE TRAGIC SURRENDER",
+				"clock": "ASTERIA-1 // BRIDGE COMMAND DECK",
+				"title": "THE TRAGIC SURRENDER",
+				"echo_pulse": true,
+				"slides": [
+					{
+						"speaker": "COMMANDER MAYA CHEN // BRIDGE",
+						"image": "res://art/concepts/bridge_room_props/Pixel-art mission planning table sprite sheet.png",
+						"text": "CHEN: \"Thura... do you hear them? Ward... Ruiz... even May from the Yangon archives. They're not speaking over the radio. They're echoing inside my own skull.\"\n\nCHEN: \"The ore... it doesn't just mimic sound. It copies memory. It's rewriting what I remember... every voice I ever loved. Two people were already gone. I thought bringing back the sample might tell us why, but I only gave it transportation.\"",
+					},
+					{
+						"speaker": "COMMANDER MAYA CHEN // THE FINAL ORDER",
+						"text": "Chen reverses the grip on his service revolver and presses the cold steel into Thura's palm.\n\nCHEN: \"Take it. It's the only kinetic firearm on Asteria-1. Don't let that thing reach Earth. If you have to burn the core... burn it. That is my final command as captain.\"",
+					},
+				],
+			}
+		&"act_v_finale_home":
+			return {
+				"act": "ACT V — HOME // FINAL DECISION",
+				"clock": "ASTERIA-1 // EARTH APPROACH VECTOR",
+				"title": "SOME DISCOVERIES ARE WORTH LEAVING BEHIND",
+				"echo_pulse": true,
+				"slides": [
+					{
+						"speaker": "THE ECHO (MOTHER'S VOICE) // FINAL AIRLOCK",
+						"image": "res://art/storyboards/thura_earth/01_yangon_rooftop.png",
+						"text": "As Thura reaches the airlock to lure the Echo into the mining module for uncontrolled atmospheric burn-up, the speaker crackles with the voice of his mother from Yangon:\n\nMOTHER'S VOICE: \"Do astronauts ever get afraid?\"\nThura stops. The creature continues:\nMOTHER'S VOICE: \"Then how do they go?\"",
+					},
+					{
+						"speaker": "DR. THURA MIN // THE PAPER STAR",
+						"image": "res://art/storyboards/thura_earth/08_may_gives_paper_star.png",
+						"text": "Thura removes the folded paper star from his suit and looks at it.\n\nTHURA: \"You heard the words.\"\nHe reaches for the master airlock and navigation core controls.\nTHURA: \"But you never understood them.\"",
+					},
+				],
+			}
+		&"thadingyut_memory":
+			return {
+				"act": "YANGON MEMORY ARCHIVES",
+				"clock": "YANGON, MYANMAR // MEMORY ARCHIVE",
+				"title": "THADINGYUT FESTIVAL OF LIGHTS",
+				"echo_pulse": false,
+				"slides": [
+					{
+						"speaker": "THURA // CHILDHOOD MEMORY",
+						"image": "res://art/storyboards/thura_earth/09_thadingyut_star_memory.png",
+						"text": "During Thadingyut, the Festival of Lights, candles and sparklers glow in every window along the streets of Yangon.",
+					},
+					{
+						"speaker": "MOTHER // PHYSICS LESSON",
+						"image": "res://art/storyboards/thura_earth/11_thadingyut_star_lesson.png",
+						"text": "YOUNG THURA: \"Ma, why does that star keep shining?\"\nMOTHER: \"Its light has travelled a long way to find us. Even when the night is dark, it remembers where it came from.\"",
+					},
+				],
+			}
+	return {}
+
+
+func _build_low_health_vignette() -> void:
+	if _low_health_vignette != null:
+		return
+	_low_health_vignette = ColorRect.new()
+	_low_health_vignette.name = "LowHealthVignette"
+	_low_health_vignette.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_low_health_vignette.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_low_health_vignette.color = Color(0.85, 0.05, 0.08, 0.22)
+	_low_health_vignette.visible = false
+	_root.add_child(_low_health_vignette)
+
+
+func _build_game_over_overlay() -> void:
+	if _game_over_overlay != null:
+		return
+	var overlay := Control.new()
+	overlay.name = "GameOverOverlay"
+	overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	overlay.visible = false
+	overlay.z_index = 100
+	_root.add_child(overlay)
+
+	var dimmer := ColorRect.new()
+	dimmer.color = Color(0.015, 0.005, 0.008, 0.94)
+	dimmer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	dimmer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	overlay.add_child(dimmer)
+
+	var frame := PanelContainer.new()
+	frame.name = "GameOverFrame"
+	frame.anchor_left = 0.5
+	frame.anchor_top = 0.5
+	frame.anchor_right = 0.5
+	frame.anchor_bottom = 0.5
+	frame.offset_left = -340.0
+	frame.offset_top = -240.0
+	frame.offset_right = 340.0
+	frame.offset_bottom = 240.0
+	var frame_style := _panel_style(Color(0.025, 0.01, 0.015, 0.98), Color(0.9, 0.22, 0.26, 0.9), 8.0)
+	frame.add_theme_stylebox_override("panel", frame_style)
+	overlay.add_child(frame)
+
+	var layout := VBoxContainer.new()
+	layout.add_theme_constant_override("separation", 14)
+	layout.alignment = BoxContainer.ALIGNMENT_CENTER
+	frame.add_child(layout)
+
+	var badge_row := HBoxContainer.new()
+	badge_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	badge_row.add_theme_constant_override("separation", 8)
+	var badge_lbl := SKIN.pixel_label("[ EMERGENCY TELEMETRY // SIGNAL LOST ]", SKIN.FONT_TELEMETRY, Color(1.0, 0.35, 0.38))
+	badge_row.add_child(badge_lbl)
+	layout.add_child(badge_row)
+
+	var title_lbl := SKIN.pixel_label("SUIT INTEGRITY FAILURE", SKIN.FONT_TITLE, Color(1.0, 0.25, 0.30))
+	title_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	layout.add_child(title_lbl)
+
+	var sub_lbl := SKIN.clean_label("CREW SPECIALIST: THURA MIN — VITAL SIGNS FLATLINED", SKIN.FONT_BODY, PALE)
+	sub_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	layout.add_child(sub_lbl)
+
+	var div := HSeparator.new()
+	div.add_theme_color_override("separator_color", Color(0.65, 0.18, 0.22, 0.7))
+	layout.add_child(div)
+
+	var telemetry_box := PanelContainer.new()
+	var tel_style := _panel_style(Color(0.015, 0.005, 0.008, 0.90), Color(0.4, 0.15, 0.18, 0.6), 4.0)
+	telemetry_box.add_theme_stylebox_override("panel", tel_style)
+	var tel_vbox := VBoxContainer.new()
+	tel_vbox.add_theme_constant_override("separation", 4)
+	_game_over_telemetry_label = SKIN.pixel_label("DIAGNOSIS: FATAL PHYSICAL TRAUMA / SUIT BREACH\nLOCATION: ASTERIA-1 HULL\nATMOSPHERE RECOVERY: FAILED", SKIN.FONT_TINY, Color(0.85, 0.75, 0.78))
+	_game_over_telemetry_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	tel_vbox.add_child(_game_over_telemetry_label)
+	telemetry_box.add_child(tel_vbox)
+	layout.add_child(telemetry_box)
+
+	var btns_box := VBoxContainer.new()
+	btns_box.add_theme_constant_override("separation", 10)
+	btns_box.alignment = BoxContainer.ALIGNMENT_CENTER
+	layout.add_child(btns_box)
+
+	_game_over_btn_reload = Button.new()
+	_game_over_btn_reload.text = "[ RELOAD CHECKPOINT  ↺ ]"
+	_game_over_btn_reload.custom_minimum_size = Vector2(360.0, 44.0)
+	_game_over_btn_reload.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_game_over_btn_reload.add_theme_font_override("font", SKIN.get_pixel_font())
+	_game_over_btn_reload.add_theme_font_size_override("font_size", 13)
+	_game_over_btn_reload.add_theme_stylebox_override("normal", _panel_style(Color(0.02, 0.08, 0.12, 0.95), CYAN, 4.0))
+	_game_over_btn_reload.add_theme_stylebox_override("hover", _panel_style(Color(0.04, 0.16, 0.24, 0.98), GOLD, 4.0))
+	_game_over_btn_reload.pressed.connect(_on_game_over_reload_checkpoint)
+	btns_box.add_child(_game_over_btn_reload)
+
+	_game_over_btn_restart = Button.new()
+	_game_over_btn_restart.text = "[ RESTART EXPEDITION  ⚠ ]"
+	_game_over_btn_restart.custom_minimum_size = Vector2(360.0, 38.0)
+	_game_over_btn_restart.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_game_over_btn_restart.add_theme_font_override("font", SKIN.get_pixel_font())
+	_game_over_btn_restart.add_theme_font_size_override("font_size", 12)
+	_game_over_btn_restart.add_theme_stylebox_override("normal", _panel_style(Color(0.08, 0.02, 0.03, 0.92), Color(0.85, 0.35, 0.38), 4.0))
+	_game_over_btn_restart.add_theme_stylebox_override("hover", _panel_style(Color(0.18, 0.04, 0.06, 0.98), RED, 4.0))
+	_game_over_btn_restart.pressed.connect(_on_game_over_restart_expedition)
+	btns_box.add_child(_game_over_btn_restart)
+
+	_game_over_btn_menu = Button.new()
+	_game_over_btn_menu.text = "[ RETURN TO MAIN MENU  ⌂ ]"
+	_game_over_btn_menu.custom_minimum_size = Vector2(360.0, 34.0)
+	_game_over_btn_menu.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_game_over_btn_menu.add_theme_font_override("font", SKIN.get_pixel_font())
+	_game_over_btn_menu.add_theme_font_size_override("font_size", 11)
+	_game_over_btn_menu.add_theme_stylebox_override("normal", _panel_style(Color(0.03, 0.05, 0.07, 0.85), Color(0.35, 0.45, 0.52), 4.0))
+	_game_over_btn_menu.add_theme_stylebox_override("hover", _panel_style(Color(0.06, 0.10, 0.14, 0.95), PALE, 4.0))
+	_game_over_btn_menu.pressed.connect(_on_game_over_main_menu)
+	btns_box.add_child(_game_over_btn_menu)
+
+	_game_over_overlay = overlay
+
+
+func _on_suit_integrity_changed(current: float, max_val: float) -> void:
+	if not is_instance_valid(_suit_progress_bar) or not is_instance_valid(_suit_status_label):
+		return
+	_suit_progress_bar.max_value = max_val
+	_suit_progress_bar.value = current
+	var pct: int = int(round((current / maxf(max_val, 1.0)) * 100.0))
+	var col: Color = GREEN
+	var status_str := "NOMINAL"
+	if pct <= 29:
+		col = RED
+		status_str = "CRITICAL"
+	elif pct <= 69:
+		col = GOLD
+		status_str = "WARNING"
+	_suit_status_label.text = "SUIT: %d%% %s" % [pct, status_str]
+	_suit_status_label.add_theme_color_override("font_color", col)
+	_suit_progress_bar.add_theme_stylebox_override("fill", _panel_style(col, col, 2.0))
+	if is_instance_valid(_low_health_vignette):
+		_low_health_vignette.visible = (pct <= 29 and pct > 0)
+
+
+func _on_player_died() -> void:
+	if not is_instance_valid(_game_over_overlay):
+		return
+	for key in _overlay_nodes:
+		if is_instance_valid(_overlay_nodes[key]):
+			_overlay_nodes[key].visible = false
+	if is_instance_valid(_dev_panel):
+		_dev_panel.visible = false
+	if is_instance_valid(_low_health_vignette):
+		_low_health_vignette.visible = false
+
+	var loc_name: String = _active_room_tag.text if is_instance_valid(_active_room_tag) and not _active_room_tag.text.is_empty() else "ASTERIA-1 DECK"
+	var last_cp_info := "LAST CHECKPOINT: RECORDED"
+	if Engine.has_meta(CHECKPOINT_META_KEY):
+		var cp: Dictionary = Engine.get_meta(CHECKPOINT_META_KEY)
+		var cp_loc: String = str(cp.get("location", loc_name))
+		last_cp_info = "LAST CHECKPOINT: %s" % cp_loc
+
+	if is_instance_valid(_game_over_telemetry_label):
+		_game_over_telemetry_label.text = "DIAGNOSIS: FATAL PHYSICAL TRAUMA // SUIT INTEGRITY BREACH\nSECTOR: %s\n%s\nSTATUS: EXPEDITION HALTED" % [loc_name, last_cp_info]
+
+	_game_over_overlay.visible = true
+	set_walking_visible(false)
+	if is_instance_valid(_game_over_btn_reload) and _game_over_btn_reload.is_inside_tree():
+		_game_over_btn_reload.grab_focus()
+
+
+func record_checkpoint(location_name: String = "") -> void:
+	var tree: SceneTree = get_tree() if is_inside_tree() else Engine.get_main_loop() as SceneTree
+	var scene_file := ""
+	if tree != null and tree.current_scene != null:
+		scene_file = tree.current_scene.scene_file_path
+	if scene_file.is_empty():
+		scene_file = "res://scenes/ship/bare_ship_walkthrough.tscn"
+
+	var cur_loc := location_name
+	if cur_loc.is_empty():
+		cur_loc = _active_room_tag.text if is_instance_valid(_active_room_tag) and not _active_room_tag.text.is_empty() else "ASTERIA-1 DECK"
+
+	var player_pos := Vector2.ZERO
+	if is_instance_valid(_player):
+		player_pos = _player.global_position
+
+	var inv_snap := inventory_snapshot()
+	var story_snap: Dictionary = {}
+	if Engine.has_meta(&"echoes_story_progression_state"):
+		story_snap = Engine.get_meta(&"echoes_story_progression_state").duplicate(true)
+
+	var checkpoint := {
+		"scene_path": scene_file,
+		"location": cur_loc,
+		"inventory": inv_snap,
+		"story_state": story_snap,
+		"player_pos": [player_pos.x, player_pos.y],
+		"timestamp": Time.get_unix_time_from_system()
+	}
+	Engine.set_meta(CHECKPOINT_META_KEY, checkpoint)
+
+	var cur_scene = tree.current_scene if tree != null else null
+	if cur_scene != null and cur_scene.has_method("ship_save_game"):
+		cur_scene.call("ship_save_game")
+
+
+func _on_game_over_reload_checkpoint() -> void:
+	DialogueAudioSynth.play_sfx("button_click", self, -2.0)
+	if is_instance_valid(_game_over_overlay):
+		_game_over_overlay.visible = false
+	set_walking_visible(true)
+
+	if Engine.has_meta(CHECKPOINT_META_KEY):
+		var cp: Dictionary = Engine.get_meta(CHECKPOINT_META_KEY)
+		var scene_to_load: String = str(cp.get("scene_path", "res://scenes/ship/bare_ship_walkthrough.tscn"))
+		if is_instance_valid(_player):
+			_player.reset_player_state()
+		get_tree().change_scene_to_file(scene_to_load)
+	else:
+		if is_instance_valid(_player):
+			_player.reset_player_state()
+		get_tree().reload_current_scene()
+
+
+func _on_game_over_restart_expedition() -> void:
+	DialogueAudioSynth.play_sfx("button_click", self, -2.0)
+	if is_instance_valid(_game_over_overlay):
+		_game_over_overlay.visible = false
+	set_walking_visible(true)
+	Engine.remove_meta(CAMPAIGN_META_KEY)
+	Engine.remove_meta(CHECKPOINT_META_KEY)
+	get_tree().change_scene_to_file("res://scenes/ui/landing_screen.tscn")
+
+
+func _on_game_over_main_menu() -> void:
+	DialogueAudioSynth.play_sfx("button_click", self, -2.0)
+	if is_instance_valid(_game_over_overlay):
+		_game_over_overlay.visible = false
+	set_walking_visible(true)
+	get_tree().change_scene_to_file("res://scenes/ui/landing_screen.tscn")
+
+

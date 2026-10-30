@@ -56,11 +56,22 @@ func _process(delta: float) -> void:
 			_finish()
 
 
+func _mark_handled() -> void:
+	if is_inside_tree() and get_viewport() != null:
+		get_viewport().set_input_as_handled()
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
-		if event.keycode == KEY_SPACE or event.keycode == KEY_ENTER or event.keycode == KEY_KP_ENTER:
+		if event.keycode in [KEY_SPACE, KEY_ENTER, KEY_KP_ENTER, KEY_E]:
 			_advance()
-			get_viewport().set_input_as_handled()
+			_mark_handled()
+	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		_advance()
+		_mark_handled()
+	elif event is InputEventScreenTouch and event.pressed:
+		_advance()
+		_mark_handled()
 
 
 func _build_ui() -> void:
