@@ -240,8 +240,11 @@ func _ready() -> void:
 	amara_badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	amara_badge.add_theme_font_size_override("font_size", 8)
 	amara_badge.add_theme_color_override("font_color", Color(0.38, 0.88, 0.98, 0.9))
-	amara_badge.position = Vector2(-80.0, -32.0)
-	amara_badge.size = Vector2(160.0, 16.0)
+	amara_badge.autowrap_mode = TextServer.AUTOWRAP_OFF
+	amara_badge.clip_text = false
+	amara_badge.size = Vector2.ZERO
+	amara_badge.custom_minimum_size = Vector2(200.0, 12.0)
+	amara_badge.position = Vector2(-100.0, -36.0)
 	add_child(amara_badge)
 
 	var returning_to_ship := Engine.has_meta(&"returning_from_planet") and bool(Engine.get_meta(&"returning_from_planet"))

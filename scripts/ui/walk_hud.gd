@@ -2,6 +2,8 @@ class_name WalkHud
 extends CanvasLayer
 
 signal modal_state_changed(is_open: bool)
+signal inventory_changed
+signal mission_scenario_requested(context: String)
 
 const SKIN := preload("res://scripts/ui/pixel_ui.gd")
 const PIXEL_THEME := preload("res://themes/ship_pixel_theme.tres")
@@ -25,6 +27,30 @@ const EDGE := Color(0.34, 0.51, 0.55)
 const EDGE_SOFT := Color(0.24, 0.39, 0.43)
 
 const ITEM_DATA := {
+	&"filter_cartridge": {
+		"name": "FILTER-A / sealed airflow cartridge", "short": "FILTER-A", "color": CYAN, "equip_slot": &"",
+		"desc": "Standard atmospheric filtration unit for life support scrubbers.",
+	},
+	&"scrubber_media": {
+		"name": "SCRUB-A / CO2 scrubber medium", "short": "SCRUB-A", "color": GREEN, "equip_slot": &"",
+		"desc": "Chemical reactant pack for CO2 reduction manifolds.",
+	},
+	&"coolant_charge": {
+		"name": "COOL-02 / sealed service coolant", "short": "COOL-02", "color": CYAN, "equip_slot": &"",
+		"desc": "Pressurized cryogenic coolant charge for secondary thermal loops.",
+	},
+	&"nutrient_buffer": {
+		"name": "BUFFER-A / nutrient dilution dose", "short": "BUFFER", "color": GREEN, "equip_slot": &"",
+		"desc": "Concentrated mineral nutrient dose for hydroponic growth cycles.",
+	},
+	&"oxygen_reserve": {
+		"name": "O2-01 / oxygen reserve cylinder", "short": "O2-01", "color": PALE, "equip_slot": &"",
+		"desc": "High-pressure emergency oxygen canister.",
+	},
+	&"inert_purge": {
+		"name": "N2-03 / inert purge cylinder", "short": "N2-03", "color": MUTED, "equip_slot": &"",
+		"desc": "Inert nitrogen gas canister for line clearing and pressure balancing.",
+	},
 	&"captains_revolver": {
 		"name": "Captain's Revolver", "short": "REVOLVER", "color": ORANGE, "equip_slot": &"tool",
 		"desc": "Lethal 12mm service sidearm surrendered by Commander Chen. Kinetic rounds are deadly against structural cores and bulkheads.",
@@ -75,6 +101,11 @@ const ITEM_DATA := {
 		"desc": "High-voltage arc capacitor tool salvaged from the wrecked specimen table. Stuns colloidal fluid entities.",
 		"texture": preload("res://art/tools/electrical_discharge_tool.png"), "icon_region": Rect2(100.0, 410.0, 860.0, 710.0),
 	},
+	&"resonance_ore_sample": {
+		"name": "Resonance Ore Sample", "short": "RES ORE", "color": GOLD, "equip_slot": &"pack",
+		"desc": "Extracted crystalline resonance ore from the surface of Erebos.",
+		"texture": preload("res://art/planet/resonance_ore_intact.png"), "icon_region": Rect2(140.0, 120.0, 974.0, 1014.0),
+	},
 }
 
 const ITEM_LIMITS: Dictionary = {
@@ -107,6 +138,36 @@ const ITEM_LIMITS: Dictionary = {
 
 const EQUIPMENT_SLOTS: Array[StringName] = [&"head", &"suit", &"pack", &"tool"]
 const EQUIPMENT_LABELS := [&"HEAD", &"SUIT", &"PACK", &"TOOL"]
+
+## Ordered display data for the five First Watch missions.
+const ROADMAP_STEPS: Array[Dictionary] = [
+	{"mission": "story.a1.010_watch_briefing", "title": "Receive the Watch",
+	 "room": "BRIDGE", "desc": "Speak to Maya at the bridge planning table beside the main helm.",
+	 "receipt": "watch.accepted"},
+	{"mission": "story.a1.020_meet_amara",     "title": "Review the Duty Roster",
+	 "room": "QUARTERS", "desc": "Use the personal computer desk in Crew Quarters to compare roster records.",
+	 "receipt": "roster.reviewed"},
+	{"mission": "story.a1.030_aux_service",    "title": "Meet Amara & Inspect Delivery",
+	 "room": "HYDROPONICS", "desc": "Talk to Amara in Hydroponics, then inspect nutrient delivery at the console.",
+	 "receipt": "amara.observation_reported"},
+	{"mission": "story.a1.040_irrigation_report", "title": "Restore Service Power & Irrigation",
+	 "room": "POWER / HYDROPONICS", "desc": "Diagnose and restore auxiliary power, then verify nutrient delivery.",
+	 "receipt": "power.reported"},
+	{"mission": "story.a1.050_watch_handoff",  "title": "Hand Over the Watch",
+	 "room": "BRIDGE", "desc": "Return to the bridge planning table and submit the verified watch summary.",
+	 "receipt": "amara.repair_reported"},
+]
+
+const SHIP_CATALOG_AREAS := {
+	"bridge":   Rect2(60,   195, 310, 300),
+	"quarters": Rect2(275,  445, 390, 225),
+	"cargo":    Rect2(690,  400, 535, 270),
+	"engine":   Rect2(1338, 205, 290, 355),
+	"power":    Rect2(1050, 255, 162, 140),
+	"life":     Rect2(1215, 190, 160, 215),
+	"hydro":    Rect2(15,   605, 600, 245),
+	"shuttle":  Rect2(1190, 495, 190, 215),
+}
 const HOTBAR_KEY_CODES: Array[int] = [KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6, KEY_7, KEY_8, KEY_9]
 
 
@@ -578,7 +639,7 @@ class MobileTouchJoystick extends Control:
 
 	func _apply_joystick_vector(vec: Vector2) -> void:
 		Engine.set_meta(&"echoes_mobile_joystick_vec", vec)
-		var ib := get_tree().root.get_node_or_null("InputBindings") if get_tree() != null and get_tree().root != null else null
+		var ib := get_tree().root.get_node_or_null("InputBindings") if is_inside_tree() and get_tree() != null and get_tree().root != null else null
 		if ib != null and ib.has_method("set_mobile_joystick_vector"):
 			ib.call("set_mobile_joystick_vector", vec)
 		else:
@@ -715,7 +776,11 @@ var _hotbar_items: Array[StringName] = [
 	&"",
 	&"",
 ]
-var _storage_items: Array[StringName] = []
+var _storage_items: Array[StringName] = [
+	&"", &"", &"", &"", &"", &"", &"", &"", &"",
+	&"", &"", &"", &"", &"", &"", &"", &"", &"",
+	&"", &"", &"", &"", &"", &"", &"", &"", &"",
+]
 var _equipment_items: Dictionary = {&"head": &"", &"suit": &"", &"pack": &"", &"tool": &""}
 var _unlocked_items: Dictionary = {}
 var _collected_logs: Dictionary = {}
@@ -760,11 +825,24 @@ var _dev_sections: Dictionary = {}
 var _dev_tab_buttons: Dictionary = {}
 var _dev_active_tab: StringName = &"all"
 var _dev_god_mode_active: bool = false
+## ── Roadmap & story-map additions ───────────────────────────────────────────
+var _story_completed_count: int = 0
+var _story_objective_room: String = ""
+var _story_last_unlock_slide: Dictionary = {}
+var _roadmap_view_container: ScrollContainer = null
+var _roadmap_replay_btn: Button = null
+var _tasks_list_scroll: ScrollContainer = null
+## Objective pin on the ship map (story mode only)
+var _map_obj_pin: MapPin = null
+var _map_obj_pin_label: Label = null
 var _mobile_controls_layer: Control = null
 var _mobile_joystick: MobileTouchJoystick = null
 var _mobile_shoot_btn: Button = null
 var _mobile_pickup_btn: Button = null
 var _mobile_drop_btn: Button = null
+var _mobile_light_btn: Button = null
+var _mobile_mode_toggle_btn: Button = null
+var _top_mode_btn: Button = null
 var _dropped_world_items: Array[Dictionary] = []
 var _world_dropped_canvas: Node2D = null
 var _world_drop_pulse: float = 0.0
@@ -1480,12 +1558,14 @@ func _build_top_controls() -> void:
 	_top_controls = controls
 	controls.name = "TopRightControls"
 	controls.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
-	controls.offset_left = -860.0
+	controls.offset_left = -980.0
 	controls.offset_top = 18.0
 	controls.offset_right = -18.0
 	controls.offset_bottom = 82.0
 	controls.add_theme_constant_override("separation", 6)
 	_root.add_child(controls)
+	_top_mode_btn = _build_top_mode_toggle_button()
+	controls.add_child(_top_mode_btn)
 	controls.add_child(_navigation_button(&"tasks", "TASKS", "T", _open_tasks))
 	controls.add_child(_navigation_button(&"map", "SHIP MAP", "M", _open_map))
 	controls.add_child(_navigation_button(&"inventory", "INVENTORY", "I", _open_inventory))
@@ -1590,6 +1670,17 @@ func _create_map_overlay() -> void:
 	_map_player_marker = _map_marker(GOLD, true)
 	_map_player_marker.visible = MAP_CONTENT_VISIBLE
 	_map_canvas.add_child(_map_player_marker)
+	## Story-mode objective pin — pulsing MapPin + room label above it.
+	_map_obj_pin = MapPin.new()
+	_map_obj_pin.custom_minimum_size = Vector2(20.0, 28.0)
+	_map_obj_pin.pin_color = GOLD
+	_map_obj_pin.visible = false
+	_map_obj_pin.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_map_canvas.add_child(_map_obj_pin)
+	_map_obj_pin_label = _label("", 9, GOLD)
+	_map_obj_pin_label.visible = false
+	_map_obj_pin_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_map_canvas.add_child(_map_obj_pin_label)
 	for entry in _task_entries:
 		_add_map_task_marker(entry)
 	var legend := HFlowContainer.new()
@@ -1920,7 +2011,7 @@ func _create_tasks_overlay() -> void:
 
 	var filter_bar := HBoxContainer.new()
 	filter_bar.add_theme_constant_override("separation", 6)
-	for filter_def in [["ALL TASKS", &"all"], ["ACTIVE", &"active"], ["COMPLETED", &"completed"]]:
+	for filter_def in [["ALL TASKS", &"all"], ["ACTIVE", &"active"], ["COMPLETED", &"completed"], ["ROADMAP", &"roadmap"]]:
 		var f_label: String = filter_def[0]
 		var f_id: StringName = filter_def[1]
 		var f_btn := _flat_filter_button(f_label)
@@ -1937,6 +2028,7 @@ func _create_tasks_overlay() -> void:
 
 	var tasks_scroll := ScrollContainer.new()
 	tasks_scroll.name = "TasksScroll"
+	_tasks_list_scroll = tasks_scroll
 	tasks_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	tasks_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	tasks_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -1947,6 +2039,29 @@ func _create_tasks_overlay() -> void:
 	_tasks_list_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_tasks_list_container.add_theme_constant_override("separation", 8)
 	tasks_scroll.add_child(_tasks_list_container)
+
+	## Roadmap view — vertical timeline shown when the ROADMAP filter is active.
+	_roadmap_view_container = ScrollContainer.new()
+	_roadmap_view_container.name = "RoadmapScroll"
+	_roadmap_view_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_roadmap_view_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_roadmap_view_container.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_roadmap_view_container.visible = false
+	left_col.add_child(_roadmap_view_container)
+	var _roadmap_inner := VBoxContainer.new()
+	_roadmap_inner.name = "RoadmapInner"
+	_roadmap_inner.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_roadmap_inner.add_theme_constant_override("separation", 6)
+	_roadmap_view_container.add_child(_roadmap_inner)
+	_roadmap_replay_btn = Button.new()
+	_roadmap_replay_btn.text = "[ ▶ REPLAY LAST BRIEFING ]"
+	_roadmap_replay_btn.visible = false
+	_roadmap_replay_btn.add_theme_font_size_override("font_size", 9)
+	_roadmap_replay_btn.add_theme_color_override("font_color", CYAN)
+	_roadmap_replay_btn.add_theme_stylebox_override("normal", _panel_style(Color(0.02, 0.06, 0.10, 0.9), CYAN, 3.0))
+	_roadmap_replay_btn.add_theme_stylebox_override("hover", _panel_style(Color(0.04, 0.12, 0.18, 0.95), GOLD, 3.0))
+	_roadmap_replay_btn.pressed.connect(_on_roadmap_replay_pressed)
+	_roadmap_inner.add_child(_roadmap_replay_btn)
 
 	# --- Vertical Divider ---
 	var divider := VSeparator.new()
@@ -2042,6 +2157,25 @@ func _create_settings_overlay() -> void:
 	content.add_spacer(false)
 	content.add_child(HSeparator.new())
 	content.add_child(_label("WALKING PAUSES WHILE THESE PANELS ARE OPEN.", 12, MUTED))
+	content.add_child(HSeparator.new())
+	# ── MOBILE / PC MODE TOGGLE ─────────────────────────────────────────────
+	content.add_child(_label("INPUT MODE", 16, GOLD))
+	var mode_desc_lbl := _label(
+		"MOBILE: on-screen joystick + touch buttons.\nPC: keyboard & mouse only, no touch controls.", 11, MUTED)
+	mode_desc_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	content.add_child(mode_desc_lbl)
+	var mode_row := HBoxContainer.new()
+	mode_row.add_theme_constant_override("separation", 12)
+	content.add_child(mode_row)
+	var auto_btn := _mode_toggle_option_btn("AUTO", -1)
+	var pc_btn   := _mode_toggle_option_btn("[ PC MODE ]", 0)
+	var mob_btn  := _mode_toggle_option_btn("[ MOBILE MODE ]", 1)
+	_mobile_mode_toggle_btn = mob_btn
+	mode_row.add_child(auto_btn)
+	mode_row.add_child(pc_btn)
+	mode_row.add_child(mob_btn)
+	_refresh_mode_toggle_buttons(auto_btn, pc_btn, mob_btn)
+	# ────────────────────────────────────────────────────────────────────────
 
 func _key_hint(action_name: String, key_name: String) -> Control:
 	var row := HBoxContainer.new()
@@ -2058,6 +2192,148 @@ func _key_hint(action_name: String, key_name: String) -> Control:
 	keycap.add_child(key_label)
 	row.add_child(keycap)
 	return row
+
+
+func _get_input_bindings() -> Node:
+	if is_inside_tree() and get_tree() != null and get_tree().root != null:
+		return get_tree().root.get_node_or_null("InputBindings")
+	return null
+
+
+func _current_mobile_override() -> int:
+	var ib := _get_input_bindings()
+	if ib != null and "mobile_mode_override" in ib:
+		return int(ib.get("mobile_mode_override"))
+	return -1
+
+
+func _set_mobile_override(value: int) -> void:
+	var ib := _get_input_bindings()
+	if ib != null:
+		if ib.has_method("set_mobile_mode_override"):
+			ib.call("set_mobile_mode_override", value)
+		elif "mobile_mode_override" in ib:
+			ib.set("mobile_mode_override", value)
+	_refresh_mobile_controls()
+	_update_top_mode_btn()
+	_queue_resize()
+
+
+func _is_mobile_mode_active() -> bool:
+	var cur := _current_mobile_override()
+	if cur == 0:
+		return false
+	if cur == 1:
+		return true
+	var ib := _get_input_bindings()
+	return (ib != null and ib.has_method("is_mobile_or_touch") and bool(ib.call("is_mobile_or_touch")))
+
+
+func _build_top_mode_toggle_button() -> Button:
+	var btn := Button.new()
+	btn.name = "TopModeToggle"
+	btn.focus_mode = Control.FOCUS_NONE
+	btn.custom_minimum_size = Vector2(96.0, 60.0)
+	btn.add_theme_font_override("font", SKIN.get_pixel_font())
+	btn.add_theme_font_size_override("font_size", 9)
+	btn.pressed.connect(_on_top_mode_toggle_pressed)
+	_update_top_mode_btn(btn)
+	return btn
+
+
+func _on_top_mode_toggle_pressed() -> void:
+	DialogueAudioSynth.play_sfx("switch_toggle", self, -5.0)
+	var cur := _current_mobile_override()
+	# Cycle: PC (0) -> MOBILE (1) -> AUTO (-1) -> PC (0)
+	var next_mode: int
+	if cur == 0:
+		next_mode = 1
+	elif cur == 1:
+		next_mode = -1
+	else:
+		next_mode = 0
+	_set_mobile_override(next_mode)
+	if is_instance_valid(_mobile_mode_toggle_btn):
+		var row: HBoxContainer = _mobile_mode_toggle_btn.get_parent() as HBoxContainer
+		if row != null and row.get_child_count() >= 3:
+			_refresh_mode_toggle_buttons(
+				row.get_child(0) as Button,
+				row.get_child(1) as Button,
+				row.get_child(2) as Button)
+
+
+func _update_top_mode_btn(btn: Button = null) -> void:
+	var target_btn: Button = btn if btn != null else _top_mode_btn
+	if not is_instance_valid(target_btn):
+		return
+	var cur := _current_mobile_override()
+	var is_active_mobile := _is_mobile_mode_active()
+	if cur == 0:
+		target_btn.text = "MODE: PC\n[KBD+MOUSE]"
+		target_btn.tooltip_text = "Input Mode: PC (Keyboard/Mouse active). Click to toggle Mobile mode."
+		_style_top_mode_btn(target_btn, false)
+	elif cur == 1:
+		target_btn.text = "MODE: MOB\n[TOUCH]"
+		target_btn.tooltip_text = "Input Mode: Mobile (Touch controls active). Click to toggle Auto-detect."
+		_style_top_mode_btn(target_btn, true)
+	else:
+		target_btn.text = "MODE: AUTO\n[%s]" % ("MOB" if is_active_mobile else "PC")
+		target_btn.tooltip_text = "Input Mode: Auto-detect (Currently %s). Click to force PC mode." % ("Mobile" if is_active_mobile else "PC")
+		_style_top_mode_btn(target_btn, is_active_mobile)
+
+
+func _style_top_mode_btn(btn: Button, is_mobile: bool) -> void:
+	if not is_instance_valid(btn):
+		return
+	var accent: Color = ORANGE if is_mobile else CYAN
+	btn.add_theme_color_override("font_color", accent)
+	btn.add_theme_stylebox_override("normal", _panel_style(SURFACE_RAISED, accent, 4.0))
+	btn.add_theme_stylebox_override("hover", _panel_style(SURFACE_HOVER, GOLD, 4.0))
+	btn.add_theme_stylebox_override("pressed", _panel_style(SURFACE, GOLD, 4.0))
+
+
+func _mode_toggle_option_btn(label: String, override_value: int) -> Button:
+	var btn := Button.new()
+	btn.text = label
+	btn.custom_minimum_size = Vector2(148, 44)
+	btn.add_theme_font_override("font", SKIN.get_pixel_font())
+	btn.add_theme_font_size_override("font_size", 12)
+	btn.focus_mode = Control.FOCUS_NONE
+	btn.pressed.connect(func():
+		_set_mobile_override(override_value)
+		# Re-apply button highlight to all three siblings
+		var row: HBoxContainer = btn.get_parent() as HBoxContainer
+		if row != null:
+			_refresh_mode_toggle_buttons(
+				row.get_child(0) as Button,
+				row.get_child(1) as Button,
+				row.get_child(2) as Button)
+	)
+	return btn
+
+
+func _refresh_mode_toggle_buttons(auto_btn: Button, pc_btn: Button, mob_btn: Button) -> void:
+	var cur := _current_mobile_override()
+	_style_mode_btn(auto_btn, cur == -1)
+	_style_mode_btn(pc_btn,   cur == 0)
+	_style_mode_btn(mob_btn,  cur == 1)
+
+
+func _style_mode_btn(btn: Button, active: bool) -> void:
+	if not is_instance_valid(btn):
+		return
+	if active:
+		btn.add_theme_color_override("font_color", SURFACE)
+		btn.add_theme_stylebox_override("normal",   _panel_style(CYAN,    CYAN,    8.0))
+		btn.add_theme_stylebox_override("hover",    _panel_style(CYAN,    GOLD,    8.0))
+		btn.add_theme_stylebox_override("pressed",  _panel_style(CYAN,    GOLD,    8.0))
+		btn.add_theme_stylebox_override("focus",    _panel_style(CYAN,    GOLD,    8.0))
+	else:
+		btn.add_theme_color_override("font_color", MUTED)
+		btn.add_theme_stylebox_override("normal",   _panel_style(SURFACE, EDGE,    8.0))
+		btn.add_theme_stylebox_override("hover",    _panel_style(SURFACE_HOVER, CYAN, 8.0))
+		btn.add_theme_stylebox_override("pressed",  _panel_style(SURFACE, CYAN,    8.0))
+		btn.add_theme_stylebox_override("focus",    _panel_style(SURFACE, EDGE,    8.0))
 
 func _create_modal_shell(title: String, desired_size: Vector2) -> Dictionary:
 	var overlay := Control.new()
@@ -2131,7 +2407,7 @@ func _update_map_markers() -> void:
 		if not _map_task_markers.has(task_id):
 			continue
 		var marker_data: Dictionary = _map_task_markers[task_id]
-		var task_position: Vector2 = entry["position"]
+		var task_position: Vector2 = entry.get("position", Vector2.ZERO)
 		var normalized: Vector2 = _map_canvas_normalized_position(task_position)
 		var marker := marker_data["marker"] as MapPin
 		var is_complete: bool = bool(_task_completed.get(task_id, false))
@@ -2141,6 +2417,8 @@ func _update_map_markers() -> void:
 		marker.pin_color = GREEN if is_complete else ORANGE
 		marker.tooltip_text = ("[NOMINAL] " if is_complete else "[ALERT] ") + str(entry.get("title", "Ship task"))
 		marker.queue_redraw()
+	## Story-mode objective pin: gold pulsing pin at the active room's centre.
+	_update_map_objective_pin()
 
 
 func _map_canvas_normalized_position(world_position: Vector2) -> Vector2:
@@ -2513,6 +2791,193 @@ func _refresh_inventory_cells() -> void:
 		_cargo_count_label.text = "%02d / %02d USED" % [used_slots, _storage_items.size()]
 
 
+func inventory_count(item: StringName) -> int:
+	var count := _storage_items.count(item) + _hotbar_items.count(item)
+	for carried in _equipment_items.values():
+		if StringName(carried) == item:
+			count += 1
+	return count
+
+
+func inventory_put(item: StringName, amount := 1) -> bool:
+	if amount < 1 or not ITEM_DATA.has(item):
+		return false
+	var spaces := _storage_items.count(&"") + _hotbar_items.count(&"")
+	if spaces < amount:
+		return false
+	for i in range(amount):
+		var index := _storage_items.find(&"")
+		if index >= 0:
+			_storage_items[index] = item
+		else:
+			_hotbar_items[_hotbar_items.find(&"")] = item
+	_refresh_hotbar()
+	_refresh_inventory_cells()
+	_sync_player_equipped_item()
+	_save_persistent_inventory_state()
+	inventory_changed.emit()
+	return true
+
+
+func inventory_take(item: StringName, amount := 1) -> bool:
+	if amount < 1 or inventory_count(item) < amount:
+		return false
+	for i in range(amount):
+		var index := _storage_items.find(item)
+		if index >= 0:
+			_storage_items[index] = &""
+			continue
+		index = _hotbar_items.find(item)
+		if index >= 0:
+			_hotbar_items[index] = &""
+			continue
+		for slot in _equipment_items:
+			if StringName(_equipment_items[slot]) == item:
+				_equipment_items[slot] = &""
+				break
+	_refresh_hotbar()
+	_refresh_inventory_cells()
+	_sync_player_equipped_item()
+	_save_persistent_inventory_state()
+	inventory_changed.emit()
+	return true
+
+
+func inventory_snapshot() -> Dictionary:
+	# Array(existing_array) aliases its storage in Godot. Snapshots must own copies
+	# so later drag/drop and consumption cannot mutate a save/scenario baseline.
+	return {
+		"storage": _storage_items.duplicate(),
+		"hotbar": _hotbar_items.duplicate(),
+		"equipment": _equipment_items.duplicate(),
+		"selected": _selected_hotbar_index,
+	}
+
+
+func inventory_valid(data: Dictionary) -> bool:
+	if not data.get("storage") is Array or data.storage.size() != 27 or not data.get("hotbar") is Array or data.hotbar.size() != 9 or not data.get("equipment") is Dictionary or data.equipment.size() != 4:
+		return false
+	for item in data.storage + data.hotbar + data.equipment.values():
+		if not (item is String or item is StringName):
+			return false
+		if str(item) != "" and not ITEM_DATA.has(StringName(item)):
+			return false
+	for slot in EQUIPMENT_SLOTS:
+		if not data.equipment.has(str(slot)):
+			return false
+		var item := StringName(data.equipment[str(slot)])
+		if item != &"" and ITEM_DATA[item].equip_slot != slot:
+			return false
+	if not (data.get("selected") is int or data.get("selected") is float):
+		return false
+	return is_finite(float(data.selected)) and data.selected == floor(data.selected) and data.selected >= 0 and data.selected < 9
+
+
+func inventory_restore(data: Dictionary) -> bool:
+	if not inventory_valid(data):
+		return false
+	for i in range(27):
+		_storage_items[i] = StringName(data.storage[i])
+	for i in range(9):
+		_hotbar_items[i] = StringName(data.hotbar[i])
+	for slot in EQUIPMENT_SLOTS:
+		_equipment_items[slot] = StringName(data.equipment[str(slot)])
+	_selected_hotbar_index = int(data.selected)
+	_refresh_hotbar()
+	_refresh_inventory_cells()
+	_sync_player_equipped_item()
+	_save_persistent_inventory_state()
+	inventory_changed.emit()
+	return true
+
+
+func grant_hotbar_item(item_id: StringName) -> void:
+	if _hotbar_items.has(item_id):
+		return
+	for i in range(_hotbar_items.size()):
+		if _hotbar_items[i] == &"":
+			_hotbar_items[i] = item_id
+			_refresh_hotbar()
+			_refresh_inventory_cells()
+			_sync_player_equipped_item()
+			_save_persistent_inventory_state()
+			inventory_changed.emit()
+			return
+
+
+func consume_item(item_id: StringName) -> bool:
+	for i in range(_hotbar_items.size()):
+		if _hotbar_items[i] == item_id:
+			_hotbar_items[i] = &""
+			_refresh_hotbar()
+			_refresh_inventory_cells()
+			_sync_player_equipped_item()
+			_save_persistent_inventory_state()
+			inventory_changed.emit()
+			return true
+	for i in range(_storage_items.size()):
+		if _storage_items[i] == item_id:
+			_storage_items[i] = &""
+			_refresh_inventory_cells()
+			_sync_player_equipped_item()
+			_save_persistent_inventory_state()
+			inventory_changed.emit()
+			return true
+	return false
+
+
+func set_ship_objectives(entries: Array, completed_ids: Dictionary) -> void:
+	# Reuse the existing mission tracker and completion dictionary. Its dynamic
+	# rows are rebuilt in place; the inventory, settings, map and hotbar stay live.
+	_task_entries.clear()
+	_task_completed.clear()
+	_mission_rows.clear()
+	# The original service markers remain available as data, but must not
+	# linger at (0,0) after the tracker switches to the integrated ship duties.
+	for marker in _world_task_markers.values():
+		if is_instance_valid(marker):
+			marker.hide()
+	# Keep header/progress/details (first three children), replace objective rows.
+	if is_instance_valid(_mission_stack):
+		for i in range(_mission_stack.get_child_count() - 1, 2, -1):
+			var child := _mission_stack.get_child(i)
+			_mission_stack.remove_child(child)
+			child.queue_free()
+	for entry in entries:
+		_task_entries.append(entry.duplicate(true))
+		_task_completed[entry.id] = completed_ids.has(str(entry.id))
+		_add_mission_row(entry)
+		_add_world_task_marker(entry)
+		_add_map_task_marker(entry)
+	if is_instance_valid(_mission_panel):
+		_mission_panel.offset_bottom = 198.0 + maxi(entries.size() - 3, 0) * 32.0
+	_refresh_mission_panel()
+	_update_world_task_markers()
+
+
+func set_story_objective(entry: Dictionary, completed_missions: int, optional_enabled: bool = false, optional_completed: int = 0) -> void:
+	# Reuse the tracker and its world marker; optional checks never enter the
+	# chapter denominator or masquerade as additional required machine repairs.
+	_story_completed_count = completed_missions
+	_story_objective_room = str(entry.get("marker_label", "")).to_lower()
+	set_ship_objectives([entry], {str(entry.id): true} if completed_missions == 5 else {})
+	if is_instance_valid(_mission_progress_label):
+		_mission_progress_label.text = "%d / 5 MISSIONS" % completed_missions
+	if is_instance_valid(_mission_progress_bar):
+		_mission_progress_bar.max_value = 5
+		_mission_progress_bar.value = completed_missions
+	if is_instance_valid(_mission_stack):
+		var description := _label(str(entry.get("description", "")), 12, PALE)
+		description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		description.custom_minimum_size.x = 280
+		_mission_stack.add_child(description)
+		_mission_stack.add_child(HSeparator.new())
+		var optional := _label("OPTIONAL / %d OF 2 OBSERVATIONS" % mini(optional_completed, 2) if optional_enabled else "OPTIONAL / EXPLORE AND INSPECT SHIP SYSTEMS", 10, MUTED)
+		optional.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_mission_stack.add_child(optional)
+	_refresh_roadmap(completed_missions)
+
+
 func _open_map() -> void:
 	_open_overlay(&"map")
 
@@ -2667,7 +3132,10 @@ func _label(text: String, font_size: int, color: Color) -> Label:
 
 func _button(text: String, minimum_size: Vector2, accent: Color) -> Button:
 	var button := Button.new()
+	button.clip_text = true
+	button.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	button.text = text
+	button.tooltip_text = text
 	button.custom_minimum_size = minimum_size
 	button.focus_mode = Control.FOCUS_ALL
 	button.add_theme_font_size_override("font_size", 10)
@@ -2777,7 +3245,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if event is InputEventMouseButton:
 		if event.button_index == MOUSE_BUTTON_LEFT:
-			var ib := get_tree().root.get_node_or_null("InputBindings") if get_tree() != null and get_tree().root != null else null
+			var ib := get_tree().root.get_node_or_null("InputBindings") if is_inside_tree() and get_tree() != null and get_tree().root != null else null
 			if ib != null and ib.has_method("is_mobile_or_touch") and bool(ib.call("is_mobile_or_touch")):
 				return
 			if is_instance_valid(_player):
@@ -2904,6 +3372,8 @@ func _dev_section_container(parent: Control, section_id: StringName, title_text:
 
 	var header := _label(title_text, 11, title_col)
 	header.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	header.clip_text = true
+	header.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	sec_box.add_child(header)
 	sec_box.add_child(HSeparator.new())
 
@@ -2915,6 +3385,7 @@ func _dev_section_container(parent: Control, section_id: StringName, title_text:
 func _dev_btn(text: String, callback: Callable, color: Color = CYAN, height: float = 34.0) -> Button:
 	var btn := _button(text, Vector2(0, height), color)
 	btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	btn.add_theme_font_size_override("font_size", 9)
 	btn.pressed.connect(callback)
 	return btn
 
@@ -2938,11 +3409,16 @@ func _dev_row(btn1: Control, btn2: Control = null, btn3: Control = null) -> HBox
 func _build_dev_menu_panel() -> void:
 	_dev_panel = PanelContainer.new()
 	_dev_panel.name = "DevMenuPanel"
-	_dev_panel.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
-	_dev_panel.offset_left = -540.0
-	_dev_panel.offset_top = 20.0
+	_dev_panel.anchor_left = 1.0
+	_dev_panel.anchor_right = 1.0
+	_dev_panel.anchor_top = 0.0
+	_dev_panel.anchor_bottom = 1.0
+	_dev_panel.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	_dev_panel.grow_vertical = Control.GROW_DIRECTION_BOTH
+	_dev_panel.offset_left = -536.0
+	_dev_panel.offset_top = 16.0
 	_dev_panel.offset_right = -16.0
-	_dev_panel.offset_bottom = 700.0
+	_dev_panel.offset_bottom = -16.0
 	_dev_panel.visible = false
 	_dev_panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	_dev_panel.add_theme_stylebox_override("panel", _panel_style(SURFACE, GOLD, 12.0))
@@ -2960,6 +3436,8 @@ func _build_dev_menu_panel() -> void:
 	header.add_theme_constant_override("separation", 8)
 	var title := _label("DEV MENU // ALL SCENARIOS & GAMEPLAY TESTER", 11, GOLD)
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	title.clip_text = true
+	title.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	header.add_child(title)
 	var close_btn := Button.new()
 	close_btn.name = "DevClose"
@@ -2972,8 +3450,12 @@ func _build_dev_menu_panel() -> void:
 	main_stack.add_child(HSeparator.new())
 
 	# 2. Filter Tabs
-	var tabs_row := HBoxContainer.new()
-	tabs_row.add_theme_constant_override("separation", 4)
+	var tabs_grid := GridContainer.new()
+	tabs_grid.name = "DevTabsGrid"
+	tabs_grid.columns = 3
+	tabs_grid.add_theme_constant_override("h_separation", 6)
+	tabs_grid.add_theme_constant_override("v_separation", 6)
+	tabs_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var tab_defs: Array = [
 		[&"all", "ALL"],
 		[&"monster", "👾 MONSTER"],
@@ -2986,13 +3468,17 @@ func _build_dev_menu_panel() -> void:
 		var tab_id: StringName = tab_pair[0]
 		var tab_title: String = tab_pair[1]
 		var t_btn := Button.new()
+		t_btn.clip_text = true
+		t_btn.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 		t_btn.text = tab_title
-		t_btn.custom_minimum_size = Vector2(74, 28)
+		t_btn.tooltip_text = tab_title
+		t_btn.custom_minimum_size = Vector2(0, 28)
 		t_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		t_btn.add_theme_font_size_override("font_size", 10)
 		t_btn.pressed.connect(func(): _set_dev_active_tab(tab_id))
-		tabs_row.add_child(t_btn)
+		tabs_grid.add_child(t_btn)
 		_dev_tab_buttons[tab_id] = t_btn
-	main_stack.add_child(tabs_row)
+	main_stack.add_child(tabs_grid)
 	main_stack.add_child(HSeparator.new())
 
 	# 3. Scroll Container for Sections
@@ -3019,7 +3505,9 @@ func _build_dev_menu_panel() -> void:
 		_dev_btn("CHASE: ORIGINAL LIQUID ORE", func(): _on_dev_spawn_monster_chase(0), CYAN)
 	))
 	sec_monster.add_child(_dev_row(
-		_dev_btn("TRIGGER MED BAY AMBUSH (WARD & AMARA)", _on_dev_trigger_medbay_ambush, GOLD),
+		_dev_btn("TRIGGER MED BAY AMBUSH (WARD & AMARA)", _on_dev_trigger_medbay_ambush, GOLD)
+	))
+	sec_monster.add_child(_dev_row(
 		_dev_btn("TRIGGER LAB BREACH RAMPAGE", _on_dev_trigger_lab_breach, RED)
 	))
 	sec_monster.add_child(_dev_row(
@@ -3068,7 +3556,9 @@ func _build_dev_menu_panel() -> void:
 		_dev_btn("SUBDECK SHADOW NEST CHECK", func(): _on_dev_play_station_cutscene(&"subdeck_shadow_nest_check"), ORANGE)
 	))
 	sec_story.add_child(_dev_row(
-		_dev_btn("PLAY PROLOGUE MONTAGE (EARTH YEARS)", _on_dev_play_prologue_montage, CYAN),
+		_dev_btn("PLAY PROLOGUE MONTAGE (EARTH YEARS)", _on_dev_play_prologue_montage, CYAN)
+	))
+	sec_story.add_child(_dev_row(
 		_dev_btn("PLAY THADINGYUT MEMORY (FESTIVAL)", _on_dev_play_thadingyut_cutscene, GOLD)
 	))
 	sec_story.add_child(_dev_row(
@@ -3145,11 +3635,13 @@ func _build_dev_menu_panel() -> void:
 	# SECTION 5: CHEATS, GEAR & LIGHTING
 	var sec_cheats := _dev_section_container(content_box, &"cheats", "💡 CHEATS, GEAR & LIGHTING TUNING", MUTED)
 	sec_cheats.add_child(_dev_row(
-		_dev_btn("TOGGLE GOD MODE (STEALTH / INVULNERABLE)", _on_dev_toggle_god_mode, GREEN),
-		_dev_btn("UNLOCK ALL 10 GEAR ITEMS", unlock_all_equipment_items, GREEN)
+		_dev_btn("TOGGLE GOD MODE (STEALTH / INVULNERABLE)", _on_dev_toggle_god_mode, GREEN)
 	))
 	sec_cheats.add_child(_dev_row(
-		_dev_btn("RESTOCK ALL FLARES & AMMO", restock_all_equipment_amounts, GOLD),
+		_dev_btn("UNLOCK ALL 10 GEAR ITEMS", unlock_all_equipment_items, GREEN),
+		_dev_btn("RESTOCK ALL FLARES & AMMO", restock_all_equipment_amounts, GOLD)
+	))
+	sec_cheats.add_child(_dev_row(
 		_dev_btn("COMPLETE ALL MAIN & CREW TASKS", _on_dev_complete_all_tasks, GOLD)
 	))
 	sec_cheats.add_child(_dev_row(
@@ -3213,46 +3705,57 @@ func _on_dev_spawn_monster_chase(stage: int) -> void:
 	var current_scene := tree.current_scene
 	if current_scene == null:
 		return
+
 	var villain: Node2D = tree.get_first_node_in_group("resonance_ore_villain") as Node2D
+	if villain == null:
+		villain = tree.get_first_node_in_group("ship_villain") as Node2D
 	if villain == null and current_scene.has_node("ResonanceOreVillain"):
 		villain = current_scene.get_node("ResonanceOreVillain") as Node2D
+	if villain == null:
+		var floor_layer := current_scene.get_node_or_null("FloorLayer")
+		if floor_layer != null and floor_layer.has_node("ResonanceOreVillain"):
+			villain = floor_layer.get_node("ResonanceOreVillain") as Node2D
 
 	if villain == null:
 		var villain_scene := load("res://scenes/ship/crew/resonance_ore_villain.tscn") as PackedScene
 		if villain_scene != null:
 			villain = villain_scene.instantiate() as Node2D
-			var spawn_parent: Node = current_scene
-			var floor_layer := current_scene.get_node_or_null("FloorLayer")
-			if floor_layer != null:
-				spawn_parent = floor_layer
-			spawn_parent.add_child(villain)
+			villain.name = "ResonanceOreVillain"
+			current_scene.add_child(villain)
 
 	if villain != null:
+		var spawn_pos := Vector2.ZERO
 		if is_instance_valid(_player):
-			var spawn_offset := Vector2(160.0, 0.0)
-			villain.global_position = _player.global_position + spawn_offset
+			var candidates: Array[Vector2] = [
+				_player.global_position + Vector2(140.0, 0.0),
+				_player.global_position + Vector2(-140.0, 0.0),
+				_player.global_position + Vector2(0.0, 120.0),
+				_player.global_position + Vector2(0.0, -120.0),
+				_player.global_position + Vector2(110.0, 90.0),
+				_player.global_position + Vector2(-110.0, -90.0),
+			]
+			for cand in candidates:
+				if villain.has_method("_position_is_walkable") and bool(villain.call("_position_is_walkable", cand)):
+					spawn_pos = cand
+					break
+			if spawn_pos == Vector2.ZERO:
+				spawn_pos = _player.global_position + Vector2(130.0, 0.0)
+
+		if villain.has_method("wake_up"):
+			villain.call("wake_up", spawn_pos)
+		else:
+			villain.global_position = spawn_pos
+			villain.visible = true
+			villain.modulate.a = 1.0
+			villain.scale = Vector2.ONE
+			villain.set_physics_process(true)
+
+		if villain.has_method("set_form_stage"):
+			villain.call("set_form_stage", stage, true)
+		elif villain.has_method("set_stage"):
+			villain.call("set_stage", stage)
+
 		villain.set("stalk_player_distance", 9999.0)
-		villain.set("is_active", true)
-		villain.set("in_ducts", false)
-		villain.visible = true
-		match stage:
-			1:
-				if villain.has_method("fuse_with_amara"):
-					villain.call("fuse_with_amara")
-			2:
-				if villain.has_method("mutate_to_stage2"):
-					villain.call("mutate_to_stage2")
-			3:
-				if villain.has_method("mutate_to_final_form"):
-					villain.call("mutate_to_final_form")
-			_:
-				villain.set("current_stage", 0)
-				villain.set("is_fused_with_amara", false)
-				villain.set("stalk_speed", 58.0)
-				if villain.has_node("AnimatedSprite2D"):
-					var spr := villain.get_node("AnimatedSprite2D") as AnimatedSprite2D
-					spr.modulate = Color(0.3, 0.85, 1.0, 0.9)
-					spr.scale = Vector2.ONE
 
 		var lighting := _get_room_lighting()
 		if lighting != null and lighting.has_method("set_flicker_current_room"):
@@ -3279,6 +3782,8 @@ func _on_dev_retreat_monster_ducts() -> void:
 		return
 	var tree := get_tree()
 	var villain: Node2D = tree.get_first_node_in_group("resonance_ore_villain") as Node2D
+	if villain == null:
+		villain = tree.get_first_node_in_group("ship_villain") as Node2D
 	var cur_scene := tree.current_scene
 	if villain == null and cur_scene != null and cur_scene.has_node("ResonanceOreVillain"):
 		villain = cur_scene.get_node("ResonanceOreVillain") as Node2D
@@ -3291,12 +3796,27 @@ func _on_dev_despawn_monster() -> void:
 	if not is_inside_tree():
 		return
 	var tree := get_tree()
-	var villains := tree.get_nodes_in_group("resonance_ore_villain")
-	for v in villains:
-		v.queue_free()
 	var cur_scene := tree.current_scene
-	if cur_scene != null and cur_scene.has_node("ResonanceOreVillain"):
-		cur_scene.get_node("ResonanceOreVillain").queue_free()
+	var nodes_to_free: Array[Node] = []
+	for v in tree.get_nodes_in_group("resonance_ore_villain"):
+		if is_instance_valid(v) and not nodes_to_free.has(v):
+			nodes_to_free.append(v)
+	for v in tree.get_nodes_in_group("ship_villain"):
+		if is_instance_valid(v) and not nodes_to_free.has(v):
+			nodes_to_free.append(v)
+	if cur_scene != null:
+		var named_v := cur_scene.get_node_or_null("ResonanceOreVillain")
+		if is_instance_valid(named_v) and not nodes_to_free.has(named_v):
+			nodes_to_free.append(named_v)
+		var floor_layer := cur_scene.get_node_or_null("FloorLayer")
+		if floor_layer != null:
+			var stray := floor_layer.get_node_or_null("ResonanceOreVillain")
+			if is_instance_valid(stray) and not nodes_to_free.has(stray):
+				nodes_to_free.append(stray)
+	for n in nodes_to_free:
+		n.queue_free()
+	Engine.set_meta(&"resonance_ore_villain_spawned", false)
+	Engine.set_meta(&"echo_disappeared_into_ducts", false)
 	show_achievement_popup("MONSTER DESPAWNED", "All villain instances removed", "DEV MONSTER", MUTED)
 
 
@@ -3305,6 +3825,8 @@ func _on_dev_repel_monster_test(tool_id: StringName) -> void:
 		return
 	var tree := get_tree()
 	var villain: Node2D = tree.get_first_node_in_group("resonance_ore_villain") as Node2D
+	if villain == null:
+		villain = tree.get_first_node_in_group("ship_villain") as Node2D
 	var cur_scene := tree.current_scene
 	if villain == null and cur_scene != null and cur_scene.has_node("ResonanceOreVillain"):
 		villain = cur_scene.get_node("ResonanceOreVillain") as Node2D
@@ -3607,6 +4129,7 @@ func _toggle_dev_menu() -> void:
 		_close_overlay()
 	_dev_panel.visible = not _dev_panel.visible
 	if _dev_panel.visible:
+		_queue_resize()
 		_refresh_dev_menu()
 
 
@@ -4004,6 +4527,7 @@ func get_audio_log_def(log_id: StringName) -> Dictionary:
 func play_radio_transmission(speaker: String, text: String, is_static: bool = true) -> void:
 	if not is_instance_valid(_comms_panel):
 		return
+	DialogueAudioSynth.play_sfx("radio_squelch", self, -4.0)
 	if is_instance_valid(_comms_speaker_label):
 		_comms_speaker_label.text = ("// " + speaker).to_upper()
 	if is_instance_valid(_comms_status_label):
@@ -4096,6 +4620,7 @@ func unlock_all_equipment_items() -> void:
 func show_equipment_unlocked_toast(item_id: StringName, reason_text: String = "") -> void:
 	if not is_instance_valid(_unlock_toast_panel) or not ITEM_DATA.has(item_id):
 		return
+	DialogueAudioSynth.play_sfx("unlock_chime", self, -2.0)
 	var item_name: String = str(ITEM_DATA[item_id]["name"]).to_upper()
 	var slot_idx: int = _hotbar_items.find(item_id)
 	if is_instance_valid(_unlock_toast_badge):
@@ -4171,6 +4696,7 @@ func show_achievement_popup(title_text: String, subtitle_text: String = "", badg
 func _display_achievement_toast_now(title_text: String, _subtitle_text: String, _badge_text: String, accent_color: Color) -> void:
 	if not is_instance_valid(_achievement_toast_panel):
 		return
+	DialogueAudioSynth.play_sfx("unlock_chime", self, -3.0)
 	if is_instance_valid(_achievement_toast_medal):
 		_achievement_toast_medal.medal_color = accent_color
 		_achievement_toast_medal.unlocked = true
@@ -4335,6 +4861,16 @@ func _refresh_tasks_overlay() -> void:
 		var f_bg := Color(0.05, 0.09, 0.13, 0.9) if is_active else Color(0.02, 0.035, 0.05, 0.5)
 		var f_border: Color = GOLD if is_active else Color(0.18, 0.28, 0.34, 0.45)
 		btn.add_theme_stylebox_override("normal", _flat_box(f_bg, f_border, 10.0, 4.0, 1))
+
+	## Switch between task list and roadmap view.
+	var is_roadmap_tab: bool = (_tasks_filter_tab == &"roadmap")
+	if is_instance_valid(_roadmap_view_container):
+		_roadmap_view_container.visible = is_roadmap_tab
+	if is_instance_valid(_tasks_list_scroll):
+		_tasks_list_scroll.visible = not is_roadmap_tab
+	if is_roadmap_tab:
+		_refresh_roadmap(_story_completed_count)
+		return
 
 	# 2. Populate Tasks List
 	for child in _tasks_list_container.get_children():
@@ -4569,6 +5105,7 @@ func _select_hotbar(index: int, allow_toggle_unequip: bool = false) -> void:
 	if allow_toggle_unequip and _selected_hotbar_index == index and _equipment_items.get(&"tool", &"") != &"":
 		_unequip_active_tool()
 		return
+	DialogueAudioSynth.play_sfx("button_click", self, -7.0)
 	_selected_hotbar_index = index
 	var selected_item: StringName = _hotbar_items[index]
 	if selected_item != &"" and ITEM_DATA.has(selected_item):
@@ -4660,10 +5197,10 @@ func _build_mobile_touch_controls() -> void:
 	_mobile_controls_layer.add_child(_mobile_joystick)
 
 	# Bottom-Right Conditional SHOOT Button (ONLY visible when a weapon or equipment item is equipped)
-	_mobile_shoot_btn = _button("SHOOT", Vector2(216.0, 52.0), ORANGE)
+	_mobile_shoot_btn = _button("SHOOT", Vector2(280.0, 52.0), ORANGE)
 	_mobile_shoot_btn.name = "MobileShootButton"
 	_mobile_shoot_btn.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
-	_mobile_shoot_btn.offset_left = -236.0
+	_mobile_shoot_btn.offset_left = -300.0
 	_mobile_shoot_btn.offset_top = -134.0
 	_mobile_shoot_btn.offset_right = -20.0
 	_mobile_shoot_btn.offset_bottom = -82.0
@@ -4673,37 +5210,53 @@ func _build_mobile_touch_controls() -> void:
 	_mobile_shoot_btn.button_up.connect(_on_mobile_shoot_up)
 	_mobile_controls_layer.add_child(_mobile_shoot_btn)
 
-	# Bottom-Right PICK UP & DROP Buttons
+	# Bottom-Right PICK UP, DROP & LIGHT Buttons
 	var action_row := HBoxContainer.new()
 	action_row.name = "MobileItemActionsRow"
 	action_row.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
-	action_row.offset_left = -236.0
+	action_row.offset_left = -300.0
 	action_row.offset_top = -72.0
 	action_row.offset_right = -20.0
 	action_row.offset_bottom = -20.0
-	action_row.add_theme_constant_override("separation", 8)
+	action_row.add_theme_constant_override("separation", 6)
 	action_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_mobile_controls_layer.add_child(action_row)
 
-	_mobile_pickup_btn = _button("PICK UP", Vector2(104.0, 52.0), CYAN)
+	_mobile_pickup_btn = _button("PICK UP", Vector2(92.0, 52.0), CYAN)
 	_mobile_pickup_btn.name = "MobilePickUpButton"
 	_mobile_pickup_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_mobile_pickup_btn.focus_mode = Control.FOCUS_NONE
 	_mobile_pickup_btn.pressed.connect(_on_mobile_pickup_pressed)
 	action_row.add_child(_mobile_pickup_btn)
 
-	_mobile_drop_btn = _button("DROP", Vector2(104.0, 52.0), GOLD)
+	_mobile_drop_btn = _button("DROP", Vector2(88.0, 52.0), GOLD)
 	_mobile_drop_btn.name = "MobileDropButton"
 	_mobile_drop_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_mobile_drop_btn.focus_mode = Control.FOCUS_NONE
 	_mobile_drop_btn.pressed.connect(_on_mobile_drop_pressed)
 	action_row.add_child(_mobile_drop_btn)
 
+	_mobile_light_btn = _button("LIGHT", Vector2(88.0, 52.0), PALE)
+	_mobile_light_btn.name = "MobileLightButton"
+	_mobile_light_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_mobile_light_btn.focus_mode = Control.FOCUS_NONE
+	_mobile_light_btn.visible = false
+	_mobile_light_btn.pressed.connect(func():
+		DialogueAudioSynth.play_sfx("flashlight_click", self, -4.0)
+		if is_instance_valid(_player) and _player.has_method("toggle_suit_flashlight"):
+			_player.toggle_suit_flashlight()
+			_update_equipped_status_banner()
+			_refresh_mobile_controls()
+	)
+	action_row.add_child(_mobile_light_btn)
+
 
 func _refresh_mobile_controls() -> void:
+	_update_top_mode_btn()
 	if not is_instance_valid(_mobile_controls_layer):
 		return
-	var show_controls: bool = _walking_visible and _active_overlay == &""
+	var is_mobile := _is_mobile_mode_active()
+	var show_controls: bool = is_mobile and _walking_visible and _active_overlay == &""
 	_mobile_controls_layer.visible = show_controls
 	if not show_controls:
 		if is_instance_valid(_player) and _player.has_method("set_touch_shoot_held"):
@@ -4736,6 +5289,17 @@ func _refresh_mobile_controls() -> void:
 
 	if is_instance_valid(_mobile_drop_btn):
 		_mobile_drop_btn.add_theme_color_override("font_color", ORANGE if active_item != &"" else MUTED)
+
+	if is_instance_valid(_mobile_light_btn):
+		var suit_eq_item: StringName = StringName(_equipment_items.get(&"suit", &""))
+		var has_light: bool = _unlocked_items.has(&"suit_flashlight") or (suit_eq_item == &"suit_flashlight")
+		_mobile_light_btn.visible = has_light
+		if has_light:
+			var light_on: bool = false
+			if is_instance_valid(_player) and _player.has_method("is_suit_flashlight_enabled"):
+				light_on = _player.is_suit_flashlight_enabled()
+			_mobile_light_btn.text = "LIGHT: ON" if light_on else "LIGHT: OFF"
+			_mobile_light_btn.add_theme_color_override("font_color", GOLD if light_on else MUTED)
 
 
 func _on_mobile_shoot_down() -> void:
@@ -4983,6 +5547,56 @@ func _resize_ui() -> void:
 	if not is_instance_valid(_root) or get_viewport() == null or not is_instance_valid(_operator_panel):
 		return
 	var viewport_size := get_viewport().get_visible_rect().size
+	var is_mobile_active := _is_mobile_mode_active()
+
+	# Mobile vs PC layout optimization for quickbar & status pill
+	if is_instance_valid(_quickbar_frame) and is_instance_valid(_status_pill):
+		if is_mobile_active:
+			var slot_w: float = clampf(floorf((viewport_size.x - 420.0) / 9.0), 38.0, 52.0)
+			var total_w: float = slot_w * 9.0 + 32.0
+			var half_w: float = total_w * 0.5
+			_quickbar_frame.offset_left = -half_w
+			_quickbar_frame.offset_right = half_w
+			_quickbar_frame.offset_top = -slot_w - 24.0
+			_quickbar_frame.offset_bottom = -8.0
+			_status_pill.offset_left = -half_w
+			_status_pill.offset_right = half_w
+			_status_pill.offset_top = -slot_w - 50.0
+			_status_pill.offset_bottom = -slot_w - 26.0
+			for slot in _hotbar_slots:
+				slot.custom_minimum_size = Vector2(slot_w, slot_w)
+		else:
+			_quickbar_frame.offset_left = -334.0
+			_quickbar_frame.offset_right = 334.0
+			_quickbar_frame.offset_top = -102.0
+			_quickbar_frame.offset_bottom = -14.0
+			_status_pill.offset_left = -334.0
+			_status_pill.offset_right = 334.0
+			_status_pill.offset_top = -130.0
+			_status_pill.offset_bottom = -104.0
+			for slot in _hotbar_slots:
+				slot.custom_minimum_size = Vector2(68.0, 68.0)
+
+	# Mobile vs PC layout optimization for top navigation controls
+	if is_instance_valid(_top_controls):
+		if is_mobile_active or viewport_size.x < 1100.0:
+			_top_controls.offset_top = 8.0
+			_top_controls.offset_bottom = 58.0
+			_top_controls.add_theme_constant_override("separation", 4)
+			for child in _top_controls.get_children():
+				if child is Button:
+					child.custom_minimum_size = Vector2(74.0 if is_mobile_active else 92.0, 46.0)
+		else:
+			_top_controls.offset_top = 18.0
+			_top_controls.offset_bottom = 82.0
+			_top_controls.add_theme_constant_override("separation", 6)
+			for child in _top_controls.get_children():
+				if child is Button:
+					if child == _top_mode_btn:
+						child.custom_minimum_size = Vector2(96.0, 60.0)
+					else:
+						child.custom_minimum_size = Vector2(138.0, 60.0)
+
 	var inventory_width := minf(1232, viewport_size.x - 32)
 	_operator_panel.custom_minimum_size.x = 300 if inventory_width >= 1100 else 264
 	var cell_width := maxf(48, floorf((inventory_width - 64 - 12 - _operator_panel.custom_minimum_size.x - 48) / 9.0))
@@ -4996,3 +5610,215 @@ func _resize_ui() -> void:
 		var desired: Vector2 = data["desired"]
 		frame.size = Vector2(minf(desired.x, viewport_size.x - 32), minf(desired.y, viewport_size.y - 32)).floor()
 		frame.position = ((viewport_size - frame.size) * 0.5).floor()
+	if is_instance_valid(_dev_panel):
+		var dev_width := minf(520.0, maxf(320.0, viewport_size.x - 32.0))
+		_dev_panel.anchor_left = 1.0
+		_dev_panel.anchor_right = 1.0
+		_dev_panel.anchor_top = 0.0
+		_dev_panel.anchor_bottom = 1.0
+		_dev_panel.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+		_dev_panel.grow_vertical = Control.GROW_DIRECTION_BOTH
+		_dev_panel.offset_left = -dev_width - 16.0
+		_dev_panel.offset_right = -16.0
+		_dev_panel.offset_top = 16.0
+		_dev_panel.offset_bottom = -16.0
+
+
+## ─────────────────────────────────────────────────────────────────────────────
+## ROADMAP — vertical First-Watch mission timeline (story mode only)
+## ─────────────────────────────────────────────────────────────────────────────
+
+func _refresh_roadmap(completed: int) -> void:
+	if not is_instance_valid(_roadmap_view_container):
+		return
+	var inner: Node = _roadmap_view_container.get_child(0) if _roadmap_view_container.get_child_count() > 0 else null
+	if inner == null:
+		return
+	## Clear previous step rows (keep replay btn which is always first child).
+	for i in range(inner.get_child_count() - 1, 0, -1):
+		var ch: Node = inner.get_child(i)
+		inner.remove_child(ch)
+		ch.queue_free()
+
+	var chapter_lbl := _label("CHAPTER I  ·  FIRST WATCH  ·  ASTERIA-1 / DAY 184", 10, MUTED)
+	chapter_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	inner.add_child(chapter_lbl)
+	inner.add_child(HSeparator.new())
+
+	for i in range(ROADMAP_STEPS.size()):
+		var step: Dictionary = ROADMAP_STEPS[i]
+		var is_done: bool  = (i < completed)
+		var is_active: bool = (i == completed and completed < ROADMAP_STEPS.size())
+		var is_locked: bool = (not is_done and not is_active)
+
+		## Row container
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 8)
+
+		## Left border indicator (4 px wide ColorRect acting as a border stripe)
+		var stripe := ColorRect.new()
+		stripe.custom_minimum_size = Vector2(4.0, 0.0)
+		stripe.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		if is_done:
+			stripe.color = Color(0.48, 0.93, 0.64, 0.95)   # green
+		elif is_active:
+			stripe.color = GOLD                              # gold
+		else:
+			stripe.color = Color(0.24, 0.39, 0.43, 0.35)   # dim edge
+		row.add_child(stripe)
+
+		## Content vbox
+		var vbox := VBoxContainer.new()
+		vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		vbox.add_theme_constant_override("separation", 2)
+		row.add_child(vbox)
+
+		## Status icon + title row
+		var title_row := HBoxContainer.new()
+		title_row.add_theme_constant_override("separation", 6)
+		var icon_lbl := _label("✓" if is_done else "→" if is_active else "○", 11,
+			GREEN if is_done else GOLD if is_active else Color(0.45, 0.55, 0.62))
+		title_row.add_child(icon_lbl)
+		var title_lbl := _label(step["title"], 11,
+			Color(0.65, 0.78, 0.72) if is_done else PALE if is_active else Color(0.50, 0.60, 0.65))
+		title_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		title_row.add_child(title_lbl)
+		if is_locked:
+			title_row.add_child(_label("🔒", 9, Color(0.38, 0.48, 0.54)))
+		vbox.add_child(title_row)
+
+		## Room tag
+		var room_lbl := _label("[%s]" % step["room"], 9,
+			CYAN if is_active else Color(0.35, 0.55, 0.62) if is_done else Color(0.28, 0.38, 0.44))
+		vbox.add_child(room_lbl)
+
+		## Description — shown only for active step
+		if is_active:
+			var desc_lbl := _label(step["desc"], 10, Color(0.78, 0.88, 0.90))
+			desc_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			desc_lbl.custom_minimum_size.x = 240
+			vbox.add_child(desc_lbl)
+
+		## Panel wrapper
+		var card := PanelContainer.new()
+		var bg_col: Color
+		var bd_col: Color
+		if is_done:
+			bg_col = Color(0.012, 0.030, 0.022, 0.80)
+			bd_col = Color(0.20, 0.52, 0.34, 0.40)
+		elif is_active:
+			bg_col = Color(0.025, 0.055, 0.080, 0.96)
+			bd_col = Color(0.85, 0.68, 0.22, 0.90)
+		else:
+			bg_col = Color(0.012, 0.022, 0.032, 0.60)
+			bd_col = Color(0.20, 0.30, 0.36, 0.30)
+		card.modulate.a = 0.55 if is_locked else 1.0
+		card.add_theme_stylebox_override("panel", _flat_box(bg_col, bd_col, 10.0, 8.0, 1))
+		card.add_child(row)
+		inner.add_child(card)
+
+		## Connector line between steps
+		if i < ROADMAP_STEPS.size() - 1:
+			var conn := ColorRect.new()
+			conn.color = Color(0.30, 0.45, 0.50, 0.25)
+			conn.custom_minimum_size = Vector2(2.0, 10.0)
+			conn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+			inner.add_child(conn)
+
+	## Show/hide the replay button
+	if is_instance_valid(_roadmap_replay_btn):
+		_roadmap_replay_btn.visible = not _story_last_unlock_slide.is_empty()
+
+
+func _on_roadmap_replay_pressed() -> void:
+	if _story_last_unlock_slide.is_empty():
+		return
+	## Re-display the last unlock briefing via StoryCutsceneOverlay.
+	var overlay := get_node_or_null("RoadmapCutsceneOverlay")
+	if overlay == null:
+		var OverlayScript := load("res://scripts/ui/story_cutscene_overlay.gd")
+		if OverlayScript == null:
+			return
+		overlay = OverlayScript.new()
+		overlay.name = "RoadmapCutsceneOverlay"
+		add_child(overlay)
+		if not overlay.is_node_ready():
+			overlay._ready()
+	if overlay.has_method("play_cutscene"):
+		overlay.call("play_cutscene", &"roadmap.replay", _story_last_unlock_slide)
+
+
+## Injects a last-unlock slide so the roadmap replay button works.
+func set_story_last_unlock_slide(data: Dictionary) -> void:
+	_story_last_unlock_slide = data
+	if is_instance_valid(_roadmap_replay_btn):
+		_roadmap_replay_btn.visible = not data.is_empty()
+
+
+## ─────────────────────────────────────────────────────────────────────────────
+## MAP OBJECTIVE PIN — gold pulsing pin + room label for the active mission room
+## ─────────────────────────────────────────────────────────────────────────────
+
+func _update_map_objective_pin() -> void:
+	if not is_instance_valid(_map_obj_pin) or not is_instance_valid(_map_obj_pin_label):
+		return
+	## Only show during story mode and when the room is known.
+	if _story_objective_room.is_empty() or _story_completed_count >= 5:
+		_map_obj_pin.visible = false
+		_map_obj_pin_label.visible = false
+		return
+
+	## Look up a matching area key (the marker_label from the story is all-caps;
+	## we lower-cased it into _story_objective_room).
+	var area_key := ""
+	if _story_objective_room == "amara":
+		area_key = "hydro"
+	else:
+		for key in SHIP_CATALOG_AREAS:
+			if _story_objective_room.find(key) >= 0:
+				area_key = key
+				break
+	if area_key.is_empty():
+		_map_obj_pin.visible = false
+		_map_obj_pin_label.visible = false
+		return
+
+	var area: Rect2 = SHIP_CATALOG_AREAS[area_key]
+	## area is in ship-pixel coords; _map_world_origin and _map_world_size
+	## describe the full world rect. Normalise center to [0,1].
+	var center_world: Vector2 = area.get_center()
+	var norm: Vector2 = _map_canvas_normalized_position(_map_world_origin + center_world)
+	_set_map_pin_position(_map_obj_pin, norm)
+	_map_obj_pin.pin_color = GOLD
+	_map_obj_pin.is_complete = false
+	_map_obj_pin.visible = true
+	_map_obj_pin.queue_redraw()
+
+	## Position the label just above the pin.
+	var pin_size: Vector2 = _map_obj_pin.custom_minimum_size
+	var canvas_size: Vector2 = _map_canvas.size
+	var label_pos := Vector2(
+		norm.x * canvas_size.x - 36.0,
+		norm.y * canvas_size.y - pin_size.y - 18.0)
+	_map_obj_pin_label.text = _story_objective_room.to_upper()
+	_map_obj_pin_label.position = label_pos.floor()
+	_map_obj_pin_label.visible = true
+
+	## Dim every non-active floor area by modulating the canvas layers.
+	## We only adjust the floor/wall textures; markers stay at full brightness.
+	_dim_map_non_objective_rooms(area_key)
+
+
+func _dim_map_non_objective_rooms(active_key: String) -> void:
+	## The floor plan is a single texture so we can't dim per-room on it, but
+	## we can modulate the entire canvas slightly and let the bright pin pop.
+	## For richer per-room dimming, a room-rect overlay layer would be needed.
+	## Here: floor and wall textures stay at 0.55 alpha when not the active room,
+	## and the canvas alpha is full (allowing the gold pin to stand out).
+	if not is_instance_valid(_map_floor_layer):
+		return
+	## Gentle dimming: reduce floor opacity if an objective room is known.
+	var dim_alpha: float = 0.60 if not active_key.is_empty() else 1.0
+	_map_floor_layer.modulate = Color(1.0, 1.0, 1.0, dim_alpha)
+	if is_instance_valid(_map_wall_layer):
+		_map_wall_layer.modulate = Color(1.0, 1.0, 1.0, dim_alpha)

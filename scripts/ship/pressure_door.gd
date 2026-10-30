@@ -133,6 +133,8 @@ func _set_open_target(open: bool) -> void:
 	_is_open = false
 	if open:
 		opening_sound.play()
+	else:
+		DialogueAudioSynth.play_sfx_2d("door_close", global_position, self, -3.0)
 	if is_instance_valid(_transition) and _transition.is_running():
 		_transition.kill()
 
@@ -154,14 +156,15 @@ func _finish_transition(open: bool) -> void:
 
 
 func _is_actor_near() -> bool:
-	for group_name in [&"ship_player", &"ship_crew"]:
+	for group_name in [&"ship_player", &"ship_crew", &"ship_villain", &"resonance_ore_villain"]:
 		for actor_node in get_tree().get_nodes_in_group(group_name):
 			var actor := actor_node as Node2D
-			if not is_instance_valid(actor):
+			if not is_instance_valid(actor) or not actor.visible:
 				continue
 			var local_position := to_local(actor.global_position)
 			var beyond_span := maxf(absf(local_position.x) - opening_width * 0.5, 0.0)
 			var beyond_wall := maxf(absf(local_position.y) - wall_depth * 0.5, 0.0)
-			if Vector2(beyond_span, beyond_wall).length() <= activation_distance:
+			var threshold := activation_distance + (16.0 if (group_name == &"ship_villain" or group_name == &"resonance_ore_villain") else 0.0)
+			if Vector2(beyond_span, beyond_wall).length() <= threshold:
 				return true
 	return false

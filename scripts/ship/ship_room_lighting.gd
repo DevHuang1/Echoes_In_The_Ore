@@ -362,6 +362,9 @@ var _room_states: Array[Dictionary] = []
 var flicker_current_room: bool = false
 var flicker_all_rooms: bool = false
 var force_all_lights_on: bool = false
+var emergency_breaker_mode: bool = false
+var max_power_units: int = 4
+var breaker_powered_rooms: Dictionary = {}
 var flicker_rooms: Dictionary = {}
 var flicker_style: StringName = &"erratic"
 var flicker_speed: float = 1.0
@@ -535,6 +538,8 @@ func _update_all_rooms(delta: float, snap_immediately: bool) -> void:
 		var room_flicker_forced := flicker_all_rooms or bool(flicker_rooms.get(room_id, false))
 		var is_flickering := room_flicker_forced or (flicker_current_room and occupied)
 		var should_be_lit := occupied or flare_or_tool_lit or force_all_lights_on or room_flicker_forced
+		if emergency_breaker_mode and not bool(breaker_powered_rooms.get(room_id, false)):
+			should_be_lit = flare_or_tool_lit
 
 		var target := 1.0 if should_be_lit else 0.0
 		var current: float = float(room["lit_factor"])
@@ -720,3 +725,38 @@ func clear_all_flicker() -> void:
 	flicker_current_room = false
 	flicker_all_rooms = false
 	flicker_rooms.clear()
+
+
+func set_emergency_breaker_mode(enabled: bool) -> void:
+	emergency_breaker_mode = enabled
+
+
+func is_emergency_breaker_mode() -> bool:
+	return emergency_breaker_mode
+
+
+func set_breaker_power(room_id: StringName, powered: bool) -> bool:
+	if powered:
+		var current_used := get_used_power_units()
+		if not is_breaker_powered(room_id) and current_used >= max_power_units:
+			return false
+		breaker_powered_rooms[room_id] = true
+	else:
+		breaker_powered_rooms.erase(room_id)
+	return true
+
+
+func is_breaker_powered(room_id: StringName) -> bool:
+	return bool(breaker_powered_rooms.get(room_id, false))
+
+
+func get_used_power_units() -> int:
+	return breaker_powered_rooms.size()
+
+
+func get_max_power_units() -> int:
+	return max_power_units
+
+
+func set_max_power_units(val: int) -> void:
+	max_power_units = max(1, val)

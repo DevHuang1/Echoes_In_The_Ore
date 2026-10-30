@@ -2,6 +2,9 @@
 build/
 .DS_Store
 .agents/
+.env
+.firebase/
+firebase-debug.log
 
 # Local scratch files
 tools/tmp_*.gd

@@ -689,12 +689,14 @@ func _trigger_coolant_flush() -> void:
 	_coolant_cooldown = 4.5
 	_core_heat = maxf(_core_heat - 35.0, 5.0)
 	_hit_flash_timer = 0.5
+	DialogueAudioSynth.play_sfx("coolant_flush", self, -2.0)
 
 
 func _fire_3d_pulse_cannon() -> void:
 	if _pulse_cooldown > 0.0:
 		return
 	_pulse_cooldown = 0.22
+	DialogueAudioSynth.play_sfx("laser_cannon", self, -3.0)
 
 	# Twin 3D Laser Pulses shooting along -Z from left and right gun mounts
 	var pulse_mesh: CylinderMesh = CylinderMesh.new()

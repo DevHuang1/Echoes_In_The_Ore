@@ -50,7 +50,9 @@ static func initial_campaign(story: Dictionary) -> Dictionary:
 
 static func read(path: String) -> Dictionary:
 	if not allowed(path) or not FileAccess.file_exists(path): return {}
-	var value: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
+	var text := FileAccess.get_file_as_string(path).strip_edges()
+	if text.is_empty(): return {}
+	var value: Variant = JSON.parse_string(text)
 	return value if value is Dictionary and valid_payload(value) else {}
 
 static func continue_path() -> String:
@@ -58,10 +60,12 @@ static func continue_path() -> String:
 		var isolated: String = str(Engine.get_meta("ship_story_validation_path"))
 		return isolated if isolated.begins_with("res://.godot/mission_validation/") and not read(isolated).is_empty() else ""
 	if FileAccess.file_exists(INDEX):
-		var pointer: Variant = JSON.parse_string(FileAccess.get_file_as_string(INDEX))
-		if pointer is Dictionary and pointer.get("path") is String:
-			var payload := read(pointer.path)
-			if payload.has("story"): return pointer.path
+		var raw_index := FileAccess.get_file_as_string(INDEX).strip_edges()
+		if not raw_index.is_empty():
+			var pointer: Variant = JSON.parse_string(raw_index)
+			if pointer is Dictionary and pointer.get("path") is String:
+				var payload := read(pointer.path)
+				if payload.has("story"): return pointer.path
 	if read(DEFAULT).has("story"): return DEFAULT
 	if not read(LEGACY).is_empty(): return LEGACY
 	return ""
@@ -89,4 +93,12 @@ static func atomic_write(path: String, payload: Dictionary) -> Error:
 	var file := FileAccess.open(path+".tmp", FileAccess.WRITE)
 	if file == null: return FileAccess.get_open_error()
 	file.store_string(JSON.stringify(payload, "\t")); file.close()
-	return DirAccess.rename_absolute(ProjectSettings.globalize_path(path+".tmp"), ProjectSettings.globalize_path(path))
+	var err := DirAccess.rename_absolute(ProjectSettings.globalize_path(path+".tmp"), ProjectSettings.globalize_path(path))
+	if err == OK and path != INDEX and valid_payload(payload):
+		if Engine.get_main_loop() is SceneTree:
+			var tree := Engine.get_main_loop() as SceneTree
+			if tree and tree.root and tree.root.has_node("FirebaseManager"):
+				var fb = tree.root.get_node("FirebaseManager")
+				if fb and fb.is_authenticated:
+					fb.save_player_game(payload)
+	return err

@@ -1,5 +1,5 @@
 @tool
-extends Node2D
+extends "res://scripts/ship/ship_mission_walkthrough.gd"
 
 const FLOOR_TEXTURE: Texture2D = preload("res://art/overview/asteria_overview_floor.png")
 const RESONANCE_ORE_TANK_STORED_TEXTURE := preload("res://art/concepts/lab_props/ore_containment_stored_refined.png")
@@ -327,6 +327,8 @@ var _room_task_feedback_timer: float = 0.0
 var _walk_hud: WalkHud = null
 var _crew_dialogue: CrewDialogue = null
 var _story_cutscene: CanvasLayer = null
+var _monster_cinematic_camera_position: Vector2 = Vector2.ZERO
+var _monster_cinematic_camera_saved: bool = false
 var _crew_dialogue_open: bool = false
 var _amara_intro_seen: bool = false
 var _crew_tasks_unlocked: bool = false
@@ -619,16 +621,22 @@ func _update_xenomorph_incubation(delta: float) -> void:
 				_load_sprite_png(tank_sprite, "res://art/planet/modern_ore_containment_cracking.png")
 				tank_sprite.modulate = Color(1.0, 0.94, 0.86)
 				_set_tank_liquid_visible(true)
+				DialogueAudioSynth.play_sfx("tank_crack", self, -2.0)
 				_room_task_feedback = "PRESSURE WARNING: LIQUID ORE IS PUSHING THROUGH THE TANK SEALS."
 				_room_task_feedback_timer = 4.5
 			3:
 				tank_sprite.texture = RESONANCE_ORE_TANK_DESTROYED_TEXTURE
 				_load_sprite_png(tank_sprite, "res://art/concepts/lab_props/destroyed/ore_containment_redesigned.png")
 				_set_tank_liquid_visible(false)
+				DialogueAudioSynth.play_sfx("tank_rupture", self, -1.0)
 				_room_task_feedback = "CONTAINMENT BREACH: BLACK LIQUID HAS ENTERED THE SERVICE DUCTS."
 				_room_task_feedback_timer = 5.0
 
 	if _xenomorph_countdown <= 0.0:
+		if _arrival_briefing_open or _hud_modal_open or _task_console_open or _piloting_console_open or _crew_dialogue_open or _cutscene_open:
+			_xenomorph_countdown = 0.0
+			Engine.set_meta(&"resonance_ore_incubation_remaining", _xenomorph_countdown)
+			return
 		_xenomorph_timer_active = false
 		if is_instance_valid(lbl):
 			lbl.text = "CONTAINMENT BREACHED"
@@ -829,10 +837,17 @@ func _spawn_resonance_ore_villain(play_breakout_fx: bool) -> void:
 	if villain == null:
 		villain = RESONANCE_ORE_VILLAIN_SCENE.instantiate() as ResonanceOreVillain
 		villain.name = "ResonanceOreVillain"
+		villain.global_position = containment.global_position + Vector2(0.0, 6.0)
+		if play_breakout_fx and not _is_lab_destroyed():
+			villain.set_physics_process(false)
 		add_child(villain)
+	var play_breakout_cinematic := play_breakout_fx and not _is_lab_destroyed()
+	if play_breakout_cinematic:
+		_set_monster_cinematic_active(true, containment.global_position)
+		villain.set_physics_process(false)
 
 	var landing_pos := lab_room.to_global(Vector2(236.0, 114.0))
-	if play_breakout_fx and not _is_lab_destroyed():
+	if play_breakout_cinematic:
 		villain.global_position = containment.global_position + Vector2(0.0, 6.0)
 		villain.scale = Vector2(0.55, 0.55)
 		var leap := create_tween().set_parallel(true)
@@ -840,11 +855,13 @@ func _spawn_resonance_ore_villain(play_breakout_fx: bool) -> void:
 		leap.tween_property(villain, "scale", Vector2.ONE, 0.42).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 		await leap.finished
 		if not is_instance_valid(villain):
+			_set_monster_cinematic_active(false)
 			return
 		_room_task_feedback = "ALERT: BLACK LIQUID LIFEFORM DETECTED IN THE SERVICE DUCTS."
 		_room_task_feedback_timer = 6.5
 		await get_tree().create_timer(6.5).timeout
 		if not is_instance_valid(villain):
+			_set_monster_cinematic_active(false)
 			return
 		_room_task_feedback = "DR. OKOYE: SUIT FAILURE  /  VITALS DROPPING"
 		_room_task_feedback_timer = 5.0
@@ -854,26 +871,31 @@ func _spawn_resonance_ore_villain(play_breakout_fx: bool) -> void:
 			attack.tween_property(villain, "global_position", amara.global_position, 0.65).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 			await attack.finished
 			if not is_instance_valid(villain):
+				_set_monster_cinematic_active(false)
 				return
 			await amara.become_missing()
 		else:
 			Engine.set_meta(&"lab_doctor_missing", true)
 		if not is_instance_valid(villain):
+			_set_monster_cinematic_active(false)
 			return
 		_room_task_feedback = "DR. OKOYE: SIGNAL LOST  /  LOCATION UNKNOWN"
 		_room_task_feedback_timer = 5.0
 		await villain.fuse_with_amara()
 		if not is_instance_valid(villain):
+			_set_monster_cinematic_active(false)
 			return
 		_room_task_feedback = "DR. OKOYE IS MISSING  /  ECHO HOST FORM ACTIVE"
 		_room_task_feedback_timer = 6.5
 		await get_tree().create_timer(2.4).timeout
 		if not is_instance_valid(villain):
+			_set_monster_cinematic_active(false)
 			return
 		_room_task_feedback = "THE ECHO HAS ENTERED THE SERVICE DUCTS  /  LAB SYSTEMS FAILING"
 		_room_task_feedback_timer = 6.5
-		await villain.disappear_into_ducts()
+		await villain.disappear_into_ducts(false)
 		if not is_instance_valid(villain):
+			_set_monster_cinematic_active(false)
 			return
 		_apply_lab_destruction_stage(1, true)
 		await get_tree().create_timer(0.22).timeout
@@ -882,6 +904,8 @@ func _spawn_resonance_ore_villain(play_breakout_fx: bool) -> void:
 			_apply_lab_destruction_stage(stage, false)
 		_room_task_feedback = "RESONANCE SURGE  /  LAB SYSTEMS CRITICAL"
 		_room_task_feedback_timer = 6.5
+		villain.set_physics_process(true)
+		_set_monster_cinematic_active(false)
 	else:
 		villain.global_position = landing_pos
 		if Engine.has_meta(&"echo_disappeared_into_ducts") and bool(Engine.get_meta(&"echo_disappeared_into_ducts")):
@@ -1096,6 +1120,7 @@ func _ready() -> void:
 	_crew_dialogue.dialogue_finished.connect(_on_crew_dialogue_finished)
 	_crew_dialogue.conversation_finished.connect(_on_crew_conversation_finished)
 	add_child(_crew_dialogue)
+	ship_begin(_walk_hud, player)
 
 	_story_cutscene = STORY_CUTSCENE_SCRIPT.new() as CanvasLayer
 	_story_cutscene.connect(&"cutscene_finished", _on_story_cutscene_finished)
@@ -1233,6 +1258,10 @@ func _evaluate_equipment_story_milestones() -> String:
 
 
 func _process(delta: float) -> void:
+	ship_process(delta)
+	if ship_control_locked():
+		ship_refresh_prompt()
+		return
 	if _transitioning_to_planet:
 		return
 	_update_xenomorph_incubation(delta)
@@ -1310,6 +1339,8 @@ func _update_echo_lab_entry() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if _transitioning_to_planet or _arrival_briefing_open or _hud_modal_open or _task_console_open or _piloting_console_open or _crew_dialogue_open or _cutscene_open or not event.is_action_pressed(&"interact"):
 		return
+	if ship_handle_interact(event):
+		return
 	if _active_airlock_exit:
 		get_viewport().set_input_as_handled()
 		_exit_ship_to_planet()
@@ -1324,6 +1355,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if _active_locked_lab_door:
 		get_viewport().set_input_as_handled()
+		DialogueAudioSynth.play_sfx("access_denied", self, -2.0)
 		_room_task_feedback = "LABORATORY ACCESS SEALED  //  RESTORE ACCESS AT REPAIR WORKBENCH"
 		_room_task_feedback_timer = 4.0
 		return
@@ -1352,6 +1384,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _exit_ship_to_planet() -> void:
 	if not _is_ship_landed():
+		DialogueAudioSynth.play_sfx("access_denied", self, -2.0)
 		_room_task_feedback = "AIRLOCK CRUISE-LOCKED  //  SHIP IN DEEP-SPACE CRUISE (DAY 184)\nCOMPLETE PRE-DESCENT TASKS & INITIATE DESCENT AT BRIDGE HELM"
 		_room_task_feedback_timer = 5.0
 		if is_instance_valid(_walk_hud):
@@ -1361,12 +1394,15 @@ func _exit_ship_to_planet() -> void:
 		return
 	_save_persistent_story_state()
 	_transitioning_to_planet = true
+	DialogueAudioSynth.play_sfx("airlock_cycle", self, -1.0)
+	ship_store_transit()
 	get_tree().change_scene_to_file(MOCK_PLANET_SCENE_PATH)
 
 
 func _descend_to_second_floor() -> void:
 	if _transitioning_to_planet:
 		return
+	DialogueAudioSynth.play_sfx("lift_move", self, -2.0)
 	_completed_story_stations[&"subdeck_lift_descent"] = true
 	if is_instance_valid(_walk_hud):
 		_walk_hud.set_task_completed(&"subdeck_lift_descent", true)
@@ -1479,17 +1515,23 @@ func _on_ship_piloting_closed() -> void:
 func _open_room_task_console(task_id: StringName) -> void:
 	if _task_console_open:
 		return
+	DialogueAudioSynth.play_sfx("terminal_open", self, -3.0)
 	_task_console_open = true
 	_walk_hud.set_walking_visible(false)
 	_update_player_walk_state()
 	var console: ServiceTaskConsole = SERVICE_TASK_CONSOLE_SCENE.instantiate() as ServiceTaskConsole
 	console.setup(task_id, _completed_room_tasks.size(), ROOM_TASKS.size())
+	if ship_is_initialized():
+		ship_attach_service_console(console, task_id)
 	console.task_completed.connect(_on_room_task_completed)
 	console.console_closed.connect(_on_room_task_console_closed)
 	add_child(console)
 
 
 func _on_room_task_completed(task_id: StringName) -> void:
+	if ship_is_initialized():
+		ship_legacy_completed(task_id)
+		return
 	if _completed_room_tasks.has(task_id):
 		return
 	var completion: String = "Service task complete."
@@ -1500,6 +1542,7 @@ func _on_room_task_completed(task_id: StringName) -> void:
 			log_id = task.get("log_id", &"")
 			break
 	_completed_room_tasks[task_id] = true
+	DialogueAudioSynth.play_sfx("task_complete", self, -2.0)
 	_walk_hud.set_task_completed(task_id)
 	if log_id != &"":
 		_walk_hud.record_audio_log(log_id)
@@ -1534,12 +1577,14 @@ func _repair_lab_pressure_door() -> void:
 		sparks.tween_property(workbench, "modulate", Color.WHITE, 0.18)
 	for phase in ["ISOLATING THE DAMAGED LAB INTERLOCK...", "BYPASSING THE JAMMED PRESSURE SEAL...", "RESTORING THE DOOR ACTUATOR..."]:
 		_walk_hud.set_interaction_prompt(str(phase), true)
+		DialogueAudioSynth.play_sfx("welding_spark", self, -3.0)
 		await get_tree().create_timer(0.72).timeout
 		if not is_inside_tree():
 			return
 	if workbench != null:
 		workbench.modulate = Color.WHITE
 	_set_lab_doors_locked(false)
+	DialogueAudioSynth.play_sfx("task_complete", self, -2.0)
 	Engine.set_meta(&"resonance_lab_door_repaired", true)
 	_lab_door_repair_required = false
 	_lab_door_repairing = false
@@ -1552,6 +1597,7 @@ func _repair_lab_pressure_door() -> void:
 
 
 func _on_room_task_console_closed() -> void:
+	ship_service_closed()
 	_task_console_open = false
 	_walk_hud.set_walking_visible(not _arrival_briefing_open)
 	_update_player_walk_state()
@@ -1575,7 +1621,14 @@ func _refresh_room_task_prompt() -> void:
 	_active_leila_interaction = false
 	_active_airlock_exit = false
 	_active_subdeck_descent = false
-	if _crew_dialogue_open or _cutscene_open or _piloting_console_open or not _arrival_briefing_open and (_hud_modal_open or _task_console_open):
+	_ship_active_id = ""
+	if _cutscene_open:
+		if _room_task_feedback_timer > 0.0:
+			_walk_hud.set_interaction_prompt(_room_task_feedback, true)
+		else:
+			_walk_hud.set_interaction_prompt("", false)
+		return
+	if _crew_dialogue_open or _piloting_console_open or not _arrival_briefing_open and (_hud_modal_open or _task_console_open):
 		_walk_hud.set_interaction_prompt("", false)
 		return
 	if is_instance_valid(exterior_airlock):
@@ -1648,6 +1701,10 @@ func _refresh_room_task_prompt() -> void:
 				prompt_text = "WRECKED LAB STATION   /   [E] INSPECT DAMAGE"
 		_walk_hud.set_interaction_prompt(prompt_text, true)
 		return
+	if ship_is_initialized():
+		ship_refresh_prompt()
+		if not _ship_active_id.is_empty():
+			return
 	var closest_crew_task: Dictionary = {}
 	var closest_crew_distance: float = CREW_TASK_INTERACTION_RADIUS
 	for task in AMARA_CREW_TASKS:
@@ -1807,6 +1864,9 @@ func _begin_amara_dialogue() -> void:
 		player.face_toward(amara.global_position)
 		if amara.has_method("face_toward"):
 			amara.face_toward(player.global_position)
+	var observation := ship_amara_observation()
+	if not observation.is_empty():
+		lines.append(observation)
 	_crew_dialogue.start_dialogue(lines, false, {
 		"id": "amara_okoye",
 		"speaker": "DR. AMARA OKOYE / ASTROBIOLOGIST / HYDROPONICS",
@@ -2364,8 +2424,11 @@ func _setup_crew_characters() -> void:
 	mateo_badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	mateo_badge.add_theme_font_size_override("font_size", 8)
 	mateo_badge.add_theme_color_override("font_color", Color(1.0, 0.68, 0.28, 0.9))
-	mateo_badge.position = Vector2(-70.0, -32.0)
-	mateo_badge.size = Vector2(140.0, 16.0)
+	mateo_badge.autowrap_mode = TextServer.AUTOWRAP_OFF
+	mateo_badge.clip_text = false
+	mateo_badge.size = Vector2.ZERO
+	mateo_badge.custom_minimum_size = Vector2(180.0, 12.0)
+	mateo_badge.position = Vector2(-90.0, -36.0)
 	mateo.add_child(mateo_badge)
 	add_child(mateo)
 	mateo.global_position = Vector2(1240.0, 580.0)
@@ -2405,8 +2468,11 @@ func _setup_crew_characters() -> void:
 	chen_badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	chen_badge.add_theme_font_size_override("font_size", 8)
 	chen_badge.add_theme_color_override("font_color", Color(0.98, 0.84, 0.35, 0.9))
-	chen_badge.position = Vector2(-75.0, -32.0)
-	chen_badge.size = Vector2(150.0, 16.0)
+	chen_badge.autowrap_mode = TextServer.AUTOWRAP_OFF
+	chen_badge.clip_text = false
+	chen_badge.size = Vector2.ZERO
+	chen_badge.custom_minimum_size = Vector2(200.0, 12.0)
+	chen_badge.position = Vector2(-100.0, -36.0)
 	chen.add_child(chen_badge)
 	add_child(chen)
 	chen.global_position = Vector2(280.0, 340.0)
@@ -2447,8 +2513,11 @@ func _setup_crew_characters() -> void:
 		ward_badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		ward_badge.add_theme_font_size_override("font_size", 8)
 		ward_badge.add_theme_color_override("font_color", Color(0.68, 0.88, 1.0, 0.9))
-		ward_badge.position = Vector2(-75.0, -32.0)
-		ward_badge.size = Vector2(150.0, 16.0)
+		ward_badge.autowrap_mode = TextServer.AUTOWRAP_OFF
+		ward_badge.clip_text = false
+		ward_badge.size = Vector2.ZERO
+		ward_badge.custom_minimum_size = Vector2(200.0, 12.0)
+		ward_badge.position = Vector2(-100.0, -36.0)
 		ward.add_child(ward_badge)
 		add_child(ward)
 		ward.global_position = Vector2(840.0, 170.0)
@@ -2489,8 +2558,11 @@ func _setup_crew_characters() -> void:
 		leila_badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		leila_badge.add_theme_font_size_override("font_size", 8)
 		leila_badge.add_theme_color_override("font_color", Color(0.42, 0.92, 0.65, 0.9))
-		leila_badge.position = Vector2(-80.0, -32.0)
-		leila_badge.size = Vector2(160.0, 16.0)
+		leila_badge.autowrap_mode = TextServer.AUTOWRAP_OFF
+		leila_badge.clip_text = false
+		leila_badge.size = Vector2.ZERO
+		leila_badge.custom_minimum_size = Vector2(220.0, 12.0)
+		leila_badge.position = Vector2(-110.0, -36.0)
 		leila.add_child(leila_badge)
 		add_child(leila)
 		if _leila_rescued:
@@ -2518,6 +2590,8 @@ func _setup_crew_characters() -> void:
 func _update_medbay_echo_ambush() -> void:
 	if _medbay_ambush_triggered:
 		return
+	if _arrival_briefing_open or _hud_modal_open or _task_console_open or _piloting_console_open or _crew_dialogue_open or _cutscene_open:
+		return
 	if not (Engine.has_meta(&"resonance_ore_fused_with_amara") and bool(Engine.get_meta(&"resonance_ore_fused_with_amara"))):
 		return
 	if Engine.has_meta(&"ward_ambush_completed") and bool(Engine.get_meta(&"ward_ambush_completed")):
@@ -2530,7 +2604,8 @@ func _update_medbay_echo_ambush() -> void:
 
 
 func _play_medbay_ambush_sequence() -> void:
-	player.set_physics_process(false)
+	var ward_focus := _ward_npc.global_position if is_instance_valid(_ward_npc) else Vector2(840.0, 170.0)
+	_set_monster_cinematic_active(true, ward_focus)
 	var room_lighting := get_node_or_null("ShipRoomLighting")
 	if room_lighting != null and room_lighting.has_method("set_room_flicker"):
 		room_lighting.call("set_room_flicker", &"r04_upper_service", true)
@@ -2539,7 +2614,14 @@ func _play_medbay_ambush_sequence() -> void:
 	if villain == null:
 		villain = RESONANCE_ORE_VILLAIN_SCENE.instantiate() as ResonanceOreVillain
 		villain.name = "ResonanceOreVillain"
+		villain.global_position = Vector2(885.0, 135.0)
+		villain.visible = false
+		villain.set_physics_process(false)
 		add_child(villain)
+	else:
+		villain.global_position = Vector2(885.0, 135.0)
+		villain.visible = false
+		villain.set_physics_process(false)
 
 	_room_task_feedback = "INTERCOM STATIC // DR. OKOYE (DISTORTED):\n\"Elias... behind you...\""
 	_room_task_feedback_timer = 4.0
@@ -2550,7 +2632,6 @@ func _play_medbay_ambush_sequence() -> void:
 	villain.visible = true
 	villain.modulate.a = 1.0
 	villain.scale = Vector2.ONE
-	villain.set_physics_process(false)
 
 	if is_instance_valid(_ward_npc):
 		_ward_npc.call("face_toward", villain.global_position)
@@ -2586,9 +2667,9 @@ func _play_medbay_ambush_sequence() -> void:
 	_room_task_feedback_timer = 7.0
 
 	# Retreat into ceiling duct to begin active stalking
-	await villain.disappear_into_ducts()
+	await villain.disappear_into_ducts(false)
 	Engine.set_meta(&"ward_ambush_completed", true)
-	_update_player_walk_state()
+	_set_monster_cinematic_active(false)
 
 	# After short delay, emerge on active patrol elsewhere
 	await get_tree().create_timer(10.0).timeout
@@ -2598,6 +2679,10 @@ func _play_medbay_ambush_sequence() -> void:
 
 func _on_player_equipment_used(item_id: StringName) -> void:
 	var villain := get_node_or_null("ResonanceOreVillain") as ResonanceOreVillain
+	if villain == null:
+		villain = get_tree().get_first_node_in_group("resonance_ore_villain") as ResonanceOreVillain
+	if villain == null:
+		villain = get_tree().get_first_node_in_group("ship_villain") as ResonanceOreVillain
 	if not is_instance_valid(villain) or not villain.visible:
 		return
 	if item_id in [&"emergency_flare", &"industrial_plasma_cutter", &"electrical_discharge_tool", &"captains_revolver"]:
@@ -2613,24 +2698,30 @@ func _on_player_equipment_used(item_id: StringName) -> void:
 
 func _update_stalker_player_collision(_delta: float) -> void:
 	var villain := get_node_or_null("ResonanceOreVillain") as ResonanceOreVillain
+	if villain == null:
+		villain = get_tree().get_first_node_in_group("resonance_ore_villain") as ResonanceOreVillain
+	if villain == null:
+		villain = get_tree().get_first_node_in_group("ship_villain") as ResonanceOreVillain
 	if not is_instance_valid(villain) or not villain.visible:
 		return
 	if player.get("is_concealed") == true or player.is_in_group("concealed_players"):
 		return
 	var dist: float = player.global_position.distance_to(villain.global_position)
-	if dist <= 26.0:
+	if dist <= 28.0:
 		# Auto-defensive trigger if holding flare or electrical tool
 		var equipped: StringName = player.get_equipped_item_id() if player.has_method("get_equipped_item_id") else &""
 		if equipped in [&"emergency_flare", &"electrical_discharge_tool"]:
 			villain.repel_with_tool(equipped, player.global_position)
 			_room_task_feedback = "CLOSE-RANGE DEFENSE TRIGGERED! %s REPELLED THE ECHO HOST!" % String(equipped).replace("_", " ").to_upper()
 			_room_task_feedback_timer = 5.0
+		elif villain.has_method("_attack_player"):
+			villain.call("_attack_player", player)
 		else:
 			# Knockback player and warn to seek locker concealment
 			var knockback_dir: Vector2 = (player.global_position - villain.global_position).normalized()
 			if knockback_dir.is_zero_approx():
 				knockback_dir = Vector2.UP
-			player.global_position += knockback_dir * 18.0
+			player.global_position += knockback_dir * 20.0
 			_room_task_feedback = "WARNING: AMARA ATTACKED! HIDE IN A WEST LOCKER OR USE WEAPONS TO REPEL HER!"
 			_room_task_feedback_timer = 4.0
 
@@ -2676,6 +2767,10 @@ func _room_task_interaction_position(task: Dictionary, station: Node2D) -> Vecto
 
 
 func _crew_task_interaction_position(task: Dictionary, station: Node2D) -> Vector2:
+	if ship_is_initialized():
+		for entry in _ship_points.values():
+			if entry.host == station and is_instance_valid(entry.marker):
+				return entry.marker.global_position
 	var offset: Vector2 = task.get("interaction_offset", Vector2.ZERO)
 	var parent: Node2D = station.get_parent() as Node2D
 	if parent == null:
@@ -2698,6 +2793,7 @@ func _complete_crew_task(task_id: StringName) -> void:
 			completion = str(task["completion"])
 			break
 	_completed_crew_tasks[task_id] = true
+	DialogueAudioSynth.play_sfx("task_complete", self, -2.0)
 	_walk_hud.set_task_completed(task_id)
 	if _completed_crew_tasks.size() >= AMARA_CREW_TASKS.size():
 		completion = "Both Hydroponics checks complete! Dr. Okoye logged: Astrobiology Culture Telemetry."
@@ -2852,7 +2948,7 @@ func _build_cutscene_data(station_id: StringName) -> Dictionary:
 				"slides": [
 					{
 						"speaker": "COMMANDER MAYA CHEN // SHIPWIDE DESCENT ALERT",
-						"image": "res://art/overview/space_frames/asteria_space_backdrop_38.jpg",
+						"image": "res://art/planet/erebos_extraction_surface_v2.png",
 						"text": "COMMANDER MAYA CHEN: \"All hands, this is Commander Chen. De-orbit burn sequence initiated. Main retro-thrusters firing in 3... 2... 1.\n\nAsteria-1 has breached the upper gravity well of Erebos. Thura, manual retro-steering is yours at the Bridge Helm — guide our descent corridor toward Site K-12!\"",
 					},
 					{
@@ -3085,6 +3181,18 @@ func _play_ending_epilogue(ending_id: StringName) -> void:
 	_story_cutscene.call(&"play_cutscene", &"epilogue_complete", epilogue_data)
 
 
+func _show_story_arrival_briefing() -> void:
+	if not ARRIVAL_BRIEFING_SCENE:
+		return
+	_arrival_briefing_open = true
+	if is_instance_valid(_walk_hud):
+		_walk_hud.set_walking_visible(false)
+	var arrival_briefing: Node = ARRIVAL_BRIEFING_SCENE.instantiate()
+	arrival_briefing.connect(&"dismissed", _on_arrival_briefing_dismissed)
+	add_child(arrival_briefing)
+	_update_player_walk_state()
+
+
 func _on_arrival_briefing_dismissed() -> void:
 	_arrival_briefing_open = false
 	_walk_hud.set_walking_visible(true)
@@ -3099,10 +3207,31 @@ func _on_hud_modal_state_changed(is_open: bool) -> void:
 
 
 func _update_player_walk_state() -> void:
-	player.set_physics_process(not (_arrival_briefing_open or _hud_modal_open or _task_console_open or _piloting_console_open or _crew_dialogue_open or _cutscene_open))
+	player.set_physics_process(not (_arrival_briefing_open or _hud_modal_open or _task_console_open or _piloting_console_open or _crew_dialogue_open or _cutscene_open or ship_control_locked()))
 	if not player.is_physics_processing() and is_instance_valid(player.sprite):
 		player.sprite.stop()
 		player.sprite.frame = 0
+
+
+func _set_monster_cinematic_active(active: bool, focus_position: Vector2 = Vector2.INF) -> void:
+	_cutscene_open = active
+	if active and focus_position != Vector2.INF and is_instance_valid(player) and is_instance_valid(player.camera):
+		_monster_cinematic_camera_position = player.camera.position
+		_monster_cinematic_camera_saved = true
+		var camera_focus := player.to_local(focus_position)
+		var focus_tween := create_tween()
+		focus_tween.tween_property(player.camera, "position", camera_focus, 0.45).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	elif not active and _monster_cinematic_camera_saved and is_instance_valid(player) and is_instance_valid(player.camera):
+		var return_tween := create_tween()
+		return_tween.tween_property(player.camera, "position", _monster_cinematic_camera_position, 0.45).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+		_monster_cinematic_camera_saved = false
+	var can_show_hud := not (_arrival_briefing_open or _hud_modal_open or _task_console_open or _piloting_console_open or _crew_dialogue_open)
+	if is_instance_valid(_walk_hud):
+		_walk_hud.set_walking_visible(can_show_hud)
+		if active:
+			_walk_hud.set_process_unhandled_input(false)
+			_walk_hud.set_process_unhandled_key_input(false)
+	_update_player_walk_state()
 
 
 func _on_interactive_highlights_draw(canvas: Node2D = null) -> void:
@@ -3121,6 +3250,7 @@ func _draw_small_station_highlight(_canvas: Node2D, _center: Vector2, _half_exte
 func _open_lab_device_console(device_id: StringName) -> void:
 	if _task_console_open:
 		return
+	DialogueAudioSynth.play_sfx("terminal_open", self, -3.0)
 	for device in LAB_DEVICES:
 		if device["id"] != device_id:
 			continue

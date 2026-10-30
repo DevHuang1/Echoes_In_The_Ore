@@ -650,6 +650,7 @@ var _lab_axis_sliders: Array[HSlider] = []
 var _lab_axis_names: Array[String] = []
 var _lab_axis_value_labels: Array[Label] = []
 var _lab_lock_buttons: Array[Button] = []
+var _proximity_alert_label: Label = null
 
 
 func setup(task_id: StringName, completed_count: int, task_total: int) -> void:
@@ -659,6 +660,7 @@ func setup(task_id: StringName, completed_count: int, task_total: int) -> void:
 
 
 func _ready() -> void:
+	add_to_group("service_task_console")
 	layer = 20
 	_build_ui()
 	_restore_service_progress()
@@ -673,6 +675,33 @@ func _ready() -> void:
 		_nutrient_rotate_buttons[0].grab_focus()
 	elif _is_labroom_task() and is_instance_valid(_lab_primary_control):
 		_lab_primary_control.grab_focus()
+
+
+func _process(_delta: float) -> void:
+	if not is_instance_valid(_proximity_alert_label):
+		return
+	var villains := get_tree().get_nodes_in_group("ship_villain")
+	if villains.is_empty():
+		villains = get_tree().get_nodes_in_group("resonance_ore_villain")
+	var players := get_tree().get_nodes_in_group("ship_player")
+	if villains.is_empty() or players.is_empty() or not is_instance_valid(players[0]):
+		_proximity_alert_label.visible = false
+		return
+
+	var player := players[0] as Node2D
+	var min_dist := 9999.0
+	for v in villains:
+		if is_instance_valid(v) and v.visible and not bool(v.get("in_ducts")):
+			var d: float = v.global_position.distance_to(player.global_position)
+			if d < min_dist:
+				min_dist = d
+
+	if min_dist < 220.0:
+		_proximity_alert_label.visible = true
+		_proximity_alert_label.text = "⚠️ HOSTILE NEARBY (%dM) - ESC TO BAIL OUT!" % int(min_dist / 10.0)
+		_proximity_alert_label.modulate = Color(1.0, 0.25, 0.25, 1.0)
+	else:
+		_proximity_alert_label.visible = false
 
 
 func _build_ui() -> void:
@@ -746,6 +775,9 @@ func _build_header() -> Control:
 	status_group.add_child(_centered(_status_light))
 	_status_label = _label("DEVICE ONLINE" if _is_labroom_task() else "LOCAL CONTROL", 12, INSTRUMENT.WELL)
 	status_group.add_child(_centered(_status_label))
+	_proximity_alert_label = _label("", 12, Color(1.0, 0.28, 0.28, 1.0))
+	_proximity_alert_label.visible = false
+	status_group.add_child(_centered(_proximity_alert_label))
 	row.add_child(status_group)
 
 	_close_button = Button.new()
@@ -1754,6 +1786,7 @@ func _complete_task(message: String) -> void:
 	if _task_complete:
 		return
 	_task_complete = true
+	DialogueAudioSynth.play_sfx("task_complete", self, -2.0)
 	if is_instance_valid(_filter_pressure_slider):
 		_filter_pressure_slider.editable = false
 	if is_instance_valid(_filter_pressure_button):
@@ -1831,6 +1864,7 @@ func _button(text: String, minimum_size: Vector2, _accent: Color) -> Button:
 	button.focus_mode = Control.FOCUS_ALL
 	button.add_theme_font_override("font", SKIN.get_clean_font())
 	button.add_theme_font_size_override("font_size", 11)
+	button.pressed.connect(func(): DialogueAudioSynth.play_sfx("button_click", button, -6.0))
 	for st_name in ["normal", "hover", "pressed", "disabled", "focus"]:
 		if SKIN.THEME.has_stylebox(st_name, "Button"):
 			button.add_theme_stylebox_override(st_name, SKIN.THEME.get_stylebox(st_name, "Button"))
@@ -1839,6 +1873,7 @@ func _button(text: String, minimum_size: Vector2, _accent: Color) -> Button:
 func _style_task_slider(slider: HSlider, _accent: Color) -> void:
 	slider.custom_minimum_size.y = maxf(28.0, slider.custom_minimum_size.y)
 	slider.focus_mode = Control.FOCUS_ALL
+	slider.value_changed.connect(func(_val: float): DialogueAudioSynth.play_sfx("slider_tick", slider, -8.0))
 
 func _pressure_scale() -> HBoxContainer:
 	var row := HBoxContainer.new()

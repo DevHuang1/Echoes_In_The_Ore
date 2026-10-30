@@ -8,6 +8,37 @@ const SHIP_PANEL := preload("res://scripts/ui/ship_procedure_panel.gd")
 const EITO_LAYER := preload("res://scripts/ui/eito/eito_layer.gd")
 const SHIP_STORY := preload("res://scripts/ship/first_watch_story.gd")
 const STORY_SAVE := preload("res://scripts/ship/ship_story_save.gd")
+
+const UNLOCK_CUTSCENES: Dictionary = {
+	"story.a1.020_meet_amara": {
+		"act": "ACT I — THE LONG APPROACH",
+		"clock": "ASTERIA-1 // DAY 184 // CREW QUARTERS",
+		"title": "STEP 2: REVIEW DUTY ROSTER",
+		"slides": [{"speaker": "MISSION CONTROL",
+			"text": "Day 184. Before anything else, verify the crew roster at the personal computer desk in Crew Quarters — below the bridge corridor."}]
+	},
+	"story.a1.030_aux_service": {
+		"act": "ACT I — THE LONG APPROACH",
+		"clock": "ASTERIA-1 // DAY 184 // HYDROPONICS",
+		"title": "STEP 3: MEET AMARA & INSPECT DELIVERY",
+		"slides": [{"speaker": "MISSION CONTROL",
+			"text": "Amara Okoye is tending the grow beds in Hydroponics. Introduce yourself, then inspect nutrient delivery at the console and record your diagnosis."}]
+	},
+	"story.a1.040_irrigation_report": {
+		"act": "ACT I — THE LONG APPROACH",
+		"clock": "ASTERIA-1 // DAY 184 // POWER ROOM",
+		"title": "STEP 4: RESTORE SERVICE POWER",
+		"slides": [{"speaker": "MISSION CONTROL",
+			"text": "Engineering has authorised the auxiliary power work order. Diagnose and restore distribution in the Power room, then return to Hydroponics to verify delivery."}]
+	},
+	"story.a1.050_watch_handoff": {
+		"act": "ACT I — THE LONG APPROACH",
+		"clock": "ASTERIA-1 // DAY 184 // BRIDGE",
+		"title": "STEP 5: HAND OVER THE WATCH",
+		"slides": [{"speaker": "MISSION CONTROL",
+			"text": "All watch duties complete. Return to the bridge planning table and submit your verified summary to Commander Chen."}]
+	},
+}
 @export var ship_story_enabled := true
 @export var ship_story_autosave := true
 @export var ship_mission_save_path := "user://ship_side_missions_v1.json"
@@ -46,6 +77,9 @@ var _ship_cue_ui: CanvasLayer
 var _ship_story_hud_key := ""
 var _ship_pending_cue_reoffer := ""
 var _ship_access_connected := {}
+var _story_prev_mission_id: String = ""
+var _story_pending_unlock_mid: String = ""
+var _story_unlock_overlay: Node = null
 const SHIP_NAV_ORIGIN := Vector2(16,20)
 const SHIP_NAV_STEP := 4.0
 
@@ -53,6 +87,9 @@ func _exit_tree() -> void:
 	if Engine.is_editor_hint(): return
 	_story_release_locks()
 	_ship_release_hide_reservation()
+	_story_prev_mission_id = ""
+	_story_pending_unlock_mid = ""
+	_story_unlock_overlay = null
 	# A model/save snapshot may outlive its scene during a planet transition.
 	# Disconnect the old owner and release scene-node handles explicitly.
 	_ship_ready=false
@@ -111,6 +148,7 @@ func ship_process(delta: float) -> void:
 		_ship_publish_systems()
 		if ship_story_active(): _story_sync()
 		if not _ship_pending_cue_reoffer.is_empty(): _story_reoffer_pending_cue.call_deferred()
+		if not _story_pending_unlock_mid.is_empty(): _story_fire_unlock_cutscene(_story_pending_unlock_mid)
 
 func _ship_body_clear(point: Vector2, exclusions: Array[RID]=[], ignore_doors_for_access_planning := false) -> bool:
 	if not _ship_player._is_body_over_floor(point,ignore_doors_for_access_planning): return false
@@ -640,6 +678,10 @@ func ship_restore(payload: Dictionary, restore_position := true) -> bool:
 	_ship_hide_id = ""; _ship_hide_phase = "outside"
 	_ship_hide_feedback=""
 	_ship_story_hud_key = ""; _ship_syncing = false
+	_story_prev_mission_id = _story_current_mission_key()
+	_story_pending_unlock_mid = ""
+	if UNLOCK_CUTSCENES.has(_story_prev_mission_id) and is_instance_valid(_ship_hud) and _ship_hud.has_method("set_story_last_unlock_slide"):
+		_ship_hud.set_story_last_unlock_slide(UNLOCK_CUTSCENES[_story_prev_mission_id])
 	_ship_sync_hud(); _ship_publish_systems(); call("_update_player_walk_state")
 	if is_instance_valid(_ship_panel): _ship_panel._schedule_rebuild()
 	if not _ship_pending_cue_reoffer.is_empty(): _story_reoffer_pending_cue.call_deferred()
@@ -684,6 +726,8 @@ func ship_start_development_scenario(context: String) -> void:
 	_ship_syncing = true
 	if is_instance_valid(get("_crew_dialogue")): get("_crew_dialogue").cancel_dialogue()
 	_story_release_locks(); _ship_story = null; _ship_story_hud_key = ""
+	_story_prev_mission_id = ""
+	_story_pending_unlock_mid = ""
 	_ship_hud.inventory_restore(_ship_initial_inventory)
 	_ship_state.reset(context)
 	set("_completed_room_tasks",{});set("_completed_crew_tasks",{});set("_crew_tasks_unlocked",false)
@@ -737,10 +781,17 @@ func _story_sync() -> void:
 		point = _ship_points[objective.station].marker.global_position
 	objective.position = point; objective.marker_position = point+Vector2(0,-20)
 	_eito_track_objective(str(objective.title))
-	var key := str([objective.title, objective.description, Vector2i(point/8), _ship_story.completed_count(), get("_completed_crew_tasks"), get("_crew_tasks_unlocked")])
+	var roadmap_count := _story_roadmap_completed_count()
+	var current_mid := _story_current_mission_key()
+	if not current_mid.is_empty() and current_mid != _story_prev_mission_id and not _story_prev_mission_id.is_empty():
+		_story_fire_unlock_cutscene(current_mid)
+	elif not _story_pending_unlock_mid.is_empty():
+		_story_fire_unlock_cutscene(_story_pending_unlock_mid)
+	_story_prev_mission_id = current_mid
+	var key := str([objective.title, objective.description, Vector2i(point/8), roadmap_count, get("_completed_crew_tasks"), get("_crew_tasks_unlocked")])
 	if key == _ship_story_hud_key: return
 	_ship_story_hud_key = key
-	_ship_hud.set_story_objective(objective, _ship_story.completed_count(), bool(get("_crew_tasks_unlocked")), get("_completed_crew_tasks").size())
+	_ship_hud.set_story_objective(objective, roadmap_count, bool(get("_crew_tasks_unlocked")), get("_completed_crew_tasks").size())
 
 ## NEW OBJECTIVE ribbon from the redesign. Panels that announce the next
 ## objective themselves (crew records, power) don't get a second ribbon; other
@@ -894,10 +945,22 @@ func _story_begin_cue(cue_id: String, delivery: String) -> Dictionary:
 	var context: Dictionary = _ship_story.request_cue(cue_id, delivery)
 	if context.is_empty(): return {}
 	_ship_cue_active = context.duplicate(true)
-	_ship_cue_active.camera = _ship_player.camera
-	_ship_cue_active.zoom = _ship_player.camera.zoom
-	_ship_cue_active.smoothing = _ship_player.camera.position_smoothing_enabled
-	_ship_cue_active.camera_state = {"position":_ship_player.camera.position,"offset":_ship_player.camera.offset,"limit_left":_ship_player.camera.limit_left,"limit_right":_ship_player.camera.limit_right,"limit_top":_ship_player.camera.limit_top,"limit_bottom":_ship_player.camera.limit_bottom}
+	if is_instance_valid(_ship_player.get("camera")):
+		_ship_cue_active.camera = _ship_player.camera
+		var cue_zoom: Vector2 = _ship_player.camera.zoom
+		if cue_zoom.x > 1.85:
+			cue_zoom = Vector2(1.75, 1.75)
+		_ship_cue_active.zoom = cue_zoom
+		_ship_cue_active.smoothing = _ship_player.camera.position_smoothing_enabled
+		var cam_state: Dictionary = {"position":_ship_player.camera.position,"offset":_ship_player.camera.offset,"limit_left":_ship_player.camera.limit_left,"limit_right":_ship_player.camera.limit_right,"limit_top":_ship_player.camera.limit_top,"limit_bottom":_ship_player.camera.limit_bottom}
+		if _ship_player.camera.zoom.x > 1.85:
+			cam_state["position"] = Vector2.ZERO
+		_ship_cue_active.camera_state = cam_state
+	else:
+		_ship_cue_active.camera = null
+		_ship_cue_active.zoom = Vector2.ONE
+		_ship_cue_active.smoothing = false
+		_ship_cue_active.camera_state = {}
 	var npc := get_node_or_null("AmaraOkoye")
 	if npc != null: npc.set_interaction_lock(&"story_cue", true)
 	_story_checkpoint(); call("_update_player_walk_state")
@@ -920,9 +983,14 @@ func ship_finish_story_cue(cue_id: String, token: String, outcome: String, landi
 func _story_release_locks() -> void:
 	var camera: Camera2D = _ship_cue_active.get("camera")
 	if is_instance_valid(camera) and camera.is_inside_tree():
-		camera.zoom = _ship_cue_active.get("zoom", camera.zoom)
+		var restore_zoom: Vector2 = _ship_cue_active.get("zoom", camera.zoom)
+		if restore_zoom.x > 1.85:
+			restore_zoom = Vector2(1.75, 1.75)
+		camera.zoom = restore_zoom
 		camera.position_smoothing_enabled = _ship_cue_active.get("smoothing", camera.position_smoothing_enabled)
 		for property in _ship_cue_active.get("camera_state",{}): camera.set(property,_ship_cue_active.camera_state[property])
+		if restore_zoom.x > 1.85:
+			camera.position = Vector2.ZERO
 		camera.make_current(); camera.reset_smoothing()
 	_ship_cue_active = {}
 	var dialogue := get_node_or_null("CrewDialogue")
@@ -981,3 +1049,59 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	elif event.keycode==KEY_F9:
 		_ship_status=ship_load_game();_ship_status_time=5.0;get_viewport().set_input_as_handled()
 		if _ship_hide_phase=="concealed": _ship_hide_feedback="LOAD REFUSED / STILL IN COVER / [E] RETRY EXIT"
+
+
+## ─────────────────────────────────────────────────────────────────────────────
+## STORY ROADMAP & UNLOCK BRIEFING CUTSCENES
+## ─────────────────────────────────────────────────────────────────────────────
+
+func _story_roadmap_completed_count() -> int:
+	if not ship_story_active(): return 0
+	var count := 0
+	if _ship_story.has("watch.accepted"): count = 1
+	if _ship_story.has("roster.reviewed"): count = 2
+	if _ship_story.has("amara.observation_reported"): count = 3
+	if _ship_story.has("power.reported"): count = 4
+	if _ship_story.has("watch.acknowledged"): count = 5
+	return count
+
+func _story_current_mission_key() -> String:
+	if not ship_story_active(): return ""
+	var idx := clampi(_story_roadmap_completed_count(), 0, 4)
+	return String(SHIP_STORY.MISSIONS[idx])
+
+func _story_fire_unlock_cutscene(mission_id: String) -> void:
+	## Only fire if story mode is active, no major cue is playing, and we have data.
+	if not ship_story_active() or not UNLOCK_CUTSCENES.has(mission_id): return
+	var slide_data: Dictionary = UNLOCK_CUTSCENES[mission_id]
+	## Pass slide to HUD for replay via roadmap button.
+	if is_instance_valid(_ship_hud) and _ship_hud.has_method("set_story_last_unlock_slide"):
+		_ship_hud.set_story_last_unlock_slide(slide_data)
+	if not _ship_cue_active.is_empty() or get("_crew_dialogue_open") == true or get("_hud_modal_open") == true or get("_task_console_open") == true or _ship_hide_phase != "outside":
+		_story_pending_unlock_mid = mission_id
+		return
+	## Instantiate or reuse the unlock overlay (separate from the main cue system).
+	if not is_instance_valid(_story_unlock_overlay):
+		var OverlayScript = load("res://scripts/ui/story_cutscene_overlay.gd")
+		if OverlayScript == null: return
+		_story_unlock_overlay = OverlayScript.new()
+		_story_unlock_overlay.name = "UnlockBriefingOverlay"
+		_story_unlock_overlay.connect(&"cutscene_finished", _on_unlock_cutscene_finished)
+		add_child(_story_unlock_overlay)
+		if not _story_unlock_overlay.is_node_ready():
+			_story_unlock_overlay._ready()
+	if _story_unlock_overlay.has_method("is_active") and _story_unlock_overlay.call("is_active"):
+		_story_pending_unlock_mid = mission_id
+		return
+	_story_pending_unlock_mid = ""
+	set("_cutscene_open", true)
+	if has_method("_update_player_walk_state"):
+		call("_update_player_walk_state")
+	if _story_unlock_overlay.has_method("play_cutscene"):
+		_story_unlock_overlay.call("play_cutscene", StringName("unlock." + mission_id), slide_data)
+
+func _on_unlock_cutscene_finished(_cutscene_id: StringName, _choice_id: StringName) -> void:
+	set("_cutscene_open", false)
+	if has_method("_update_player_walk_state"):
+		call("_update_player_walk_state")
+

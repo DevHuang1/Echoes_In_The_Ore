@@ -50,6 +50,7 @@ func _process(delta: float) -> void:
 			_drill_button.text = "TEST FAILED"
 			_drill_button.disabled = true
 			_close_button.text = "CLOSE REPORT"
+			DialogueAudioSynth.play_sfx("access_denied", self, -2.0)
 			machine_test_failed.emit(StringName(_site.get("id", &"")))
 			return
 		_status_label.text = "CORE SAMPLE SECURED  /  READY FOR RETURN"
@@ -57,6 +58,7 @@ func _process(delta: float) -> void:
 		_drill_button.text = "SAMPLE SECURED"
 		_drill_button.disabled = true
 		_close_button.text = "CLOSE CONSOLE"
+		DialogueAudioSynth.play_sfx("task_complete", self, -2.0)
 		extraction_completed.emit(StringName(_site.get("id", &"")))
 
 
@@ -198,6 +200,7 @@ func _add_reading(grid: GridContainer, label_text: String, value_text: String) -
 func _start_extraction() -> void:
 	if _is_drilling or _completed:
 		return
+	DialogueAudioSynth.play_sfx("mining_drill", self, -2.0)
 	_elapsed = 0.0
 	_is_drilling = true
 	_drill_button.disabled = true

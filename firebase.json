@@ -1,0 +1,82 @@
+{
+  "auth": {
+    "providers": {
+      "anonymous": true,
+      "emailPassword": true,
+      "googleSignIn": {
+        "oAuthBrandDisplayName": "Echoes in the Ore",
+        "supportEmail": "ryanthuta77@gmail.com",
+        "authorizedRedirectUris": [
+          "https://hackathon-c565e.firebaseapp.com/__/auth/handler",
+          "https://echoesintheore.web.app",
+          "https://echoesintheore.firebaseapp.com",
+          "https://hackathon-c565e.web.app",
+          "https://hackathon-c565e.firebaseapp.com",
+          "http://localhost",
+          "http://localhost:8080"
+        ]
+      }
+    }
+  },
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "hosting": {
+    "site": "echoesintheore",
+    "public": "public",
+    "cleanUrls": true,
+    "headers": [
+      {
+        "source": "/**",
+        "headers": [
+          {
+            "key": "Access-Control-Allow-Origin",
+            "value": "*"
+          },
+          {
+            "key": "Cross-Origin-Opener-Policy",
+            "value": "same-origin-allow-popups"
+          }
+        ]
+      },
+      {
+        "source": "**/*.@(pck|wasm)",
+        "headers": [
+          {
+            "key": "Cache-Control",
+          "value": "public, max-age=0, must-revalidate"
+          },
+          {
+            "key": "Access-Control-Allow-Origin",
+            "value": "*"
+          }
+        ]
+      },
+      {
+        "source": "**/*.@(html)",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache, must-revalidate"
+          }
+        ]
+      }
+    ],
+    "rewrites": [
+      {
+        "source": "/auth",
+        "destination": "/index.html"
+      },
+      {
+        "source": "/auth.html",
+        "destination": "/index.html"
+      }
+    ],
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ]
+  }
+}

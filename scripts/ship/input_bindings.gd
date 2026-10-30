@@ -1,14 +1,19 @@
 extends Node
 
+const SETTINGS_PATH := "user://input_settings.cfg"
+
 var mobile_joystick_vector: Vector2 = Vector2.ZERO
 var mobile_shoot_pressed: bool = false
 var _landscape_layer: CanvasLayer = null
 var _landscape_root: Control = null
 var _landscape_dismissed_for_session: bool = false
 var _touch_detected: bool = false
+## -1 = auto-detect, 0 = PC forced, 1 = mobile forced
+var mobile_mode_override: int = -1
 
 
 func _enter_tree() -> void:
+	_load_mode_preference()
 	_define_action(&"move_up", [KEY_W, KEY_UP])
 	_define_action(&"move_down", [KEY_S, KEY_DOWN])
 	_define_action(&"move_left", [KEY_A, KEY_LEFT])
@@ -27,6 +32,48 @@ func _ready() -> void:
 	_on_viewport_size_changed()
 
 
+func _load_mode_preference() -> void:
+	if OS.has_feature("web"):
+		var saved: Variant = JavaScriptBridge.eval("(function(){ try { return localStorage.getItem('echoes_input_mode') || ''; } catch(e){ return ''; } })()", true)
+		if saved != null and str(saved) != "":
+			var s := str(saved)
+			if s == "pc":
+				mobile_mode_override = 0
+				return
+			elif s == "mobile":
+				mobile_mode_override = 1
+				return
+			elif s == "auto":
+				mobile_mode_override = -1
+				return
+	var cfg := ConfigFile.new()
+	if cfg.load(SETTINGS_PATH) == OK:
+		mobile_mode_override = cfg.get_value("input", "mobile_mode_override", -1)
+
+
+func set_mobile_mode_override(val: int) -> void:
+	mobile_mode_override = val
+	if OS.has_feature("web"):
+		var val_str := "auto"
+		if val == 0:
+			val_str = "pc"
+		elif val == 1:
+			val_str = "mobile"
+		JavaScriptBridge.eval("(function(){ try { localStorage.setItem('echoes_input_mode', '%s'); } catch(e){} })()" % val_str, true)
+	var cfg := ConfigFile.new()
+	cfg.set_value("input", "mobile_mode_override", val)
+	cfg.save(SETTINGS_PATH)
+
+	if mobile_mode_override == 0:
+		if is_instance_valid(_landscape_root):
+			_landscape_root.visible = false
+	elif mobile_mode_override == 1:
+		_enforce_mobile_landscape_orientation()
+		_on_viewport_size_changed()
+	else:
+		_on_viewport_size_changed()
+
+
 func _input(event: InputEvent) -> void:
 	if event is InputEventScreenTouch or event is InputEventScreenDrag:
 		if not _touch_detected:
@@ -36,6 +83,10 @@ func _input(event: InputEvent) -> void:
 
 
 func is_mobile_or_touch() -> bool:
+	if mobile_mode_override == 0:
+		return false
+	if mobile_mode_override == 1:
+		return true
 	if _touch_detected:
 		return true
 	if OS.has_feature("web_android") or OS.has_feature("web_ios") or OS.has_feature("mobile") or OS.has_feature("android") or OS.has_feature("ios"):
@@ -190,13 +241,24 @@ func _build_landscape_prompt_overlay() -> void:
 
 	var cont_btn := Button.new()
 	cont_btn.text = "[ CONTINUE ]"
-	cont_btn.custom_minimum_size = Vector2(120.0, 40.0)
+	cont_btn.custom_minimum_size = Vector2(100.0, 40.0)
 	cont_btn.add_theme_font_size_override("font_size", 10)
 	cont_btn.pressed.connect(func():
 		_landscape_dismissed_for_session = true
 		_landscape_root.visible = false
 	)
 	btn_row.add_child(cont_btn)
+
+	var pc_btn := Button.new()
+	pc_btn.text = "[ PC MODE ]"
+	pc_btn.custom_minimum_size = Vector2(100.0, 40.0)
+	pc_btn.add_theme_font_size_override("font_size", 10)
+	pc_btn.pressed.connect(func():
+		set_mobile_mode_override(0)
+		_landscape_dismissed_for_session = true
+		_landscape_root.visible = false
+	)
+	btn_row.add_child(pc_btn)
 
 
 func _on_viewport_size_changed() -> void:

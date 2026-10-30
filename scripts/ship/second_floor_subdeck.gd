@@ -414,6 +414,8 @@ func _ready() -> void:
 	_story_cutscene.connect(&"cutscene_finished", _on_subdeck_cutscene_finished)
 	add_child(_story_cutscene)
 	_update_all_rooms(1.0, true)
+	if is_instance_valid(player) and not player.equipment_used.is_connected(_on_player_equipment_used):
+		player.equipment_used.connect(_on_player_equipment_used)
 
 
 func _build_subdeck_environment() -> void:
@@ -1008,6 +1010,7 @@ func _process(delta: float) -> void:
 	if is_instance_valid(subdeck_pipe_network):
 		subdeck_pipe_network.queue_redraw()
 	_update_all_rooms(delta, false)
+	_update_stalker_player_collision(delta)
 	if is_instance_valid(_lights_canvas):
 		_lights_canvas.queue_redraw()
 
@@ -1083,6 +1086,7 @@ func _trigger_subdeck_task(task_id: StringName) -> void:
 func _open_subdeck_task_console(subdeck_task_id: StringName, console_task_id: StringName) -> void:
 	if _task_console_open:
 		return
+	DialogueAudioSynth.play_sfx("terminal_open", self, -3.0)
 	_task_console_open = true
 	_pending_cutscene_task_id = &""
 	_walk_hud.set_walking_visible(false)
@@ -1118,6 +1122,7 @@ func _on_subdeck_console_closed() -> void:
 func _complete_subdeck_task(task_id: StringName, play_cutscene_now: bool = true) -> void:
 	if _completed_tasks.has(task_id):
 		return
+	DialogueAudioSynth.play_sfx("task_complete", self, -2.0)
 	var completion: String = "Sub-deck check complete."
 	var reward_item: StringName = &""
 	for task in SUBDECK_TASKS:
@@ -1270,6 +1275,7 @@ func _save_subdeck_state() -> void:
 func _return_to_main_deck() -> void:
 	if _transitioning:
 		return
+	DialogueAudioSynth.play_sfx("lift_move", self, -2.0)
 	_save_subdeck_state()
 	_transitioning = true
 	Engine.set_meta(&"returning_from_second_floor", true)
@@ -1479,3 +1485,47 @@ func clear_all_flicker() -> void:
 	flicker_current_room = false
 	flicker_all_rooms = false
 	flicker_rooms.clear()
+
+
+func _on_player_equipment_used(item_id: StringName) -> void:
+	var villain := get_tree().get_first_node_in_group("resonance_ore_villain") as ResonanceOreVillain
+	if villain == null:
+		villain = get_tree().get_first_node_in_group("ship_villain") as ResonanceOreVillain
+	if villain == null:
+		villain = get_node_or_null("ResonanceOreVillain") as ResonanceOreVillain
+	if not is_instance_valid(villain) or not villain.visible:
+		return
+	if item_id in [&"emergency_flare", &"industrial_plasma_cutter", &"electrical_discharge_tool", &"captains_revolver"]:
+		var dist: float = player.global_position.distance_to(villain.global_position)
+		if dist <= 240.0:
+			villain.repel_with_tool(item_id, player.global_position)
+			if is_instance_valid(_walk_hud):
+				_walk_hud.show_room_feedback("ECHO HOST DETERRED BY %s! RETREATING INTO SERVICE DUCTS!" % String(item_id).replace("_", " ").to_upper(), 4.5)
+
+
+func _update_stalker_player_collision(_delta: float) -> void:
+	var villain := get_tree().get_first_node_in_group("resonance_ore_villain") as ResonanceOreVillain
+	if villain == null:
+		villain = get_tree().get_first_node_in_group("ship_villain") as ResonanceOreVillain
+	if villain == null:
+		villain = get_node_or_null("ResonanceOreVillain") as ResonanceOreVillain
+	if not is_instance_valid(villain) or not villain.visible:
+		return
+	if player.get("is_concealed") == true or player.is_in_group("concealed_players"):
+		return
+	var dist: float = player.global_position.distance_to(villain.global_position)
+	if dist <= 28.0:
+		var equipped: StringName = player.get_equipped_item_id() if player.has_method("get_equipped_item_id") else &""
+		if equipped in [&"emergency_flare", &"electrical_discharge_tool"]:
+			villain.repel_with_tool(equipped, player.global_position)
+			if is_instance_valid(_walk_hud):
+				_walk_hud.show_room_feedback("CLOSE-RANGE DEFENSE TRIGGERED! %s REPELLED THE ECHO HOST!" % String(equipped).replace("_", " ").to_upper(), 4.5)
+		elif villain.has_method("_attack_player"):
+			villain.call("_attack_player", player)
+		else:
+			var knockback_dir: Vector2 = (player.global_position - villain.global_position).normalized()
+			if knockback_dir.is_zero_approx():
+				knockback_dir = Vector2.UP
+			player.global_position += knockback_dir * 20.0
+			if is_instance_valid(_walk_hud):
+				_walk_hud.show_room_feedback("WARNING: AMARA ATTACKED! HIDE IN A LOCKER OR USE WEAPONS TO REPEL HER!", 4.0)

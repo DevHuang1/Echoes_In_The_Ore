@@ -234,10 +234,12 @@ func start_dialogue(lines: Array[String], offer_enabled: bool = false, context: 
 	_is_active = true
 	_root.show()
 
+	var was_in_cutscene := _in_cutscene
 	# Start cutscene camera close-up & letterbox transition
 	_start_cutscene_camera(context)
-	_animate_cutscene_open()
-	_play_sfx(_snd_open, -2.0)
+	if not was_in_cutscene:
+		_animate_cutscene_open()
+		_play_sfx(_snd_open, -2.0)
 
 	_show_current_line()
 
@@ -348,18 +350,28 @@ func _choose(result_id: String) -> void:
 	_is_active = false
 	_is_typing = false
 	_play_sfx(_snd_click, -1.0)
-	_finish_cutscene_camera()
-	_root.hide()
-	conversation_finished.emit(conversation_id, result_id)
+	var prev_conv_id := conversation_id
+	conversation_finished.emit(prev_conv_id, result_id)
+	if not _is_active:
+		_finish_cutscene_camera()
+		_root.hide()
 
 
 func cancel_dialogue() -> void:
 	if not _is_active:
+		if _in_cutscene or (is_instance_valid(_camera) and _camera.zoom.x > 1.85):
+			_finish_cutscene_camera()
+			if is_instance_valid(_root):
+				_root.hide()
 		return
 	if conversation_id.is_empty():
 		_finish(false)
 	else:
 		_choose("cancelled")
+
+
+func _finish_legacy(accepted_tasks: bool) -> void:
+	_finish(accepted_tasks)
 
 
 # ------------------------------------------------------------------------------
@@ -386,8 +398,14 @@ func _start_cutscene_camera(context: Dictionary) -> void:
 		return
 
 	if not _in_cutscene:
-		_original_camera_pos = _camera.position
-		_original_camera_zoom = _camera.zoom
+		var tween_active: bool = is_instance_valid(_camera_tween) and _camera_tween.is_running()
+		var camera_zoomed: bool = _camera.zoom.x > 1.85
+		if not tween_active and not camera_zoomed:
+			_original_camera_pos = _camera.position
+			_original_camera_zoom = _camera.zoom
+		elif _original_camera_zoom.x > 1.85:
+			_original_camera_zoom = Vector2(1.75, 1.75)
+			_original_camera_pos = Vector2.ZERO
 		_in_cutscene = true
 
 	# Find target NPC: from context or tree
@@ -429,18 +447,28 @@ func _start_cutscene_camera(context: Dictionary) -> void:
 
 func _finish_cutscene_camera() -> void:
 	if not _in_cutscene:
-		return
+		if not (is_instance_valid(_camera) and _camera.zoom.x > 1.85):
+			return
 
 	if is_instance_valid(_target_npc) and _target_npc.has_method("set_in_dialogue"):
 		_target_npc.set_in_dialogue(false)
 	_target_npc = null
 
+	var restore_zoom := _original_camera_zoom
+	var restore_pos := _original_camera_pos
+	if restore_zoom.x > 1.85:
+		restore_zoom = Vector2(1.75, 1.75)
+		_original_camera_zoom = restore_zoom
+	if restore_pos.length() > 5.0 and restore_zoom.x > 1.85:
+		restore_pos = Vector2.ZERO
+		_original_camera_pos = restore_pos
+
 	if is_instance_valid(_camera):
 		if is_instance_valid(_camera_tween):
 			_camera_tween.kill()
 		_camera_tween = create_tween().set_parallel(true)
-		_camera_tween.tween_property(_camera, "position", _original_camera_pos, 0.35).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-		_camera_tween.tween_property(_camera, "zoom", _original_camera_zoom, 0.35).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+		_camera_tween.tween_property(_camera, "position", restore_pos, 0.35).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+		_camera_tween.tween_property(_camera, "zoom", restore_zoom, 0.35).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 
 	_in_cutscene = false
 
@@ -941,6 +969,13 @@ func _resize_bubble() -> void:
 
 
 func _exit_tree() -> void:
+	if is_instance_valid(_camera_tween):
+		_camera_tween.kill()
+	if is_instance_valid(_camera) and _camera.zoom.x > 1.85:
+		var restore_zoom := _original_camera_zoom if _original_camera_zoom.x <= 1.85 else Vector2(1.75, 1.75)
+		var restore_pos := _original_camera_pos if _original_camera_zoom.x <= 1.85 else Vector2.ZERO
+		_camera.zoom = restore_zoom
+		_camera.position = restore_pos
 	cancel_dialogue()
 
 

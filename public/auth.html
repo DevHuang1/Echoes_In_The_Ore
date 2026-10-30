@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+		<title>Echoes in the Ore</title>
+		<link id="-gd-engine-icon" rel="icon" type="image/png" href="index.icon.png" />
+		<link rel="apple-touch-icon" href="index.apple-touch-icon.png"/>
+		<meta name="mobile-web-app-capable" content="yes" />
+		<meta name="apple-mobile-web-app-capable" content="yes" />
+		<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+		<style>
+			html, body, #canvas {
+				margin: 0;
+				padding: 0;
+				border: 0;
+				width: 100%;
+				height: 100%;
+				overflow: hidden;
+				background-color: #070c11;
+				touch-action: none;
+				overscroll-behavior: none;
+				-webkit-user-select: none;
+				user-select: none;
+				-webkit-touch-callout: none;
+			}
+			#canvas {
+				display: block;
+				width: 100%;
+				height: 100%;
+			}
+			#canvas:focus {
+				outline: none;
+			}
+			#status {
+				position: absolute;
+				top: 0;
+				left: 0;
+				right: 0;
+				bottom: 0;
+				background: radial-gradient(circle at center, #0d1824 0%, #05080c 100%);
+				display: flex;
+				flex-direction: column;
+				justify-content: center;
+				align-items: center;
+				z-index: 100;
+				padding: 20px;
+				box-sizing: border-box;
+			}
+			#status-splash {
+				max-width: 280px;
+				max-height: 160px;
+				margin-bottom: 24px;
+				image-rendering: pixelated;
+				filter: drop-shadow(0 0 16px rgba(74,222,128,0.25));
+			}
+			#status-progress {
+				width: min(380px, 85vw);
+				height: 10px;
+				border-radius: 5px;
+				overflow: hidden;
+				appearance: none;
+				background: #111e2e;
+				border: 1px solid #1e3650;
+			}
+			#status-progress::-webkit-progress-bar {
+				background: #111e2e;
+			}
+			#status-progress::-webkit-progress-value {
+				background: linear-gradient(90deg, #3b82f6, #4ade80);
+			}
+			#status-progress::-moz-progress-bar {
+				background: linear-gradient(90deg, #3b82f6, #4ade80);
+			}
+			#status-label {
+				margin-top: 14px;
+				font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace, sans-serif;
+				font-size: 13px;
+				color: #94a3b8;
+				letter-spacing: 0.5px;
+				text-align: center;
+				font-weight: 500;
+			}
+			#status-notice {
+				display: none;
+				background-color: rgba(91, 57, 67, 0.95);
+				border-radius: 8px;
+				border: 1px solid #ef4444;
+				color: #f8fafc;
+				font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+				line-height: 1.4;
+				margin: 1.5rem auto;
+				padding: 1.25rem 1.5rem;
+				text-align: center;
+				max-width: min(500px, 90vw);
+				box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+			}
+		</style>
+	</head>
+	<body>
+		<canvas id="canvas">Your browser does not support WebGL2.</canvas>
+		<noscript>JavaScript is required to run Echoes in the Ore.</noscript>
+
+		<div id="status">
+			<img id="status-splash" src="index.png" alt="Echoes in the Ore">
+			<progress id="status-progress"></progress>
+			<div id="status-label">INITIALIZING ASTERIA-1 SYSTEMS...</div>
+			<div id="status-notice"></div>
+		</div>
+
+		<!-- Top-Right Pilot Auth HUD Pill -->
+		<div id="web-auth-pill" style="position:fixed;top:12px;right:12px;z-index:9999;background:rgba(7,12,17,0.85);backdrop-filter:blur(6px);border:1px solid #1f364d;border-radius:6px;padding:6px 12px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;font-size:12px;color:#a0b8d0;box-shadow:0 4px 12px rgba(0,0,0,0.5);display:flex;align-items:center;gap:8px;letter-spacing:0.5px;">
+			<span style="color:#e0b160;font-size:10px;">●</span> Connecting Firebase...
+		</div>
+
+		<script src="index.js"></script>
+		<script>
+		const GODOT_CONFIG = {
+			"args": [],
+			"canvasResizePolicy": 2,
+			"emscriptenPoolSize": 4,
+			"ensureCrossOriginIsolationHeaders": false,
+			"executable": "index",
+			"experimentalVK": false,
+			"fileSizes": { "index.pck": 37258704, "index.wasm": 39514754 },
+			"focusCanvas": true,
+			"gdextensionLibs": [],
+			"godotPoolSize": 2
+		};
+		const GODOT_THREADS_ENABLED = false;
+		const engine = new Engine(GODOT_CONFIG);
+
+		(function () {
+			const statusOverlay = document.getElementById("status");
+			const statusProgress = document.getElementById("status-progress");
+			const statusLabel = document.getElementById("status-label");
+			const statusNotice = document.getElementById("status-notice");
+
+			let initializing = true;
+
+			function setStatusMode(mode) {
+				if (!initializing && mode !== "hidden") return;
+				if (mode === "hidden") {
+					if (statusOverlay) statusOverlay.style.display = "none";
+					initializing = false;
+					return;
+				}
+				if (statusOverlay) statusOverlay.style.visibility = "visible";
+				if (statusProgress) statusProgress.style.display = (mode === "progress") ? "block" : "none";
+				if (statusLabel) statusLabel.style.display = (mode === "progress") ? "block" : "none";
+				if (statusNotice) statusNotice.style.display = (mode === "notice") ? "block" : "none";
+			}
+
+			function displayFailureNotice(err) {
+				console.error("[Launch Error]", err);
+				const msg = (err instanceof Error) ? (err.message + (err.stack ? "\n" + err.stack.split("\n")[1] : "")) : String(err);
+				if (statusNotice) {
+					statusNotice.innerHTML = `
+						<div style="font-weight:bold;margin-bottom:8px;color:#fca5a5;font-size:15px;">EXPEDITION LAUNCH HALTED</div>
+						<div style="font-size:12px;opacity:0.9;margin-bottom:14px;white-space:pre-wrap;text-align:left;background:rgba(0,0,0,0.3);padding:8px;border-radius:4px;">${msg}</div>
+						<button onclick="window.location.reload()" style="background:#22c55e;border:none;color:#052e16;font-weight:bold;padding:8px 18px;border-radius:4px;cursor:pointer;font-size:13px;">[ RETRY LAUNCH ]</button>
+					`;
+				}
+				setStatusMode("notice");
+				initializing = false;
+			}
+
+			window.addEventListener("error", function (e) {
+				displayFailureNotice(e.message || e);
+			});
+			window.addEventListener("unhandledrejection", function (e) {
+				displayFailureNotice(e.reason?.message || e.reason || "Network loading error");
+			});
+
+			const missing = Engine.getMissingFeatures({ threads: GODOT_THREADS_ENABLED });
+			if (missing.length !== 0) {
+				displayFailureNotice("Missing required browser features:\n" + missing.join("\n"));
+				return;
+			}
+
+			setStatusMode("progress");
+
+			engine.startGame({
+				"onProgress": function (current, total) {
+					if (current > 0 && total > 0) {
+						if (statusProgress) {
+							statusProgress.value = current;
+							statusProgress.max = total;
+						}
+						if (statusLabel) {
+							const pct = Math.round((current / total) * 100);
+							const mbCur = (current / 1048576).toFixed(1);
+							const mbTot = (total / 1048576).toFixed(1);
+							statusLabel.textContent = `DOWNLOADING FLIGHT SYSTEMS: ${pct}% (${mbCur} MB / ${mbTot} MB)`;
+						}
+					} else {
+						if (statusProgress) {
+							statusProgress.removeAttribute("value");
+							statusProgress.removeAttribute("max");
+						}
+						if (statusLabel) statusLabel.textContent = "CONNECTING TO ASTERIA-1...";
+					}
+				}
+			}).then(function () {
+				setStatusMode("hidden");
+				console.log("[Engine] Game successfully running!");
+			}).catch(displayFailureNotice);
+		})();
+		</script>
+
+		<!-- Firebase Web SDK Integration -->
+		<script type="module">
+			import { initializeApp } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-app.js";
+			import { 
+				getAuth, 
+				GoogleAuthProvider, 
+				signInWithPopup, 
+				signOut, 
+				onAuthStateChanged 
+			} from "https://www.gstatic.com/firebasejs/11.4.0/firebase-auth.js";
+
+			const firebaseConfig = {
+				apiKey: window.__FIREBASE_API_KEY__ || "",
+				authDomain: "hackathon-c565e.firebaseapp.com",
+				projectId: "hackathon-c565e",
+				storageBucket: "hackathon-c565e.firebasestorage.app",
+				appId: "1:424472725839:web:866a1dd51f51a241981d3a"
+			};
+
+			const app = initializeApp(firebaseConfig);
+			const auth = getAuth(app);
+			const provider = new GoogleAuthProvider();
+			provider.setCustomParameters({ prompt: "select_account" });
+
+			window.firebaseAuth = auth;
+
+			function updateAuthPill(user) {
+				const pill = document.getElementById("web-auth-pill");
+				if (!pill) return;
+				if (user) {
+					const displayName = user.displayName || (user.email ? user.email.split("@")[0] : "Pilot");
+					pill.innerHTML = `
+						<span style="color:#4ade80;font-size:10px;">●</span>
+						<span style="color:#e2e8f0;font-weight:600;">${displayName}</span>
+						<button id="auth-signout-btn" style="margin-left:4px;background:#152232;border:1px solid #2d4563;color:#94a3b8;font-size:11px;padding:3px 8px;cursor:pointer;border-radius:4px;transition:all 0.15s;">Sign Out</button>
+					`;
+					const btn = document.getElementById("auth-signout-btn");
+					if (btn) btn.onclick = window.handleSignOut;
+				} else {
+					pill.innerHTML = `
+						<span style="color:#fbbf24;font-size:10px;">●</span>
+						<span style="color:#94a3b8;">Guest</span>
+						<button id="auth-signin-btn" style="margin-left:4px;background:linear-gradient(180deg,#1e3a8a,#1d4ed8);border:1px solid #3b82f6;color:#ffffff;font-size:11px;font-weight:600;padding:3px 10px;cursor:pointer;border-radius:4px;transition:all 0.15s;box-shadow:0 1px 4px rgba(59,130,246,0.3);">Sign in with Google</button>
+					`;
+					const btn = document.getElementById("auth-signin-btn");
+					if (btn) btn.onclick = window.handleGoogleSignIn;
+				}
+			}
+
+			onAuthStateChanged(auth, async (user) => {
+				if (user) {
+					try {
+						const idToken = await user.getIdToken();
+						window.__godot_id_token = idToken;
+						window.__godot_user = {
+							uid: user.uid,
+							email: user.email,
+							displayName: user.displayName || user.email.split("@")[0],
+							photoURL: user.photoURL
+						};
+						console.log("[Firebase Web] Authenticated as:", user.email);
+						updateAuthPill(user);
+					} catch (e) {
+						console.error("[Firebase Web] Error retrieving idToken:", e);
+					}
+				} else {
+					window.__godot_id_token = null;
+					window.__godot_user = null;
+					console.log("[Firebase Web] Guest session active");
+					updateAuthPill(null);
+				}
+			});
+
+			window.handleGoogleSignIn = async function() {
+				try {
+					console.log("[Firebase Web] Opening Google Sign-in...");
+					const result = await signInWithPopup(auth, provider);
+					const user = result.user;
+					const idToken = await user.getIdToken();
+					window.__godot_id_token = idToken;
+					updateAuthPill(user);
+					return true;
+				} catch (err) {
+					console.error("[Firebase Web] Sign-in error:", err);
+					return false;
+				}
+			};
+
+			window.handleSignOut = async function() {
+				try {
+					await signOut(auth);
+					window.__godot_id_token = null;
+					window.__godot_user = null;
+					updateAuthPill(null);
+				} catch (err) {
+					console.error("[Firebase Web] Sign out error:", err);
+				}
+			};
+		</script>
+	</body>
+</html>

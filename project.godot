@@ -18,6 +18,7 @@ config/features=PackedStringArray("4.7", "GL Compatibility")
 
 InputBindings="*res://scripts/ship/input_bindings.gd"
 BackgroundMusic="*res://scripts/audio/background_music.gd"
+FirebaseManager="*res://scripts/network/firebase_manager.gd"
 
 [display]
 

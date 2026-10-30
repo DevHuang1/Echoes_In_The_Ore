@@ -1,0 +1,35 @@
+rules_version = '2';
+
+// Production-grade Cloud Firestore Security Rules for Echoes in the Ore
+// Project ID: hackathon-c565e
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── HELPER FUNCTIONS ──────────────────────────────────────────────────────
+    function isAuthenticated() {
+      return request.auth != null && request.auth.uid != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // ── PLAYER CLOUD SAVES ────────────────────────────────────────────────────
+    // Documents are keyed by the authenticated user's UID.
+    // Only the owning player can read, create, update, or overwrite their save game.
+    match /saves/{userId} {
+      allow read, write: if isOwner(userId);
+
+      // Support any nested subcollections (e.g. checkpoints, logs, profiles)
+      match /{allSubcollections=**} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+
+    // ── DEFAULT FALLTHROUGH ───────────────────────────────────────────────────
+    // Strictly deny any unauthenticated or unauthorized access to other collections.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

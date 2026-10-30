@@ -5,6 +5,14 @@ signal equipment_changed(equipped_item_id: StringName, flashlight_active: bool)
 signal equipment_used(item_id: StringName)
 signal equipment_amount_changed(item_id: StringName, remaining_amount: int)
 signal equipment_depleted(item_id: StringName)
+signal concealment_changed(concealed: bool, source_id: String)
+signal flashlight_battery_changed(current: float, max_val: float)
+signal sound_emitted(origin: Vector2, radius: float)
+
+const FLARE_SAFE_RADIUS: float = 75.0
+
+var is_concealed := false
+var concealment_source := ""
 
 const THURA_ATLAS: Texture2D = preload("res://art/characters/runtime/thura_walk_4dir.png")
 const THURA_SIT_DOWN: Texture2D = preload("res://art/characters/runtime/thura_sit_down.png")
@@ -211,6 +219,10 @@ var _using_custom_walk_sheet: bool = false
 var _equipped_item_id: StringName = &""
 var _suit_flashlight_unlocked: bool = false
 var _suit_flashlight_enabled: bool = false
+var _flashlight_battery: float = 100.0
+var _max_flashlight_battery: float = 100.0
+var _flashlight_drain_rate: float = 1.0
+var _is_sprinting: bool = false
 var _held_item_sprite: Sprite2D = null
 var _fx_overlay: Node2D = null
 var _world_fx_canvas: Node2D = null
@@ -232,6 +244,8 @@ var _recoil_amount: float = 0.0
 var _flashlight_overcharge_timer: float = 0.0
 var _laser_beam_length: float = 160.0
 var _spray_emit_accum: float = 0.0
+var _footstep_timer: float = 0.0
+var _plasma_sfx_timer: float = 0.0
 
 # World-space projectiles, ejected brass casings, burning floor flares, deployed survey beacons, and sealant foam
 var _bullet_tracers: Array[Dictionary] = []
@@ -303,6 +317,10 @@ func sync_equipment_amounts(amounts: Dictionary) -> void:
 	_update_equipment_transform()
 
 
+func _enter_tree() -> void:
+	add_to_group("ship_player")
+
+
 func _ready() -> void:
 	add_to_group("ship_player")
 	_configure_sprite_animations()
@@ -366,6 +384,8 @@ func _setup_equipment_visual_nodes() -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if is_concealed:
+		return
 	_pulse_time = fposmod(_pulse_time + delta * 4.5, 1000.0)
 	if _equip_anim_timer > 0.0:
 		_equip_anim_timer = maxf(_equip_anim_timer - delta * 4.2, 0.0)
@@ -378,11 +398,19 @@ func _physics_process(delta: float) -> void:
 	if _flashlight_overcharge_timer > 0.0:
 		_flashlight_overcharge_timer = maxf(_flashlight_overcharge_timer - delta, 0.0)
 
+	if _suit_flashlight_enabled:
+		_flashlight_battery = maxf(0.0, _flashlight_battery - delta * _flashlight_drain_rate)
+		flashlight_battery_changed.emit(_flashlight_battery, _max_flashlight_battery)
+		if _flashlight_battery <= 0.0:
+			set_suit_flashlight_enabled(false)
+
 	var direction: Vector2 = Input.get_vector(&"move_left", &"move_right", &"move_up", &"move_down")
 	var joy_vec: Vector2 = Engine.get_meta(&"echoes_mobile_joystick_vec", Vector2.ZERO) if Engine.has_meta(&"echoes_mobile_joystick_vec") else Vector2.ZERO
 	if joy_vec.length_squared() > direction.length_squared():
 		direction = joy_vec
-	var movement: Vector2 = direction * move_speed * delta
+	_is_sprinting = ((InputMap.has_action(&"sprint") and Input.is_action_pressed(&"sprint")) or Input.is_key_pressed(KEY_SHIFT)) and direction.length_squared() > 0.0
+	var current_speed: float = move_speed * (1.5 if _is_sprinting else 1.0)
+	var movement: Vector2 = direction * current_speed * delta
 	if _has_walkable_floor_mask():
 		_move_on_walkable_floor(movement)
 	elif not movement.is_zero_approx():
@@ -392,9 +420,15 @@ func _physics_process(delta: float) -> void:
 			_update_facing(direction)
 		if not sprite.is_playing():
 			sprite.play(_facing_animation)
+		_footstep_timer -= delta
+		if _footstep_timer <= 0.0:
+			_footstep_timer = 0.24 if _is_sprinting else 0.36
+			DialogueAudioSynth.play_footstep(self, false, -6.0 if _is_sprinting else -9.0)
+			sound_emitted.emit(global_position, 300.0 if _is_sprinting else 120.0)
 	elif sprite.is_playing():
 		sprite.stop()
 		sprite.frame = 0
+		_footstep_timer = minf(_footstep_timer, 0.08)
 
 	_update_continuous_tool_action(delta)
 	_update_world_projectiles_and_deployables(delta)
@@ -458,6 +492,7 @@ func start_using_equipment(aim_at_mouse: bool = true) -> void:
 		&"captains_revolver":
 			if not has_ammo_for_item(&"captains_revolver"):
 				_action_cooldown = 0.35
+				DialogueAudioSynth.play_sfx("dry_fire", self, -2.0)
 				equipment_depleted.emit(&"captains_revolver")
 				return
 			_fire_captains_revolver()
@@ -465,6 +500,7 @@ func start_using_equipment(aim_at_mouse: bool = true) -> void:
 		&"emergency_flare":
 			if not has_ammo_for_item(&"emergency_flare"):
 				_action_cooldown = 0.35
+				DialogueAudioSynth.play_sfx("dry_fire", self, -4.0)
 				equipment_depleted.emit(&"emergency_flare")
 				return
 			_shoot_emergency_flare()
@@ -474,6 +510,7 @@ func start_using_equipment(aim_at_mouse: bool = true) -> void:
 		&"survey_beacon":
 			if not has_ammo_for_item(&"survey_beacon"):
 				_action_cooldown = 0.35
+				DialogueAudioSynth.play_sfx("dry_fire", self, -4.0)
 				equipment_depleted.emit(&"survey_beacon")
 				return
 			_deploy_survey_beacon()
@@ -481,6 +518,7 @@ func start_using_equipment(aim_at_mouse: bool = true) -> void:
 		&"medical_injector":
 			if not has_ammo_for_item(&"medical_injector"):
 				_action_cooldown = 0.35
+				DialogueAudioSynth.play_sfx("dry_fire", self, -4.0)
 				equipment_depleted.emit(&"medical_injector")
 				return
 			_trigger_medical_injector()
@@ -566,6 +604,7 @@ func _fire_captains_revolver() -> void:
 	_action_anim_duration = 0.26
 	_action_anim_timer = 0.26
 	_recoil_amount = 1.0
+	DialogueAudioSynth.play_sfx("revolver_shot", self, -1.0)
 
 	var muzzle_pos: Vector2 = _get_muzzle_world_pos()
 	var hit_dist: float = _raycast_floor_distance(muzzle_pos, _aim_dir, 285.0)
@@ -594,6 +633,7 @@ func _shoot_emergency_flare() -> void:
 	_action_anim_duration = 0.38
 	_action_anim_timer = 0.38
 	_recoil_amount = 0.65
+	DialogueAudioSynth.play_sfx("flare_launch", self, -2.0)
 
 	var start_pos: Vector2 = _get_muzzle_world_pos()
 	var max_throw: float = 175.0
@@ -626,6 +666,7 @@ func _trigger_mineral_scanner() -> void:
 	_action_cooldown = 0.55
 	_action_anim_duration = 0.95
 	_action_anim_timer = 0.95
+	DialogueAudioSynth.play_sfx("scanner_ping", self, -3.0)
 
 	var origin_pos: Vector2 = _get_muzzle_world_pos()
 	var pings: Array[Vector2] = []
@@ -664,6 +705,7 @@ func _deploy_survey_beacon() -> void:
 	_action_cooldown = 0.65
 	_action_anim_duration = 0.55
 	_action_anim_timer = 0.55
+	DialogueAudioSynth.play_sfx("beacon_deploy", self, -3.0)
 
 	var deploy_dist: float = _raycast_floor_distance(global_position, _aim_dir, 28.0)
 	var deploy_pos: Vector2 = global_position + _aim_dir * maxf(deploy_dist * 0.75, 14.0)
@@ -696,6 +738,7 @@ func _trigger_medical_injector() -> void:
 	_action_cooldown = 0.70
 	_action_anim_duration = 0.85
 	_action_anim_timer = 0.85
+	DialogueAudioSynth.play_sfx("med_inject", self, -2.0)
 	for i in range(8):
 		var ang: float = float(i) * (TAU / 8.0)
 		_med_particles.append({
@@ -735,6 +778,10 @@ func _update_continuous_tool_action(delta: float) -> void:
 			if _equipped_item_id == &"industrial_plasma_cutter":
 				var muzzle: Vector2 = _get_muzzle_world_pos()
 				_laser_beam_length = _raycast_floor_distance(muzzle, _aim_dir, 235.0)
+				_plasma_sfx_timer -= delta
+				if _plasma_sfx_timer <= 0.0:
+					_plasma_sfx_timer = 0.12
+					DialogueAudioSynth.play_sfx("plasma_pulse", self, -5.0)
 			elif _equipped_item_id == &"pressure_sealant":
 				if not has_ammo_for_item(&"pressure_sealant"):
 					_is_using_tool = false
@@ -744,6 +791,7 @@ func _update_continuous_tool_action(delta: float) -> void:
 				_spray_emit_accum += delta
 				if _spray_emit_accum >= 0.08:
 					_spray_emit_accum = 0.0
+					DialogueAudioSynth.play_sfx("sealant_spray", self, -6.0)
 					consume_item_amount(&"pressure_sealant", 1)
 					var muzzle_s: Vector2 = _get_muzzle_world_pos()
 					var max_d: float = _raycast_floor_distance(muzzle_s, _aim_dir, 72.0)
@@ -939,6 +987,7 @@ func equip_item(item_id: StringName) -> void:
 	_action_anim_timer = 0.0
 	_equipped_item_id = item_id
 	_equip_anim_timer = 1.0
+	DialogueAudioSynth.play_sfx("item_equip", self, -5.0)
 	_apply_equipped_visuals()
 	equipment_changed.emit(_equipped_item_id, _suit_flashlight_enabled)
 
@@ -950,6 +999,7 @@ func unequip_item() -> void:
 	_action_anim_timer = 0.0
 	_equipped_item_id = &""
 	_equip_anim_timer = 1.0
+	DialogueAudioSynth.play_sfx("item_equip", self, -6.0)
 	_apply_equipped_visuals()
 	equipment_changed.emit(_equipped_item_id, _suit_flashlight_enabled)
 
@@ -977,8 +1027,10 @@ func is_suit_flashlight_unlocked() -> bool:
 
 
 func set_suit_flashlight_enabled(enabled: bool) -> void:
-	if enabled and not _suit_flashlight_unlocked:
+	if enabled and (not _suit_flashlight_unlocked or _flashlight_battery <= 0.0):
 		return
+	if _suit_flashlight_enabled != enabled:
+		DialogueAudioSynth.play_sfx("flashlight_click", self, -4.0)
 	_suit_flashlight_enabled = enabled
 	if is_instance_valid(_flashlight_light):
 		_flashlight_light.enabled = _suit_flashlight_enabled
@@ -986,6 +1038,35 @@ func set_suit_flashlight_enabled(enabled: bool) -> void:
 	if is_instance_valid(_fx_overlay):
 		_fx_overlay.queue_redraw()
 	equipment_changed.emit(_equipped_item_id, _suit_flashlight_enabled)
+
+
+func get_flashlight_battery() -> float:
+	return _flashlight_battery
+
+
+func get_max_flashlight_battery() -> float:
+	return _max_flashlight_battery
+
+
+func recharge_flashlight_battery(amount: float = 100.0) -> void:
+	_flashlight_battery = clampf(_flashlight_battery + amount, 0.0, _max_flashlight_battery)
+	flashlight_battery_changed.emit(_flashlight_battery, _max_flashlight_battery)
+
+
+func is_sprinting() -> bool:
+	return _is_sprinting
+
+
+func is_position_in_flare_safe_zone(world_pos: Vector2, extra_radius: float = 0.0) -> bool:
+	for bf in _burning_flares:
+		var flare_pos: Vector2 = bf.get("pos", Vector2.INF)
+		if flare_pos != Vector2.INF and flare_pos.distance_to(world_pos) <= (FLARE_SAFE_RADIUS + extra_radius):
+			return true
+	return false
+
+
+func get_active_burning_flares() -> Array[Dictionary]:
+	return _burning_flares
 
 
 func toggle_suit_flashlight() -> bool:
@@ -1556,10 +1637,11 @@ func _move_on_walkable_floor(movement: Vector2) -> void:
 			move_and_collide(step_y * 0.5)
 
 
-func _is_body_over_floor(center: Vector2) -> bool:
-	for door in get_tree().get_nodes_in_group("ship_door"):
-		if door.has_method("blocks_position") and bool(door.call("blocks_position", center, _walkable_body_margin)):
-			return false
+func _is_body_over_floor(center: Vector2, ignore_doors_for_access_planning := false) -> bool:
+	if not ignore_doors_for_access_planning:
+		for door in get_tree().get_nodes_in_group("ship_door"):
+			if door.has_method("blocks_position") and bool(door.call("blocks_position", center, _walkable_body_margin)):
+				return false
 	var diagonal: float = _walkable_body_margin * 0.70710678
 	var offsets: Array[Vector2] = [
 		Vector2.ZERO,
@@ -1622,6 +1704,20 @@ func face_toward(target_position: Vector2) -> void:
 		sprite.animation = _facing_animation
 		sprite.stop()
 		sprite.frame = 0
+
+
+func set_concealment(value: bool, source_id: String) -> void:
+	is_concealed = value
+	concealment_source = source_id if value else ""
+	if is_instance_valid(sprite):
+		sprite.visible = not value
+	if value:
+		add_to_group("concealed_players")
+	elif is_in_group("concealed_players"):
+		remove_from_group("concealed_players")
+	set_meta("concealed", value)
+	set_meta("concealment_source", concealment_source)
+	concealment_changed.emit(value, concealment_source)
 
 
 func sit_down() -> void:

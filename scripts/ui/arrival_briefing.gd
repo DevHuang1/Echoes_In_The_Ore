@@ -18,6 +18,7 @@ func _ready() -> void:
 	_build_ui()
 	_root.modulate = Color(1.0, 1.0, 1.0, 0.0)
 	_continue_button.grab_focus()
+	DialogueAudioSynth.play_sfx("terminal_open", self, -3.0)
 	var tween := create_tween()
 	tween.tween_property(_root, "modulate", Color.WHITE, 0.36).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 
@@ -163,6 +164,7 @@ func _dismiss() -> void:
 		return
 	_is_dismissing = true
 	_continue_button.disabled = true
+	DialogueAudioSynth.play_sfx("button_click", self, -4.0)
 	var tween := create_tween()
 	tween.tween_property(_root, "modulate", Color(1.0, 1.0, 1.0, 0.0), 0.24).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
 	await tween.finished
