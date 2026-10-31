@@ -2869,20 +2869,24 @@ func _trigger_story_station(station_id: StringName) -> void:
 			"large_artwork": true,
 			"slides": [
 				{
-					"speaker": "ASTERIA-1 // THURA'S BUNK",
-					"image": "res://art/storyboards/resonance_core_recovery/scene_12_thura_falls_asleep.png",
-					"fade_in_seconds": 2.8,
-					"typing_speed": 17.0,
-					"auto_advance_seconds": 2.2,
-					"text": "Thura reaches his bunk and lets his eyes close. May's folded paper star rests beside him. The headache fades for one breath—then the core's four-pulse rhythm slips into his sleep.",
-				},
-				{
 					"speaker": "THURA'S DREAM // THE SIGNAL",
 					"image": "res://art/storyboards/resonance_core_recovery/scene_13_paper_star_dream.png",
 					"fade_in_seconds": 3.0,
 					"typing_speed": 16.0,
 					"auto_advance_seconds": 2.4,
-					"text": "The paper star drifts through a bottomless cavern toward the ore the crew extracted. With every pulse, it is pulled closer. The core answers with the same four beats Thura heard while drilling.",
+					"text": "As Thura's eyes close, a blue pulse takes the dark. May's paper star drifts through a bottomless cavern toward the ore the crew extracted. The core answers with the same four beats he heard while drilling.",
+				},
+				{
+					"blackout": true,
+					"hold_seconds": 2.2,
+				},
+				{
+					"speaker": "ASTERIA-1 // THURA'S BUNK",
+					"image": "res://art/storyboards/resonance_core_recovery/scene_12_thura_falls_asleep.png",
+					"fade_in_seconds": 2.8,
+					"typing_speed": 17.0,
+					"auto_advance_seconds": 2.2,
+					"text": "Thura lies asleep beneath the bunk lights, May's folded star beside him. His face tightens as the four-pulse rhythm follows him deeper into the dream.",
 				},
 				{
 					"blackout": true,
