@@ -1,4 +1,4 @@
-[gd_scene load_steps=12 format=3]
+[gd_scene load_steps=14 format=3]
 
 [ext_resource type="PackedScene" path="res://scenes/ship/props/hydroponic_animated_prop.tscn" id="1_animated_prop"]
 [ext_resource type="Texture2D" path="res://art/concepts/ship_room_props/life_support_animation_sheet.png" id="2_animation_sheet"]
@@ -7,6 +7,8 @@
 [ext_resource type="PackedScene" path="res://scenes/ship/props/ambient_gas_mist.tscn" id="5_gas_mist"]
 [ext_resource type="PackedScene" path="res://scenes/ship/floor_modules/tiles/floor_tile_lower_panel.tscn" id="6_lower_panel"]
 [ext_resource type="PackedScene" path="res://scenes/ship/floor_modules/tiles/floor_tile_small_grate.tscn" id="7_small_grate"]
+[ext_resource type="Script" path="res://scripts/ship/life_support_duct_run.gd" id="8_duct_run"]
+[ext_resource type="Texture2D" path="res://art/concepts/med_bay_props/med_bay_surgical_console.png" id="9_air_console"]
 
 [sub_resource type="AtlasTexture" id="TankRackFrame01"]
 atlas = ExtResource("2_animation_sheet")
@@ -29,6 +31,15 @@ region = Rect2(0, 410, 320, 358)
 filter_clip = true
 
 [node name="LifeSupportRoomProps" type="Node2D"]
+
+[node name="BackWallDuctRun" type="Node2D" parent="."]
+z_index = -1
+script = ExtResource("8_duct_run")
+
+[node name="AirflowControlPanel" type="Sprite2D" parent="."]
+position = Vector2(138, 150)
+scale = Vector2(0.05, 0.05)
+texture = ExtResource("9_air_console")
 
 [node name="FloorDetail" type="Node2D" parent="."]
 z_index = -2
@@ -77,13 +88,13 @@ texture_scale = 0.24
 [node name="OxygenLeakMist" parent="." instance=ExtResource("5_gas_mist")]
 position = Vector2(104, 148)
 gas_color = Color(0.23, 0.82, 1, 1)
-blob_count = 16
-spread = Vector2(32, 18)
+blob_count = 8
+spread = Vector2(26, 14)
 drift_direction = Vector2(0.48, -0.88)
 drift_speed = 4.4
 lifetime = 7.4
-blob_size = Vector2(37, 28)
-opacity = 0.7
+blob_size = Vector2(22, 16)
+opacity = 0.24
 
 [node name="OxygenTankRack" parent="." instance=ExtResource("1_animated_prop")]
 position = Vector2(52.5, 66.7)
