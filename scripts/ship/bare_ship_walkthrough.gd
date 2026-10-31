@@ -3301,10 +3301,20 @@ func _on_story_cutscene_finished(cutscene_id: StringName, choice_id: StringName)
 		_save_persistent_story_state()
 	elif cutscene_id == &"resonance_core_nightmare":
 		Engine.set_meta(&"resonance_core_nightmare_complete", true)
+		# The core's echo reaches the ship when Thura wakes. Reuse the existing
+		# laboratory lockdown flow so he must repair access in the Maintenance Workshop.
+		Engine.set_meta(&"resonance_echo_heard", true)
+		Engine.set_meta(&"resonance_lab_entered_after_echo", false)
+		Engine.set_meta(&"resonance_lab_door_repaired", false)
+		_echo_lab_return_active = true
+		_lab_door_repair_required = true
+		_lab_entry_reveal_started = false
+		_set_lab_doors_locked(true)
 		_completed_story_stations[&"core_nightmare_rest"] = true
 		_walk_hud.set_task_completed(&"core_nightmare_rest", true)
-		_walk_hud.show_objective_toast("THURA WAKES", "The headache has eased, but the four-pulse rhythm remains in his mind.", true)
-		_room_task_feedback = "THURA WOKE FROM THE NIGHTMARE  //  THE CORE'S SIGNAL IS STILL THERE"
+		_walk_hud.add_task_entry(_lab_door_repair_task_entry())
+		_walk_hud.show_objective_toast("LAB LOCKDOWN", "The core's echo sealed the laboratory doors. Go to the Maintenance Workshop and repair the access controller.", true)
+		_room_task_feedback = "THURA WOKE FROM THE NIGHTMARE  //  LAB DOORS SEALED — REPAIR ACCESS IN MAINTENANCE"
 		_room_task_feedback_timer = 6.0
 		_save_persistent_story_state()
 	elif cutscene_id == &"commanders_secret_bridge":
