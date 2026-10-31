@@ -2965,31 +2965,55 @@ func _play_resonance_core_hauler_cutscene() -> void:
 	_story_cutscene.call(&"play_cutscene", &"resonance_core_hauler_delivery", {
 		"act": "ACT II — EREBOS // RECOVERY",
 		"clock": "SITE K-12 TO ASTERIA-1 // SURFACE HAUL",
-		"title": "TOO HEAVY TO CARRY",
+		"title": "THE CORE COMES ABOARD",
 		"large_artwork": true,
 		"slides": [
 			{
-				"speaker": "AMARA // RECOVERY CHANNEL",
-				"text": "Amara dispatches the powered hauler. Its hydraulic clamp grips the enormous core while Thura keeps clear of the rig. The load is far beyond what a suited person could carry.",
+				"speaker": "ASTERIA-1 // HYDROPONICS LAB",
+				"image": "res://art/storyboards/resonance_core_recovery/scene_09_thura_calls_amara.png",
+				"fade_in_seconds": 2.2,
+				"typing_speed": 22.0,
+				"auto_advance_seconds": 1.8,
+				"text": "Thura shows Amara the core's scale on his scanner. It is too large to carry by hand. She answers over the lab radio and dispatches the heavy recovery hauler.",
 			},
 			{
-				"speaker": "SURFACE RECOVERY // SITE K-12",
+				"speaker": "EREBOS // RECOVERY CLAMP ENGAGED",
 				"image": "res://art/storyboards/resonance_core_recovery/scene_07_hauler_recovery.png",
-				"fade_in_seconds": 1.6,
-				"typing_speed": 24.0,
-				"auto_advance_seconds": 1.2,
-				"text": "The hauler lifts the core out of the bore and carries it across the Erebos flats. Its four-pulse signal continues through the sealed transport cradle.",
+				"fade_in_seconds": 2.4,
+				"typing_speed": 21.0,
+				"auto_advance_seconds": 1.8,
+				"text": "At Site K-12, the recovery vehicle's hydraulic clamp closes around the enormous core. The ground shudders as the winch lifts it from the drill cavity.",
+			},
+			{
+				"speaker": "EREBOS SURFACE // RETURN HAUL",
+				"image": "res://art/storyboards/resonance_core_recovery/scene_10_hauler_transit.png",
+				"fade_in_seconds": 2.2,
+				"typing_speed": 20.0,
+				"auto_advance_seconds": 2.0,
+				"text": "The core is locked into a reinforced cradle. The hauler rolls toward Asteria-1 through the red dust, carrying the same four-pulse rhythm back to the ship.",
 			},
 			{
 				"blackout": true,
-				"hold_seconds": 1.8,
+				"hold_seconds": 2.6,
 			},
 			{
-				"speaker": "ASTERIA-1 // HYDROPONICS LAB",
+				"speaker": "ASTERIA-1 // CORE CONTAINMENT",
 				"image": "res://art/storyboards/resonance_core_recovery/scene_08_core_in_lab.png",
-				"fade_in_seconds": 1.8,
-				"typing_speed": 24.0,
-				"text": "The crew seats the oversized core inside the lab's horizontal containment tank. Amara locks the chamber and begins monitoring its pulse.",
+				"fade_in_seconds": 3.2,
+				"typing_speed": 19.0,
+				"auto_advance_seconds": 1.8,
+				"text": "Amara and the crew settle the core into the lab's horizontal containment tank. The chamber locks. Thura presses a hand to his temple as the pulse moves behind his eyes.",
+			},
+			{
+				"blackout": true,
+				"hold_seconds": 2.8,
+			},
+			{
+				"speaker": "DR. AMARA OKOYE // LAB",
+				"image": "res://art/storyboards/resonance_core_recovery/scene_11_amara_orders_rest.png",
+				"fade_in_seconds": 3.0,
+				"typing_speed": 18.0,
+				"text": "AMARA: 'Thura, you've been exposed to the resonance too long. Go lie down in your bunk. I'll stay here and watch the core.' He tries to answer, but the four-pulse rhythm fills the room.",
 			},
 		],
 	})
@@ -3235,6 +3259,8 @@ func _on_story_cutscene_finished(cutscene_id: StringName, choice_id: StringName)
 	elif cutscene_id == &"resonance_core_hauler_delivery":
 		Engine.set_meta(&"resonance_ore_core_stored", true)
 		Engine.set_meta(&"resonance_ore_chamber_pressure", 1.02)
+		Engine.set_meta(&"resonance_core_debrief_complete", true)
+		Engine.set_meta(&"resonance_core_rest_unlocked", true)
 		var tank_sprite := get_node_or_null("LabRoom/OreContainment/SampleContainment") as Sprite2D
 		if is_instance_valid(tank_sprite):
 			_load_sprite_png(tank_sprite, "res://art/planet/modern_ore_containment_stored.png")
@@ -3243,19 +3269,9 @@ func _on_story_cutscene_finished(cutscene_id: StringName, choice_id: StringName)
 			placement_tween.tween_property(tank_sprite, "scale", Vector2(0.94, 0.94), 0.01)
 			placement_tween.tween_property(tank_sprite, "scale", Vector2.ONE, 0.5).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 		_walk_hud.set_task_completed(&"cargo_core_containment", true)
-		_walk_hud.add_task_entry({
-			"id": &"amara_core_debrief_task",
-			"title": "Talk with Amara about the contained core",
-			"marker_label": "DR. OKOYE",
-			"room_name": "Hydroponics Lab",
-			"action_hint": "Meet Dr. Okoye beside the containment tank and review the core's readings.",
-			"purpose": "The core's repeating signal may explain what Thura saw in the drill feed.",
-			"milestone_reward": &"",
-			"position": amara.global_position if is_instance_valid(amara) else Vector2(250.0, 720.0),
-			"marker_position": (amara.global_position + Vector2(0.0, -44.0)) if is_instance_valid(amara) else Vector2(250.0, 676.0),
-		})
-		_walk_hud.show_objective_toast("CORE DELIVERED", "Amara secured the oversized resonance core in the lab containment tank.", true)
-		_room_task_feedback = "CORE IN THE LAB TANK  //  SPEAK WITH AMARA ABOUT ITS SIGNAL"
+		_walk_hud.add_task_entry(_core_nightmare_rest_task_entry())
+		_walk_hud.show_objective_toast("REST REQUIRED", "Amara says the resonance is affecting Thura. Head to his bunk and rest.", true)
+		_room_task_feedback = "CORE SECURED IN THE LAB TANK  //  AMARA SENDS THURA TO REST"
 		_room_task_feedback_timer = 5.0
 		_save_persistent_story_state()
 	elif cutscene_id == &"resonance_core_nightmare":
