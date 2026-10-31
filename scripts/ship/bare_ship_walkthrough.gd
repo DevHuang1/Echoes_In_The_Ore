@@ -2994,18 +2994,6 @@ func _play_resonance_core_hauler_cutscene() -> void:
 			},
 			{
 				"blackout": true,
-				"hold_seconds": 2.6,
-			},
-			{
-				"speaker": "ASTERIA-1 // CORE CONTAINMENT",
-				"image": "res://art/storyboards/resonance_core_recovery/scene_08_core_in_lab.png",
-				"fade_in_seconds": 3.2,
-				"typing_speed": 19.0,
-				"auto_advance_seconds": 1.8,
-				"text": "Amara and the crew settle the core into the lab's horizontal containment tank. The chamber locks. Thura presses a hand to his temple as the pulse moves behind his eyes.",
-			},
-			{
-				"blackout": true,
 				"hold_seconds": 2.8,
 			},
 			{
@@ -3013,7 +3001,7 @@ func _play_resonance_core_hauler_cutscene() -> void:
 				"image": "res://art/storyboards/resonance_core_recovery/scene_11_amara_orders_rest.png",
 				"fade_in_seconds": 3.0,
 				"typing_speed": 18.0,
-				"text": "AMARA: 'Thura, you've been exposed to the resonance too long. Go lie down in your bunk. I'll stay here and watch the core.' He tries to answer, but the four-pulse rhythm fills the room.",
+				"text": "The core is sealed inside the lab's horizontal containment tank. The resonance hits Thura with a sudden headache. AMARA: 'You've been exposed too long. Go rest in your bunk. I'll watch the core.' The four-pulse rhythm follows him out.",
 			},
 		],
 	})
