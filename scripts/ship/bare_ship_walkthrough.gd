@@ -13,6 +13,8 @@ const SERVICE_TASK_CONSOLE_SCENE: PackedScene = preload("res://scenes/ui/service
 const WALK_HUD_SCENE: PackedScene = preload("res://scenes/ui/walk_hud.tscn")
 const CREW_DIALOGUE_SCENE: PackedScene = preload("res://scenes/ui/crew_dialogue.tscn")
 const STORY_CUTSCENE_SCRIPT: Script = preload("res://scripts/ui/story_cutscene_overlay.gd")
+const LAB_DOOR_ACCESS_PANEL_SCRIPT: Script = preload("res://scripts/ui/lab_door_access_panel.gd")
+const LAB_DOOR_REPAIR_MINIGAME_SCRIPT: Script = preload("res://scripts/ui/lab_door_repair_minigame.gd")
 const SHIP_PILOTING_SCRIPT: Script = preload("res://scripts/ui/ship_piloting_console.gd")
 const CREW_MEMBER_NPC_SCRIPT: Script = preload("res://scripts/ship/crew/crew_member_npc.gd")
 const MOCK_PLANET_SCENE_PATH: String = "res://scenes/planet/mock_planet_exterior.tscn"
@@ -75,6 +77,7 @@ const LAB_DEVICES := [
 ]
 
 const LAB_DOOR_REPAIR_TASK_ID := &"repair_lab_pressure_door"
+const LAB_DOOR_OPEN_TASK_ID := &"release_lab_pressure_doors"
 const LAB_ENTRY_TASK_ID := &"investigate_echo_lab"
 const RIG_REPORT_TASK_ID := &"report_failed_rig"
 const ORE_FIELD_RETURN_TASK_ID := &"return_to_erebos_ore_seam"
@@ -380,7 +383,9 @@ var _returning_from_planet: bool = false
 var _subdeck_return_grace_timer: float = 0.0
 var _echo_lab_return_active: bool = false
 var _lab_door_repair_required: bool = false
-var _active_lab_door_repair: bool = false
+var _lab_door_manual_open_required: bool = false
+var _lab_door_access_panel_open: bool = false
+var _lab_door_repair_game: CanvasLayer = null
 var _active_locked_lab_door: bool = false
 var _lab_door_repairing: bool = false
 var _lab_entry_reveal_started: bool = false
@@ -478,20 +483,16 @@ func _set_lab_doors_locked(locked: bool) -> void:
 
 
 func _lab_door_repair_task_entry() -> Dictionary:
-	var workbench := get_node_or_null("MaintenanceWorkshop/RepairWorkbench") as Node2D
-	var marker_position := Vector2(732.0, 606.0)
-	var interaction_position := Vector2(732.0, 651.0)
-	if workbench != null:
-		interaction_position = workbench.global_position + Vector2(0.0, 40.0)
-		marker_position = workbench.global_position + Vector2(0.0, -42.0)
+	var door := _lab_pressure_door()
+	var door_position := door.global_position if door != null else Vector2(686.0, 435.0)
 	return {
 		"id": LAB_DOOR_REPAIR_TASK_ID,
-		"title": "Restore all sealed laboratory doors",
-		"action_hint": "Go to the maintenance workshop and repair the shared pressure-door controls.",
-		"purpose": "Every lab door has sealed shut. Repair the maintenance controls to reach the dark lab and search for Amara.",
-		"marker_label": "LAB ACCESS REPAIR",
-		"position": interaction_position,
-		"marker_position": marker_position,
+		"title": "Repair the sealed laboratory access panel",
+		"action_hint": "Go to the marked lab door panel and press E to start the relay repair.",
+		"purpose": "The resonance surge tripped the interlock. Repair it at the door panel, then release the bulkheads and search for Amara.",
+		"marker_label": "REPAIR ACCESS PANEL",
+		"position": door_position + Vector2(0.0, 48.0),
+		"marker_position": door_position + Vector2(0.0, -34.0),
 	}
 
 
@@ -1002,7 +1003,7 @@ func _ready() -> void:
 	player.set_walkable_floor_mask(FLOOR_TEXTURE, floor_layer.global_position, 8.0)
 	var map_size: Vector2 = FLOOR_TEXTURE.get_size()
 	var camera_bounds: Rect2 = Rect2(floor_layer.global_position, map_size)
-	player.set_camera_bounds(camera_bounds)
+	player.set_camera_bounds(camera_bounds, false)
 
 	_returning_from_planet = Engine.has_meta(&"returning_from_planet") and bool(Engine.get_meta(&"returning_from_planet"))
 	var returning_from_planet: bool = _returning_from_planet
@@ -1011,7 +1012,8 @@ func _ready() -> void:
 	if _has_heard_ore_echo() and not (Engine.has_meta(&"resonance_lab_entered_after_echo") and bool(Engine.get_meta(&"resonance_lab_entered_after_echo"))):
 		_echo_lab_return_active = true
 		_lab_door_repair_required = not _has_repaired_lab_door()
-		_set_lab_doors_locked(_lab_door_repair_required)
+		_lab_door_manual_open_required = Engine.has_meta(&"resonance_lab_door_release_pending") and bool(Engine.get_meta(&"resonance_lab_door_release_pending"))
+		_set_lab_doors_locked(_lab_door_repair_required or _lab_door_manual_open_required)
 	if not returning_from_planet and not returning_from_second_floor and not is_continue:
 		if Engine.has_meta(&"echoes_campaign_inventory_state") and Engine.has_meta(&"ship_story_bootstrap"):
 			Engine.remove_meta(&"echoes_campaign_inventory_state")
@@ -1074,6 +1076,14 @@ func _ready() -> void:
 		})
 	if _lab_door_repair_required:
 		hud_task_entries.append(_lab_door_repair_task_entry())
+	elif _lab_door_manual_open_required:
+		var open_door_entry: Dictionary = _lab_entry_task_entry()
+		open_door_entry["id"] = LAB_DOOR_OPEN_TASK_ID
+		open_door_entry["title"] = "Release the sealed laboratory doors"
+		open_door_entry["action_hint"] = "Return to the lab access panel and press E to open its controls."
+		open_door_entry["purpose"] = "The interlock is stable. Release the bulkheads to search the ruined lab for Amara."
+		open_door_entry["marker_label"] = "LAB ACCESS PANEL"
+		hud_task_entries.append(open_door_entry)
 	elif _echo_lab_return_active:
 		hud_task_entries.append(_lab_entry_task_entry())
 	if returning_from_planet and _is_rig_test_failed() and not _is_rig_failure_reported():
@@ -1378,14 +1388,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		_descend_to_second_floor()
 		return
-	if _active_lab_door_repair:
-		get_viewport().set_input_as_handled()
-		_repair_lab_pressure_door()
-		return
 	if _active_locked_lab_door:
 		get_viewport().set_input_as_handled()
-		_room_task_feedback = "LAB BULKHEAD LOCKED BY A RESONANCE SURGE  //  USE THE MAINTENANCE WORKBENCH"
-		_room_task_feedback_timer = 4.5
+		_open_lab_door_access_panel()
 		return
 	if _active_chen_interaction:
 		_begin_chen_dialogue()
@@ -1591,7 +1596,7 @@ func _on_room_task_completed(task_id: StringName) -> void:
 	_pending_room_task_feedback = _room_task_feedback
 
 
-func _repair_lab_pressure_door() -> void:
+func _start_lab_door_repair_game() -> void:
 	if not _lab_door_repair_required or _lab_door_repairing:
 		return
 	var door := _lab_pressure_door()
@@ -1600,31 +1605,97 @@ func _repair_lab_pressure_door() -> void:
 		_room_task_feedback_timer = 4.0
 		return
 	_lab_door_repairing = true
-	player.set_physics_process(false)
 	player.face_toward(door.global_position)
-	var workbench := get_node_or_null("MaintenanceWorkshop/RepairWorkbench") as CanvasItem
-	if workbench != null:
+	_walk_hud.set_walking_visible(false)
+	_update_player_walk_state()
+	_lab_door_repair_game = LAB_DOOR_REPAIR_MINIGAME_SCRIPT.new() as CanvasLayer
+	_lab_door_repair_game.connect(&"repair_succeeded", _on_lab_door_repair_game_succeeded)
+	_lab_door_repair_game.connect(&"cancelled", _on_lab_door_repair_game_cancelled)
+	add_child(_lab_door_repair_game)
+
+
+func _on_lab_door_repair_game_cancelled() -> void:
+	_lab_door_repair_game = null
+	_lab_door_repairing = false
+	_walk_hud.set_walking_visible(not _arrival_briefing_open)
+	_update_player_walk_state()
+	_walk_hud.set_interaction_prompt("REPAIR PAUSED  //  RETURN TO THE LAB ACCESS PANEL WHEN READY", true)
+
+
+func _on_lab_door_repair_game_succeeded() -> void:
+	_lab_door_repair_game = null
+	_walk_hud.set_walking_visible(not _arrival_briefing_open)
+	var door := _lab_pressure_door() as CanvasItem
+	if door != null:
 		var sparks := create_tween()
 		sparks.set_loops(4)
-		sparks.tween_property(workbench, "modulate", Color(1.0, 0.69, 0.32), 0.18)
-		sparks.tween_property(workbench, "modulate", Color.WHITE, 0.18)
+		sparks.tween_property(door, "modulate", Color(0.45, 0.96, 1.0), 0.18)
+		sparks.tween_property(door, "modulate", Color.WHITE, 0.18)
 	for phase in ["ISOLATING THE DAMAGED LAB INTERLOCK...", "BYPASSING THE JAMMED PRESSURE SEAL...", "RESTORING THE DOOR ACTUATOR..."]:
 		_walk_hud.set_interaction_prompt(str(phase), true)
 		await get_tree().create_timer(0.72).timeout
 		if not is_inside_tree():
 			return
-	if workbench != null:
-		workbench.modulate = Color.WHITE
-	_set_lab_doors_locked(false)
+	if door != null:
+		door.modulate = Color.WHITE
+	_set_lab_doors_locked(true)
 	Engine.set_meta(&"resonance_lab_door_repaired", true)
+	Engine.set_meta(&"resonance_lab_door_release_pending", true)
 	_lab_door_repair_required = false
+	_lab_door_manual_open_required = true
 	_lab_door_repairing = false
 	_walk_hud.set_task_completed(LAB_DOOR_REPAIR_TASK_ID)
-	_walk_hud.add_task_entry(_lab_entry_task_entry())
-	_room_task_feedback = "LAB ACCESS RESTORED  //  FOLLOW THE ORE ECHO INSIDE"
+	var open_door_entry: Dictionary = _lab_entry_task_entry()
+	open_door_entry["id"] = LAB_DOOR_OPEN_TASK_ID
+	open_door_entry["title"] = "Release the sealed laboratory doors"
+	open_door_entry["action_hint"] = "Return to the lab access panel and press E to open its controls."
+	open_door_entry["purpose"] = "The interlock is stable. Release the bulkheads to search the ruined lab for Amara."
+	open_door_entry["marker_label"] = "LAB ACCESS PANEL"
+	_walk_hud.add_task_entry(open_door_entry)
+	_room_task_feedback = "ACCESS CONTROLLER ONLINE  //  RELEASE THE LAB BULKHEADS AT THE DOOR PANEL"
 	_room_task_feedback_timer = 5.0
 	_update_player_walk_state()
-	_walk_hud.set_interaction_prompt("LAB ACCESS RESTORED   /   RETURN INSIDE AND FOLLOW THE ECHO", true)
+	_walk_hud.set_walking_visible(not _arrival_briefing_open)
+	_walk_hud.set_interaction_prompt("CONTROLLER ONLINE   /   GO TO THE LAB ACCESS PANEL", true)
+
+
+func _open_lab_door_access_panel() -> void:
+	if _lab_door_access_panel_open:
+		return
+	_lab_door_access_panel_open = true
+	_hud_modal_open = true
+	_walk_hud.set_walking_visible(false)
+	_update_player_walk_state()
+	var panel := LAB_DOOR_ACCESS_PANEL_SCRIPT.new() as CanvasLayer
+	panel.call("setup", not _lab_door_repair_required)
+	panel.connect("repair_requested", _on_lab_door_panel_repair_requested)
+	panel.connect("release_requested", _on_lab_doors_release_requested)
+	panel.connect("dismissed", _on_lab_door_access_panel_dismissed)
+	add_child(panel)
+
+
+func _on_lab_door_panel_repair_requested() -> void:
+	call_deferred("_start_lab_door_repair_game")
+
+
+func _on_lab_door_access_panel_dismissed() -> void:
+	_lab_door_access_panel_open = false
+	_hud_modal_open = false
+	_walk_hud.set_walking_visible(not _arrival_briefing_open)
+	_update_player_walk_state()
+
+
+func _on_lab_doors_release_requested() -> void:
+	if _lab_door_repair_required or not _lab_door_manual_open_required:
+		return
+	_set_lab_doors_locked(false)
+	Engine.set_meta(&"resonance_lab_door_release_pending", false)
+	_lab_door_manual_open_required = false
+	_walk_hud.set_task_completed(LAB_DOOR_OPEN_TASK_ID, true)
+	_walk_hud.add_task_entry(_lab_entry_task_entry())
+	_room_task_feedback = "LAB BULKHEADS RELEASED  //  ENTER AND FOLLOW THE ORE ECHO"
+	_room_task_feedback_timer = 5.0
+	_save_persistent_story_state()
 
 
 func _on_room_task_console_closed() -> void:
@@ -1642,7 +1713,6 @@ func _refresh_room_task_prompt() -> void:
 	_active_crew_task_id = &""
 	_active_story_station_id = &""
 	_active_lab_device_id = &""
-	_active_lab_door_repair = false
 	_active_locked_lab_door = false
 	_active_amara_interaction = false
 	_active_chen_interaction = false
@@ -1668,18 +1738,14 @@ func _refresh_room_task_prompt() -> void:
 		_active_subdeck_descent = true
 		_walk_hud.set_interaction_prompt("SUB-DECK CARGO LIFT   /   [E] DESCEND TO SECOND FLOOR", true)
 		return
-	if _lab_door_repair_required:
-		var workbench := get_node_or_null("MaintenanceWorkshop/RepairWorkbench") as Node2D
-		if workbench != null:
-			var wb_pos: Vector2 = workbench.global_position + Vector2(0.0, 40.0)
-			if player.global_position.distance_to(wb_pos) <= 68.0:
-				_active_lab_door_repair = true
-				_walk_hud.set_interaction_prompt("MAINTENANCE WORKBENCH   /   [E] REPAIR LAB ACCESS CONTROLLER", true)
-				return
+	if _lab_door_repair_required or _lab_door_manual_open_required:
 		for door in _lab_pressure_doors():
-			if player.global_position.distance_to(door.global_position) <= 54.0:
+			if player.global_position.distance_to(door.global_position) <= 100.0:
 				_active_locked_lab_door = true
-				_walk_hud.set_interaction_prompt("LAB PRESSURE DOOR   /   [E] DOOR SEALED (CHECK WORKBENCH)", true)
+				if _lab_door_repair_required:
+					_walk_hud.set_interaction_prompt("LAB ACCESS PANEL   /   [E] REPAIR INTERLOCK", true)
+				else:
+					_walk_hud.set_interaction_prompt("LAB ACCESS PANEL   /   [E] RELEASE BULKHEADS", true)
 				return
 	if is_instance_valid(amara) and amara.visible and not _is_lab_destroyed() and player.global_position.distance_to(amara.global_position) <= AMARA_INTERACTION_RADIUS:
 		_active_amara_interaction = true
@@ -3263,6 +3329,12 @@ func _build_cutscene_data(station_id: StringName) -> Dictionary:
 
 func _on_story_cutscene_finished(cutscene_id: StringName, choice_id: StringName) -> void:
 	_cutscene_open = false
+	if is_instance_valid(player) and is_instance_valid(player.camera):
+		player.camera.enabled = true
+		player.camera.make_current()
+		player.camera.position = Vector2.ZERO
+		player.camera.offset = Vector2.ZERO
+		player.camera.reset_smoothing()
 	if cutscene_id == &"cabin_may_recording":
 		_room_task_feedback = "TASK 1/2 COMPLETE  //  HEAD TO BRIDGE FLIGHT HELM (R01) TO PILOT ASTERIA-1 & UNLOCK SUIT LIGHT"
 		_room_task_feedback_timer = 5.5
@@ -3302,19 +3374,28 @@ func _on_story_cutscene_finished(cutscene_id: StringName, choice_id: StringName)
 	elif cutscene_id == &"resonance_core_nightmare":
 		Engine.set_meta(&"resonance_core_nightmare_complete", true)
 		# The core's echo reaches the ship when Thura wakes. Reuse the existing
-		# laboratory lockdown flow so he must repair access in the Maintenance Workshop.
+		# laboratory lockdown flow so he repairs the interlock from the lab door panel.
 		Engine.set_meta(&"resonance_echo_heard", true)
 		Engine.set_meta(&"resonance_lab_entered_after_echo", false)
 		Engine.set_meta(&"resonance_lab_door_repaired", false)
+		Engine.set_meta(&"resonance_lab_door_release_pending", false)
 		_echo_lab_return_active = true
 		_lab_door_repair_required = true
 		_lab_entry_reveal_started = false
 		_set_lab_doors_locked(true)
+		_destroy_all_lab_immediately()
+		Engine.set_meta(&"lab_doctor_missing", true)
+		if is_instance_valid(amara):
+			amara.set_physics_process(false)
+			amara.set_process(false)
+			amara.visible = false
+			amara.collision_layer = 0
+			amara.collision_mask = 0
 		_completed_story_stations[&"core_nightmare_rest"] = true
 		_walk_hud.set_task_completed(&"core_nightmare_rest", true)
 		_walk_hud.add_task_entry(_lab_door_repair_task_entry())
-		_walk_hud.show_objective_toast("LAB LOCKDOWN", "The core's echo sealed the laboratory doors. Go to the Maintenance Workshop and repair the access controller.", true)
-		_room_task_feedback = "THURA WOKE FROM THE NIGHTMARE  //  LAB DOORS SEALED — REPAIR ACCESS IN MAINTENANCE"
+		_walk_hud.show_objective_toast("LAB LOCKDOWN", "The core's echo sealed the laboratory doors. Go to the marked access panel and repair the interlock.", true)
+		_room_task_feedback = "THURA WOKE FROM THE NIGHTMARE  //  REPAIR THE INTERLOCK AT THE LAB DOOR PANEL"
 		_room_task_feedback_timer = 6.0
 		_save_persistent_story_state()
 	elif cutscene_id == &"commanders_secret_bridge":

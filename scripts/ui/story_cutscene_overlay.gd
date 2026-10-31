@@ -68,9 +68,6 @@ func play_cutscene(cutscene_id: StringName, data: Dictionary) -> void:
 	_slides = data.get("slides", []).duplicate(true)
 	if _slides.is_empty():
 		return
-	var large_artwork := bool(data.get("large_artwork", false))
-	_artwork_frame.custom_minimum_size.y = 350.0 if large_artwork else 180.0
-	_artwork_rect.custom_minimum_size.y = 334.0 if large_artwork else 164.0
 	_slide_index = 0
 	_selected_choice = &""
 	_echo_pulse_active = bool(data.get("echo_pulse", false))
@@ -164,76 +161,84 @@ func _build_ui() -> void:
 	_root.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(_root)
 
+	_artwork_rect = TextureRect.new()
+	_artwork_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_artwork_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_artwork_rect.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+	_artwork_rect.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_artwork_rect.size_flags_vertical = Control.SIZE_EXPAND_FILL
+
 	var dimmer := ColorRect.new()
-	dimmer.color = Color(0.005, 0.012, 0.022, 0.88)
+	dimmer.color = Color(0.005, 0.012, 0.022, 1.0)
 	dimmer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	dimmer.mouse_filter = Control.MOUSE_FILTER_STOP
 	_root.add_child(dimmer)
 
-	var center := CenterContainer.new()
-	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_root.add_child(center)
+	var top_bar := ColorRect.new()
+	top_bar.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+	top_bar.offset_bottom = 30.0
+	top_bar.color = Color(0.0, 0.0, 0.0, 0.82)
+	top_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_root.add_child(top_bar)
+	var bottom_bar := ColorRect.new()
+	bottom_bar.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+	bottom_bar.offset_top = -30.0
+	bottom_bar.color = Color(0.0, 0.0, 0.0, 0.82)
+	bottom_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_root.add_child(bottom_bar)
 
-	_blackout_layer = ColorRect.new()
-	_blackout_layer.color = Color.BLACK
-	_blackout_layer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_blackout_layer.mouse_filter = Control.MOUSE_FILTER_STOP
-	_blackout_layer.hide()
-	_root.add_child(_blackout_layer)
-
-	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(920.0, 0.0)
-	panel.add_theme_stylebox_override("panel", SKIN.panel(22.0))
-	center.add_child(panel)
+	var content := MarginContainer.new()
+	content.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	content.offset_left = 54.0
+	content.offset_top = 48.0
+	content.offset_right = -54.0
+	content.offset_bottom = -48.0
+	content.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_root.add_child(content)
 
 	var vbox := VBoxContainer.new()
+	vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	vbox.add_theme_constant_override("separation", 12)
-	panel.add_child(vbox)
+	content.add_child(vbox)
 
-	# Top meta bar
 	var top_row := HBoxContainer.new()
 	top_row.add_theme_constant_override("separation", 10)
-	_act_badge = _make_label("[ ACT I — THE LONG APPROACH ]", 9, GOLD)
+	_act_badge = _make_label("ACT I — THE LONG APPROACH", 11, GOLD)
 	top_row.add_child(_act_badge)
-	_clock_label = _make_label("ASTERIA-1 // DAY 184", 9, MUTED)
+	_clock_label = _make_label("ASTERIA-1 // DAY 184", 10, MUTED)
 	top_row.add_child(_clock_label)
 	top_row.add_spacer(false)
-	_pulse_indicator = _make_label("● ECHO SIGNAL: 4 PULSES / 7S PAUSE", 9, ECHO_RED)
+	_pulse_indicator = _make_label("● ECHO SIGNAL: 4 PULSES / 7S PAUSE", 10, ECHO_RED)
 	top_row.add_child(_pulse_indicator)
 	_skip_button = Button.new()
-	_skip_button.text = "[ SKIP ]"
-	_skip_button.custom_minimum_size = Vector2(96.0, 32.0)
-	_skip_button.add_theme_font_size_override("font_size", 9)
+	_skip_button.text = "SKIP  [ESC]"
+	_skip_button.custom_minimum_size = Vector2(112.0, 36.0)
+	_skip_button.add_theme_font_size_override("font_size", 10)
 	_skip_button.pressed.connect(_on_skip_pressed)
 	top_row.add_child(_skip_button)
 	vbox.add_child(top_row)
 
-	_title_label = _make_label("STORY CUTSCENE", 15, PALE)
+	_title_label = _make_label("STORY CUTSCENE", 26, PALE)
 	vbox.add_child(_title_label)
 
 	var sep := HSeparator.new()
 	sep.add_theme_color_override("separator_color", Color(0.55, 0.44, 0.25, 0.7))
 	vbox.add_child(sep)
 
-	# Optional storyboard image frame
 	_artwork_frame = PanelContainer.new()
-	_artwork_frame.custom_minimum_size = Vector2(0.0, 180.0)
-	_artwork_frame.add_theme_stylebox_override("panel", SKIN.panel(8.0, true))
-	_artwork_frame.visible = false
+	_artwork_frame.custom_minimum_size = Vector2(0.0, 190.0)
+	_artwork_frame.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_artwork_frame.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_artwork_frame.add_theme_stylebox_override("panel", SKIN.panel(10.0, true))
+	_artwork_frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	vbox.add_child(_artwork_frame)
-
-	_artwork_rect = TextureRect.new()
-	_artwork_rect.custom_minimum_size = Vector2(0.0, 164.0)
-	_artwork_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	_artwork_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	_artwork_rect.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_artwork_frame.add_child(_artwork_rect)
 
-	# Dialogue box
 	var diag_panel := PanelContainer.new()
-	diag_panel.custom_minimum_size = Vector2(0.0, 132.0)
-	diag_panel.add_theme_stylebox_override("panel", SKIN.panel(14.0, true))
+	diag_panel.custom_minimum_size = Vector2(0.0, 186.0)
+	diag_panel.add_theme_stylebox_override("panel", SKIN.panel(18.0, true))
+	diag_panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	vbox.add_child(diag_panel)
 
 	var diag_vbox := VBoxContainer.new()
@@ -241,22 +246,21 @@ func _build_ui() -> void:
 	diag_panel.add_child(diag_vbox)
 
 	var speaker_row := HBoxContainer.new()
-	_speaker_badge = _make_label("DR. THURA MIN // PLANETARY GEOLOGIST", 10, CYAN)
+	_speaker_badge = _make_label("DR. THURA MIN // PLANETARY GEOLOGIST", 12, CYAN)
 	speaker_row.add_child(_speaker_badge)
 	speaker_row.add_spacer(false)
-	_step_counter_label = _make_label("01 / 01", 9, MUTED)
+	_step_counter_label = _make_label("01 / 01", 11, MUTED)
 	speaker_row.add_child(_step_counter_label)
 	diag_vbox.add_child(speaker_row)
 
-	_dialogue_label = _make_label("", 11, PALE)
+	_dialogue_label = _make_label("", 16, PALE)
 	_dialogue_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_dialogue_label.add_theme_constant_override("line_spacing", 5)
-	_dialogue_label.custom_minimum_size = Vector2(820.0, 78.0)
+	_dialogue_label.custom_minimum_size = Vector2(0.0, 104.0)
 	diag_vbox.add_child(_dialogue_label)
 
-	# Equipment reward showcase panel
 	_reward_panel = PanelContainer.new()
-	_reward_panel.add_theme_stylebox_override("panel", SKIN.panel(12.0, true))
+	_reward_panel.add_theme_stylebox_override("panel", SKIN.panel(14.0, true))
 	_reward_panel.visible = false
 	vbox.add_child(_reward_panel)
 
@@ -274,30 +278,36 @@ func _build_ui() -> void:
 	var reward_text_vbox := VBoxContainer.new()
 	reward_text_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	reward_text_vbox.add_theme_constant_override("separation", 4)
-	_reward_title = _make_label("EQUIPMENT UNLOCKED", 10, GREEN)
-	_reward_desc = _make_label("", 9, PALE)
+	_reward_title = _make_label("EQUIPMENT UNLOCKED", 12, GREEN)
+	_reward_desc = _make_label("", 11, PALE)
 	_reward_desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	reward_text_vbox.add_child(_reward_title)
 	reward_text_vbox.add_child(_reward_desc)
 	reward_hbox.add_child(reward_text_vbox)
 
-	# Choices container (for branching decisions & Act V Endings)
 	_choices_box = VBoxContainer.new()
 	_choices_box.add_theme_constant_override("separation", 6)
 	vbox.add_child(_choices_box)
 
 	# Footer action row
 	var footer_row := HBoxContainer.new()
-	var hint_lbl := _make_label("[E / SPACE / TAP] CONTINUE", 9, MUTED)
+	var hint_lbl := _make_label("[E / SPACE / TAP] CONTINUE", 11, MUTED)
 	footer_row.add_child(hint_lbl)
 	footer_row.add_spacer(false)
 	_advance_button = Button.new()
-	_advance_button.text = "[ CONTINUE  › ]"
-	_advance_button.custom_minimum_size = Vector2(210.0, 42.0)
-	_advance_button.add_theme_font_size_override("font_size", 11)
+	_advance_button.text = "CONTINUE  ›"
+	_advance_button.custom_minimum_size = Vector2(220.0, 48.0)
+	_advance_button.add_theme_font_size_override("font_size", 12)
 	_advance_button.pressed.connect(_on_advance_pressed)
 	footer_row.add_child(_advance_button)
 	vbox.add_child(footer_row)
+
+	_blackout_layer = ColorRect.new()
+	_blackout_layer.color = Color.BLACK
+	_blackout_layer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_blackout_layer.mouse_filter = Control.MOUSE_FILTER_STOP
+	_blackout_layer.hide()
+	_root.add_child(_blackout_layer)
 
 
 func _update_step_counter(current_index: int) -> void:
@@ -321,6 +331,7 @@ func _show_slide(index: int) -> void:
 		_is_typing = false
 		_blackout_timer = maxf(0.1, float(slide.get("hold_seconds", 2.8)))
 		_blackout_layer.show()
+		_blackout_layer.move_to_front()
 		return
 	_blackout_timer = 0.0
 	_blackout_layer.hide()
@@ -332,17 +343,23 @@ func _show_slide(index: int) -> void:
 	var img_path: String = str(slide.get("image", ""))
 	if not img_path.is_empty() and ResourceLoader.exists(img_path):
 		_artwork_rect.texture = load(img_path) as Texture2D
+		_artwork_rect.show()
 		_artwork_frame.visible = _artwork_rect.texture != null
 		if is_instance_valid(_image_fade_tween) and _image_fade_tween.is_running():
 			_image_fade_tween.kill()
 		var fade_seconds := maxf(0.0, float(slide.get("fade_in_seconds", 0.0)))
 		_artwork_rect.modulate = Color(1.0, 1.0, 1.0, 0.0 if fade_seconds > 0.0 else 1.0)
+		_artwork_rect.scale = Vector2.ONE
 		if fade_seconds > 0.0:
 			_image_fade_tween = create_tween()
 			_image_fade_tween.tween_property(_artwork_rect, "modulate:a", 1.0, fade_seconds).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	else:
+		if is_instance_valid(_image_fade_tween) and _image_fade_tween.is_running():
+			_image_fade_tween.kill()
+		_artwork_rect.texture = null
 		_artwork_rect.modulate = Color.WHITE
-		_artwork_frame.visible = false
+		_artwork_rect.hide()
+		_artwork_frame.show()
 
 	_dialogue_label.text = str(slide.get("text", ""))
 	_total_chars = maxi(1, _dialogue_label.text.length())

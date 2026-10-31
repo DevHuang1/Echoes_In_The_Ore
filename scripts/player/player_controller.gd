@@ -22,6 +22,7 @@ const ANIMATION_ROWS := {
 
 var _facing_animation: StringName = &"walk_down"
 var _camera_bounds := Rect2(Vector2.ZERO, Vector2(1774.0, 887.0))
+var _camera_clamping_enabled: bool = true
 var _walkable_floor_mask: Image
 var _walkable_floor_origin := Vector2.ZERO
 var _walkable_body_margin := 8.0
@@ -63,8 +64,9 @@ func _process(_delta: float) -> void:
 			if is_instance_valid(item): item.visible = false
 
 
-func set_camera_bounds(bounds: Rect2) -> void:
+func set_camera_bounds(bounds: Rect2, clamp_to_bounds: bool = true) -> void:
 	_camera_bounds = bounds
+	_camera_clamping_enabled = clamp_to_bounds
 	_update_camera_limits()
 	camera.reset_smoothing()
 
@@ -195,6 +197,12 @@ func _update_facing(direction: Vector2) -> void:
 
 func _update_camera_limits() -> void:
 	if not is_instance_valid(camera):
+		return
+	if not _camera_clamping_enabled:
+		camera.limit_left = -10000000
+		camera.limit_top = -10000000
+		camera.limit_right = 10000000
+		camera.limit_bottom = 10000000
 		return
 	var view_size := get_viewport_rect().size
 	var half_view := view_size / camera.zoom * 0.5
