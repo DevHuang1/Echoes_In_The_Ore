@@ -1,7 +1,7 @@
 [gd_scene load_steps=8 format=3]
 
 [ext_resource type="Script" path="res://scripts/planet/mock_planet_exterior.gd" id="1_planet_script"]
-[ext_resource type="Texture2D" path="res://art/planet/mock_planet_surface.png" id="2_surface_tex"]
+[ext_resource type="Texture2D" path="res://art/planet/erebos_extraction_surface_pixel.png" id="2_surface_tex"]
 [ext_resource type="PackedScene" path="res://scenes/player/player.tscn" id="3_player"]
 [ext_resource type="PackedScene" path="res://scenes/ship/doors/exterior_airlock_gate.tscn" id="4_airlock_gate"]
 [ext_resource type="Script" path="res://scripts/planet/landed_ship_hull_visual.gd" id="5_hull_visual"]
