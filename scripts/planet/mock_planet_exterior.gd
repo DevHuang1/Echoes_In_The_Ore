@@ -282,7 +282,7 @@ func _rig_mining_task_entry() -> Dictionary:
 		"marker_label": "DRILL RIG",
 		"room_name": "Erebos Extraction Rig",
 		"action_hint": "Operate the console, achieve 432 Hz harmonic lock, and vent coolant to extract the core intact.",
-		"purpose": "Secure an intact resonance crystal core for containment analysis in the ship's Cargo Bay.",
+		"purpose": "The oversized resonance crystal needs a powered hauler and the lab's sealed containment tank.",
 		"milestone_reward": &"resonance_ore_core",
 		"position": EXTRACTION_RIG_POSITION,
 		"marker_position": EXTRACTION_RIG_POSITION + Vector2(0.0, -36.0),
@@ -292,11 +292,11 @@ func _rig_mining_task_entry() -> Dictionary:
 func _core_return_task_entry() -> Dictionary:
 	return {
 		"id": &"cargo_core_containment",
-		"title": "Secure Resonance Core in Cargo Bay",
-		"marker_label": "CARGO BAY",
-		"room_name": "Asteria-1 Cargo Bay",
-		"action_hint": "Board Asteria-1, weigh the core on the Cargo Scale, and lock it into the containment cradle.",
-		"purpose": "The resonance crystal must be kept under controlled pressure before lab examination.",
+		"title": "Ask Amara for heavy-core recovery",
+		"marker_label": "RETURN TO SHIP",
+		"room_name": "Asteria-1 Airlock",
+		"action_hint": "The core is too large to carry. Board Asteria-1 and ask Dr. Okoye to send a powered hauler.",
+		"purpose": "A recovery vehicle is needed to transport the oversized resonance core safely to the lab.",
 		"milestone_reward": &"",
 		"position": AIRLOCK_ENTRY_POS,
 		"marker_position": AIRLOCK_ENTRY_POS + Vector2(0.0, -46.0),
@@ -335,7 +335,8 @@ func _ready() -> void:
 	var mask_tex := ImageTexture.create_from_image(mask_img)
 	player.set_walkable_floor_mask(mask_tex, Vector2.ZERO, 8.0)
 	player.set_walkable_blocker_polygons(_make_terrain_blockers())
-	player.camera.zoom = Vector2(0.72, 0.72)
+	# Match the close gameplay framing used inside the ship.
+	player.camera.zoom = Vector2(1.75, 1.75)
 	player.set_camera_bounds(Rect2(Vector2.ZERO, Vector2(1600.0, 1000.0)))
 	if dev_mining_start and Engine.has_meta(&"dev_warp_target"):
 		var mining_target: Vector2 = Engine.get_meta(&"dev_warp_target")
@@ -503,7 +504,7 @@ func _refresh_prompt() -> void:
 		var return_prompt := "ASTERIA-1 EXTERIOR AIRLOCK   /   [E] BOARD SHIP"
 		var core_extracted_airlock: bool = Engine.has_meta(&"resonance_ore_core_extracted") and bool(Engine.get_meta(&"resonance_ore_core_extracted"))
 		if core_extracted_airlock and not Engine.has_meta(&"resonance_ore_core_stored"):
-			return_prompt = "ASTERIA-1 AIRLOCK   /   [E] BOARD SHIP WITH EXTRACTED CORE"
+			return_prompt = "ASTERIA-1 AIRLOCK   /   [E] BOARD SHIP — CORE REQUIRES HAULER"
 		elif not _rig_test_failed() and _sampled_sites.is_empty():
 			return_prompt = "RIG TEST STILL AVAILABLE   /   [E] BOARD ASTERIA-1"
 		elif _rig_test_failed() and not _rig_failure_reported():
@@ -630,16 +631,83 @@ func _open_extraction_console() -> void:
 func _on_core_extraction_completed(_site_id: StringName, is_pristine: bool = true) -> void:
 	Engine.set_meta(&"resonance_ore_core_extracted", true)
 	Engine.set_meta(&"resonance_ore_core_pristine", is_pristine)
-	var core_item: StringName = &"resonance_ore_core" if is_pristine else &"resonance_ore_core_fractured"
 	if is_instance_valid(_walk_hud):
-		_walk_hud.grant_hotbar_item(core_item)
 		_walk_hud.set_task_completed(&"erebos_deep_mining", true)
 		_walk_hud.set_task_completed(EXTRACTION_RIG_TASK_ID, true)
 		_walk_hud.add_task_entry(_core_return_task_entry())
-		var grade_str: String = "Pristine Resonance Core" if is_pristine else "Fractured Resonance Core"
-		_walk_hud.show_objective_toast("EXTRACTION SUCCESSFUL", "%s secured. Return to Cargo Bay." % grade_str, true)
-	_feedback_text = "CORE SAMPLE EXTRACTED  //  SECURE IN ASTERIA-1 CARGO BAY"
+		var grade_str: String = "Pristine" if is_pristine else "Fractured"
+		_walk_hud.show_objective_toast("EXTRACTION SUCCESSFUL", "%s core recovered. It is too large to carry—call Amara for a hauler." % grade_str, true)
+	_feedback_text = "CORE EXTRACTED  //  TOO LARGE TO CARRY  //  ASK AMARA FOR A POWERED HAULER"
 	_feedback_timer = 6.0
+	call_deferred(&"_play_resonance_core_recovery_cutscene", is_pristine)
+
+
+func _play_resonance_core_recovery_cutscene(is_pristine: bool) -> void:
+	if not is_instance_valid(_story_cutscene) or not is_instance_valid(_walk_hud):
+		return
+	_cutscene_open = true
+	_walk_hud.set_walking_visible(false)
+	_update_player_walk_state()
+	var core_grade := "PRISTINE" if is_pristine else "FRACTURED"
+	_story_cutscene.call(&"play_cutscene", &"resonance_core_recovery", {
+		"act": "ACT II — EREBOS // CORE RECOVERY",
+		"clock": "SITE K-12 // RECOVERED DRILL FEED",
+		"title": "SOMETHING ANSWERS FROM BELOW",
+		"large_artwork": true,
+		"slides": [
+			{
+				"speaker": "DRILL CAMERA // TARGET CONTACT",
+				"image": "res://art/storyboards/resonance_core_recovery/scene_04_reveal.png",
+				"fade_in_seconds": 2.0,
+				"typing_speed": 24.0,
+				"auto_advance_seconds": 1.8,
+				"text": "At target depth, the drill uncovers a pale core. Its veins repeat with impossible precision."
+			},
+			{
+				"speaker": "EREBOS SURFACE // RIG POWER-UP",
+				"image": "res://art/storyboards/resonance_core_recovery/scene_01_rig_awakens.png",
+				"fade_in_seconds": 1.5,
+				"typing_speed": 27.0,
+				"auto_advance_seconds": 1.2,
+				"text": "The rig comes alive beneath Erebos's darkening sky. Thura begins the final bore toward the four-pulse signal."
+			},
+			{
+				"speaker": "DRILL CAMERA // DESCENT",
+				"image": "res://art/storyboards/resonance_core_recovery/scene_02_descent.png",
+				"fade_in_seconds": 1.5,
+				"typing_speed": 27.0,
+				"auto_advance_seconds": 1.2,
+				"text": "The pipe sinks through layer after layer of solid basalt. The signal grows louder as the drill descends into the dark."
+			},
+			{
+				"speaker": "RECOVERY WINCH // SAMPLE SECURED",
+				"image": "res://art/storyboards/resonance_core_recovery/scene_05_extraction.png",
+				"fade_in_seconds": 1.8,
+				"typing_speed": 24.0,
+				"auto_advance_seconds": 1.8,
+				"text": "A corrupted frame jumps ahead: the sleeve has already closed around the %s Core. The signal continues inside the sealed sample." % core_grade
+			},
+			{
+				"speaker": "DRILL CAMERA // FIRST CONTACT",
+				"image": "res://art/storyboards/resonance_core_recovery/scene_03_first_contact.png",
+				"fade_in_seconds": 1.8,
+				"typing_speed": 25.0,
+				"auto_advance_seconds": 1.5,
+				"text": "The feed snaps back. At target depth, the cutter touches something pale beneath the rock. The four-pulse signal stops."
+			},
+			{
+				"blackout": true,
+				"hold_seconds": 3.4
+			},
+			{
+				"speaker": "RECOVERED FEED // FINAL FRAME",
+				"image": "res://art/storyboards/resonance_core_recovery/scene_06_horror_reveal.png",
+				"fade_in_seconds": 3.6,
+				"typing_speed": 18.0,
+				"text": "The final frame shows Thura reflected inside the Core. He turns toward the camera. No one is behind him. The four-pulse signal returns."
+			},
+		]
+	})
 
 
 func _on_machine_test_failed(_site_id: StringName) -> void:
@@ -734,11 +802,14 @@ func _build_planet_cutscene(site_id: StringName) -> Dictionary:
 	return {}
 
 
-func _on_cutscene_finished(_cutscene_id: StringName, choice_id: StringName) -> void:
+func _on_cutscene_finished(cutscene_id: StringName, choice_id: StringName) -> void:
 	_cutscene_open = false
 	_walk_hud.set_walking_visible(true)
 	_update_player_walk_state()
-	if choice_id == &"search_longer":
+	if cutscene_id == &"resonance_core_recovery":
+		_feedback_text = "CORE STILL AT THE RIG  //  CLOSE THE CONSOLE AND ASK AMARA FOR A HEAVY HAULER"
+		_feedback_timer = 6.0
+	elif choice_id == &"search_longer":
 		Engine.set_meta(SUIT_O2_DAMAGE_META_KEY, true)
 		Engine.set_meta(&"ruiz_last_signal_recovered", true)
 		player.move_speed *= 0.78

@@ -185,6 +185,21 @@ const STORY_STATIONS: Array[Dictionary] = [
 		"log_id": &"log_may_message",
 	},
 	{
+		"id": &"core_nightmare_rest",
+		"title": "Rest in Thura's bunk",
+		"marker_label": "THURA'S BUNK",
+		"room_name": "Crew Living Quarters",
+		"action_hint": "The headache is getting worse. Lie down in your bunk and rest.",
+		"purpose": "Amara wants Thura to recover while she monitors the newly contained core.",
+		"station_path": NodePath("CrewLivingQuarterProps/StackedCapsuleUnit"),
+		"interaction_offset": Vector2(0.0, 28.0),
+		"marker_offset": Vector2(0.0, -28.0),
+		"prompt": "THURA'S BUNK   /   [E] REST",
+		"reward_item": &"",
+		"milestone_reward": &"",
+		"log_id": &"",
+	},
+	{
 		"id": &"bridge_flight_piloting",
 		"title": "Pilot ship & evade asteroids",
 		"marker_label": "PILOT HELM",
@@ -892,9 +907,14 @@ func _display_contained_ore_sample() -> void:
 	var tank_sprite := containment.get_node_or_null("SampleContainment") as Sprite2D
 	if tank_sprite == null:
 		return
+	var core_stored := Engine.has_meta(&"resonance_ore_core_stored") and bool(Engine.get_meta(&"resonance_ore_core_stored"))
 	var is_stored := _is_ore_sample_stored()
 	if is_instance_valid(containment_glow):
-		containment_glow.visible = is_stored
+		containment_glow.visible = is_stored or core_stored
+	if core_stored:
+		_load_sprite_png(tank_sprite, "res://art/planet/modern_ore_containment_stored.png")
+		tank_sprite.set_meta(&"hatched", false)
+		return
 	if not is_stored:
 		_load_sprite_png(tank_sprite, "res://art/planet/modern_ore_containment_empty.png")
 		tank_sprite.set_meta(&"hatched", false)
@@ -977,6 +997,7 @@ func _ready() -> void:
 
 	_cache_lab_station_lighting()
 	_load_persistent_story_state()
+	_display_contained_ore_sample()
 
 	player.set_walkable_floor_mask(FLOOR_TEXTURE, floor_layer.global_position, 8.0)
 	var map_size: Vector2 = FLOOR_TEXTURE.get_size()
@@ -1057,6 +1078,22 @@ func _ready() -> void:
 		hud_task_entries.append(_lab_entry_task_entry())
 	if returning_from_planet and _is_rig_test_failed() and not _is_rig_failure_reported():
 		hud_task_entries.append(_rig_report_task_entry())
+	var core_extracted_for_hauler := Engine.has_meta(&"resonance_ore_core_extracted") and bool(Engine.get_meta(&"resonance_ore_core_extracted"))
+	var core_stored_for_hauler := Engine.has_meta(&"resonance_ore_core_stored") and bool(Engine.get_meta(&"resonance_ore_core_stored"))
+	if core_extracted_for_hauler and not core_stored_for_hauler and is_instance_valid(amara):
+		hud_task_entries.append({
+			"id": &"cargo_core_containment",
+			"title": "Ask Amara to send a heavy-core hauler",
+			"marker_label": "DR. OKOYE",
+			"room_name": "Hydroponics Lab",
+			"action_hint": "Tell Dr. Okoye the extracted core is too large to carry and request a powered recovery vehicle.",
+			"purpose": "The oversized core must be transported to the ship's containment tank by a hauler.",
+			"milestone_reward": &"",
+			"position": amara.global_position,
+			"marker_position": amara.global_position + Vector2(0.0, -44.0),
+		})
+	if Engine.has_meta(&"resonance_core_rest_unlocked") and bool(Engine.get_meta(&"resonance_core_rest_unlocked")) and not (Engine.has_meta(&"resonance_core_nightmare_complete") and bool(Engine.get_meta(&"resonance_core_nightmare_complete"))):
+		hud_task_entries.append(_core_nightmare_rest_task_entry())
 	if _is_ship_landed() and _is_rig_test_failed() and _is_rig_failure_reported() and not _has_heard_ore_echo():
 		if not _is_ore_sample_collected():
 			hud_task_entries.append(_airlock_mission_entry(
@@ -1733,22 +1770,16 @@ func _refresh_room_task_prompt() -> void:
 		_walk_hud.set_interaction_prompt(closest_task["prompt"], true)
 		return
 
-	var cargo_scale := get_node_or_null("CargoBayProps/CargoInspectionScale") as Node2D
-	var has_core := Engine.has_meta(&"resonance_ore_core_extracted") and bool(Engine.get_meta(&"resonance_ore_core_extracted"))
-	var core_stored := Engine.has_meta(&"resonance_ore_core_stored") and bool(Engine.get_meta(&"resonance_ore_core_stored"))
-	if cargo_scale != null and has_core and not core_stored:
-		var scale_dist := player.global_position.distance_to(cargo_scale.global_position)
-		if scale_dist <= 85.0:
-			_active_story_station_id = &"cargo_core_scale_store"
-			_walk_hud.set_interaction_prompt("CARGO INSPECTION SCALE   /   [E] WEIGH & CONTAIN RESONANCE CORE", true)
-			return
-
 	var closest_story: Dictionary = {}
 	var closest_story_dist: float = STORY_STATION_INTERACTION_RADIUS
 	var helm_chair_node: Node2D = get_node_or_null("BridgeRoomProps/MainHelmChair") as Node2D
 	var upper_chair_node: Node2D = get_node_or_null("BridgeRoomProps/UpperStationChair") as Node2D
 	for st in STORY_STATIONS:
 		var st_id: StringName = st["id"]
+		if st_id == &"core_nightmare_rest" and not (Engine.has_meta(&"resonance_core_rest_unlocked") and bool(Engine.get_meta(&"resonance_core_rest_unlocked"))):
+			continue
+		if st_id == &"core_nightmare_rest" and Engine.has_meta(&"resonance_core_nightmare_complete") and bool(Engine.get_meta(&"resonance_core_nightmare_complete")):
+			continue
 		# Allow re-triggering the Bridge Flight Piloting helm, Landing Helm & Act V finale
 		if _completed_story_stations.has(st_id) and st_id != &"act_v_finale_home" and st_id != &"bridge_flight_piloting" and st_id != &"erebos_landing_descent":
 			continue
@@ -1789,7 +1820,8 @@ func _refresh_room_task_prompt() -> void:
 func _begin_amara_dialogue() -> void:
 	if _crew_dialogue_open or _amara_ore_handoff_active:
 		return
-	if _is_ore_sample_collected() and not _is_ore_sample_stored():
+	var core_already_extracted := Engine.has_meta(&"resonance_ore_core_extracted") and bool(Engine.get_meta(&"resonance_ore_core_extracted"))
+	if _is_ore_sample_collected() and not _is_ore_sample_stored() and not core_already_extracted:
 		_amara_ore_handoff_active = true
 		_walk_hud.set_walking_visible(false)
 		_update_player_walk_state()
@@ -1828,11 +1860,19 @@ func _begin_amara_dialogue() -> void:
 	var lines: Array[String] = []
 	var choices: Array[Dictionary] = []
 	var core_stored := Engine.has_meta(&"resonance_ore_core_stored") and bool(Engine.get_meta(&"resonance_ore_core_stored"))
-	if core_stored and not _is_ore_villain_spawned():
-		_walk_hud.set_task_completed(&"amara_core_debrief_task", true)
-		lines.append("Thura! The telemetry from the Cargo Bay scale is extraordinary — 84.2 kg of intact resonance crystal!")
-		lines.append("The 4-pulse harmonic frequency matches the signal Ruiz's drones tracked from orbit. Our deep extraction protocol worked!")
+	var core_extracted := Engine.has_meta(&"resonance_ore_core_extracted") and bool(Engine.get_meta(&"resonance_ore_core_extracted"))
+	var core_debrief_done := Engine.has_meta(&"resonance_core_debrief_complete") and bool(Engine.get_meta(&"resonance_core_debrief_complete"))
+	if core_extracted and not core_stored:
+		lines.append("Thura, I saw the extraction telemetry. That core is far too large and heavy to bring back by hand.")
+		lines.append("I can dispatch the powered surface hauler. It will lift the core from the rig and bring it straight to our containment tank.")
+		choices.append({"id": "amara_request_core_hauler", "label": "Ask Amara to send the powered hauler for the oversized core"})
+	elif core_stored and not core_debrief_done and not _is_ore_villain_spawned():
+		lines.append("The recovery crew delivered the core safely into our horizontal containment tank. Its signal is already stronger inside the lab.")
 		choices.append({"id": "amara_core_debrief", "label": "Review the core's acoustic spectroscopy data"})
+		choices.append({"id": "amara_resonance", "label": "Discuss acoustic frequencies and cellular vibration theories"})
+	elif core_stored and not _is_ore_villain_spawned():
+		lines.append("Thura! The readings from the lab tank are extraordinary — 84.2 kg of intact resonance crystal!")
+		lines.append("The 4-pulse harmonic frequency matches the signal Ruiz's drones tracked from orbit. Our deep extraction protocol worked!")
 		choices.append({"id": "amara_resonance", "label": "Discuss acoustic frequencies and cellular vibration theories"})
 	elif _is_ore_sample_stored() and not _is_ore_villain_spawned():
 		lines.append("The Erebos ore is secured. I'm running spectrophotometry and monitoring its electromagnetic resonance.")
@@ -2079,6 +2119,18 @@ func _on_crew_conversation_finished(conv_id: String, result_id: String) -> void:
 		_handle_chen_dialogue_result(result_id)
 	elif conv_id == "amara_okoye":
 		_handle_amara_dialogue_result(result_id)
+	elif conv_id == "amara_okoye_reply":
+		if Engine.has_meta(&"resonance_core_hauler_reply_pending") and bool(Engine.get_meta(&"resonance_core_hauler_reply_pending")):
+			Engine.set_meta(&"resonance_core_hauler_reply_pending", false)
+			call_deferred(&"_play_resonance_core_hauler_cutscene")
+		elif Engine.has_meta(&"resonance_core_debrief_reply_pending") and bool(Engine.get_meta(&"resonance_core_debrief_reply_pending")):
+			Engine.set_meta(&"resonance_core_debrief_reply_pending", false)
+			Engine.set_meta(&"resonance_core_debrief_complete", true)
+			Engine.set_meta(&"resonance_core_rest_unlocked", true)
+			_walk_hud.set_task_completed(&"amara_core_debrief_task", true)
+			_walk_hud.add_task_entry(_core_nightmare_rest_task_entry())
+			_walk_hud.show_objective_toast("REST REQUIRED", "Amara asks Thura to lie down in his bunk until the headache passes.", true)
+			_save_persistent_story_state()
 	elif conv_id == "elias_ward":
 		_handle_ward_dialogue_result(result_id)
 	elif conv_id == "leila_haddad":
@@ -2091,12 +2143,21 @@ func _on_crew_conversation_finished(conv_id: String, result_id: String) -> void:
 func _handle_amara_dialogue_result(result_id: String) -> void:
 	var response_lines: Array[String] = []
 	match result_id:
+		"amara_request_core_hauler":
+			Engine.set_meta(&"resonance_core_hauler_reply_pending", true)
+			response_lines = [
+				"I'll send the surface recovery vehicle now. Its clamp and lift are rated for the full mass of that core.",
+				"Stay clear of the rig while it loads. When it reaches the ship, the crew will place it directly in the horizontal containment tank in my lab."
+			]
 		"amara_core_debrief":
 			var is_pristine := bool(Engine.get_meta(&"resonance_ore_core_pristine", true))
 			var purity_text := "The crystal lattice is 99.4% pristine — zero harmonic stress fractures!" if is_pristine else "There are slight micro-fractures along the shear plane, but the acoustic resonance is stable."
+			Engine.set_meta(&"resonance_core_debrief_reply_pending", true)
 			response_lines = [
 				"Take a look at the telemetry readout: %s" % purity_text,
-				"This core sample proves that crystalline structures can act as organic acoustic waveguides. Corporate will want patents, but for us... this changes everything we know about mineral physics."
+				"This core sample proves that crystalline structures can act as organic acoustic waveguides. Corporate will want patents, but for us... this changes everything we know about mineral physics.",
+				"THURA: The pulses— I can feel them behind my eyes. My head is splitting.",
+				"AMARA: You've been exposed to the rig's resonance for hours. Please, go lie down in your bunk. I'll keep watch over the tank."
 			]
 		"amara_tasks":
 			if not _crew_tasks_unlocked:
@@ -2795,8 +2856,37 @@ func _complete_crew_task(task_id: StringName) -> void:
 
 
 func _trigger_story_station(station_id: StringName) -> void:
-	if station_id == &"cargo_core_scale_store":
-		_store_resonance_core_in_cargo()
+	if station_id == &"core_nightmare_rest":
+		if _cutscene_open or not is_instance_valid(_story_cutscene):
+			return
+		_cutscene_open = true
+		_walk_hud.set_walking_visible(false)
+		_update_player_walk_state()
+		_story_cutscene.call(&"play_cutscene", &"resonance_core_nightmare", {
+			"act": "ACT II — ASTERIA-1 // THURA'S BUNK",
+			"clock": "AFTER THE CORE ARRIVES // REST CYCLE",
+			"title": "THE FOUR-PULSE DREAM",
+			"large_artwork": true,
+			"slides": [
+				{
+					"speaker": "THURA'S DREAM // BELOW EREBOS",
+					"image": "res://art/storyboards/resonance_core_recovery/scene_06_horror_reveal.png",
+					"fade_in_seconds": 2.8,
+					"typing_speed": 18.0,
+					"auto_advance_seconds": 2.0,
+					"text": "The lab hum follows Thura into sleep. He is back beneath Erebos, standing before the core. A figure moves inside its glowing surface, wearing his reflection like a face.",
+				},
+				{
+					"blackout": true,
+					"hold_seconds": 3.0,
+				},
+				{
+					"speaker": "ASTERIA-1 // THURA WAKES",
+					"typing_speed": 20.0,
+					"text": "Thura jolts awake in his bunk. The room is quiet, but the four-pulse rhythm still beats behind his eyes. From the lab, the containment tank answers with one faint flash of blue.",
+				},
+			],
+		})
 		return
 
 	if _cutscene_open or _piloting_console_open or not is_instance_valid(_story_cutscene):
@@ -2850,29 +2940,59 @@ func _trigger_story_station(station_id: StringName) -> void:
 	_story_cutscene.call(&"play_cutscene", station_id, cutscene_data)
 
 
-func _store_resonance_core_in_cargo() -> void:
-	Engine.set_meta(&"resonance_ore_core_stored", true)
-	Engine.set_meta(&"resonance_ore_chamber_pressure", 1.02)
-	var is_pristine := bool(Engine.get_meta(&"resonance_ore_core_pristine", true))
-	var core_item: StringName = &"resonance_ore_core" if is_pristine else &"resonance_ore_core_fractured"
-	if is_instance_valid(_walk_hud):
-		_walk_hud.consume_item(core_item)
-		_walk_hud.set_task_completed(&"cargo_core_containment", true)
-		_walk_hud.add_task_entry({
-			"id": &"amara_core_debrief_task",
-			"title": "Debrief with Dr. Okoye in Hydroponics",
-			"marker_label": "DR. OKOYE",
-			"room_name": "Hydroponics Lab",
-			"action_hint": "Find Dr. Okoye and report the core's mass and harmonic spectrum.",
-			"purpose": "Confirm the Erebos extraction directive was fulfilled successfully.",
-			"milestone_reward": &"",
-			"position": Vector2(250.0, 720.0),
-			"marker_position": Vector2(250.0, 680.0),
-		})
-		_walk_hud.show_objective_toast("CONTAINMENT SECURED", "Mass: 84.2 kg · Hermetic seal locked at 1.02 atm", true)
-	_room_task_feedback = "CORE STORED IN CARGO CRADLE  //  REPORT FINDINGS TO DR. OKOYE"
-	_room_task_feedback_timer = 5.0
-	_save_persistent_story_state()
+func _core_nightmare_rest_task_entry() -> Dictionary:
+	var bunk := get_node_or_null("CrewLivingQuarterProps/StackedCapsuleUnit") as Node2D
+	var bunk_position := bunk.global_position if is_instance_valid(bunk) else Vector2(910.0, 360.0)
+	return {
+		"id": &"core_nightmare_rest",
+		"title": "Rest in Thura's bunk",
+		"marker_label": "THURA'S BUNK",
+		"room_name": "Crew Living Quarters",
+		"action_hint": "Amara asked Thura to rest until the headache passes. Lie down in his bunk.",
+		"purpose": "The resonance from the core is affecting Thura. A short rest may help.",
+		"milestone_reward": &"",
+		"position": bunk_position,
+		"marker_position": bunk_position + Vector2(0.0, -34.0),
+	}
+
+
+func _play_resonance_core_hauler_cutscene() -> void:
+	if not is_instance_valid(_story_cutscene) or not is_instance_valid(_walk_hud):
+		return
+	_cutscene_open = true
+	_walk_hud.set_walking_visible(false)
+	_update_player_walk_state()
+	_story_cutscene.call(&"play_cutscene", &"resonance_core_hauler_delivery", {
+		"act": "ACT II — EREBOS // RECOVERY",
+		"clock": "SITE K-12 TO ASTERIA-1 // SURFACE HAUL",
+		"title": "TOO HEAVY TO CARRY",
+		"large_artwork": true,
+		"slides": [
+			{
+				"speaker": "AMARA // RECOVERY CHANNEL",
+				"text": "Amara dispatches the powered hauler. Its hydraulic clamp grips the enormous core while Thura keeps clear of the rig. The load is far beyond what a suited person could carry.",
+			},
+			{
+				"speaker": "SURFACE RECOVERY // SITE K-12",
+				"image": "res://art/storyboards/resonance_core_recovery/scene_07_hauler_recovery.png",
+				"fade_in_seconds": 1.6,
+				"typing_speed": 24.0,
+				"auto_advance_seconds": 1.2,
+				"text": "The hauler lifts the core out of the bore and carries it across the Erebos flats. Its four-pulse signal continues through the sealed transport cradle.",
+			},
+			{
+				"blackout": true,
+				"hold_seconds": 1.8,
+			},
+			{
+				"speaker": "ASTERIA-1 // HYDROPONICS LAB",
+				"image": "res://art/storyboards/resonance_core_recovery/scene_08_core_in_lab.png",
+				"fade_in_seconds": 1.8,
+				"typing_speed": 24.0,
+				"text": "The crew seats the oversized core inside the lab's horizontal containment tank. Amara locks the chamber and begins monitoring its pulse.",
+			},
+		],
+	})
 
 
 func _build_cutscene_data(station_id: StringName) -> Dictionary:
@@ -3110,6 +3230,40 @@ func _on_story_cutscene_finished(cutscene_id: StringName, choice_id: StringName)
 			exterior_airlock.set("is_locked", false)
 		_walk_hud.play_radio_transmission("COMMANDER MAYA CHEN // SHIPWIDE", "Exterior airlock unlocked. Remember: stay within telemetry range of the extraction rig.")
 		_room_task_feedback = "TOUCHDOWN CONFIRMED ON EREBOS (SITE K-12)  //  EXTERIOR AIRLOCK UNLOCKED FOR SURFACE OPERATIONS"
+		_room_task_feedback_timer = 6.0
+		_save_persistent_story_state()
+	elif cutscene_id == &"resonance_core_hauler_delivery":
+		Engine.set_meta(&"resonance_ore_core_stored", true)
+		Engine.set_meta(&"resonance_ore_chamber_pressure", 1.02)
+		var tank_sprite := get_node_or_null("LabRoom/OreContainment/SampleContainment") as Sprite2D
+		if is_instance_valid(tank_sprite):
+			_load_sprite_png(tank_sprite, "res://art/planet/modern_ore_containment_stored.png")
+			tank_sprite.modulate = Color.WHITE
+			var placement_tween := create_tween()
+			placement_tween.tween_property(tank_sprite, "scale", Vector2(0.94, 0.94), 0.01)
+			placement_tween.tween_property(tank_sprite, "scale", Vector2.ONE, 0.5).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		_walk_hud.set_task_completed(&"cargo_core_containment", true)
+		_walk_hud.add_task_entry({
+			"id": &"amara_core_debrief_task",
+			"title": "Talk with Amara about the contained core",
+			"marker_label": "DR. OKOYE",
+			"room_name": "Hydroponics Lab",
+			"action_hint": "Meet Dr. Okoye beside the containment tank and review the core's readings.",
+			"purpose": "The core's repeating signal may explain what Thura saw in the drill feed.",
+			"milestone_reward": &"",
+			"position": amara.global_position if is_instance_valid(amara) else Vector2(250.0, 720.0),
+			"marker_position": (amara.global_position + Vector2(0.0, -44.0)) if is_instance_valid(amara) else Vector2(250.0, 676.0),
+		})
+		_walk_hud.show_objective_toast("CORE DELIVERED", "Amara secured the oversized resonance core in the lab containment tank.", true)
+		_room_task_feedback = "CORE IN THE LAB TANK  //  SPEAK WITH AMARA ABOUT ITS SIGNAL"
+		_room_task_feedback_timer = 5.0
+		_save_persistent_story_state()
+	elif cutscene_id == &"resonance_core_nightmare":
+		Engine.set_meta(&"resonance_core_nightmare_complete", true)
+		_completed_story_stations[&"core_nightmare_rest"] = true
+		_walk_hud.set_task_completed(&"core_nightmare_rest", true)
+		_walk_hud.show_objective_toast("THURA WAKES", "The headache has eased, but the four-pulse rhythm remains in his mind.", true)
+		_room_task_feedback = "THURA WOKE FROM THE NIGHTMARE  //  THE CORE'S SIGNAL IS STILL THERE"
 		_room_task_feedback_timer = 6.0
 		_save_persistent_story_state()
 	elif cutscene_id == &"commanders_secret_bridge":

@@ -15,7 +15,8 @@ const RED := Color(1.0, 0.35, 0.28)
 const GOLD := Color(1.0, 0.78, 0.38)
 const PANEL := Color(0.015, 0.032, 0.042, 0.98)
 const PANEL_INNER := Color(0.008, 0.018, 0.025, 0.95)
-
+const DRILL_CUTAWAY_TEXTURE := preload("res://art/planet/erebos_drill_cutaway.png")
+const RESONANCE_CORE_TEXTURE := preload("res://art/planet/resonance_ore_intact.png")
 const TARGET_FREQUENCY: float = 432.0
 const FREQUENCY_TOLERANCE: float = 18.0
 const TARGET_DEPTH_METERS: float = 58.0
@@ -61,10 +62,11 @@ class OscilloscopeScreen extends Control:
 
 		# 4-Pulse Status Header
 		var font := ThemeDB.fallback_font
-		draw_string(font, Vector2(10.0, 18.0), "HARMONIC SENSOR TRACE", HORIZONTAL_ALIGNMENT_LEFT, -1.0, 10, MUTED)
+		var compact := size.x < 240.0
+		draw_string(font, Vector2(8.0, 18.0), "SIGNAL" if compact else "HARMONIC SENSOR TRACE", HORIZONTAL_ALIGNMENT_LEFT, -1.0, 8 if compact else 10, MUTED)
 
 		for p in range(4):
-			var led_x := size.x - 110.0 + float(p) * 26.0
+			var led_x := size.x - (96.0 if compact else 110.0) + float(p) * (21.0 if compact else 26.0)
 			var led_y := 12.0
 			var led_active: bool = in_harmonic_lock and (pulse_count > p)
 			var led_color := GREEN if led_active else Color(0.18, 0.26, 0.28)
@@ -129,9 +131,152 @@ class OscilloscopeScreen extends Control:
 
 		# Screen footer readout
 		var lock_pct := int(roundf(lock_strength * 100.0))
-		var status_str := "LOCK: %d%%  [HARMONIC SYNC]" % lock_pct if in_harmonic_lock else "LOCK: 0%  [OFF-RESONANCE  ·  ADJUST FREQUENCY]"
+		var status_str := ("LOCK %d%%" % lock_pct if in_harmonic_lock else "SEEK 432 HZ") if compact else ("LOCK: %d%%  [HARMONIC SYNC]" % lock_pct if in_harmonic_lock else "LOCK: 0%  [OFF-RESONANCE  ·  ADJUST FREQUENCY]")
 		var col_status := GREEN if in_harmonic_lock else (GOLD if drill_rpm > 0.0 else MUTED)
-		draw_string(font, Vector2(10.0, size.y - 10.0), status_str, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 11, col_status)
+		draw_string(font, Vector2(8.0, size.y - 8.0), status_str, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 8 if compact else 11, col_status)
+
+
+# Side-view mining cutaway with an arcade-style status HUD.
+class MiningActionPreview extends Control:
+	var is_drilling: bool = false
+	var in_harmonic_lock: bool = false
+	var is_venting: bool = false
+	var breaker_tripped: bool = false
+	var drill_rpm: float = 0.0
+	var heat: float = 12.0
+	var depth_m: float = 0.0
+	var core_integrity: float = 100.0
+	var mission_elapsed: float = 0.0
+	var pulse_count: int = 0
+	var core_exposed: bool = false
+	var time_accum: float = 0.0
+
+	func _process(delta: float) -> void:
+		time_accum += delta
+		queue_redraw()
+
+	func _draw() -> void:
+		var bounds := Rect2(Vector2.ZERO, size)
+		var depth_ratio := clampf(depth_m / TARGET_DEPTH_METERS, 0.0, 1.0)
+		var field_size := DRILL_CUTAWAY_TEXTURE.get_size()
+		var crop_width := minf(float(field_size.x), float(field_size.y) * size.x / size.y) * 0.94
+		var crop_height := crop_width * size.y / size.x
+		var max_scroll := maxf(0.0, float(field_size.y) - crop_height)
+		var field_scroll := max_scroll * depth_ratio
+		var field_source := Rect2((float(field_size.x) - crop_width) * 0.5, field_scroll, crop_width, crop_height)
+		draw_texture_rect_region(DRILL_CUTAWAY_TEXTURE, bounds, field_source, Color.WHITE, false, true)
+
+		# Side cutaway: the bore is created only as the drill advances from the surface.
+		var surface_y := size.y * 0.255
+		var rig_x := size.x * 0.695
+		var bore_bottom := size.y - 34.0
+		var drill_y := lerpf(surface_y + 13.0, bore_bottom - 18.0, depth_ratio)
+		if is_drilling and not breaker_tripped:
+			drill_y += sin(time_accum * 13.0) * 1.2
+		var bore_top := surface_y - 2.0
+		var bore_height := maxf(1.0, drill_y - bore_top + 13.0)
+		# Freshly cut bore walls and a narrow dark void around the drill string.
+		draw_rect(Rect2(rig_x - 4.5, bore_top, 9.0, bore_height), Color(0.035, 0.030, 0.028), true)
+		draw_rect(Rect2(rig_x - 3.5, bore_top, 1.0, bore_height), Color(0.54, 0.34, 0.22, 0.8), true)
+		draw_rect(Rect2(rig_x + 2.5, bore_top, 1.0, bore_height), Color(0.42, 0.27, 0.20, 0.8), true)
+		# Drill string lowers into the bore in connected armored sections.
+		var rod_top := surface_y - 10.0
+		var rod_bottom := drill_y - 14.0
+		var rod_length := maxf(1.0, rod_bottom - rod_top)
+		draw_rect(Rect2(rig_x - 2.0, rod_top, 4.0, rod_length), Color(0.09, 0.20, 0.25), true)
+		draw_rect(Rect2(rig_x - 1.2, rod_top, 1.3, rod_length), Color(0.31, 0.63, 0.69), true)
+		draw_rect(Rect2(rig_x + 0.8, rod_top, 0.7, rod_length), Color(0.67, 0.78, 0.73), true)
+		for joint_index in range(int(rod_length / 17.0) + 1):
+			var joint_y := rod_top + float(joint_index) * 17.0
+			if joint_y < rod_bottom:
+				draw_rect(Rect2(rig_x - 3.2, joint_y, 6.4, 2.5), Color(0.58, 0.69, 0.67), true)
+				draw_line(Vector2(rig_x - 2.5, joint_y + 1.0), Vector2(rig_x + 2.5, joint_y + 1.0), Color(0.08, 0.15, 0.17), 1.0)
+		# Heavy cutting head, rotating cutter face, and debris at the bore tip.
+		var bit_color := GREEN if in_harmonic_lock else (RED if breaker_tripped else GOLD)
+		var bit_center := Vector2(rig_x, drill_y)
+		draw_rect(Rect2(rig_x - 4.5, drill_y - 7.0, 9.0, 6.0), Color(0.10, 0.15, 0.17), true)
+		draw_rect(Rect2(rig_x - 3.5, drill_y - 6.0, 7.0, 3.0), Color(0.42, 0.52, 0.51), true)
+		draw_rect(Rect2(rig_x - 5.5, drill_y - 3.0, 11.0, 3.0), Color(0.20, 0.27, 0.27), true)
+		draw_line(Vector2(rig_x - 4.0, drill_y - 2.0), Vector2(rig_x + 4.0, drill_y - 2.0), Color(0.69, 0.73, 0.66), 1.0)
+		draw_colored_polygon(PackedVector2Array([Vector2(rig_x - 5.0, drill_y), Vector2(rig_x + 5.0, drill_y), Vector2(rig_x + 3.5, drill_y + 4.0), Vector2(rig_x, drill_y + 6.0), Vector2(rig_x - 3.5, drill_y + 4.0)]), Color(0.32, 0.38, 0.35))
+		var cutter_angle := time_accum * (drill_rpm * 0.30 if is_drilling and not breaker_tripped else 0.0)
+		draw_circle(bit_center + Vector2(0.0, 5.0), 3.4, Color(0.08, 0.11, 0.12))
+		draw_circle(bit_center + Vector2(0.0, 5.0), 2.0, Color(0.43, 0.50, 0.48))
+		draw_circle(bit_center + Vector2(0.0, 5.0), 1.0, bit_color)
+		for tooth in range(6):
+			var tooth_angle := cutter_angle + float(tooth) * TAU / 6.0
+			var tooth_direction := Vector2(cos(tooth_angle), sin(tooth_angle))
+			var cutter_origin := bit_center + Vector2(0.0, 5.0)
+			draw_line(cutter_origin + tooth_direction * 1.8, cutter_origin + tooth_direction * 4.0, bit_color, 1.0)
+		# Rock chips spray out from the rotating bit; coolant creates a cold vapor plume.
+		if is_drilling and not breaker_tripped:
+			for chip in range(6):
+				var chip_phase := fposmod(time_accum * 2.8 + float(chip) / 6.0, 1.0)
+				var chip_angle := PI + float(chip) * PI / 5.0
+				var chip_pos := bit_center + Vector2(cos(chip_angle), sin(chip_angle)) * (3.0 + chip_phase * 6.0)
+				var chip_color := Color(0.32, 0.88, 0.97) if in_harmonic_lock else Color(0.95, 0.58, 0.29)
+				draw_circle(chip_pos, 1.2 + float(chip % 2), Color(chip_color.r, chip_color.g, chip_color.b, 1.0 - chip_phase * 0.7))
+		if is_venting:
+			for puff in range(5):
+				var puff_phase := fposmod(time_accum * 1.5 + float(puff) * 0.2, 1.0)
+				var puff_pos := bit_center + Vector2(sin(time_accum + float(puff)) * 11.0, -puff_phase * 24.0 - 5.0)
+				draw_circle(puff_pos, 2.0 + puff_phase * 3.0, Color(0.46, 0.88, 0.96, 0.45 * (1.0 - puff_phase)))
+		if breaker_tripped and fposmod(time_accum, 0.5) < 0.25:
+			draw_circle(bit_center, 12.0, Color(1.0, 0.13, 0.07, 0.15))
+			draw_arc(bit_center, 12.0, 0.0, TAU, 32, RED, 1.5, true)
+
+		# Reveal the mission's resonance core near the end of the bore.
+		var core_reveal := clampf((depth_ratio - 0.72) / 0.28, 0.0, 1.0)
+		var core_pos := Vector2(rig_x + 31.0, bore_bottom - 32.0)
+		var core_pulse := 0.5 + 0.5 * sin(time_accum * 2.6)
+		var core_size := Vector2(32.0, 38.0).lerp(Vector2(50.0, 58.0), core_reveal)
+		if core_exposed:
+			core_pos += Vector2(14.0, -20.0 + sin(time_accum * 2.0) * 2.0)
+		# A faint locator appears early; its glow and reticle strengthen as the bit nears the target.
+		var marker_alpha := 0.12 + core_reveal * 0.45
+		var marker_radius := core_size.x * 0.65 + core_pulse * 4.0
+		draw_circle(core_pos, marker_radius, Color(0.12, 0.72, 0.96, marker_alpha * 0.35))
+		draw_arc(core_pos, marker_radius + 4.0, time_accum * 0.5, time_accum * 0.5 + TAU * 0.82, 40, Color(0.40, 0.89, 1.0, marker_alpha), 1.3, true)
+		draw_line(core_pos + Vector2(-marker_radius - 5.0, 0.0), core_pos + Vector2(-marker_radius + 1.0, 0.0), Color(0.55, 0.91, 1.0, marker_alpha), 1.2)
+		draw_line(core_pos + Vector2(marker_radius - 1.0, 0.0), core_pos + Vector2(marker_radius + 5.0, 0.0), Color(0.55, 0.91, 1.0, marker_alpha), 1.2)
+		if core_reveal > 0.0:
+			var core_rect := Rect2(core_pos - core_size * 0.5, core_size)
+			draw_texture_rect(RESONANCE_CORE_TEXTURE, core_rect, false, Color(1.0, 1.0, 1.0, core_reveal))
+		if core_reveal > 0.2 or core_exposed:
+			var target_box := Rect2(Vector2(core_pos.x + 21.0, core_pos.y - core_size.y * 0.5 - 20.0), Vector2(84.0, 17.0))
+			draw_rect(target_box, Color(0.015, 0.035, 0.043, 0.9), true)
+			draw_rect(target_box, Color(0.25, 0.73, 0.82, 0.75), false, 1.0)
+			draw_string(ThemeDB.fallback_font, target_box.position + Vector2(4.0, 12.0), "CORE SECURED" if core_exposed else "TARGET  /  58 m", HORIZONTAL_ALIGNMENT_LEFT, -1.0, 8, CYAN)
+		if core_exposed:
+			for sparkle in range(6):
+				var sparkle_angle := time_accum * 1.8 + float(sparkle) * TAU / 6.0
+				var sparkle_pos := core_pos + Vector2(cos(sparkle_angle), sin(sparkle_angle)) * (core_size.x * 0.6)
+				draw_circle(sparkle_pos, 1.5 + core_pulse, Color(0.62, 0.95, 1.0, 0.85))
+
+		var font := ThemeDB.fallback_font
+		# Arcade HUD overlay, inspired by the reference layout.
+		draw_rect(Rect2(Vector2(7.0, 7.0), Vector2(139.0, 83.0)), Color(0.025, 0.018, 0.014, 0.80), true)
+		_draw_hud_bar("DEPTH", depth_m / TARGET_DEPTH_METERS, CYAN, Rect2(13.0, 24.0, 126.0, 17.0))
+		_draw_hud_bar("CORE", core_integrity / 100.0, GREEN if core_integrity >= 45.0 else RED, Rect2(13.0, 45.0, 126.0, 17.0))
+		_draw_hud_bar("HEAT", heat / 100.0, RED if heat >= 70.0 else ORANGE, Rect2(13.0, 66.0, 126.0, 17.0))
+		var timer_text := "%02d:%02d" % [int(mission_elapsed / 60.0), int(mission_elapsed) % 60]
+		draw_rect(Rect2(Vector2(size.x * 0.5 - 29.0, 7.0), Vector2(58.0, 20.0)), Color(0.025, 0.018, 0.014, 0.82), true)
+		draw_string(font, Vector2(size.x * 0.5 - 20.0, 21.0), timer_text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 10, PALE)
+		draw_rect(Rect2(Vector2(size.x - 103.0, 7.0), Vector2(96.0, 20.0)), Color(0.025, 0.018, 0.014, 0.82), true)
+		draw_string(font, Vector2(size.x - 97.0, 21.0), "432 Hz  /  %d-4" % pulse_count, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 9, GOLD if in_harmonic_lock else PALE)
+		var status := "BREAKER TRIPPED" if breaker_tripped else ("RESONANCE CORE SECURED" if core_exposed else ("VENTING COOLANT" if is_venting else ("HARMONIC LOCK" if in_harmonic_lock else ("OFF-RESONANCE" if is_drilling else "RIG STANDBY"))))
+		var status_color := RED if breaker_tripped else (CYAN if core_exposed or is_venting else (GREEN if in_harmonic_lock else (ORANGE if is_drilling else MUTED)))
+		draw_rect(Rect2(0.0, size.y - 20.0, size.x, 20.0), Color(0.025, 0.018, 0.014, 0.84), true)
+		draw_string(font, Vector2(8.0, size.y - 6.0), "%s   /   %.1f m DEEP" % [status, depth_m], HORIZONTAL_ALIGNMENT_LEFT, -1.0, 9, status_color)
+		draw_rect(bounds, Color(0.18, 0.32, 0.36, 0.85), false, 1.0)
+
+	func _draw_hud_bar(label: String, value: float, color: Color, rect: Rect2) -> void:
+		draw_string(ThemeDB.fallback_font, Vector2(rect.position.x, rect.position.y + 8.0), label, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 7, PALE)
+		var bar := Rect2(rect.position.x + 39.0, rect.position.y, rect.size.x - 39.0, 9.0)
+		draw_rect(bar, Color(0.02, 0.02, 0.02, 0.9), true)
+		draw_rect(Rect2(bar.position, Vector2(bar.size.x * clampf(value, 0.0, 1.0), bar.size.y)), color, true)
+		draw_rect(bar, Color(0.70, 0.68, 0.59, 0.75), false, 1.0)
+		draw_string(ThemeDB.fallback_font, Vector2(bar.position.x + bar.size.x - 23.0, rect.position.y + 8.0), "%d%%" % int(roundf(value * 100.0)), HORIZONTAL_ALIGNMENT_RIGHT, 22.0, 7, PALE)
 
 
 # Main Console State
@@ -140,6 +285,7 @@ var _test_only: bool = false
 var _bypass_installed: bool = false
 var _is_drilling: bool = false
 var _completed: bool = false
+var _extraction_succeeded: bool = false
 
 var _current_freq: float = 380.0
 var _drill_rpm: float = 0.0
@@ -147,6 +293,7 @@ var _depth_m: float = 0.0
 var _thermal_heat: float = 12.0
 var _core_integrity: float = 100.0
 var _venting_coolant: bool = false
+var _mining_elapsed: float = 0.0
 
 var _is_breaker_tripped: bool = false
 var _breaker_timer: float = 0.0
@@ -155,6 +302,7 @@ var _pulse_index: int = 0
 
 # UI Controls
 var _oscilloscope: OscilloscopeScreen
+var _mining_preview: MiningActionPreview
 var _freq_slider: HSlider
 var _freq_label: Label
 var _rpm_slider: HSlider
@@ -182,6 +330,8 @@ var _pulse_audio_phase: float = 0.0
 
 func open(site: Dictionary) -> void:
 	_site = site.duplicate(true)
+	_mining_elapsed = 0.0
+	_extraction_succeeded = false
 	# Check if player unlocked/equipped harmonic bypass coupler
 	_bypass_installed = Engine.has_meta(&"harmonic_bypass_coupler_unlocked") or bool(_site.get("bypass_active", false))
 	_test_only = bool(_site.get("test_only", false)) and not _bypass_installed
@@ -204,6 +354,8 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _process(delta: float) -> void:
+	if _is_drilling:
+		_mining_elapsed += delta
 	# Breaker recovery
 	if _is_breaker_tripped:
 		_breaker_timer -= delta
@@ -214,6 +366,7 @@ func _process(delta: float) -> void:
 			_status_label.text = "BREAKER RESET  /  READY TO ENGAGE"
 			_status_label.add_theme_color_override("font_color", GREEN)
 		_update_ui_meters()
+		_sync_mining_preview()
 		_fill_audio_buffer()
 		return
 
@@ -231,6 +384,7 @@ func _process(delta: float) -> void:
 		if not _venting_coolant:
 			_thermal_heat = maxf(12.0, _thermal_heat - delta * 6.0)
 		_update_ui_meters()
+		_sync_mining_preview()
 		_fill_audio_buffer()
 		return
 
@@ -249,6 +403,7 @@ func _process(delta: float) -> void:
 			_close_button.text = "CLOSE REPORT"
 			machine_test_failed.emit(StringName(_site.get("id", &"")))
 		_update_ui_meters()
+		_sync_mining_preview()
 		_fill_audio_buffer()
 		return
 
@@ -298,10 +453,12 @@ func _process(delta: float) -> void:
 		_oscilloscope.lock_strength = lock_strength
 		_oscilloscope.pulse_count = _pulse_index
 		_oscilloscope.is_breaker_tripped = false
+	_sync_mining_preview(in_lock)
 
 	# Check depth completion
 	if _depth_m >= TARGET_DEPTH_METERS and not _completed:
 		_completed = true
+		_extraction_succeeded = true
 		_is_drilling = false
 		_drill_rpm = 0.0
 		var is_pristine := _core_integrity >= 70.0
@@ -332,6 +489,23 @@ func _trip_breaker() -> void:
 		_oscilloscope.is_breaker_tripped = true
 		_oscilloscope.drill_rpm = 0.0
 		_oscilloscope.in_harmonic_lock = false
+	_sync_mining_preview()
+
+
+func _sync_mining_preview(in_lock: bool = false) -> void:
+	if not is_instance_valid(_mining_preview):
+		return
+	_mining_preview.is_drilling = _is_drilling
+	_mining_preview.in_harmonic_lock = in_lock
+	_mining_preview.is_venting = _venting_coolant
+	_mining_preview.breaker_tripped = _is_breaker_tripped
+	_mining_preview.drill_rpm = _drill_rpm
+	_mining_preview.heat = _thermal_heat
+	_mining_preview.depth_m = _depth_m
+	_mining_preview.core_integrity = _core_integrity
+	_mining_preview.mission_elapsed = _mining_elapsed
+	_mining_preview.pulse_count = _pulse_index
+	_mining_preview.core_exposed = _extraction_succeeded
 
 
 func _update_ui_meters() -> void:
@@ -428,21 +602,29 @@ func _build_interface() -> void:
 	rule.color = Color(0.18, 0.38, 0.44)
 	root_vbox.add_child(rule)
 
-	# Main Body: Split into Left (Oscilloscope) and Right (Gauges)
+	# Main Body: Mining field at left, mission telemetry at right.
 	var body_hbox := HBoxContainer.new()
 	body_hbox.add_theme_constant_override("separation", 20)
 	root_vbox.add_child(body_hbox)
 
-	# Left Column: Oscilloscope
-	var left_vbox := VBoxContainer.new()
-	left_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	left_vbox.add_theme_constant_override("separation", 8)
-	body_hbox.add_child(left_vbox)
-
+	# Side-view drill cutaway with a compact harmonic monitor overlay.
+	var drill_viewport := Control.new()
+	drill_viewport.custom_minimum_size = Vector2(460.0, 260.0)
+	drill_viewport.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	drill_viewport.clip_contents = true
+	body_hbox.add_child(drill_viewport)
+	_mining_preview = MiningActionPreview.new()
+	_mining_preview.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	drill_viewport.add_child(_mining_preview)
 	_oscilloscope = OscilloscopeScreen.new()
-	_oscilloscope.custom_minimum_size = Vector2(460.0, 230.0)
-	_oscilloscope.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	left_vbox.add_child(_oscilloscope)
+	_oscilloscope.custom_minimum_size = Vector2(152.0, 70.0)
+	_oscilloscope.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
+	_oscilloscope.offset_left = 8.0
+	_oscilloscope.offset_top = -78.0
+	_oscilloscope.offset_right = 160.0
+	_oscilloscope.offset_bottom = -8.0
+	_oscilloscope.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	drill_viewport.add_child(_oscilloscope)
 
 	# Right Column: Telemetry Gauges
 	var right_vbox := VBoxContainer.new()
